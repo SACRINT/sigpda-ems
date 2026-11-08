@@ -48,7 +48,10 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-import { cascadeBlockMaterials } from '@/lib/guide-engine/cascade-block-materials';
+import {
+  cascadeBlockMaterials,
+  formatPlanDeClaseMarkdown,
+} from '@/lib/guide-engine/cascade-block-materials';
 import { GET as GET_PDF_EXTRA } from '@/app/api/pdf/extra/[extraId]/route';
 import { GET as GET_DOCX_EXTRA } from '@/app/api/docx/extra/[extraId]/route';
 import { POST as POST_PDF_BULK } from '@/app/api/pdf/extra/bulk/route';
@@ -522,6 +525,137 @@ describe('Fase R1 — Integración en Cascada y Gate HTTP 422 en Descargas', () 
     expect(result.review?.byMaterial.lesson_plan.ok).toBe(true);
   });
 
+  it('P0-2 residual: no borra visuales persistidos cuando el Visual Engine no resuelve ninguno', async () => {
+    const wb = buildValidWorkbook(6);
+    // El Visual Engine no resuelve ningún recurso (p. ej. Openverse caído o sin assets)
+    mockResolveVisualForMission.mockResolvedValue(null);
+    mockSql.mockResolvedValue([]);
+
+    const result = await cascadeBlockMaterials('plan-1', 0, wb, 'teacher-1');
+    expect(result.success).toBe(true);
+    expect(result.omitted).not.toContain('visual_asset');
+
+    const calls = mockSql.mock.calls;
+    const deletes = calls
+      .filter((c) => String(c[0] || '').includes('DELETE FROM planning_extras'))
+      .map((c) => ({ query: String(c[0] || ''), params: c.slice(1) }));
+
+    // Debe limpiar únicamente el material didáctico no-visual
+    expect(deletes.some((d) => d.query.includes("title NOT LIKE '[Visual]%'"))).toBe(true);
+
+    // Nunca debe borrar la subtrama visual ni incluir 'material' en el DELETE por ANY(...)
+    for (const d of deletes) {
+      expect(d.query.includes("title LIKE '[Visual]%'")).toBe(false);
+      const deletesMaterialViaAny = d.query.includes('ANY(')
+        && d.params.some((p) => Array.isArray(p) && p.includes('material'));
+      expect(deletesMaterialViaAny).toBe(false);
+    }
+
+    // El didáctico sí se reinserta; no se insertan visuales porque no hubo resolución
+    const inserts = calls
+      .filter((c) => String(c[0] || '').includes('INSERT INTO planning_extras'))
+      .map((c) => ({ query: String(c[0] || ''), params: c.slice(1) }));
+    expect(
+      inserts.some(
+        (i) =>
+          i.params.includes('material') &&
+          i.params.some((p) => typeof p === 'string' && p.includes('Materiales Didácticos'))
+      )
+    ).toBe(true);
+    expect(
+      inserts.some((i) => i.params.some((p) => typeof p === 'string' && p.startsWith('[Visual]')))
+    ).toBe(false);
+  });
+
+  it('P0-2 residual: reemplaza solo la misión con visual válido y preserva las demás', async () => {
+    const wb = buildValidWorkbook(6);
+    mockResolveVisualForMission.mockImplementation((options: { missionIndex: number }) =>
+      options.missionIndex === 1
+        ? Promise.resolve({
+            type: 'vector_svg',
+            svg: '<svg><text>Misión 1</text></svg>',
+            annotations: [],
+            caption: 'Recurso de la misión 1',
+          })
+        : Promise.resolve(null)
+    );
+    mockSql.mockResolvedValue([]);
+
+    const result = await cascadeBlockMaterials('plan-1', 0, wb, 'teacher-1');
+    expect(result.success).toBe(true);
+    expect(result.omitted).not.toContain('visual_asset');
+
+    const calls = mockSql.mock.calls;
+    const deletes = calls
+      .filter((c) => String(c[0] || '').includes('DELETE FROM planning_extras'))
+      .map((c) => ({ query: String(c[0] || ''), params: c.slice(1) }));
+
+    const visualDeletes = deletes.filter((d) => d.query.includes('AND title LIKE'));
+    expect(visualDeletes).toHaveLength(1);
+    expect(visualDeletes[0].params).toContain('[Visual] Recurso Gráfico Misión 1:%');
+
+    for (const d of deletes) {
+      expect(d.query.includes("title LIKE '[Visual]%'")).toBe(false);
+      if (d.query.includes('ANY(')) {
+        expect(d.params.some((p) => Array.isArray(p) && p.includes('material'))).toBe(false);
+      }
+    }
+
+    const inserts = calls
+      .filter((c) => String(c[0] || '').includes('INSERT INTO planning_extras'))
+      .map((c) => ({ params: c.slice(1) }));
+    const visualInserts = inserts.filter((i) =>
+      i.params.some((p) => typeof p === 'string' && p.startsWith('[Visual]'))
+    );
+    expect(visualInserts).toHaveLength(1);
+  });
+
+  it('S7: un plan de clase completo serializado por la cascada no se marca truncado', () => {
+    const wb = buildValidWorkbook(6);
+    const extracted = extractMaterialsFromWorkbook(wb);
+    const plan = extracted.planesDeClase[0];
+    const markdown = formatPlanDeClaseMarkdown(plan, wb);
+
+    const report = reviewBlockMaterials({
+      workbook: wb,
+      extracted,
+      persistedExtras: [
+        {
+          type: 'lesson_plan',
+          title: `Plan de Clase: Sesión ${plan.numeroSesion} · ${plan.tituloSesion}`,
+          key_index: 0,
+          content_text: markdown,
+        },
+      ],
+      checkFullBlockPersistence: false,
+    });
+
+    expect(report.byMaterial.lesson_plan.ok).toBe(true);
+    expect(report.errors.some((e) => e.code === 'S7_TRUNCATED_MATERIAL')).toBe(false);
+  });
+
+  it('P0-2: ejecuta la persistencia en una transacción cuando el driver la expone', async () => {
+    const wb = buildValidWorkbook(6);
+    const txn = vi.fn((strings: TemplateStringsArray) => {
+      void strings;
+      return Promise.resolve([]);
+    });
+    const transaction = vi.fn(async (build: (exec: typeof txn) => Promise<unknown>[]) => {
+      await Promise.all(build(txn));
+    });
+    (mockSql as unknown as { transaction?: typeof transaction }).transaction = transaction;
+
+    try {
+      mockSql.mockResolvedValue([]);
+      const result = await cascadeBlockMaterials('plan-1', 0, wb, 'teacher-1');
+      expect(result.success).toBe(true);
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(txn).toHaveBeenCalled();
+    } finally {
+      delete (mockSql as unknown as { transaction?: typeof transaction }).transaction;
+    }
+  });
+
   it('Gate 422 en /api/pdf/extra/[extraId] y /api/docx/extra/[extraId] cuando el material tiene errores estructurales', async () => {
     const wb = buildValidWorkbook(6);
     wb.evaluationSection!.rubric[0].weightPercent = 15; // Suma 75% -> error S4
@@ -681,6 +815,7 @@ describe('Fase R1 — Integración en Cascada y Gate HTTP 422 en Descargas', () 
     const postQueries = mockSql.mock.calls.map((c) => String(c[0] || ''));
     expect(postQueries.some((q) => q.includes('DELETE FROM planning_extras'))).toBe(false);
     expect(postQueries.some((q) => q.includes('INSERT INTO planning_extras'))).toBe(false);
+    expect(postQueries.some((q) => q.includes('UPDATE plannings'))).toBe(false);
   });
 
   it('P1-1: aplica el mismo adaptador disciplinar S8 en generación y descarga cuando component define la disciplina', async () => {

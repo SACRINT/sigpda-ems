@@ -210,6 +210,44 @@ function serializePlanContent(plan: PlanDeClaseDerivado): string {
     .join('\n');
 }
 
+/**
+ * Mide la cobertura de campos pedagógicos del plan fresco dentro del texto
+ * persistido. Es independiente del serializador (Markdown institucional vs
+ * serialización canónica) y detecta truncamientos moderados que una simple
+ * comparación de longitudes entre serializadores distintos no vería.
+ */
+function computeLessonPlanFieldCoverage(
+  persistedText: string,
+  freshPlan: PlanDeClaseDerivado
+): { coverage: number; missing: string[] } {
+  const normalizedCorpus = normalizeForMatch(persistedText);
+  const fields: Array<{ label: string; value: string | undefined }> = [
+    { label: 'tituloSesion', value: freshPlan.tituloSesion },
+    { label: 'proposito', value: freshPlan.propositoFormativo || freshPlan.propósitoOMeta },
+    { label: 'transversalidad', value: freshPlan.transversalidad },
+    { label: 'aperturaDocente', value: freshPlan.apertura?.actividadDocente },
+    { label: 'aperturaEstudiante', value: freshPlan.apertura?.actividadEstudiante },
+    { label: 'saberesPrevios', value: freshPlan.apertura?.saberesPrevios },
+    { label: 'desarrolloDocente', value: freshPlan.desarrollo?.actividadDocente },
+    { label: 'desarrolloEstudiante', value: freshPlan.desarrollo?.actividadEstudiante },
+    { label: 'metodologiaActiva', value: freshPlan.desarrollo?.metodologiaActiva },
+    { label: 'recursosDidacticos', value: freshPlan.desarrollo?.recursosDidacticos },
+    { label: 'cierreDocente', value: freshPlan.cierre?.actividadDocente },
+    { label: 'cierreEstudiante', value: freshPlan.cierre?.actividadEstudiante },
+    { label: 'productoEsperado', value: freshPlan.cierre?.productoEsperado },
+    { label: 'metacognicion', value: freshPlan.cierre?.metacognicion },
+  ];
+
+  const relevant = fields.filter((field) => (field.value || '').trim().length >= 12);
+  if (relevant.length === 0) return { coverage: 1, missing: [] };
+
+  const missing = relevant
+    .filter((field) => !corpusContainsStatement(normalizedCorpus, field.value || ''))
+    .map((field) => field.label);
+
+  return { coverage: (relevant.length - missing.length) / relevant.length, missing };
+}
+
 function hasRequiredPlanFields(plan: PlanDeClaseDerivado): boolean {
   return Boolean(
     plan.tituloSesion?.trim() &&
@@ -733,8 +771,8 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
       student_guide: extracted.guiaDelBloque || '',
     };
 
-    const freshLessonPlanBySession = new Map<number, string>(
-      (extracted.planesDeClase || []).map((p) => [p.numeroSesion, serializePlanContent(p)])
+    const freshLessonPlanBySession = new Map<number, PlanDeClaseDerivado>(
+      (extracted.planesDeClase || []).map((p) => [p.numeroSesion, p])
     );
 
     const countByMaterial = new Map<MaterialType, number>();
@@ -805,20 +843,39 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
           rawText.slice(0, 240).match(/Sesi[oó]n\s+(\d+)/i);
         const sessionNum = sessionMatch ? parseInt(sessionMatch[1], 10) : NaN;
         if (Number.isInteger(sessionNum) && freshLessonPlanBySession.has(sessionNum)) {
-          const freshPlanText = freshLessonPlanBySession.get(sessionNum)!;
+          const freshPlan = freshLessonPlanBySession.get(sessionNum)!;
           const normPersisted = normalizeForMatch(rawText);
-          const normFresh = normalizeForMatch(freshPlanText);
-          if (
+          const normFresh = normalizeForMatch(serializePlanContent(freshPlan));
+          const { coverage, missing } = computeLessonPlanFieldCoverage(rawText, freshPlan);
+
+          const hasApertura = /fase de apertura|\bapertura\b/i.test(rawText);
+          const hasDesarrollo = /fase de desarrollo|\bdesarrollo\b/i.test(rawText);
+          const hasCierre = /fase de cierre|\bcierre\b/i.test(rawText);
+          const hasEvaluacion = /evaluaci[oó]n|producto esperado/i.test(rawText);
+          const hasEssentialPhases = hasApertura && hasDesarrollo && hasCierre && hasEvaluacion;
+
+          const severelyShort =
             normPersisted.length > 0 &&
             normFresh.length > 0 &&
-            normPersisted.length < normFresh.length * 0.9
-          ) {
+            normPersisted.length < normFresh.length * 0.6;
+
+          const isTruncated = !hasEssentialPhases || severelyShort || coverage < 0.5;
+
+          if (isTruncated) {
             pushIssue({
               code: 'S7_TRUNCATED_MATERIAL',
               material: 'lesson_plan',
               session: sessionNum,
               severity: 'error',
-              message: `El Plan de Clase persistido de la sesión ${sessionNum} ("${extra.title || 'Plan de Clase'}") está truncado respecto a la extracción canónica del libro (${normPersisted.length} vs ${normFresh.length} caracteres normalizados).`,
+              message: `El Plan de Clase persistido de la sesión ${sessionNum} ("${extra.title || 'Plan de Clase'}") está truncado respecto a la extracción canónica del libro (cobertura de campos ${(coverage * 100).toFixed(0)}%${missing.length > 0 ? `; faltan: ${missing.join(', ')}` : ''}; fases pedagógicas completas: ${hasEssentialPhases ? 'sí' : 'no'}).`,
+            });
+          } else if (coverage < 0.8) {
+            pushIssue({
+              code: 'W0_LESSON_PLAN_FIELD_DIVERGENCE',
+              material: 'lesson_plan',
+              session: sessionNum,
+              severity: 'warning',
+              message: `El Plan de Clase persistido de la sesión ${sessionNum} ("${extra.title || 'Plan de Clase'}") presenta divergencia de redacción respecto a la extracción fresca (cobertura ${(coverage * 100).toFixed(0)}%${missing.length > 0 ? `; campos con redacción alternativa: ${missing.join(', ')}` : ''}), pero conserva estructura y extensión completa.`,
             });
           }
         } else {

@@ -117,6 +117,7 @@ async function handleBulkPdf(request: NextRequest) {
       const isFullSuite = !type && (!extraIds || extraIds.length === 0);
 
       const extrasByBlock = new Map<number, typeof extras>();
+      let unresolvedBlockExtras = 0;
       for (const item of extras) {
         const rawIdx =
           blockIndex !== null && !isNaN(blockIndex)
@@ -130,11 +131,21 @@ async function handleBulkPdf(request: NextRequest) {
           const group = extrasByBlock.get(cIdx) || [];
           group.push(item);
           extrasByBlock.set(cIdx, group);
+        } else {
+          unresolvedBlockExtras++;
         }
       }
 
       const accumulatedErrors: ReviewIssue[] = [];
       const accumulatedWarnings: ReviewIssue[] = [];
+      if (unresolvedBlockExtras > 0) {
+        accumulatedWarnings.push({
+          code: 'W0_UNRESOLVED_BLOCK',
+          material: 'lesson_plan',
+          severity: 'warning',
+          message: `${unresolvedBlockExtras} extra(s) sin bloque canónico resoluble quedaron fuera del gate R1; se generaron sin validación de truncamiento.`,
+        });
+      }
 
       for (const [bIdx, blockExtras] of extrasByBlock.entries()) {
         const groupPlanId = blockExtras[0]?.planning_id || resolvedPlanId;

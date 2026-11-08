@@ -9,6 +9,7 @@
  * 3. Habilita visualización y descarga inmediata en las pestañas de Planes y Rúbricas.
  */
 
+import type { NeonQueryFunction } from '@neondatabase/serverless';
 import { sql, WorkerLeaseLostError } from '@/lib/db';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
@@ -21,12 +22,45 @@ import {
   reviewBlockMaterials,
   type MaterialReviewReport,
   type MaterialType,
+  type ReviewIssue,
 } from './material-review';
+import {
+  buildMaterialPersistencePlan,
+  cleanSessionTitle,
+  collectOmittedFromReview,
+  type ValidVisualEntry,
+} from './material-persistence-plan';
 import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
 import { resolveVisualForMission } from '@/lib/visual-engine/visual-asset-manager';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
 import { logger } from '@/lib/logger';
+
+export { cleanSessionTitle } from './material-persistence-plan';
+
+type QueryFn = (strings: TemplateStringsArray, ...params: unknown[]) => Promise<unknown>;
+type QueryPromise = ReturnType<QueryFn>;
+
+/**
+ * Ejecuta el plan de persistencia como una transacción no interactiva por bloque.
+ * Si el cliente no expone `transaction` (mocks o drivers antiguos), ejecuta
+ * secuencialmente para no romper la compatibilidad.
+ */
+async function executePersistencePlan(
+  db: NeonQueryFunction<false, false>,
+  build: (exec: QueryFn) => QueryPromise[]
+): Promise<void> {
+  const transactional = db as unknown as {
+    transaction?: (fn: (exec: QueryFn) => QueryPromise[]) => Promise<unknown>;
+  };
+  if (typeof transactional.transaction === 'function') {
+    await transactional.transaction(build);
+    return;
+  }
+  for (const query of build(db as unknown as QueryFn)) {
+    await query;
+  }
+}
 
 export interface CascadeResult {
   success: boolean;
@@ -43,13 +77,6 @@ export interface PlanEvaluationSummary {
   heteroevaluacion: string;
   autoevaluacionCoevaluacion: string;
   ponderacion: string;
-}
-
-export function cleanSessionTitle(title: string, sessionNumber: number): string {
-  const raw = (title || '').trim();
-  const prefix = `Sesión ${sessionNumber}`;
-  if (!raw.toLowerCase().startsWith(prefix.toLowerCase())) return raw;
-  return raw.substring(prefix.length).replace(/^\s*[:\-–—]\s*/, '').trim();
 }
 
 /**
@@ -374,38 +401,29 @@ export async function cascadeBlockMaterials(
     const resolvedComponent = options?.component || dbComponent || '';
     const resolvedCurriculumName = options?.curriculumName || dbCurriculumName || '';
 
-    // 1. Sincronizar canónicamente plannings.sequence_json desde el libro activo (Fuente Única de Verdad)
+    // 1. Sincronizar canónicamente sequence_json en memoria; la escritura se difiere
+    //    a la transacción final para que un gate 422 no mute la planeación.
+    let syncedBlockSeq: SecuenciaBloque | null = null;
     try {
-      const syncedBlockSeq = buildBlockSequenceFromWorkbook(
-        workbook,
-        blockIndex,
-        blockTitle
-      );
-      if (syncedBlockSeq && syncedBlockSeq.sessions.length > 0) {
-        blockSequence = syncedBlockSeq;
-        await assertLeaseValid('sequence_json');
-        await db`
-          UPDATE plannings
-          SET sequence_json = jsonb_set(
-            COALESCE(sequence_json, '{}'::jsonb),
-            ARRAY[${String(blockIndex)}],
-            ${JSON.stringify(syncedBlockSeq)}::jsonb,
-            true
-          ),
-          updated_at = NOW()
-          WHERE id = ${planningId}::uuid
-        `;
+      const candidateSeq = buildBlockSequenceFromWorkbook(workbook, blockIndex, blockTitle);
+      if (candidateSeq && candidateSeq.sessions.length > 0) {
+        syncedBlockSeq = candidateSeq;
+        blockSequence = candidateSeq;
       }
     } catch (seqSyncErr) {
       if (seqSyncErr instanceof WorkerLeaseLostError) throw seqSyncErr;
-      logger.warn(`[cascadeBlockMaterials] Advertencia al sincronizar sequence_json del bloque ${blockIndex}:`, seqSyncErr);
+      syncedBlockSeq = null;
+      logger.warn(
+        `[cascadeBlockMaterials] Advertencia al sincronizar sequence_json del bloque ${blockIndex}:`,
+        seqSyncErr
+      );
     }
 
-    // 2. Extraer materiales determinísticamente del Libro de Bloque inyectando la secuencia didáctica sincronizada
+    // 2. Extraer materiales determinísticamente con la secuencia sincronizada en memoria
     const extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
     const planes = extracted.planesDeClase || [];
 
-    // 2.1 Ejecutar Revisor Determinista R1 antes de persistir para omitir materiales defectuosos
+    // 2.1 Revisión estructural R1 (sin visuales persistidos todavía)
     const review = reviewBlockMaterials({
       workbook,
       blockSequence,
@@ -416,22 +434,28 @@ export async function cascadeBlockMaterials(
       curriculumName: resolvedCurriculumName,
       careerOrProgramName: options?.careerOrProgramName,
     });
-    const omitted: MaterialType[] = [];
+    const structuralOmitted = collectOmittedFromReview(review);
 
-    const rubricContent = extracted.rubricaEvaluacion || extracted.instrumentosEvaluacion || '';
-    const checklistContent = extracted.listaCotejo || '';
+    // 2.2 Gate fail-closed estructural ANTES de resolver visuales y de cualquier mutación
+    if (options?.failOnAnyError && !review.ok) {
+      const endTime = performance.now();
+      return {
+        success: false,
+        blockIndex,
+        planesCount: 0,
+        extrasInserted: 0,
+        executionTimeMs: Math.round((endTime - startTime) * 100) / 100,
+        review,
+        omitted: structuralOmitted,
+        error: 'Material bloqueado por inconsistencia estructural',
+      };
+    }
 
-    if (!review.byMaterial.lesson_plan.ok) omitted.push('lesson_plan');
-    if (!review.byMaterial.rubric.ok) omitted.push('rubric');
-    if (!review.byMaterial.checklist.ok) omitted.push('checklist');
-    if (!review.byMaterial.didactic_material.ok) omitted.push('didactic_material');
-    if (!review.byMaterial.recovery_cards.ok) omitted.push('recovery_cards');
-    if (!review.byMaterial.answer_key.ok) omitted.push('answer_key');
-
-    // 2.2 Pre-resolver y validar Recursos Gráficos Determinísticos (Visual Engine) antes de mutar BD
+    // 2.3 Pre-resolver y validar Recursos Gráficos Determinísticos (Visual Engine)
     const subjectName = resolvedUacName;
     const usedAssetIds = new Set<string>();
-    const validVisualEntries: Array<{ title: string; payload: string }> = [];
+    const validVisuals: ValidVisualEntry[] = [];
+    const omittedVisualMissions: number[] = [];
     for (let mIdx = 0; mIdx < (workbook.missions || []).length; mIdx++) {
       const mission = workbook.missions[mIdx];
       const contextText = `${mission.conceptZero?.physicalAnalogy || ''} ${mission.conceptZero?.coreExplanation || ''}`;
@@ -445,124 +469,153 @@ export async function cascadeBlockMaterials(
         preferOpenverseMedia: true,
         usedAssetIds,
       });
-      if (resolved) {
-        const visualTitle = `[Visual] Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
-        const visualPayload = JSON.stringify({
-          type: resolved.type,
-          svg: resolved.svg,
-          annotations: resolved.annotations || [],
-          mediaAsset: resolved.mediaAsset,
-          caption: resolved.caption,
-          slug: resolved.materialSlug,
-          altText: resolved.materialAltText,
-          materialPngPath: resolved.materialPngPath,
-          missionNumber: mIdx + 1,
-          missionTitle: mission.title,
-          subjectName,
-        });
+      if (!resolved) continue;
 
-        const isMaterialPng = resolved.type === 'material_png';
-        const hasValidVisualContent = Boolean(
-          resolved.type &&
-            (isMaterialPng
-              ? Boolean(resolved.materialPngPath || resolved.materialSlug)
-              : (typeof resolved.svg === 'string' && resolved.svg.trim().length > 0) ||
-                (typeof resolved.mediaAsset?.imageUrl === 'string' &&
-                  resolved.mediaAsset.imageUrl.trim().length > 0)) &&
-            !/\bundefined\b|\$\{[^}]*\}/i.test(visualPayload)
-        );
+      const visualTitle = `[Visual] Recurso Gráfico Misión ${mIdx + 1}: ${mission.title}`;
+      const visualPayload = JSON.stringify({
+        type: resolved.type,
+        svg: resolved.svg,
+        annotations: resolved.annotations || [],
+        mediaAsset: resolved.mediaAsset,
+        caption: resolved.caption,
+        slug: resolved.materialSlug,
+        altText: resolved.materialAltText,
+        materialPngPath: resolved.materialPngPath,
+        missionNumber: mIdx + 1,
+        missionTitle: mission.title,
+        subjectName,
+      });
 
-        if (hasValidVisualContent) {
-          validVisualEntries.push({ title: visualTitle, payload: visualPayload });
-        } else if (!omitted.includes('visual_asset')) {
-          omitted.push('visual_asset');
-        }
+      const isMaterialPng = resolved.type === 'material_png';
+      const hasValidVisualContent = Boolean(
+        resolved.type &&
+          (isMaterialPng
+            ? Boolean(resolved.materialPngPath || resolved.materialSlug)
+            : (typeof resolved.svg === 'string' && resolved.svg.trim().length > 0) ||
+              (typeof resolved.mediaAsset?.imageUrl === 'string' &&
+                resolved.mediaAsset.imageUrl.trim().length > 0)) &&
+          !/\bundefined\b|\$\{[^}]*\}/i.test(visualPayload)
+      );
+
+      if (hasValidVisualContent) {
+        validVisuals.push({ missionNumber: mIdx + 1, title: visualTitle, payload: visualPayload });
+      } else {
+        omittedVisualMissions.push(mIdx + 1);
       }
     }
 
-    // 2.3 Si failOnAnyError está activo (ej. POST /materiales-bloque), abortar sin tocar planning_extras
-    if (options?.failOnAnyError && (!review.ok || omitted.length > 0)) {
+    // 2.4 Gate fail-closed visual. Los activos de imagen viven en image_assets,
+    //     no en planning_extras; no se muta ningún material del bloque.
+    if (options?.failOnAnyError && omittedVisualMissions.length > 0) {
+      const visualIssue: ReviewIssue = {
+        code: 'S6_CORRUPT_VISUAL_ASSET',
+        material: 'visual_asset',
+        severity: 'error',
+        message: `Las misiones ${omittedVisualMissions.join(', ')} no produjeron un recurso gráfico válido; el bloque se bloquea para no persistir visuales defectuosos.`,
+      };
+      const reviewWithVisualErrors: MaterialReviewReport = {
+        ...review,
+        ok: false,
+        issues: [...review.issues, visualIssue],
+        errors: [...review.errors, visualIssue],
+        byMaterial: {
+          ...review.byMaterial,
+          visual_asset: {
+            ok: false,
+            issues: [...review.byMaterial.visual_asset.issues, visualIssue],
+          },
+        },
+      };
+      const omitted: MaterialType[] = [...structuralOmitted];
+      if (!omitted.includes('visual_asset')) omitted.push('visual_asset');
       const endTime = performance.now();
-      const executionTimeMs = Math.round((endTime - startTime) * 100) / 100;
       return {
         success: false,
         blockIndex,
         planesCount: 0,
         extrasInserted: 0,
-        executionTimeMs,
-        review,
+        executionTimeMs: Math.round((endTime - startTime) * 100) / 100,
+        review: reviewWithVisualErrors,
         omitted,
         error: 'Material bloqueado por inconsistencia estructural',
       };
     }
 
-    // 3. Limpiar selectivamente solo los tipos que tienen contenido válido y se van a reinsertar
-    // (Nunca borrar un tipo de material que no se vaya a reinsertar)
-    await assertLeaseValid('DELETE planning_extras');
-
-    const shouldPersistLessonPlans = review.byMaterial.lesson_plan.ok && planes.length > 0;
-    const shouldPersistRubric = Boolean(rubricContent) && review.byMaterial.rubric.ok;
-    const shouldPersistChecklist = Boolean(checklistContent) && review.byMaterial.checklist.ok;
-    const shouldPersistDidacticMaterial =
-      Boolean(extracted.materialDidactico) && review.byMaterial.didactic_material.ok;
-    const shouldPersistVisuals =
-      validVisualEntries.length > 0 && !omitted.includes('visual_asset');
-    const shouldPersistPracticeGuide =
-      Boolean(extracted.fichasTrabajo) && review.byMaterial.recovery_cards.ok;
-    const shouldPersistTeacherGuide =
-      Boolean(extracted.solucionarioDocente) && review.byMaterial.answer_key.ok;
-
-    const typesToPersist: string[] = [];
-    if (shouldPersistLessonPlans) typesToPersist.push('lesson_plan');
-    if (shouldPersistRubric) typesToPersist.push('rubric');
-    if (shouldPersistChecklist) typesToPersist.push('checklist');
-    if (shouldPersistDidacticMaterial && shouldPersistVisuals) {
-      typesToPersist.push('material');
-    } else if (shouldPersistDidacticMaterial && validVisualEntries.length === 0 && !omitted.includes('visual_asset')) {
-      typesToPersist.push('material');
-    }
-    if (shouldPersistPracticeGuide) typesToPersist.push('practice_guide');
-    if (shouldPersistTeacherGuide) typesToPersist.push('teacher_guide');
-
-    if (typesToPersist.length > 0) {
-      await db`
-        DELETE FROM planning_extras
-        WHERE planning_id = ${planningId}::uuid
-          AND key_index = ${blockIndex}
-          AND type = ANY(${typesToPersist}::text[])
-      `;
+    // 2.5 Construir el plan de persistencia con invariantes de no destrucción
+    const rubricContent = extracted.rubricaEvaluacion || extracted.instrumentosEvaluacion || '';
+    const checklistContent = extracted.listaCotejo || '';
+    const planMarkdownBySession = new Map<number, string>();
+    for (const plan of planes) {
+      planMarkdownBySession.set(
+        plan.numeroSesion,
+        formatPlanDeClaseMarkdown(plan, workbook, evaluationSummary)
+      );
     }
 
-    if (shouldPersistDidacticMaterial && !typesToPersist.includes('material')) {
-      await db`
-        DELETE FROM planning_extras
-        WHERE planning_id = ${planningId}::uuid
-          AND key_index = ${blockIndex}
-          AND type = 'material'
-          AND title NOT LIKE '[Visual]%'
-      `;
-    } else if (shouldPersistVisuals && !typesToPersist.includes('material')) {
-      await db`
-        DELETE FROM planning_extras
-        WHERE planning_id = ${planningId}::uuid
-          AND key_index = ${blockIndex}
-          AND type = 'material'
-          AND title LIKE '[Visual]%'
-      `;
-    }
+    const persistencePlan = buildMaterialPersistencePlan({
+      review,
+      extracted,
+      plans: planes,
+      blockNum,
+      blockTitle,
+      rubricContent,
+      checklistContent,
+      planMarkdownBySession,
+      validVisuals,
+      omittedVisualMissions,
+    });
 
-    let insertedCount = 0;
+    // 2.6 Persistir el bloque en una transacción no interactiva
+    await assertLeaseValid('persist');
 
-    // 4. Insertar los Planes de Clase individuales (solo si superan la revisión R1)
-    if (shouldPersistLessonPlans) {
-      for (const plan of planes) {
-        const sessionTitle = cleanSessionTitle(plan.tituloSesion, plan.numeroSesion);
-        const planTitle = sessionTitle
-          ? `Plan de Clase: Sesión ${plan.numeroSesion} · ${sessionTitle}`
-          : `Plan de Clase: Sesión ${plan.numeroSesion}`;
-        const planMarkdown = formatPlanDeClaseMarkdown(plan, workbook, evaluationSummary);
+    const buildQueries = (exec: QueryFn): QueryPromise[] => {
+      const queries: QueryPromise[] = [];
 
-        await db`
+      if (syncedBlockSeq) {
+        queries.push(exec`
+          UPDATE plannings
+          SET sequence_json = jsonb_set(
+            COALESCE(sequence_json, '{}'::jsonb),
+            ARRAY[${String(blockIndex)}],
+            ${JSON.stringify(syncedBlockSeq)}::jsonb,
+            true
+          ),
+          updated_at = NOW()
+          WHERE id = ${planningId}::uuid
+        `);
+      }
+
+      for (const deletion of persistencePlan.deletes) {
+        if (deletion.kind === 'types') {
+          queries.push(exec`
+            DELETE FROM planning_extras
+            WHERE planning_id = ${planningId}::uuid
+              AND key_index = ${blockIndex}
+              AND type = ANY(${deletion.types}::text[])
+          `);
+        } else if (deletion.kind === 'material_non_visual') {
+          queries.push(exec`
+            DELETE FROM planning_extras
+            WHERE planning_id = ${planningId}::uuid
+              AND key_index = ${blockIndex}
+              AND type = 'material'
+              AND title NOT LIKE '[Visual]%'
+          `);
+        } else {
+          for (const missionNumber of deletion.missionNumbers) {
+            queries.push(exec`
+              DELETE FROM planning_extras
+              WHERE planning_id = ${planningId}::uuid
+                AND key_index = ${blockIndex}
+                AND type = 'material'
+                AND title LIKE ${`[Visual] Recurso Gráfico Misión ${missionNumber}:%`}
+            `);
+          }
+        }
+      }
+
+      for (const insert of persistencePlan.inserts) {
+        queries.push(exec`
           INSERT INTO planning_extras (
             planning_id,
             type,
@@ -572,153 +625,30 @@ export async function cascadeBlockMaterials(
             created_at
           ) VALUES (
             ${planningId}::uuid,
-            'lesson_plan',
-            ${planTitle},
+            ${insert.extraType},
+            ${insert.title},
             ${blockIndex},
-            ${planMarkdown},
+            ${insert.contentText},
             NOW()
           )
-        `;
-        insertedCount++;
+        `);
       }
-    }
 
-    // 5. Insertar Rúbrica Analítica de Desempeño del Bloque (Contenido estructurado oficial)
-    if (shouldPersistRubric) {
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'rubric',
-          ${`Rúbrica Analítica de Evaluación · Bloque ${blockNum}: ${blockTitle}`},
-          ${blockIndex},
-          ${rubricContent},
-          NOW()
-        )
-      `;
-      insertedCount++;
-    }
+      return queries;
+    };
 
-    // 6. Insertar Lista de Cotejo Formativa del Bloque (Contenido estructurado oficial)
-    if (shouldPersistChecklist) {
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'checklist',
-          ${`Lista de Cotejo Formativa · Bloque ${blockNum}: ${blockTitle}`},
-          ${blockIndex},
-          ${checklistContent},
-          NOW()
-        )
-      `;
-      insertedCount++;
-    }
-
-    // 7. Insertar Materiales Didácticos e Insumos del Docente del Bloque
-    if (shouldPersistDidacticMaterial) {
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'material',
-          ${`Materiales Didácticos e Insumos del Docente · Bloque ${blockNum}: ${blockTitle}`},
-          ${blockIndex},
-          ${extracted.materialDidactico},
-          NOW()
-        )
-      `;
-      insertedCount++;
-    }
-
-    // 8. Insertar Fichas de Trabajo Imprimibles por Sesión
-    if (shouldPersistPracticeGuide) {
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'practice_guide',
-          ${`Fichas de Trabajo Imprimibles · Bloque ${blockNum}: ${blockTitle}`},
-          ${blockIndex},
-          ${extracted.fichasTrabajo},
-          NOW()
-        )
-      `;
-      insertedCount++;
-    }
-
-    // 9. Insertar Solucionario y Guía Pedagógica del Docente (Uso exclusivo docente)
-    if (shouldPersistTeacherGuide) {
-      await db`
-        INSERT INTO planning_extras (
-          planning_id,
-          type,
-          title,
-          key_index,
-          content_text,
-          created_at
-        ) VALUES (
-          ${planningId}::uuid,
-          'teacher_guide',
-          ${`Solucionario y Guía Pedagógica del Docente · Bloque ${blockNum}: ${blockTitle}`},
-          ${blockIndex},
-          ${extracted.solucionarioDocente},
-          NOW()
-        )
-      `;
-      insertedCount++;
-    }
-
-    // 10. Insertar Recursos Gráficos Determinísticos del Bloque (Visual Engine)
-    if (shouldPersistVisuals) {
-      for (const visualEntry of validVisualEntries) {
-        await db`
-          INSERT INTO planning_extras (
-            planning_id,
-            type,
-            title,
-            key_index,
-            content_text,
-            created_at
-          ) VALUES (
-            ${planningId}::uuid,
-            'material',
-            ${visualEntry.title},
-            ${blockIndex},
-            ${visualEntry.payload},
-            NOW()
-          )
-        `;
-        insertedCount++;
-      }
+    const hasPersistenceWork =
+      Boolean(syncedBlockSeq) ||
+      persistencePlan.deletes.length > 0 ||
+      persistencePlan.inserts.length > 0;
+    if (hasPersistenceWork) {
+      await executePersistencePlan(db, buildQueries);
     }
 
     const endTime = performance.now();
     const executionTimeMs = Math.round((endTime - startTime) * 100) / 100;
+    const insertedCount = persistencePlan.inserts.length;
+    const omitted = persistencePlan.omitted;
 
     if (omitted.length > 0) {
       logger.warn(
@@ -726,7 +656,7 @@ export async function cascadeBlockMaterials(
       );
     } else {
       logger.info(
-        `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${planes.length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.` +
+        `[cascadeBlockMaterials] ✅ Bloque ${blockIndex} sincronizado: ${persistencePlan.inserts.filter((i) => i.extraType === 'lesson_plan').length} planes de clase y ${insertedCount} extras en ${executionTimeMs}ms.` +
           (teacherId ? ` (docente: ${teacherId})` : '')
       );
     }
@@ -734,7 +664,7 @@ export async function cascadeBlockMaterials(
     return {
       success: true,
       blockIndex,
-      planesCount: shouldPersistLessonPlans ? planes.length : 0,
+      planesCount: persistencePlan.persistedStreams.includes('lesson_plan') ? planes.length : 0,
       extrasInserted: insertedCount,
       executionTimeMs,
       review,
@@ -756,4 +686,3 @@ export async function cascadeBlockMaterials(
     };
   }
 }
-
