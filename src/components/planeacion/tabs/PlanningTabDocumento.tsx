@@ -8,6 +8,7 @@ import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
+import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
 import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
@@ -721,9 +722,13 @@ export default function PlanningTabDocumento({
                 const isEditing = editingSeqBlock === i;
                 const isExpanded = expandedSeqBlock === i;
                 const wbItem = blockWorkbooks[i];
+                const calibratedBlockSessions: SecuenciaSesion[] =
+                  hasSeq && block.activities.length > 0
+                    ? partitionBlockSessionsByActivities(seq, block.activities).flatMap((slice) => slice.sessions)
+                    : (seq?.sessions || []);
                 const sessionsList: SecuenciaSesion[] = isEditing
-                  ? (editedSessions[i] || seq?.sessions || [])
-                  : (seq?.sessions || []);
+                  ? (editedSessions[i] || calibratedBlockSessions)
+                  : calibratedBlockSessions;
 
                 const aperturaCount = sessionsList.filter(s => s.phase === 'Apertura').length;
                 const desarrolloCount = sessionsList.filter(s => s.phase === 'Desarrollo').length;

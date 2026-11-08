@@ -11,6 +11,7 @@ import { formatearBadgeMetodologia } from '@/lib/catalogo-metodologias';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
+import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
 import type { SecuenciaBloque } from '@/types/planning';
 
 // ── Color palette (MCCEMS institutional) ─────────────────────────────────────────────
@@ -534,7 +535,15 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
 
 function buildSectionV(content: GeneratedPlanningContent): (Paragraph | Table)[] {
   const s = content.sectionV;
-  const evals = s.evaluations;
+  const evals = diversificarInstrumentosEvaluacion(s.evaluations || [], {
+    uacName: content.sectionI?.uacName,
+    componente: content.sectionI?.component,
+    metodologia: content.sectionI?.metodologiaActiva,
+    activities: content.sectionIV?.activities?.map((a) => ({
+      name: a.name,
+      contenidoFormativo: a.contenidoFormativo,
+    })),
+  });
   const c = [Math.floor(CONTENT*0.13), Math.floor(CONTENT*0.13), Math.floor(CONTENT*0.13), Math.floor(CONTENT*0.28), Math.floor(CONTENT*0.19), CONTENT - Math.floor(CONTENT*0.13)*3 - Math.floor(CONTENT*0.28) - Math.floor(CONTENT*0.19)];
 
   const rows: TableRow[] = [

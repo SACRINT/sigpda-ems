@@ -12,6 +12,10 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { SCHOOL_YEAR } from '@/lib/config';
+import {
+  obtenerInstrumentoPorId,
+  sugerirInstrumentoParaEvidencia,
+} from '@/lib/catalogo-instrumentos';
 
 export const SYSTEM_PROMPT_EXTRAS = `
 Eres un asesor pedagógico de Educación Media Superior de la SEP Puebla, experto en la Nueva Escuela Mexicana (NEM) y el Marco Curricular Común de la Educación Media Superior (MCCEMS).
@@ -90,18 +94,36 @@ export const RUBRIC_PROMPT_TEMPLATE = (
   evidence: string,
   instrumentType: string,
   metodologiaActiva?: string
-) => `
-Genera un instrumento de evaluación de tipo: "${instrumentType}" para la siguiente evidencia de logro:
+) => {
+  const instCatalogo =
+    obtenerInstrumentoPorId(instrumentType) ||
+    sugerirInstrumentoParaEvidencia({
+      evidencia: evidence,
+      actividadNombre: activityName,
+      uacName,
+      metodologia: metodologiaActiva,
+    });
+
+  const columnasTexto = instCatalogo.columnasTabla.map((c) => `"${c}"`).join(', ');
+  const dimensionesTexto = instCatalogo.dimensionesBase.map((d) => `"${d}"`).join(', ');
+
+  return `
+Genera un instrumento de evaluación oficial MCCEMS de tipo: "${instrumentType || instCatalogo.nombre}" para la siguiente evidencia de logro:
 UAC/Asignatura: ${uacName}
 Actividad/Contenido: ${activityName}
 Evidencia a Evaluar: ${evidence}
+Instrumento Normativo de Referencia: ${instCatalogo.nombre} (Escala: ${instCatalogo.escalaValoracion})
 ${buildMetodologiaLine(metodologiaActiva)}
 REQUISITOS DEL INSTRUMENTO:
-1. Si el tipo es "Rúbrica analítica", debe presentarse en formato de tabla Markdown con columnas: "Criterio de Evaluación", "Excelente (4)", "Satisfactorio (3)", "Suficiente (2)" e "Insuficiente (1)". Incluye una ponderación para cada criterio (ej: 25% c/u) y una sección de registro de puntaje y firma del docente.
-2. Si el tipo es "Lista de cotejo", debe presentarse en formato de tabla Markdown con columnas: "Criterio de Desempeño", "Cumple (Sí)", "No cumple (No)" y "Observaciones". Organiza los criterios en dimensiones (ej: Contenido Técnico, Presentación, Actitud).
-3. Adapta los criterios de calidad al área técnica de la asignatura (ej: si es electricidad, exige precisión en calibres, aislamiento, herramientas, normatividad NOM-001-SEDE-2012, etc.).
-4. Añade una sección de retroalimentación cualitativa al final para que el docente escriba recomendaciones de mejora continua al estudiante.
+1. ${instCatalogo.instruccionEstructuraMarkdown}
+   - Columnas recomendadas de la tabla Markdown: ${columnasTexto}.
+   - Dimensiones o criterios base sugeridos para esta evidencia: ${dimensionesTexto}.
+2. Si el tipo solicitado es "Rúbrica analítica", presenta la tabla Markdown con columnas: "Criterio de Evaluación", "Excelente (4)", "Satisfactorio (3)", "Suficiente (2)" e "Insuficiente (1)", incluyendo ponderación por criterio y sección de puntaje.
+3. Si el tipo solicitado es "Lista de cotejo", presenta la tabla Markdown con columnas: "Criterio de Desempeño", "Cumple (Sí)", "No cumple (No)" y "Observaciones", organizando los indicadores por dimensiones.
+4. Adapta los criterios de calidad al área disciplinar o técnica de la asignatura (${uacName}) y a la naturaleza exacta del producto o evidencia ("${evidence}").
+5. Añade una sección de retroalimentación cualitativa formativa y firmas al final para recomendaciones de mejora continua al estudiante.
 `;
+};
 
 /**
  * Prompt templates for generating Classroom Materials

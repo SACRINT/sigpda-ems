@@ -83,6 +83,16 @@ function normalizeToDetailedSession(
   };
 }
 
+function isContiguousGroup(group: DetailedSession[]): boolean {
+  if (group.length <= 1) return true;
+  for (let i = 1; i < group.length; i++) {
+    if (group[i].sessionNum !== group[i - 1].sessionNum + 1) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Agrupa sesiones en las 4 misiones oficiales del enfoque Puebla-Finlandia:
  * 1. Misión 1 (foundation): Apertura e intuición pedagógica
@@ -101,14 +111,24 @@ function clusterSessionsIntoMissions(
   let desarrollo = sessions.filter((s) => s.phase === 'Desarrollo');
   let cierre = sessions.filter((s) => s.phase === 'Cierre');
 
-  // Fallback si no vinieron fases explícitas en las sesiones
-  if (apertura.length === 0 && desarrollo.length === 0 && cierre.length === 0) {
+  // Si el bloque contiene múltiples actividades con sus propios ciclos (Apertura -> Desarrollo -> Cierre
+  // repetidos por actividad), las sesiones filtradas por fase no serían contiguas.
+  // Para las 4 misiones secuenciales del Libro de Trabajo, garantizamos rangos estrictamente contiguos.
+  const hasMultipleActivityCycles =
+    !isContiguousGroup(apertura) ||
+    !isContiguousGroup(desarrollo) ||
+    !isContiguousGroup(cierre);
+
+  if (
+    hasMultipleActivityCycles ||
+    (apertura.length === 0 && desarrollo.length === 0 && cierre.length === 0)
+  ) {
     const total = sessions.length;
-    const apCount = Math.max(1, Math.round(total * 0.2));
-    const ciCount = Math.max(1, Math.round(total * 0.2));
+    const apCount = total >= 16 ? 3 : total >= 10 ? 2 : Math.max(1, Math.round(total * 0.2));
+    const ciCount = total >= 16 ? 3 : total >= 10 ? 2 : Math.max(1, Math.round(total * 0.2));
     apertura = sessions.slice(0, apCount);
-    desarrollo = sessions.slice(apCount, total - ciCount);
-    cierre = sessions.slice(total - ciCount);
+    desarrollo = sessions.slice(apCount, Math.max(apCount, total - ciCount));
+    cierre = sessions.slice(Math.max(apCount, total - ciCount));
   } else {
     if (apertura.length === 0 && desarrollo.length > 2) {
       apertura = [desarrollo.shift()!];

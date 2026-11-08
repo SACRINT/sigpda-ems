@@ -9,6 +9,7 @@ import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
 import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
+import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
 
 interface DocumentA4ViewerProps {
   planning: Planning;
@@ -634,7 +635,15 @@ export default function DocumentA4Viewer({
                   <td style={{ color: '#fff', width: '15%' }}>Agente</td>
                   <td style={{ color: '#fff', textAlign: 'center', width: '10%' }}>%</td>
                 </tr>
-                {(s5?.evaluations || []).map((ev, i) => (
+                {diversificarInstrumentosEvaluacion(s5?.evaluations || [], {
+                  uacName: planning.uacName || s1?.uacName,
+                  componente: planning.component || s1?.component,
+                  metodologia: s1?.metodologiaActiva,
+                  activities: s4?.activities?.map((a) => ({
+                    name: a.name,
+                    contenidoFormativo: a.contenidoFormativo,
+                  })),
+                }).map((ev, i) => (
                   <tr key={i}>
                     <td style={{ fontWeight: 600 }}>{ev.moment}</td>
                     <td>{ev.evidence}</td>

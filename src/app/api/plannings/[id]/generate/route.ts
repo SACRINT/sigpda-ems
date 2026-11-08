@@ -24,6 +24,7 @@ import {
 } from '@/lib/planning/progresiones-enforcer';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
+import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
 import { isUpstreamAIError, AI_OUTAGE_USER_MESSAGE } from '@/lib/ai-resilience';
 import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent, FechasCortes } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
@@ -251,6 +252,22 @@ export async function POST(
               planning.semester as number,
               planning.component as string
             );
+
+            // Diversificación contextual determinista del Catálogo Oficial de Instrumentos (Sección V)
+            if (parsedContent.sectionV && Array.isArray(parsedContent.sectionV.evaluations)) {
+              parsedContent.sectionV.evaluations = diversificarInstrumentosEvaluacion(
+                parsedContent.sectionV.evaluations,
+                {
+                  uacName: planning.uac_name || effectiveExtractedData.uacName,
+                  componente: planning.component as string,
+                  metodologia: planning.metodologia_activa || context.metodologiaActiva,
+                  activities: parsedContent.sectionIV?.activities?.map((a: { name?: string; contenidoFormativo?: string }) => ({
+                    name: a.name,
+                    contenidoFormativo: a.contenidoFormativo,
+                  })),
+                }
+              );
+            }
 
             await updatePlanningContent(id, teacher.id, parsedContent);
 

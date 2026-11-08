@@ -11,6 +11,7 @@ import type { SecuenciaBloque, SecuenciaSesion, RetoSituado } from '@/types/plan
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/planeaciones/orchestrator';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
+import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -243,13 +244,24 @@ export async function POST(
         });
 
         const rawSessions = (orchSequence.sessions as SecuenciaSesion[]) || [];
+        const tempBlock: SecuenciaBloque = {
+          blockIndex,
+          blockName: targetBlock.title,
+          hours,
+          sessions: rawSessions,
+        };
+        const calibratedSessions =
+          targetBlock.activities.length > 0
+            ? partitionBlockSessionsByActivities(tempBlock, targetBlock.activities).flatMap((s) => s.sessions)
+            : rawSessions;
+
         const updatedSequence: Record<number, SecuenciaBloque> = {
           ...(plan.sequence_json || {}),
           [blockIndex]: {
             blockIndex,
             blockName: targetBlock.title,
             hours,
-            sessions: rawSessions,
+            sessions: calibratedSessions,
             updatedAt: new Date().toISOString(),
           },
         };
@@ -437,12 +449,25 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       });
     }
 
+    const calibratedAISessions =
+      targetBlock.activities.length > 0
+        ? partitionBlockSessionsByActivities(
+            {
+              blockIndex,
+              blockName: targetBlock.title,
+              hours,
+              sessions: formattedSessions,
+            },
+            targetBlock.activities
+          ).flatMap((s) => s.sessions)
+        : formattedSessions;
+
     const currentSequence: Record<number, SecuenciaBloque> = plan.sequence_json || {};
     const newBlockData: SecuenciaBloque = {
       blockIndex,
       blockName: targetBlock.title,
       hours,
-      sessions: formattedSessions,
+      sessions: calibratedAISessions,
       updatedAt: new Date().toISOString(),
     };
 

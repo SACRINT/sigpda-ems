@@ -9,6 +9,8 @@
 
 import type { KeyActivityPlan, SecuenciaBloque } from '@/types/planning';
 import type { CurricularBlock } from '@/lib/curricular-blocks';
+import { partitionBlockSessionsByActivities, computeActivityPhaseCounts } from '@/lib/planning-session-partitioner';
+import { sugerirInstrumentoParaEvidencia } from '@/lib/catalogo-instrumentos';
 
 export interface DetailedSession {
   sessionNum: number;
@@ -100,23 +102,8 @@ export function generateBlockSessions(
   const sessionsCount = hours; // 1 hora curricular = 1 sesión de 50 min
   const subtopics = extractSubtopics(activity.contenidoFormativo);
 
-  // Determinar número de sesiones por fase
-  let aperturaCount = 1;
-  let cierreCount = 1;
-
-  if (sessionsCount >= 16) {
-    aperturaCount = 3;
-    cierreCount = 3;
-  } else if (sessionsCount >= 10) {
-    aperturaCount = 2;
-    cierreCount = 2;
-  } else if (sessionsCount >= 6) {
-    aperturaCount = 1;
-    cierreCount = 1;
-  } else {
-    aperturaCount = 1;
-    cierreCount = 1;
-  }
+  // Determinar número de sesiones por fase de la actividad
+  const { aperturaCount, cierreCount } = computeActivityPhaseCounts(sessionsCount);
 
 
   const sessions: DetailedSession[] = [];
@@ -290,6 +277,19 @@ export function generateBlockSessions(
       }
     }
 
+    const instSugerido = sugerirInstrumentoParaEvidencia({
+      evidencia: evidence,
+      actividadNombre: activity.name,
+      contenidoFormativo: activity.contenidoFormativo,
+      metodologia: activity.methodology,
+      componente: isLaboral ? 'laboral' : 'fundamental',
+      momento: phase === 'Apertura' ? 'apertura' : phase === 'Cierre' ? 'cierre' : 'desarrollo',
+      indiceRotacion: activityIndex + sNum,
+    });
+    if (!evaluation || evaluation.includes('Lista de cotejo') || evaluation.includes('Rúbrica') || evaluation.includes('evaluación')) {
+      evaluation = instSugerido.nombreCorto;
+    }
+
     sessions.push({
       sessionNum: sNum,
       totalSessions: sessionsCount,
@@ -322,6 +322,38 @@ export function generateCurricularBlockSessions(
   savedSequence?: SecuenciaBloque | null
 ): DetailedSession[] {
   if (savedSequence && Array.isArray(savedSequence.sessions) && savedSequence.sessions.length > 0) {
+    if (block.activities.length > 0) {
+      const slices = partitionBlockSessionsByActivities(savedSequence, block.activities);
+      const totalBlockSessions = savedSequence.sessions.length;
+      const calibratedAll: DetailedSession[] = [];
+
+      slices.forEach((slice) => {
+        const actIndex = block.activityIndices[slice.activityIndex] ?? slice.activityIndex;
+        const actName = block.activities[slice.activityIndex]?.name ?? block.name;
+        slice.sessions.forEach((s) => {
+          calibratedAll.push({
+            sessionNum: s.sessionNum,
+            totalSessions: totalBlockSessions,
+            activityIndex: actIndex,
+            activityName: actName,
+            phase: s.phase,
+            phaseColor: PHASE_STYLES[s.phase] || PHASE_STYLES.Desarrollo,
+            title: s.title,
+            teachingActivity: s.teachingActivity,
+            learningActivity: s.learningActivity,
+            evidence: s.evidence,
+            evaluation: s.evaluation,
+            description: `[Docente]: ${s.teachingActivity} | [Estudiantes]: ${s.learningActivity}`,
+            focus: `Evidencia: ${s.evidence}${s.evaluation ? ` | Instrumento: ${s.evaluation}` : ''}`,
+          });
+        });
+      });
+
+      if (calibratedAll.length > 0) {
+        return calibratedAll;
+      }
+    }
+
     return savedSequence.sessions.map((s) => ({
       sessionNum: s.sessionNum,
       totalSessions: savedSequence.sessions.length,

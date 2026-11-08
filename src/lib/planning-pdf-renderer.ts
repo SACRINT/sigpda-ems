@@ -24,6 +24,7 @@ import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
 import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
+import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
 
 const NAVY: [number, number, number] = [31, 56, 100];       // #1F3864 - Azul Institucional
 const BLUE_MID: [number, number, number] = [46, 116, 181];   // #2E74B5 - Azul Secundario
@@ -623,7 +624,15 @@ export async function generatePlanningPDF(
   });
 
   // ─── Sección V: Evaluación y Ponderaciones (Normalización Determinista 100%) ───
-  const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
+  const normalizedEvaluations = diversificarInstrumentosEvaluacion(
+    normalizeEvaluationPercentages(s5?.evaluations),
+    {
+      uacName: rawUacName,
+      componente: rawComponent,
+      metodologia: s1?.metodologiaActiva,
+      activities: activities.map((a) => ({ name: a.name, contenidoFormativo: a.contenidoFormativo })),
+    }
+  );
   const evalRows = normalizedEvaluations.map((ev) => [
     { content: (ev.moment || 'Formativa').replace(/\bUAC\b/g, isUac ? 'UAC' : 'Asignatura') },
     { content: `${ev.type || 'Formativa'} / ${ev.agent || 'Heteroevaluación'}` },
@@ -1092,7 +1101,15 @@ export async function generateSecuenciaPDF(
   });
 
   // Evaluación, heteroevaluación y ponderación
-  const normalizedEvaluations = normalizeEvaluationPercentages(s5?.evaluations);
+  const normalizedEvaluations = diversificarInstrumentosEvaluacion(
+    normalizeEvaluationPercentages(s5?.evaluations),
+    {
+      uacName: rawUacName,
+      componente: rawComponent,
+      metodologia: s1?.metodologiaActiva,
+      activities: activities.map((a) => ({ name: a.name, contenidoFormativo: a.contenidoFormativo })),
+    }
+  );
   if (normalizedEvaluations.length > 0) {
     const evalRows = normalizedEvaluations.map((ev) => [
       { content: (ev.moment || 'Formativa').replace(/\bUAC\b/g, isUac ? 'UAC' : 'Asignatura') },

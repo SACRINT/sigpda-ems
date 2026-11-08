@@ -4,6 +4,7 @@ import type { RagContext } from '@/lib/rag-curricular';
 import { buildRagContextBlock } from '@/lib/rag-curricular';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import { formatearEstrategiasParaPrompt } from '@/lib/catalogo-estrategias';
+import { formatearCatalogoInstrumentosParaPrompt } from '@/lib/catalogo-instrumentos';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -664,7 +665,12 @@ INSTRUCCIÓN:
 Caracterización y Perfil de los Estudiantes:
 ${context.studentContext || 'Estudiantes de bachillerato con interés en proyectos prácticos y resolución de problemas comunitarios.'}
 
-${metodologiaBlock}${estrategiasBlock}${buildDisciplinaryPromptBlock(
+${metodologiaBlock}${estrategiasBlock}${formatearCatalogoInstrumentosParaPrompt(
+    extractedData.uacName || officialProgram?.uac_name || '',
+    component,
+    context.metodologiaActiva
+  )}
+${buildDisciplinaryPromptBlock(
     extractedData.uacName || officialProgram?.uac_name || '',
     component,
     extractedData.carreraTecnica || officialProgram?.curriculum_name || ''
