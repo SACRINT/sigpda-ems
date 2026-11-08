@@ -191,7 +191,7 @@ describe('Fase 28 — Integración E2E: /api/planeaciones/[id]/materiales-bloque
     expect(data.error).toContain('aún no ha sido generado');
   });
 
-  it('GET 200 OK: ejecuta cascada y retorna materiales derivados incluyendo solucionarioDocente', async () => {
+  it('GET 200 OK: es read-only (no ejecuta cascada) y retorna materiales derivados con revisión R1 on-demand', async () => {
     const req = new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/materiales-bloque?blockIndex=0`);
     const res = await GET(req, { params: Promise.resolve({ id: planningId }) });
 
@@ -202,15 +202,11 @@ describe('Fase 28 — Integración E2E: /api/planeaciones/[id]/materiales-bloque
     expect(data.blockIndex).toBe(0);
     expect(data.planningTitle).toBe('PENSAMIENTO MATEMÁTICO II');
 
-    // Cascada invocada con parámetros correctos
-    expect(mockCascadeBlockMaterials).toHaveBeenCalledWith(
-      planningId,
-      0,
-      expect.any(Object),
-      teacherId
-    );
+    // GET es read-only: NO debe invocar cascadeBlockMaterials
+    expect(mockCascadeBlockMaterials).not.toHaveBeenCalled();
 
-    // Materiales extraídos
+    // Materiales extraídos y revisión R1 presente
+    expect(data.review).toBeDefined();
     expect(data.materials).toBeDefined();
     expect(data.materials.planesDeClase).toBeInstanceOf(Array);
     expect(data.materials.guiaDelBloque).toBeDefined();
@@ -234,7 +230,7 @@ describe('Fase 28 — Integración E2E: /api/planeaciones/[id]/materiales-bloque
     expect(data.success).toBe(true);
   });
 
-  it('POST 200 OK: soporta regeneración idempotente idéntica a GET', async () => {
+  it('POST 200 OK: ejecuta cascada con failOnAnyError: true y retorna materiales derivados', async () => {
     const req = new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/materiales-bloque?blockIndex=0`, {
       method: 'POST',
     });
@@ -245,5 +241,37 @@ describe('Fase 28 — Integración E2E: /api/planeaciones/[id]/materiales-bloque
     expect(data.success).toBe(true);
     expect(data.materials.solucionarioDocente).toBeDefined();
     expect(mockCascadeBlockMaterials).toHaveBeenCalledTimes(1);
+    expect(mockCascadeBlockMaterials).toHaveBeenCalledWith(
+      planningId,
+      0,
+      expect.any(Object),
+      teacherId,
+      expect.objectContaining({
+        uacName: 'PENSAMIENTO MATEMÁTICO II',
+        failOnAnyError: true,
+      })
+    );
+  });
+
+  it('POST 500: cuando cascadeBlockMaterials devuelve { success: false, error: "DB error" } sin review', async () => {
+    mockCascadeBlockMaterials.mockResolvedValueOnce({
+      success: false,
+      blockIndex: 0,
+      planesCount: 0,
+      extrasInserted: 0,
+      executionTimeMs: 5,
+      error: 'DB error',
+    });
+
+    const req = new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/materiales-bloque?blockIndex=0`, {
+      method: 'POST',
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: planningId }) });
+
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.ok).toBe(false);
+    expect(data.success).toBe(false);
+    expect(data.error).toBe('DB error');
   });
 });

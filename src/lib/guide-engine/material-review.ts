@@ -733,6 +733,10 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
       student_guide: extracted.guiaDelBloque || '',
     };
 
+    const freshLessonPlanBySession = new Map<number, string>(
+      (extracted.planesDeClase || []).map((p) => [p.numeroSesion, serializePlanContent(p)])
+    );
+
     const countByMaterial = new Map<MaterialType, number>();
 
     for (const extra of persistedExtras) {
@@ -749,9 +753,12 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
           const hasMediaUrl =
             (typeof mediaAsset?.imageUrl === 'string' && mediaAsset.imageUrl.trim().length > 0) ||
             (typeof mediaAsset?.url === 'string' && mediaAsset.url.trim().length > 0);
+          const hasMaterialPng =
+            (typeof parsed?.slug === 'string' && parsed.slug.trim().length > 0) ||
+            (typeof parsed?.materialPngPath === 'string' && parsed.materialPngPath.trim().length > 0);
           const placeholder = findPlaceholderToken(rawText);
 
-          if (!hasType || (!hasSvg && !hasMediaUrl) || placeholder) {
+          if (!hasType || (!hasSvg && !hasMediaUrl && !hasMaterialPng) || placeholder) {
             pushIssue({
               code: 'S6_CORRUPT_VISUAL_ASSET',
               material: 'visual_asset',
@@ -789,6 +796,39 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
           severity: 'error',
           message: `El documento persistido "${extra.title || mType}" está truncado o por debajo del mínimo (${rawText.trim().length} < ${minFloor} caracteres).`,
         });
+        continue;
+      }
+
+      if (mType === 'lesson_plan') {
+        const sessionMatch =
+          (extra.title || '').match(/Sesi[oó]n\s+(\d+)/i) ||
+          rawText.slice(0, 240).match(/Sesi[oó]n\s+(\d+)/i);
+        const sessionNum = sessionMatch ? parseInt(sessionMatch[1], 10) : NaN;
+        if (Number.isInteger(sessionNum) && freshLessonPlanBySession.has(sessionNum)) {
+          const freshPlanText = freshLessonPlanBySession.get(sessionNum)!;
+          const normPersisted = normalizeForMatch(rawText);
+          const normFresh = normalizeForMatch(freshPlanText);
+          if (
+            normPersisted.length > 0 &&
+            normFresh.length > 0 &&
+            normPersisted.length < normFresh.length * 0.9
+          ) {
+            pushIssue({
+              code: 'S7_TRUNCATED_MATERIAL',
+              material: 'lesson_plan',
+              session: sessionNum,
+              severity: 'error',
+              message: `El Plan de Clase persistido de la sesión ${sessionNum} ("${extra.title || 'Plan de Clase'}") está truncado respecto a la extracción canónica del libro (${normPersisted.length} vs ${normFresh.length} caracteres normalizados).`,
+            });
+          }
+        } else {
+          pushIssue({
+            code: 'W0_UNRESOLVED_LESSON_PLAN_SESSION',
+            material: 'lesson_plan',
+            severity: 'warning',
+            message: `No se pudo resolver el número de sesión de "${extra.title || 'lesson_plan'}" para comparación fresca S7; se aplicó únicamente el piso mínimo de caracteres.`,
+          });
+        }
         continue;
       }
 

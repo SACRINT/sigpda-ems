@@ -135,6 +135,15 @@ export default function PlanningTabMateriales({
     .filter((index) => Number.isFinite(index))
     .sort((a, b) => a - b);
 
+  // Firma estable por versión de libro de bloque para no re-ejecutar R1 durante polling de progreso
+  const blockWorkbooksSignature = Object.entries(blockWorkbooks)
+    .map(([k, item]) => {
+      const wb = item?.workbook;
+      if (!wb) return `${k}:null`;
+      return `${k}:${wb.version ?? 0}:${wb.generatedAt ?? ''}:${wb.totalWords ?? 0}`;
+    })
+    .join('|');
+
   // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens)
   const blockReviews = React.useMemo(() => {
     const map: Record<number, MaterialReviewReport> = {};
@@ -150,7 +159,15 @@ export default function PlanningTabMateriales({
       }
     }
     return map;
-  }, [blockWorkbooks, planning.uacName, planning.component, planning.curriculumName, s1?.uacName, s1?.component]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    blockWorkbooksSignature,
+    planning.uacName,
+    planning.component,
+    planning.curriculumName,
+    s1?.uacName,
+    s1?.component,
+  ]);
 
   if (activeSubTab === 'teacherGuides') {
     return (

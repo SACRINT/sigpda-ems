@@ -196,6 +196,7 @@ export async function processGenerationJob(
     const cascadeResult = await cascadeBlockMaterials(job.planning_id, job.block_index, workbook, job.teacher_id, {
       jobId,
       leaseId,
+      uacName: workbook.coverData?.subjectName || '',
     });
     if (
       !cascadeResult.success ||

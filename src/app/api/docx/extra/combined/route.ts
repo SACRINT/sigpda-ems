@@ -165,6 +165,8 @@ async function handleCombinedDocx(request: NextRequest) {
         checkFullBlockPersistence: false,
         checkLessonPlanCount: cleanType === 'lesson_plan',
         uacName: planning.uac_name,
+        component: planning.component || '',
+        curriculumName: planning.curriculum_name || '',
       });
 
       const scopedIssues = review.byMaterial[mType]?.issues ?? [];

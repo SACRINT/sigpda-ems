@@ -108,48 +108,72 @@ async function handleBulkPdf(request: NextRequest) {
       return new Response('No se encontraron materiales para empaquetar', { status: 404 });
     }
 
-    // Gate determinista R1 fail-closed
+    // Gate determinista R1 fail-closed (agrupado por bloque canónico para soportar extraIds multi-bloque)
     let warningCount = 0;
     const resolvedPlanId = planningId || extras[0]?.planning_id;
-    const rawBlockIdx =
-      blockIndex !== null && !isNaN(blockIndex)
-        ? blockIndex
-        : extras[0]?.key_index ?? null;
-    const canonicalBlockIdx =
-      rawBlockIdx !== null && rawBlockIdx !== undefined
-        ? (resolveBlockNumber(rawBlockIdx) !== null ? resolveBlockNumber(rawBlockIdx)! - 1 : rawBlockIdx)
-        : null;
 
-    if (resolvedPlanId && canonicalBlockIdx !== null && canonicalBlockIdx >= 0) {
-      const workbook = await getBlockWorkbook(resolvedPlanId, canonicalBlockIdx);
-      if (workbook) {
-        const isFullSuite = !type && (!extraIds || extraIds.length === 0);
+    if (resolvedPlanId) {
+      const planningForReview = await getPlanningById(resolvedPlanId, teacher.id).catch(() => null);
+      const isFullSuite = !type && (!extraIds || extraIds.length === 0);
+
+      const extrasByBlock = new Map<number, typeof extras>();
+      for (const item of extras) {
+        const rawIdx =
+          blockIndex !== null && !isNaN(blockIndex)
+            ? blockIndex
+            : item.key_index ?? null;
+        const cIdx =
+          rawIdx !== null && rawIdx !== undefined
+            ? (resolveBlockNumber(rawIdx) !== null ? resolveBlockNumber(rawIdx)! - 1 : rawIdx)
+            : null;
+        if (cIdx !== null && cIdx >= 0) {
+          const group = extrasByBlock.get(cIdx) || [];
+          group.push(item);
+          extrasByBlock.set(cIdx, group);
+        }
+      }
+
+      const accumulatedErrors: ReviewIssue[] = [];
+      const accumulatedWarnings: ReviewIssue[] = [];
+
+      for (const [bIdx, blockExtras] of extrasByBlock.entries()) {
+        const groupPlanId = blockExtras[0]?.planning_id || resolvedPlanId;
+        const workbook = await getBlockWorkbook(groupPlanId, bIdx);
+        if (!workbook) continue;
+
         const review = reviewBlockMaterials({
           workbook,
-          persistedExtras: extras,
+          persistedExtras: blockExtras,
           checkFullBlockPersistence: isFullSuite,
           checkLessonPlanCount: isFullSuite || type === 'lesson_plan',
+          uacName: planningForReview?.uac_name || workbook.coverData?.subjectName || '',
+          component: planningForReview?.component || '',
+          curriculumName: planningForReview?.curriculum_name || '',
         });
+
         const scopedTypes = new Set<MaterialType>(
           type
             ? [mapExtraTypeToMaterialType(type)]
-            : extras.map((e) => mapExtraTypeToMaterialType(e.type, e.content_text, e.title))
+            : blockExtras.map((e) => mapExtraTypeToMaterialType(e.type, e.content_text, e.title))
         );
         const scopedIssues: ReviewIssue[] = review.issues.filter((i) => scopedTypes.has(i.material));
-        const scopedErrors = scopedIssues.filter((i) => i.severity === 'error');
-        const scopedWarnings = scopedIssues.filter((i) => i.severity === 'warning');
-        if (scopedErrors.length > 0) {
-          return NextResponse.json(
-            {
-              ok: false,
-              error: 'Material bloqueado por inconsistencia estructural',
-              issues: scopedErrors,
-            },
-            { status: 422 }
-          );
+        for (const issue of scopedIssues) {
+          if (issue.severity === 'error') accumulatedErrors.push(issue);
+          else accumulatedWarnings.push(issue);
         }
-        warningCount = scopedWarnings.length;
       }
+
+      if (accumulatedErrors.length > 0) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'Material bloqueado por inconsistencia estructural',
+            issues: accumulatedErrors,
+          },
+          { status: 422 }
+        );
+      }
+      warningCount = accumulatedWarnings.length;
     }
 
     const zip = new JSZip();

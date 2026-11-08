@@ -28,7 +28,7 @@ async function handleMaterialesBloque(
     // 1. Verificar existencia y pertenencia de la planeación
     const db = sql();
     const planRows = await db`
-      SELECT id, teacher_id, uac_name
+      SELECT id, teacher_id, uac_name, component, curriculum_name
       FROM plannings
       WHERE id = ${planningId}::uuid
       LIMIT 1
@@ -59,30 +59,58 @@ async function handleMaterialesBloque(
       }, { status: 404 });
     }
 
-    // 3. Cascada automática determinística hacia planning_extras (<15ms, 0 tokens)
+    const uacName = planRows[0].uac_name || workbook.coverData?.subjectName || '';
+    const component = planRows[0].component || '';
+    const curriculumName = planRows[0].curriculum_name || '';
+
+    // 3. Extracción determinística para respuesta y reporte R1
+    const materials = extractMaterialsFromWorkbook(workbook);
+
+    if (request.method === 'GET') {
+      const review = reviewBlockMaterials({
+        workbook,
+        extracted: materials,
+        uacName,
+        component,
+        curriculumName,
+      });
+
+      return NextResponse.json({
+        success: true,
+        blockIndex,
+        planningTitle: planRows[0].uac_name,
+        review,
+        omitted: [],
+        materials,
+      });
+    }
+
+    // 4. POST: Cascada determinística hacia planning_extras con gate previo no destructivo
     const cascadeResult = await cascadeBlockMaterials(
       planningId,
       blockIndex,
       workbook,
-      currentTeacher?.id
+      currentTeacher?.id,
+      {
+        uacName,
+        component,
+        curriculumName,
+        failOnAnyError: true,
+      }
     );
 
-    // 4. Extracción para respuesta y reporte determinista R1
-    const materials = extractMaterialsFromWorkbook(workbook);
     const review =
       cascadeResult?.review ??
       reviewBlockMaterials({
         workbook,
         extracted: materials,
-        uacName: planRows[0].uac_name,
+        uacName,
+        component,
+        curriculumName,
       });
     const omitted = cascadeResult?.omitted ?? [];
 
-    if (
-      request.method === 'POST' &&
-      cascadeResult?.review &&
-      !cascadeResult.review.ok
-    ) {
+    if (cascadeResult?.review && (!cascadeResult.review.ok || omitted.length > 0)) {
       return NextResponse.json(
         {
           ok: false,
@@ -97,6 +125,20 @@ async function handleMaterialesBloque(
           materials,
         },
         { status: 422 }
+      );
+    }
+
+    if (!cascadeResult?.success) {
+      return NextResponse.json(
+        {
+          ok: false,
+          success: false,
+          blockIndex,
+          planningTitle: planRows[0].uac_name,
+          error: cascadeResult?.error || 'No se pudieron persistir los materiales del bloque',
+          cascade: cascadeResult,
+        },
+        { status: 500 }
       );
     }
 

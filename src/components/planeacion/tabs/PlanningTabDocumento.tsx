@@ -9,7 +9,10 @@ import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
-import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
+import {
+  reviewBlockMaterials,
+  type MaterialReviewReport,
+} from '@/lib/guide-engine/material-review';
 import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
@@ -96,7 +99,16 @@ export default function PlanningTabDocumento({
   canEditDocument = false,
   onPlanningUpdated,
 }: PlanningTabDocumentoProps) {
-  const [localContent, setLocalContent] = useState<GeneratedPlanningContent | null>(null);
+  const [localContent, setLocalContent] = useState<GeneratedPlanningContent | null>(
+    (planning?.contentJson as GeneratedPlanningContent) || null
+  );
+
+  React.useEffect(() => {
+    if (planning?.contentJson) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocalContent(planning.contentJson as GeneratedPlanningContent);
+    }
+  }, [planning?.contentJson]);
 
   const content = localContent || (planning?.contentJson as GeneratedPlanningContent | null);
   const curricularBlocks = resolveCurricularBlocks(content);
@@ -106,6 +118,41 @@ export default function PlanningTabDocumento({
   const allBlocksGenerated = (generatedWorkbookCount === totalWorkbookBlocks && totalWorkbookBlocks > 0);
   const isEditorialEngineEnabled = Boolean(editorialEngineEnabled);
   const hasPlanningId = Boolean(planning?.id);
+
+  // Firma estable de versiones de libros generados para evitar re-ejecutar R1 en cada tick de progreso
+  const blockWorkbooksSignature = Object.entries(blockWorkbooks)
+    .map(([k, item]) => {
+      const wb = item?.workbook;
+      if (!wb) return `${k}:null`;
+      return `${k}:${wb.version ?? 0}:${wb.generatedAt ?? ''}:${wb.totalWords ?? 0}`;
+    })
+    .join('|');
+
+  const blockMaterialReviews = React.useMemo(() => {
+    const map: Record<number, MaterialReviewReport> = {};
+    for (const [key, item] of Object.entries(blockWorkbooks)) {
+      const idx = Number(key);
+      if (Number.isFinite(idx) && item?.workbook) {
+        map[idx] = reviewBlockMaterials({
+          workbook: item.workbook,
+          blockSequence: sequenceData?.[idx] ?? null,
+          uacName: planning?.uacName || s1?.uacName || '',
+          component: planning?.component || s1?.component || '',
+          curriculumName: planning?.curriculumName || '',
+        });
+      }
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    blockWorkbooksSignature,
+    sequenceData,
+    planning?.uacName,
+    planning?.component,
+    planning?.curriculumName,
+    s1?.uacName,
+    s1?.component,
+  ]);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
@@ -1006,14 +1053,8 @@ export default function PlanningTabDocumento({
                               </span>
                             )}
 
-                            {wbItem?.workbook && (() => {
-                              const matReview = reviewBlockMaterials({
-                                workbook: wbItem.workbook,
-                                blockSequence: sequenceData?.[i] ?? null,
-                                uacName: planning.uacName || s1?.uacName || '',
-                                component: planning.component || s1?.component || '',
-                                curriculumName: planning.curriculumName || '',
-                              });
+                            {wbItem?.workbook && blockMaterialReviews[i] && (() => {
+                              const matReview = blockMaterialReviews[i];
                               const isClean = matReview.ok && matReview.warnings.length === 0;
                               const isWarn = matReview.ok && matReview.warnings.length > 0;
                               const bg = isClean

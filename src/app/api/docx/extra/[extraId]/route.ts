@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPlanningExtraById, getBlockWorkbook } from '@/lib/db';
+import {
+  getTeacherByEmail,
+  getPlanningById,
+  getPlanningExtraById,
+  getBlockWorkbook,
+} from '@/lib/db';
 import { buildExtraDocx } from '@/lib/docx-helpers';
 import { sanitizeDocFilenameWithBlock } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
@@ -43,13 +48,19 @@ export async function GET(
         : null;
 
     if (extra.planning_id && canonicalBlockIdx !== null && canonicalBlockIdx >= 0) {
-      const workbook = await getBlockWorkbook(extra.planning_id, canonicalBlockIdx);
+      const [workbook, planning] = await Promise.all([
+        getBlockWorkbook(extra.planning_id, canonicalBlockIdx),
+        getPlanningById(extra.planning_id, teacher.id).catch(() => null),
+      ]);
       if (workbook) {
         const mType = mapExtraTypeToMaterialType(extra.type, extra.content_text, extra.title);
         const review = reviewBlockMaterials({
           workbook,
           persistedExtras: [extra],
           checkFullBlockPersistence: false,
+          uacName: planning?.uac_name || workbook.coverData?.subjectName || '',
+          component: planning?.component || '',
+          curriculumName: planning?.curriculum_name || '',
         });
         const scopedIssues: ReviewIssue[] = review.byMaterial[mType]?.issues ?? [];
         const scopedErrors = scopedIssues.filter((i) => i.severity === 'error');

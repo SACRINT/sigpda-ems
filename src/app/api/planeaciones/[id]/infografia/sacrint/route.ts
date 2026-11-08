@@ -59,8 +59,8 @@ export async function GET(
 
     const db = sql();
     const planRows = await db`
-      SELECT id, teacher_id, uac_name,
-             content_json->'sectionI'->>'component' AS component
+      SELECT id, teacher_id, uac_name, curriculum_name,
+             COALESCE(component, content_json->'sectionI'->>'component') AS component
       FROM plannings
       WHERE id = ${planningId}::uuid
       LIMIT 1
@@ -109,6 +109,7 @@ export async function GET(
       infographic: spec,
       uacName: planRows[0].uac_name,
       component: planRows[0].component || '',
+      curriculumName: planRows[0].curriculum_name || '',
     });
     const infoIssues = review.byMaterial.infographic.issues;
     const infoErrors = infoIssues.filter((i) => i.severity === 'error');
