@@ -386,12 +386,31 @@ export async function updateWorkbookProgress(
   }
 
   const blockKey = `block_${blockIndex}`;
-  const patchObj = JSON.stringify({ [blockKey]: progress });
+  // Monotonía atómica: dentro del MISMO job el porcentaje nunca retrocede (p. ej. al reanudar tras un
+  // reencolado). Un job nuevo (otro jobId), un fallo, o la ausencia de jobId reinician el valor, de modo que
+  // un 100 % histórico no contamine una regeneración.
+  const monotonic = Boolean(jobId) && progress.phase !== 'failed';
+  const stateObj = JSON.stringify({ ...progress, ...(jobId ? { jobId } : {}) });
+  const incomingPercent = Number.isFinite(progress.percent) ? progress.percent : 0;
 
   await client`
-    UPDATE plannings
-    SET workbook_progress = COALESCE(workbook_progress, '{}'::jsonb) || ${patchObj}::jsonb
-    WHERE id = ${planningId}::uuid
+    UPDATE plannings p
+    SET workbook_progress = COALESCE(p.workbook_progress, '{}'::jsonb) || jsonb_build_object(
+      ${blockKey}::text,
+      ${stateObj}::jsonb || jsonb_build_object(
+        'percent',
+        CASE
+          WHEN ${monotonic}::boolean
+            AND (p.workbook_progress -> ${blockKey}::text ->> 'jobId') = ${jobId ?? null}::text
+          THEN GREATEST(
+            COALESCE((p.workbook_progress -> ${blockKey}::text ->> 'percent')::numeric, 0),
+            ${incomingPercent}::numeric
+          )
+          ELSE ${incomingPercent}::numeric
+        END
+      )
+    )
+    WHERE p.id = ${planningId}::uuid
   `;
 }
 

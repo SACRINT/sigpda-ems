@@ -141,17 +141,29 @@ export async function processGenerationJob(
   // Presupuesto máximo del orquestador (240s = 270s - 30s) para ensamblar y persistir antes del corte
   const maxBudgetMs = (JOB_MAX_DURATION_SECONDS - 30) * 1000;
 
-  const persistCheckpoint = async (writerOutputs: WriterOutput[]) => {
-    checkpointState = {
-      writerOutputs,
-      attempts: checkpointState.attempts,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveGenerationJobCheckpoint(
-      jobId,
-      checkpointState as unknown as Record<string, unknown>,
-      leaseId
-    );
+  let checkpointQueue = Promise.resolve();
+  const persistCheckpoint = (incomingOutputs: WriterOutput[]): Promise<void> => {
+    const snapshot = [...incomingOutputs];
+    checkpointQueue = checkpointQueue.then(async () => {
+      const mergedByType = new Map<WriterOutput['type'], WriterOutput>();
+      for (const w of checkpointState.writerOutputs) {
+        if (w?.type) mergedByType.set(w.type, w);
+      }
+      for (const w of snapshot) {
+        if (w?.type) mergedByType.set(w.type, w);
+      }
+      checkpointState = {
+        writerOutputs: Array.from(mergedByType.values()),
+        attempts: checkpointState.attempts,
+        updatedAt: new Date().toISOString(),
+      };
+      await saveGenerationJobCheckpoint(
+        jobId,
+        checkpointState as unknown as Record<string, unknown>,
+        leaseId
+      );
+    });
+    return checkpointQueue;
   };
 
   try {
@@ -212,11 +224,12 @@ export async function processGenerationJob(
         updatedAt: new Date().toISOString(),
       };
       try {
+        const resumeProgress = Math.min(65, 25 + nextCheckpoint.writerOutputs.length * 10);
         const requeued = await requeueGenerationJob(
           jobId,
           nextCheckpoint as unknown as Record<string, unknown>,
           leaseId,
-          45
+          resumeProgress
         );
         if (requeued) {
           logger.warn(

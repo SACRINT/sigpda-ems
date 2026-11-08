@@ -45,9 +45,14 @@ import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
 import { validateBlockGuideQuality } from './quality-validator';
 import { expandDeficientSessionPlans } from './session-plan-expansion';
+import * as aiProvider from '@/lib/ai-provider';
+import { createWriterScheduler, resolveWriterConcurrency } from './writer-scheduler';
 import {
   evaluatePlanningContentAlignment,
   extractMissingTerms,
+  extractRequiredCurricularTerms,
+  partitionRequiredTerms,
+  assignTermsToSessions,
   sectionCorpus,
   corpusCoversTerm,
 } from './planning-content-alignment';
@@ -88,6 +93,17 @@ interface RawPlanningRow {
   metodologia_activa?: string | null;
   evaluation_json?: unknown | null;
   sequence_json?: Record<number, SecuenciaBloque> | null;
+  teacherId?: string;
+  uacName?: string;
+  curriculumName?: string | null;
+  paecContext?: string | null;
+  extractedData?: ExtractedPdfData | null;
+  contentJson?: GeneratedPlanningContent | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+  metodologiaActiva?: string | null;
+  evaluationJson?: unknown | null;
+  sequenceJson?: Record<number, SecuenciaBloque> | null;
 }
 
 export interface OrchestratorOptions {
@@ -128,6 +144,20 @@ export async function generateBlockWorkTextbook(
       : 240_000);
 
   const writerOutputs: WriterOutput[] = [...(options.previousWriterOutputs ?? [])];
+  const CANONICAL_WRITER_ORDER: Array<WriterOutput['type']> = ['foundation', 'lab', 'project', 'evaluation'];
+  const upsertWriterOutput = (out: WriterOutput) => {
+    const idx = writerOutputs.findIndex((w) => w.type === out.type);
+    if (idx !== -1) {
+      writerOutputs[idx] = out;
+    } else {
+      writerOutputs.push(out);
+    }
+    writerOutputs.sort(
+      (a, b) => CANONICAL_WRITER_ORDER.indexOf(a.type) - CANONICAL_WRITER_ORDER.indexOf(b.type)
+    );
+  };
+
+  let maxReportedPercent = writerOutputs.length > 0 ? Math.min(65, 25 + writerOutputs.length * 10) : 0;
 
   const checkAbort = () => {
     if (signal?.aborted) {
@@ -137,15 +167,20 @@ export async function generateBlockWorkTextbook(
     }
   };
 
-  const persistCheckpoint = async () => {
-    if (!options.onCheckpoint) return;
-    try {
-      await options.onCheckpoint(writerOutputs);
-    } catch (checkpointErr) {
-      logger.warn('[orchestrator] No se pudo persistir el checkpoint de redactores:', {
-        error: String(checkpointErr),
-      });
-    }
+  let checkpointChain = Promise.resolve();
+  const persistCheckpoint = (): Promise<void> => {
+    if (!options.onCheckpoint) return Promise.resolve();
+    const snapshot = [...writerOutputs];
+    checkpointChain = checkpointChain.then(async () => {
+      try {
+        await options.onCheckpoint!(snapshot);
+      } catch (checkpointErr) {
+        logger.warn('[orchestrator] No se pudo persistir el checkpoint de redactores:', {
+          error: String(checkpointErr),
+        });
+      }
+    });
+    return checkpointChain;
   };
 
   checkAbort();
@@ -168,7 +203,8 @@ export async function generateBlockWorkTextbook(
       }
       checkAbort();
     }
-    await reportProgress(planningId, blockIndex, params, jobId, leaseId);
+    maxReportedPercent = Math.max(maxReportedPercent, params.percent);
+    await reportProgress(planningId, blockIndex, { ...params, percent: maxReportedPercent }, jobId, leaseId);
   };
 
   // ── Fase 1: Análisis y Recuperación de Datos ─────────────────────────────
@@ -220,20 +256,20 @@ export async function generateBlockWorkTextbook(
 
   const planning: Planning = {
     id: rawPlanning.id,
-    teacherId: rawPlanning.teacher_id || (rawPlanning as any).teacherId || 'teacher-default',
-    uacName: rawPlanning.uac_name || (rawPlanning as any).uacName || 'Unidad de Aprendizaje Curricular',
+    teacherId: rawPlanning.teacher_id || rawPlanning.teacherId || 'teacher-default',
+    uacName: rawPlanning.uac_name || rawPlanning.uacName || 'Unidad de Aprendizaje Curricular',
     semester: rawPlanning.semester || 1,
-    component: rawPlanning.component || (rawPlanning as any).component || 'fundamental',
-    curriculumName: rawPlanning.curriculum_name || (rawPlanning as any).curriculumName || '',
-    paecContext: rawPlanning.paec_context || (rawPlanning as any).paecContext || '',
-    extractedData: rawPlanning.extracted_data || (rawPlanning as any).extractedData,
-    contentJson: rawPlanning.content_json || (rawPlanning as any).contentJson,
+    component: rawPlanning.component || 'fundamental',
+    curriculumName: rawPlanning.curriculum_name || rawPlanning.curriculumName || '',
+    paecContext: rawPlanning.paec_context || rawPlanning.paecContext || '',
+    extractedData: rawPlanning.extracted_data || rawPlanning.extractedData || null,
+    contentJson: rawPlanning.content_json || rawPlanning.contentJson || null,
     status: rawPlanning.status || 'draft',
-    createdAt: rawPlanning.created_at || (rawPlanning as any).createdAt || new Date(),
-    updatedAt: rawPlanning.updated_at || (rawPlanning as any).updatedAt || new Date(),
-    metodologiaActiva: rawPlanning.metodologia_activa || (rawPlanning as any).metodologiaActiva || undefined,
-    evaluationJson: rawPlanning.evaluation_json || (rawPlanning as any).evaluationJson || null,
-    sequenceJson: rawPlanning.sequence_json || (rawPlanning as any).sequenceJson || null,
+    createdAt: rawPlanning.created_at || rawPlanning.createdAt || new Date(),
+    updatedAt: rawPlanning.updated_at || rawPlanning.updatedAt || new Date(),
+    metodologiaActiva: rawPlanning.metodologia_activa || rawPlanning.metodologiaActiva || undefined,
+    evaluationJson: rawPlanning.evaluation_json || rawPlanning.evaluationJson || null,
+    sequenceJson: rawPlanning.sequence_json || rawPlanning.sequenceJson || null,
   };
 
   const curricularBlocks = resolveCurricularBlocks(planning.contentJson);
@@ -325,6 +361,19 @@ export async function generateBlockWorkTextbook(
   }
 
   // ── Fase 5: Preparación de Inputs para los 4 Redactores ────────────────
+  const maxConcurrency = await resolveWriterConcurrency(async () =>
+    typeof aiProvider.getActiveKeyPoolSize === 'function'
+      ? aiProvider.getActiveKeyPoolSize(false)
+      : 2
+  );
+  const scheduler = createWriterScheduler({
+    maxConcurrency,
+    jitterMs: process.env.NODE_ENV === 'test' ? 0 : 250,
+    signal: options.signal,
+  });
+  const requiredCurricularTerms = extractRequiredCurricularTerms(planningActivities);
+  const partitionedTerms = partitionRequiredTerms(requiredCurricularTerms);
+
   const baseWriterInput: WriterInput = {
     planning,
     blockIndex,
@@ -341,20 +390,15 @@ export async function generateBlockWorkTextbook(
     targetWords: budget.missionBudgets.foundation.targetWords,
     planningActivities,
     signal: options.signal,
+    scheduler,
   };
 
-  // ── Fase 6: Redacción Concurrente Suavizada con Micro-desfase ──────────
+  // ── Fase 6: Redacción Concurrente Acotada (Scheduler + Sharding) ───────
   await notifyProgress({
     phase: 'writing',
     currentStep: 'Redactando concurrentemente las 4 dimensiones del libro...',
-    percent: 50,
+    percent: 35,
   });
-
-  // Micro-desfase suave (3500ms) entre el lanzamiento de cada redactor para evitar
-  // ráfagas masivas simultáneas que saturen la concurrencia de Google AI Studio (503).
-  // En entorno de tests Vitest (NODE_ENV=test) el delay es 0ms para ejecución instantánea.
-  const STAGGER_DELAY_MS = process.env.NODE_ENV === 'test' ? 0 : 4500;
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const writerTasks = [
     {
@@ -363,6 +407,7 @@ export async function generateBlockWorkTextbook(
         generateFoundationMission({
           ...baseWriterInput,
           targetWords: budget.missionBudgets.foundation.targetWords,
+          requiredTerms: partitionedTerms.foundation,
         }),
     },
     {
@@ -371,6 +416,7 @@ export async function generateBlockWorkTextbook(
         generateLabMission({
           ...baseWriterInput,
           targetWords: budget.missionBudgets.lab.targetWords,
+          requiredTerms: partitionedTerms.lab,
         }),
     },
     {
@@ -379,6 +425,7 @@ export async function generateBlockWorkTextbook(
         generateProjectMission({
           ...baseWriterInput,
           targetWords: budget.missionBudgets.project.targetWords,
+          requiredTerms: partitionedTerms.project,
         }),
     },
     {
@@ -387,45 +434,47 @@ export async function generateBlockWorkTextbook(
         generateEvaluationSection({
           ...baseWriterInput,
           targetWords: budget.missionBudgets.evaluation.targetWords,
+          requiredTerms: partitionedTerms.evaluation,
         }),
     },
   ];
 
-  // Ejecución secuencial de los 4 redactores con notificación de progreso:
-  // Evita ráfagas masivas simultáneas en el milisegundo 0 que saturen la cuota de concurrencia
-  // de Google AI Studio (503 / Fast-fail).
   const pendingWriterTasks = writerTasks.filter(
     (task) => !writerOutputs.some((output) => output.type === task.type)
   );
 
-  for (let i = 0; i < pendingWriterTasks.length; i++) {
-    if (i > 0 && STAGGER_DELAY_MS > 0) {
-      await sleep(STAGGER_DELAY_MS);
-    }
-    const task = pendingWriterTasks[i];
-    if (options.signal?.aborted) {
-      throw new Error('Operación cancelada por signal.');
-    }
-    const remainingTimeMs = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
-    if (remainingTimeMs < 30_000) {
-      throw new Error(
-        `[orchestrator] Presupuesto crítico antes de iniciar ${task.type} (${Math.round(remainingTimeMs / 1000)}s restantes). ` +
-          'Se aborta el bloque sin fallback sintético; el job debe reintentarse.'
-      );
-    }
-    await notifyProgress({
-      phase: 'writing',
-      currentStep: `Redactando dimensión ${i + 1}/${pendingWriterTasks.length} (${task.type}) con rigor editorial...`,
-      percent: 50 + Math.round((writerOutputs.length / 4) * 30),
-    });
-    try {
+  const WRITER_PROGRESS_STEPS = [35, 45, 55, 65] as const;
+  const remainingTimeMs = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+  if (pendingWriterTasks.length > 0 && remainingTimeMs < 30_000) {
+    throw new Error(
+      `[orchestrator] Presupuesto crítico antes de iniciar redactores (${Math.round(remainingTimeMs / 1000)}s restantes). ` +
+        'Se aborta el bloque sin fallback sintético; el job debe reintentarse.'
+    );
+  }
+
+  const settledWriters = await Promise.allSettled(
+    pendingWriterTasks.map(async (task) => {
+      if (options.signal?.aborted) {
+        throw new Error('Operación cancelada por signal.');
+      }
       const out = await runWriterSafely(task.type, task.fn);
-      writerOutputs.push(out);
+      upsertWriterOutput(out);
       await persistCheckpoint();
-    } catch (err) {
-      logger.error(`[Orchestrator] Redactor ${task.type} falló; se aborta sin fallback sintético:`, err);
-      throw err;
-    }
+      const completedCount = writerOutputs.length;
+      const stepPercent = WRITER_PROGRESS_STEPS[Math.min(3, Math.max(0, completedCount - 1))];
+      await notifyProgress({
+        phase: 'writing',
+        currentStep: `Redactor ${task.type} completado (${completedCount}/4 dimensiones)...`,
+        percent: stepPercent,
+      });
+      return out;
+    })
+  );
+
+  const firstRejected = settledWriters.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+  if (firstRejected) {
+    logger.error('[Orchestrator] Redactor falló; se aborta sin fallback sintético:', firstRejected.reason);
+    throw firstRejected.reason;
   }
 
   // ── Fase 7: Zona de Depuración y Resiliencia ────────────────────────────
@@ -570,42 +619,55 @@ export async function generateBlockWorkTextbook(
           'TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ' +
           missingTerms.join(' | ');
 
-        for (const writerType of ['foundation', 'lab', 'project', 'evaluation'] as const) {
-          const remainingInLoop = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
-          if (remainingInLoop < 45_000 || signal?.aborted) {
-            logger.warn('[orchestrator] Presupuesto de tiempo agotado en bucle de alineación. Continuando con ensamblado.');
-            break;
-          }
-          const idx = writerOutputs.findIndex((w) => w.type === writerType);
-          if (idx === -1) continue;
-          const own = writerOutputs[idx];
-          const ownCorpus =
-            sectionCorpus(own.section) +
-            ' ' +
-            sectionCorpus(own.evaluationSection ?? own.projectSection ?? null);
-          const lacking = missingTerms.filter((t) => !corpusCoversTerm(ownCorpus, t));
-          if (lacking.length === 0) continue;
+        const alignTasks = (['foundation', 'lab', 'project', 'evaluation'] as const)
+          .map((writerType) => {
+            const idx = writerOutputs.findIndex((w) => w.type === writerType);
+            if (idx === -1) return null;
+            const own = writerOutputs[idx];
+            const ownCorpus =
+              sectionCorpus(own.section) +
+              ' ' +
+              sectionCorpus(own.evaluationSection ?? own.projectSection ?? null);
+            const lacking = missingTerms.filter((t) => !corpusCoversTerm(ownCorpus, t));
+            if (lacking.length === 0) return null;
+            return { writerType, own, lacking };
+          })
+          .filter((x): x is NonNullable<typeof x> => x !== null);
 
-          logger.info(`[orchestrator] Reintento de alineación para ${writerType} (faltan ${lacking.length} términos)...`);
-          try {
-            const alignInput: WriterInput = {
-              ...baseWriterInput,
-              targetWords: budget.missionBudgets[writerType].targetWords,
-              alignmentDirective,
-            };
-            let reRun: WriterOutput;
-            if (writerType === 'foundation') reRun = await generateFoundationMission(alignInput);
-            else if (writerType === 'lab') reRun = await generateLabMission(alignInput);
-            else if (writerType === 'project') reRun = await generateProjectMission(alignInput);
-            else reRun = await generateEvaluationSection(alignInput);
-            if (reRun.qualityScore >= own.qualityScore) {
-              writerOutputs[idx] = reRun;
-              await persistCheckpoint();
+        await Promise.allSettled(
+          alignTasks.map(async ({ writerType, own, lacking }) => {
+            const remainingInLoop = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
+            if (remainingInLoop < 45_000 || signal?.aborted) {
+              logger.warn('[orchestrator] Presupuesto de tiempo agotado en reparación de alineación. Continuando con ensamblado.');
+              return;
             }
-          } catch (alignErr) {
-            logger.warn(`[orchestrator] Falló reintento de alineación de ${writerType}:`, { error: String(alignErr) });
-          }
-        }
+            logger.info(`[orchestrator] Reparación quirúrgica de alineación para ${writerType} (faltan ${lacking.length} términos)...`);
+            try {
+              const surgicalSessionTerms = assignTermsToSessions(
+                lacking,
+                own.section?.coveredSessions ?? []
+              );
+              const alignInput: WriterInput = {
+                ...baseWriterInput,
+                targetWords: budget.missionBudgets[writerType].targetWords,
+                alignmentDirective,
+                previousOutput: own,
+                surgicalSessionTerms,
+              };
+              let reRun: WriterOutput;
+              if (writerType === 'foundation') reRun = await generateFoundationMission(alignInput);
+              else if (writerType === 'lab') reRun = await generateLabMission(alignInput);
+              else if (writerType === 'project') reRun = await generateProjectMission(alignInput);
+              else reRun = await generateEvaluationSection(alignInput);
+              if (reRun.qualityScore >= own.qualityScore) {
+                upsertWriterOutput(reRun);
+                await persistCheckpoint();
+              }
+            } catch (alignErr) {
+              logger.warn(`[orchestrator] Falló reintento de alineación de ${writerType}:`, { error: String(alignErr) });
+            }
+          })
+        );
 
         // Re-validar volumen/calidad y re-medir alineación tras el reintento
         validation = validateBlockGuideQuality({

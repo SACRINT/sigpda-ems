@@ -28,11 +28,24 @@ import {
   completeSessionPlans,
 } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { runScheduled } from '../writer-scheduler';
+import {
+  generateShardedSessionPlans,
+  applySurgicalSessionRepair,
+  type SessionShardContext,
+} from './session-shard';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
-  const { evalMission, coveredSessions } = resolveEvaluationMission(input);
+  const { evalMission, coveredSessions, title: missionTitle } = resolveEvaluationMission(input);
+  const discipline = getDisciplinaryAdapter(
+    input.uacName,
+    input.component,
+    input.curriculumName || input.careerOrProgramName
+  );
   const fallbackContext: FallbackPlanContext = {
     uacName: input.uacName,
     blockName: input.blockName,
@@ -45,6 +58,24 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
     careerOrProgramName: input.careerOrProgramName,
   };
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
+  const shardCtx: SessionShardContext = {
+    input,
+    missionType: 'evaluation',
+    missionTitle,
+    coveredSessions,
+    disciplineName: discipline.displayName,
+    fallbackContext,
+    targetWordsPerPlan,
+    requiredTerms: input.requiredTerms,
+  };
+
+  if (input.previousOutput && input.surgicalSessionTerms) {
+    return applySurgicalSessionRepair(shardCtx, input.previousOutput, input.surgicalSessionTerms);
+  }
+
+  const requiredTermsChunk = formatRequiredTermsDirective(input.requiredTerms ?? []);
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(
     input.planningActivities,
     'evaluation',
@@ -53,6 +84,7 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
     input.curriculumName,
     input.careerOrProgramName
   ) +
+  (requiredTermsChunk ? `\n${requiredTermsChunk}\n` : '') +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -196,8 +228,6 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ]
 }`;
 
-  const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
@@ -224,14 +254,28 @@ DISTRIBUCIÓN CALIBRADA DE PALABRAS:
 
 Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad conceptual y desarrollo analítico:`;
 
+  const useSharding = Boolean(input.scheduler);
+  const narrativeMaxTokens = useSharding ? 8192 : 16384;
+  const narrativeTimeoutMs = useSharding ? 75000 : 85000;
+  const effectiveSystemInstruction = useSharding
+    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
+    : systemInstruction;
+  const effectivePrompt = useSharding
+    ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
+    : prompt;
+
   try {
     let attempt: 1 | 2 = 1;
-    const rawResponse = await generateWithRotation(
-      systemInstruction,
-      prompt,
-      input.planning.teacherId,
-      false,
-      { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+    const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
+    shardedPromise?.catch(() => undefined);
+    const rawResponse = await runScheduled(input.scheduler, 'evaluation:narrative', () =>
+      generateWithRotation(
+        effectiveSystemInstruction,
+        effectivePrompt,
+        input.planning.teacherId,
+        false,
+        { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+      )
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -240,7 +284,7 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
     const has3Levels = tiers.length >= 3;
     const allHave2Exercises = has3Levels && tiers.every((t: { exercises?: unknown }) => Array.isArray(t.exercises) && t.exercises.length >= 2);
     const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
-    const missingPlans = planCount < coveredSessions.length;
+    const missingPlans = !useSharding && planCount < coveredSessions.length;
 
     if (!has3Levels || !allHave2Exercises || missingPlans) {
       attempt = 2;
@@ -253,26 +297,28 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
           `Tu respuesta anterior no cumplió la estructura de 'tieredExercises'. Es OBLIGATORIO incluir EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') y al menos 2 EJERCICIOS POR CADA NIVEL (mínimo 6 ejercicios en total), con sus datos, pistas de andamiaje y criterios de evaluación.`
         );
       }
-      if (missingPlans) {
+      if (!useSharding && missingPlans) {
         strictDirectives.push(
           `Tu respuesta anterior solo incluyó ${planCount} de ${coveredSessions.length} planes en 'sessionPlans'. Genera OBLIGATORIAMENTE UN plan por cada sesión asignada (${coveredSessions.join(', ')}), es decir EXACTAMENTE ${coveredSessions.length} objetos en 'sessionPlans', cada uno con su "sessionNumber" correcto y contenido real de estudiante (voz en tú).`
         );
       }
       try {
-        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
-        const retryResponse = await generateWithRotation(
-          systemInstruction,
-          retryPrompt,
-          input.planning.teacherId,
-          false,
-          { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+        const retryPrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
+        const retryResponse = await runScheduled(input.scheduler, 'evaluation:narrative-retry', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            retryPrompt,
+            input.planning.teacherId,
+            false,
+            { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+          )
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryTiers = Array.isArray(retryParsed.tieredExercises) ? retryParsed.tieredExercises : [];
         const retryPlanCount = Array.isArray(retryParsed.sessionPlans) ? retryParsed.sessionPlans.length : 0;
         const tiersOk = retryTiers.length >= tiers.length;
         const retryExercisesOk = retryTiers.every((t: { exercises?: unknown }) => Array.isArray(t.exercises));
-        if (tiersOk && retryExercisesOk && retryPlanCount >= planCount) {
+        if (tiersOk && retryExercisesOk && (useSharding || retryPlanCount >= planCount)) {
           parsed = retryParsed;
         }
       } catch (retryErr) {
@@ -294,7 +340,9 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
     };
 
     const missionSection = buildEvaluationMissionSection(input, evaluationSection);
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
+    const sessionPlans = shardedPromise
+      ? (await shardedPromise).plans
+      : completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     missionSection.sessionPlans = sessionPlans;
     const evalRealText = getEvaluationRealText(evaluationSection);
     const sectionWordCount = evalRealText.split(/\s+/).filter(Boolean).length;

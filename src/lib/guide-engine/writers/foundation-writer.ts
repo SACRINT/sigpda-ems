@@ -22,6 +22,13 @@ import {
   completeSessionPlans,
 } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { runScheduled } from '../writer-scheduler';
+import {
+  generateShardedSessionPlans,
+  applySurgicalSessionRepair,
+  type SessionShardContext,
+} from './session-shard';
 import { logger } from '@/lib/logger';
 import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
 import { countSessionPlanWords } from '../content-budget';
@@ -49,7 +56,27 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     careerOrProgramName: input.careerOrProgramName,
   };
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
+  const shardCtx: SessionShardContext = {
+    input,
+    missionType: 'foundation',
+    missionTitle,
+    coveredSessions,
+    disciplineName: discipline.displayName,
+    fallbackContext,
+    targetWordsPerPlan: Math.max(900, targetWordsPerPlan),
+    extraGuardrails:
+      "GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado.",
+    requiredTerms: input.requiredTerms,
+  };
+
+  if (input.previousOutput && input.surgicalSessionTerms) {
+    return applySurgicalSessionRepair(shardCtx, input.previousOutput, input.surgicalSessionTerms);
+  }
+
   const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
+  const requiredTermsChunk = formatRequiredTermsDirective(input.requiredTerms ?? []);
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(
     input.planningActivities,
     'foundation',
@@ -58,6 +85,7 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     input.curriculumName,
     input.careerOrProgramName
   ) +
+  (requiredTermsChunk ? `\n${requiredTermsChunk}\n` : '') +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -135,8 +163,6 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ]
 }`;
 
-  const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
@@ -167,14 +193,28 @@ GUARDRAIL TERMINOLÓGICO OBLIGATORIO:
 
 Redacta la Misión de Fundamentación e Intuición completa con máxima profundidad:`;
 
+  const useSharding = Boolean(input.scheduler);
+  const narrativeMaxTokens = useSharding ? 8192 : 16384;
+  const narrativeTimeoutMs = useSharding ? 75000 : 85000;
+  const effectiveSystemInstruction = useSharding
+    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
+    : systemInstruction;
+  const effectivePrompt = useSharding
+    ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
+    : prompt;
+
   try {
     let attempt: 1 | 2 = 1;
-    const rawResponse = await generateWithRotation(
-      systemInstruction,
-      prompt,
-      input.planning.teacherId,
-      false,
-      { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+    const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
+    shardedPromise?.catch(() => undefined);
+    const rawResponse = await runScheduled(input.scheduler, 'foundation:narrative', () =>
+      generateWithRotation(
+        effectiveSystemInstruction,
+        effectivePrompt,
+        input.planning.teacherId,
+        false,
+        { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+      )
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -185,13 +225,15 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       attempt = 2;
       logger.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< ${minCoreWords}). Reintentando con instrucción estricta...`);
       try {
-        const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO ${minCoreWords} palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
-        const retryResponse = await generateWithRotation(
-          systemInstruction,
-          retryPrompt,
-          input.planning.teacherId,
-          false,
-          { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+        const retryPrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO ${minCoreWords} palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
+        const retryResponse = await runScheduled(input.scheduler, 'foundation:narrative-retry', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            retryPrompt,
+            input.planning.teacherId,
+            false,
+            { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+          )
         );
         const retryParsed = robustJsonParse(retryResponse);
         const retryWords = (retryParsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
@@ -209,13 +251,15 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       attempt = 2;
       logger.warn(`[FoundationWriter] Detectada terminología obsoleta (${terminologyLint.forbiddenMatches.join(', ')}). Ejecutando correctiveRetry...`);
       try {
-        const correctivePrompt = `${prompt}\n\n[REQUISITO CRÍTICO DE TERMINOLOGÍA - CORRECTIVE RETRY]: Tu respuesta previa contenía términos obsoletos prohibidos (${terminologyLint.forbiddenMatches.join(', ')}). Es ESTRICTAMENTE OBLIGATORIO eliminar cualquier mención a 'balanza romana' o 'báscula de dos platillos' y sustituirlas por balanza de precisión analítica, báscula digital de laboratorio o balanza algebraica contemporánea.`;
-        const correctiveResponse = await generateWithRotation(
-          systemInstruction,
-          correctivePrompt,
-          input.planning.teacherId,
-          false,
-          { jsonMode: true, maxTokens: 16384, signal: input.signal }
+        const correctivePrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO DE TERMINOLOGÍA - CORRECTIVE RETRY]: Tu respuesta previa contenía términos obsoletos prohibidos (${terminologyLint.forbiddenMatches.join(', ')}). Es ESTRICTAMENTE OBLIGATORIO eliminar cualquier mención a 'balanza romana' o 'báscula de dos platillos' y sustituirlas por balanza de precisión analítica, báscula digital de laboratorio o balanza algebraica contemporánea.`;
+        const correctiveResponse = await runScheduled(input.scheduler, 'foundation:terminology-retry', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            correctivePrompt,
+            input.planning.teacherId,
+            false,
+            { jsonMode: true, maxTokens: narrativeMaxTokens, signal: input.signal }
+          )
         );
         const retryParsed = robustJsonParse(correctiveResponse);
         const retryLint = lintPedagogicalTerminology(JSON.stringify(retryParsed));
@@ -280,7 +324,9 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       : '';
     const sectionContent = `${parsed.phenomenonStory || ''} ${parsed.detonatingQuestion || ''} ${parsed.physicalAnalogy || ''} ${parsed.coreExplanation || ''} ${cleanIDoDemo} ${cleanWeDoPractice} ${cleanYouDoChallenge} ${formativeText}`.trim();
     const sectionWordCount = sectionContent.split(/\s+/).filter(Boolean).length;
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
+    const sessionPlans = shardedPromise
+      ? (await shardedPromise).plans
+      : completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 

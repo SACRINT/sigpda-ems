@@ -263,3 +263,108 @@ export function sourceFromWorkbook(workbook: ActiveWorkTextbook): AlignmentCorpu
     projectSection: workbook.projectSection ?? null,
   };
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Alineación PREVENTIVA: términos requeridos desde la primera pasada
+// ───────────────────────────────────────────────────────────────────────────
+
+export type WriterRole = 'foundation' | 'lab' | 'project' | 'evaluation';
+
+export interface RequiredCurricularTerms {
+  /** Contenido formativo del bloque (se verifica contra el corpus completo del libro). */
+  contenido: string[];
+  /** Saberes (se verifican contra el corpus de EVALUACIÓN del libro). */
+  saberes: string[];
+  /** Materiales planeados (se verifican contra el corpus completo del libro). */
+  materiales: string[];
+}
+
+function dedupeKeepOrder(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const it of items) {
+    const key = normalize(it);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out;
+}
+
+function clipTerm(term: string, max = 180): string {
+  return term.length > max ? `${term.slice(0, max - 3)}...` : term;
+}
+
+/**
+ * Extrae, con la MISMA segmentación que usa el gate de alineación (evaluatePlanningContentAlignment),
+ * los ítems de la planeación que el libro deberá cubrir. Determinista y agnóstico a la asignatura.
+ */
+export function extractRequiredCurricularTerms(
+  activities: PlanningActivities | undefined | null
+): RequiredCurricularTerms {
+  if (!activities) return { contenido: [], saberes: [], materiales: [] };
+  const contenido = dedupeKeepOrder(splitItems(activities.contenidoFormativo, { minLen: 15 })).map((t) => clipTerm(t));
+  const saberes = dedupeKeepOrder([
+    ...splitItems(activities.saberes?.saber, { minLen: 15 }),
+    ...splitItems(activities.saberes?.saberHacer, { minLen: 15 }),
+    ...splitItems(activities.saberes?.saberSer, { minLen: 15 }),
+  ]).map((t) => clipTerm(t));
+  const materiales = dedupeKeepOrder([
+    ...splitItems(activities.apertura?.materials, { minLen: 4, forceComma: true }),
+    ...splitItems(activities.ejecucion?.materials, { minLen: 4, forceComma: true }),
+    ...splitItems(activities.conclusion?.materials, { minLen: 4, forceComma: true }),
+  ]).map((t) => clipTerm(t, 120));
+  return { contenido, saberes, materiales };
+}
+
+/**
+ * Reparte los términos entre los redactores de forma determinista (round-robin), de modo que
+ * CADA término tenga al menos un redactor responsable sin que todos repitan toda la lista:
+ *  - saberes → evaluación (el gate los verifica en el corpus de evaluación);
+ *  - contenido → los redactores que existan, en round-robin;
+ *  - materiales → redactores no evaluadores (foundation/lab/project), en round-robin.
+ */
+export function partitionRequiredTerms(
+  terms: RequiredCurricularTerms,
+  roles: WriterRole[] = ['foundation', 'lab', 'project', 'evaluation']
+): Record<WriterRole, string[]> {
+  const out: Record<WriterRole, string[]> = { foundation: [], lab: [], project: [], evaluation: [] };
+  const active = roles.filter((r) => roles.includes(r));
+  if (active.length === 0) return out;
+
+  const evaluators = active.filter((r) => r === 'evaluation');
+  const nonEval = active.filter((r) => r !== 'evaluation');
+  const saberOwners = evaluators.length > 0 ? evaluators : active;
+  terms.saberes.forEach((t, i) => out[saberOwners[i % saberOwners.length]].push(t));
+  terms.contenido.forEach((t, i) => out[active[i % active.length]].push(t));
+  const matOwners = nonEval.length > 0 ? nonEval : active;
+  terms.materiales.forEach((t, i) => out[matOwners[i % matOwners.length]].push(t));
+
+  for (const r of active) out[r] = dedupeKeepOrder(out[r]);
+  return out;
+}
+
+/** Redacta la directiva preventiva (misma convención que el reintento dirigido). */
+export function formatRequiredTermsDirective(terms: string[]): string {
+  if (terms.length === 0) return '';
+  return (
+    'CONCEPTOS, SABERES Y MATERIALES DE LA PLANEACION ASIGNADOS A TU SECCION (intégralos de forma orgánica y ' +
+    'contextualizada, reproduciendo su redaccion original al menos una vez; no los enumeres como lista ni los repitas ' +
+    'mecánicamente): ' +
+    terms.join(' | ')
+  );
+}
+
+/**
+ * Asigna términos faltantes a sesiones concretas de una misión (round-robin) para repararlas de forma
+ * quirúrgica. Devuelve únicamente las sesiones que recibieron al menos un término.
+ */
+export function assignTermsToSessions(terms: string[], sessionNumbers: number[]): Map<number, string[]> {
+  const map = new Map<number, string[]>();
+  if (terms.length === 0 || sessionNumbers.length === 0) return map;
+  terms.forEach((t, i) => {
+    const session = sessionNumbers[i % sessionNumbers.length];
+    map.set(session, [...(map.get(session) ?? []), t]);
+  });
+  return map;
+}

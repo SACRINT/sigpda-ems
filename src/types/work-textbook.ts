@@ -361,6 +361,8 @@ export interface GenerationProgressState {
   wordCount?: number;
   totalWords?: number;
   error?: string;
+  /** Job que emitió este estado (permite monotonía de percent dentro de un mismo job). */
+  jobId?: string;
   updatedAt: string;
 }
 

@@ -10,6 +10,7 @@ import type { Planning } from '@/types/planning';
 import type { DetailedSession } from '@/lib/session-progression-engine';
 import type { MissionBlueprint } from '../blueprint-architect-agent';
 import { logger } from '@/lib/logger';
+import type { WriterScheduler } from '../writer-scheduler';
 import { countSessionPlanWords } from '../content-budget';
 import { isMathUAC, validateSessionPlanContamination } from '../cross-contamination-guard';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
@@ -85,6 +86,25 @@ export interface WriterInput {
    * textual en el prompt SOLO durante el reintento dirigido de alineación.
    */
   alignmentDirective?: string;
+  /**
+   * Términos de la planeación asignados a ESTE redactor (reparto determinista). Se inyectan desde la
+   * primera pasada (alineación preventiva) y se reparten entre los paquetes de sesiones.
+   */
+  requiredTerms?: string[];
+  /**
+   * Scheduler compartido del job: limita la concurrencia de llamadas de IA, aplica jitter y un
+   * circuit breaker común. Si no se provee, las llamadas se ejecutan directamente (compatibilidad).
+   */
+  scheduler?: WriterScheduler;
+  /**
+   * Salida previa del redactor en la primera pasada, usada en Fase 8.5 para reparar
+   * quirúrgicamente solo las sesiones deficientes sin regenerar toda la narrativa de la misión.
+   */
+  previousOutput?: WriterOutput;
+  /**
+   * Mapa (sessionNumber -> términos faltantes) asignado a este redactor en Fase 8.5.
+   */
+  surgicalSessionTerms?: Map<number, string[]>;
 }
 
 export interface WriterOutput {

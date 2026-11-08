@@ -575,7 +575,8 @@ function PlanningDetailModular({
                   blockIndex,
                   phase: statusData.currentPhase || 'writing',
                   currentStep: statusData.currentStep || 'Generando contenido formativo...',
-                  percent: statusData.progress || 10,
+                  // Monotonía visual: nunca retroceder dentro de la misma generación.
+                  percent: Math.max(cur.progress?.percent ?? 0, statusData.progress || 10),
                   updatedAt: statusData.updatedAt || new Date().toISOString(),
                 },
               },

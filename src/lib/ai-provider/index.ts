@@ -467,3 +467,20 @@ export async function logActivity(data: {
     `;
   } catch { /* Don't fail the request if logging fails */ }
 }
+
+/**
+ * Cantidad de claves activas del pool para el proveedor vigente. Se usa para dimensionar la
+ * concurrencia de llamadas paralelas (p. ej. redactores del libro) sin exceder la cuota por clave.
+ * Fail-safe: si la BD no responde devuelve 1 (comportamiento secuencial seguro).
+ */
+export async function getActiveKeyPoolSize(isPremium = false): Promise<number> {
+  try {
+    const { provider } = await getActiveConfig(isPremium);
+    const db = sql();
+    const rows = await db`SELECT COUNT(*)::int as cnt FROM api_keys WHERE provider = ${provider} AND is_active = true`;
+    const n = Number(rows?.[0]?.cnt);
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  } catch {
+    return 1;
+  }
+}

@@ -27,6 +27,13 @@ import {
   mergeSessionPlans,
 } from './session-plan-completion';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { runScheduled } from '../writer-scheduler';
+import {
+  generateShardedSessionPlans,
+  applySurgicalSessionRepair,
+  type SessionShardContext,
+} from './session-shard';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
@@ -58,6 +65,23 @@ export async function generateLabMission(input: WriterInput): Promise<WriterOutp
     careerOrProgramName: input.careerOrProgramName,
   };
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
+  const shardCtx: SessionShardContext = {
+    input,
+    missionType: 'lab',
+    missionTitle,
+    coveredSessions,
+    disciplineName: discipline.displayName,
+    fallbackContext,
+    targetWordsPerPlan,
+    requiredTerms: input.requiredTerms,
+  };
+
+  if (input.previousOutput && input.surgicalSessionTerms) {
+    return applySurgicalSessionRepair(shardCtx, input.previousOutput, input.surgicalSessionTerms);
+  }
+
   // Construir contexto de semilla canónica si existe
   let seedPromptChunk = '';
   if (input.canonicalSeed) {
@@ -70,6 +94,7 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
 - Errores comunes: ${input.canonicalSeed.content.commonErrors?.map((e) => e.symptom).join('; ') || 'Ninguno'}`;
   }
 
+  const requiredTermsChunk = formatRequiredTermsDirective(input.requiredTerms ?? []);
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(
     input.planningActivities,
     'lab',
@@ -78,6 +103,7 @@ BASE DE CONOCIMIENTO (SEMILLA CANÓNICA PRE-VALIDADA):
     input.curriculumName,
     input.careerOrProgramName
   ) +
+  (requiredTermsChunk ? `\n${requiredTermsChunk}\n` : '') +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -161,8 +187,6 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   ]
 }`;
 
-  const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
@@ -187,14 +211,28 @@ DISTRIBUCIÓN CALIBRADA DE PALABRAS:
 
 Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad y rigor experimental sin abreviar:`;
 
+  const useSharding = Boolean(input.scheduler);
+  const narrativeMaxTokens = useSharding ? 8192 : 16384;
+  const narrativeTimeoutMs = useSharding ? 75000 : 85000;
+  const effectiveSystemInstruction = useSharding
+    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
+    : systemInstruction;
+  const effectivePrompt = useSharding
+    ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
+    : prompt;
+
   try {
     let attempt: 1 | 2 = 1;
-    const rawResponse = await generateWithRotation(
-      systemInstruction,
-      prompt,
-      input.planning.teacherId,
-      false,
-      { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+    const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
+    shardedPromise?.catch(() => undefined);
+    const rawResponse = await runScheduled(input.scheduler, 'lab:narrative', () =>
+      generateWithRotation(
+        effectiveSystemInstruction,
+        effectivePrompt,
+        input.planning.teacherId,
+        false,
+        { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+      )
     );
     let parsed = robustJsonParse(rawResponse);
 
@@ -203,7 +241,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     const stepMatches = challengeText.match(/(?:Paso\s*\d+|\b\d+[\.\)])/gi) || [];
     const stepCount = stepMatches.length;
     const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
-    const missingPlans = planCount < coveredSessions.length;
+    const missingPlans = !useSharding && planCount < coveredSessions.length;
 
     if (stepCount < 5 || missingPlans) {
       attempt = 2;
@@ -220,19 +258,21 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
             `Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`
           );
         }
-        if (retryPlanCount < coveredSessions.length) {
+        if (!useSharding && retryPlanCount < coveredSessions.length) {
           strictDirectives.push(
             `Tu respuesta anterior solo incluyó ${retryPlanCount} de ${coveredSessions.length} planes en 'sessionPlans'. Genera OBLIGATORIAMENTE UN plan por cada sesión asignada (${coveredSessions.join(', ')}), es decir EXACTAMENTE ${coveredSessions.length} objetos en 'sessionPlans', cada uno con su "sessionNumber" correcto y contenido real de estudiante (voz en tú). No omitas ninguna sesión.`
           );
         }
         try {
-          const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
-          const retryResponse = await generateWithRotation(
-            systemInstruction,
-            retryPrompt,
-            input.planning.teacherId,
-            false,
-            { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+          const retryPrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
+          const retryResponse = await runScheduled(input.scheduler, `lab:narrative-retry#${retry + 1}`, () =>
+            generateWithRotation(
+              effectiveSystemInstruction,
+              retryPrompt,
+              input.planning.teacherId,
+              false,
+              { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+            )
           );
           const retryParsed = robustJsonParse(retryResponse);
           const retryText =
@@ -242,10 +282,10 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
           const nextPlanCount = Array.isArray(retryParsed.sessionPlans)
             ? retryParsed.sessionPlans.length
             : 0;
-          if (nextPlanCount >= coveredSessions.length) {
+          if (useSharding ? nextStepCount >= 5 : nextPlanCount >= coveredSessions.length) {
             parsed = {
               ...parsed,
-              sessionPlans: retryParsed.sessionPlans,
+              ...(useSharding ? {} : { sessionPlans: retryParsed.sessionPlans }),
               autonomousChallenge:
                 nextStepCount >= retryStepCount ? retryText || parsed.autonomousChallenge : parsed.autonomousChallenge,
             };
@@ -353,28 +393,33 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     }));
 
     const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
-    const currentPlans = Array.isArray(parsed.sessionPlans) ? (parsed.sessionPlans as unknown[]) : [];
-    const presentSessions = getPresentSessionNumbers(currentPlans);
-    const missingSessions = coveredSessions.filter((sessionNumber) => !presentSessions.has(sessionNumber));
-    if (missingSessions.length > 0) {
-      try {
-        const generated = await generateMissingSessionPlans({
-          missionType: 'lab',
-          uacName: input.uacName,
-          blockName: input.blockName,
-          subsystem: input.subsystem,
-          coveredSessions,
-          missingSessions,
-          existingPlans: currentPlans,
-          teacherId: input.planning.teacherId,
-          signal: input.signal,
-        });
-        parsed.sessionPlans = mergeSessionPlans(currentPlans, generated, coveredSessions);
-      } catch (err) {
-        logger.warn('[LabWriter] No se pudieron completar las sesiones faltantes:', { error: String(err) });
+    let sessionPlans;
+    if (shardedPromise) {
+      sessionPlans = (await shardedPromise).plans;
+    } else {
+      const currentPlans = Array.isArray(parsed.sessionPlans) ? (parsed.sessionPlans as unknown[]) : [];
+      const presentSessions = getPresentSessionNumbers(currentPlans);
+      const missingSessions = coveredSessions.filter((sessionNumber) => !presentSessions.has(sessionNumber));
+      if (missingSessions.length > 0) {
+        try {
+          const generated = await generateMissingSessionPlans({
+            missionType: 'lab',
+            uacName: input.uacName,
+            blockName: input.blockName,
+            subsystem: input.subsystem,
+            coveredSessions,
+            missingSessions,
+            existingPlans: currentPlans,
+            teacherId: input.planning.teacherId,
+            signal: input.signal,
+          });
+          parsed.sessionPlans = mergeSessionPlans(currentPlans, generated, coveredSessions);
+        } catch (err) {
+          logger.warn('[LabWriter] No se pudieron completar las sesiones faltantes:', { error: String(err) });
+        }
       }
+      sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     }
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 

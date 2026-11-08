@@ -26,6 +26,13 @@ import {
   mergeSessionPlans,
 } from './session-plan-completion';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { runScheduled } from '../writer-scheduler';
+import {
+  generateShardedSessionPlans,
+  applySurgicalSessionRepair,
+  type SessionShardContext,
+} from './session-shard';
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import {
@@ -60,6 +67,24 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
     careerOrProgramName: input.careerOrProgramName,
   };
 
+  const sessionCount = Math.max(1, coveredSessions.length);
+  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
+  const shardCtx: SessionShardContext = {
+    input,
+    missionType: 'project',
+    missionTitle,
+    coveredSessions,
+    disciplineName: discipline.displayName,
+    fallbackContext,
+    targetWordsPerPlan,
+    requiredTerms: input.requiredTerms,
+  };
+
+  if (input.previousOutput && input.surgicalSessionTerms) {
+    return applySurgicalSessionRepair(shardCtx, input.previousOutput, input.surgicalSessionTerms);
+  }
+
+  const requiredTermsChunk = formatRequiredTermsDirective(input.requiredTerms ?? []);
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(
     input.planningActivities,
     'project',
@@ -68,6 +93,7 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
     input.curriculumName,
     input.careerOrProgramName
   ) +
+  (requiredTermsChunk ? `\n${requiredTermsChunk}\n` : '') +
   (input.alignmentDirective ? ` 
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
@@ -177,8 +203,6 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 INDICE DE MATERIALES AUTORIZADOS (usa SOLO estos slugs en los tokens [[material:slug]] de requiredMaterials; lo que no esté aquí, en texto plano):
 ${buildMaterialSlugIndex(getMaterialCategoriesForContext(input.uacName, input.subsystem), MATERIAL_INDEX_MAX_CHARS - 300)}`;
 
-  const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
 
@@ -206,21 +230,35 @@ Incluye explicaciones detalladas, ejemplos múltiples, pasos numerados extensos 
 
 Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima extensión y profundidad sin abreviar:`;
 
+  const useSharding = Boolean(input.scheduler);
+  const narrativeMaxTokens = useSharding ? 8192 : 16384;
+  const narrativeTimeoutMs = useSharding ? 75000 : 85000;
+  const effectiveSystemInstruction = useSharding
+    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
+    : systemInstruction;
+  const effectivePrompt = useSharding
+    ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
+    : prompt;
+
   try {
     let attempt: 1 | 2 = 1;
-    const rawResponse = await generateWithRotation(
-      systemInstruction,
-      prompt,
-      input.planning.teacherId,
-      false,
-      { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+    const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
+    shardedPromise?.catch(() => undefined);
+    const rawResponse = await runScheduled(input.scheduler, 'project:narrative', () =>
+      generateWithRotation(
+        effectiveSystemInstruction,
+        effectivePrompt,
+        input.planning.teacherId,
+        false,
+        { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+      )
     );
     let parsed = robustJsonParse(rawResponse);
 
     // Validación de extensión mínima + cobertura total de sesiones (Fase A)
     const objCount = Array.isArray(parsed.learningObjectives) ? parsed.learningObjectives.length : 0;
     const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
-    const missingPlans = planCount < coveredSessions.length;
+    const missingPlans = !useSharding && planCount < coveredSessions.length;
     if (objCount < 3 || missingPlans) {
       attempt = 2;
       logger.warn(
@@ -236,19 +274,21 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
             `Tu respuesta anterior tuvo menos de 3 objetivos en 'learningObjectives'. Genera OBLIGATORIAMENTE al menos 3 a 5 'learningObjectives' exhaustivos, orientados al logro de competencias integrales y vinculados al problema comunitario PAEC.`
           );
         }
-        if (retryPlanCount < coveredSessions.length) {
+        if (!useSharding && retryPlanCount < coveredSessions.length) {
           strictDirectives.push(
             `Tu respuesta anterior solo incluyó ${retryPlanCount} de ${coveredSessions.length} planes en 'sessionPlans'. Genera OBLIGATORIAMENTE UN plan por cada sesión asignada (${coveredSessions.join(', ')}), es decir EXACTAMENTE ${coveredSessions.length} objetos en 'sessionPlans', cada uno con su "sessionNumber" correcto y contenido real de estudiante (voz en tú). No omitas ninguna sesión.`
           );
         }
         try {
-          const retryPrompt = `${prompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
-          const retryResponse = await generateWithRotation(
-            systemInstruction,
-            retryPrompt,
-            input.planning.teacherId,
-            false,
-            { jsonMode: true, maxTokens: 16384, timeoutMs: 85000, signal: input.signal }
+          const retryPrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO - REINTENTO OBLIGATORIO]: ${strictDirectives.join(' ')}`;
+          const retryResponse = await runScheduled(input.scheduler, `project:narrative-retry#${retry + 1}`, () =>
+            generateWithRotation(
+              effectiveSystemInstruction,
+              retryPrompt,
+              input.planning.teacherId,
+              false,
+              { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+            )
           );
           const retryParsed = robustJsonParse(retryResponse);
           const nextObjCount = Array.isArray(retryParsed.learningObjectives)
@@ -257,8 +297,8 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
           const nextPlanCount = Array.isArray(retryParsed.sessionPlans)
             ? retryParsed.sessionPlans.length
             : 0;
-          if (nextPlanCount >= coveredSessions.length) {
-            parsed = { ...parsed, sessionPlans: retryParsed.sessionPlans };
+          if (useSharding ? nextObjCount >= 3 : nextPlanCount >= coveredSessions.length) {
+            parsed = { ...parsed, ...(useSharding ? {} : { sessionPlans: retryParsed.sessionPlans }) };
             if (objCount < 3 && nextObjCount >= 3) {
               parsed.learningObjectives = retryParsed.learningObjectives;
             }
@@ -365,28 +405,33 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
     const criteriaText = Array.isArray(projectSection.acceptanceCriteria) ? projectSection.acceptanceCriteria.join(' ') : '';
     const fullText = `${projectSection.artifactName}\n${projectSection.communityUtility}\n${phasesText}\n${autonomousChallenge}\n${specsText}\n${criteriaText}\n${rubricText}`;
     const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;
-    const currentPlans = Array.isArray(parsed.sessionPlans) ? (parsed.sessionPlans as unknown[]) : [];
-    const presentSessions = getPresentSessionNumbers(currentPlans);
-    const missingSessions = coveredSessions.filter((sessionNumber) => !presentSessions.has(sessionNumber));
-    if (missingSessions.length > 0) {
-      try {
-        const generated = await generateMissingSessionPlans({
-          missionType: 'project',
-          uacName: input.uacName,
-          blockName: input.blockName,
-          subsystem: input.subsystem,
-          coveredSessions,
-          missingSessions,
-          existingPlans: currentPlans,
-          teacherId: input.planning.teacherId,
-          signal: input.signal,
-        });
-        parsed.sessionPlans = mergeSessionPlans(currentPlans, generated, coveredSessions);
-      } catch (err) {
-        logger.warn('[ProjectWriter] No se pudieron completar las sesiones faltantes:', { error: String(err) });
+    let sessionPlans;
+    if (shardedPromise) {
+      sessionPlans = (await shardedPromise).plans;
+    } else {
+      const currentPlans = Array.isArray(parsed.sessionPlans) ? (parsed.sessionPlans as unknown[]) : [];
+      const presentSessions = getPresentSessionNumbers(currentPlans);
+      const missingSessions = coveredSessions.filter((sessionNumber) => !presentSessions.has(sessionNumber));
+      if (missingSessions.length > 0) {
+        try {
+          const generated = await generateMissingSessionPlans({
+            missionType: 'project',
+            uacName: input.uacName,
+            blockName: input.blockName,
+            subsystem: input.subsystem,
+            coveredSessions,
+            missingSessions,
+            existingPlans: currentPlans,
+            teacherId: input.planning.teacherId,
+            signal: input.signal,
+          });
+          parsed.sessionPlans = mergeSessionPlans(currentPlans, generated, coveredSessions);
+        } catch (err) {
+          logger.warn('[ProjectWriter] No se pudieron completar las sesiones faltantes:', { error: String(err) });
+        }
       }
+      sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     }
-    const sessionPlans = completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
