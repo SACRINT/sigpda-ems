@@ -6,7 +6,7 @@ import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
-import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
+import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
@@ -106,7 +106,8 @@ async function handleCombinedPdf(request: NextRequest) {
     const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
     let allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
 
-    // Descarga unificada de UN bloque: filtrado determinista y orden numérico de sesiones
+    // Descarga unificada de UN bloque o de TODOS los bloques:
+    // filtrado determinista, deduplicación y orden numérico estricto de sesiones
     if (blockIndex !== null) {
       allExtras = selectExtrasForBlock(
         allExtras,
@@ -114,11 +115,12 @@ async function handleCombinedPdf(request: NextRequest) {
         blockIndex,
         cleanType
       );
-    }
-
-    // Si es un recurso a nivel de bloque curricular, solo permitimos bloques canónicos 0, 1 y 2
-    if (blockIndex === null && ['rubric', 'checklist', 'material', 'teacher_guide', 'practice_guide'].includes(cleanType)) {
-      allExtras = allExtras.filter((ex) => ex.key_index === null || [0, 1, 2].includes(Number(ex.key_index)));
+    } else {
+      allExtras = selectAllExtrasCombined(
+        allExtras,
+        planning.content_json as GeneratedPlanningContent | null,
+        cleanType
+      );
     }
 
     if (allExtras.length === 0) {

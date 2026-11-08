@@ -11,7 +11,7 @@ import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
-import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
+import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
@@ -110,12 +110,19 @@ async function handleCombinedDocx(request: NextRequest) {
     const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
     let allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
 
-    // Descarga unificada de UN bloque: filtrado determinista y orden numérico de sesiones
+    // Descarga unificada de UN bloque o de TODOS los bloques:
+    // filtrado determinista, deduplicación y orden numérico estricto de sesiones
     if (blockIndex !== null) {
       allExtras = selectExtrasForBlock(
         allExtras,
         planning.content_json as GeneratedPlanningContent | null,
         blockIndex,
+        cleanType
+      );
+    } else {
+      allExtras = selectAllExtrasCombined(
+        allExtras,
+        planning.content_json as GeneratedPlanningContent | null,
         cleanType
       );
     }

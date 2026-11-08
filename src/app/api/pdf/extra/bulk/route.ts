@@ -12,7 +12,8 @@ import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
-import type { SecuenciaBloque } from '@/types/planning';
+import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
+import type { GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
@@ -104,6 +105,12 @@ async function handleBulkPdf(request: NextRequest) {
 
     // Excluir payloads visuales JSON (recursos gráficos almacenados como content_text)
     extras = extras.filter((item) => !isStructuredVisualPayload(item.content_text));
+
+    // Si la descarga es por bloque y por tipo (e.g. lesson_plan), aplicar selección determinista y deduplicación
+    if (planningId && blockIndex !== null && !isNaN(blockIndex) && type) {
+      const planContent = (await getPlanningById(planningId, teacher.id).catch(() => null))?.content_json as GeneratedPlanningContent | null;
+      extras = selectExtrasForBlock(extras, planContent, blockIndex, type);
+    }
 
     if (extras.length === 0) {
       return new Response('No se encontraron materiales para empaquetar', { status: 404 });

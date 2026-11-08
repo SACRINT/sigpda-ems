@@ -66,9 +66,15 @@ export default function PlanningTabSecuencias({
     return generateCurricularBlockSessions(block, isLaboral, savedSeq);
   });
   const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
-  const generatedLessonPlans = allDetailedSessions.filter(
-    (s) => !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
-  ).length;
+  const generatedLessonPlans = curricularBlocks.reduce((total, block, actIdx) => {
+    const blockSessions = blockSessionsMap[actIdx] || [];
+    const count = blockSessions.filter(
+      (s) =>
+        !!findExtra('lesson_plan', block.blockIndex, undefined, s.sessionNum) ||
+        !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
+    ).length;
+    return total + count;
+  }, 0);
 
   return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
