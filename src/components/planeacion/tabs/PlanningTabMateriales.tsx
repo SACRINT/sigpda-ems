@@ -11,7 +11,8 @@ import {
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
-import { reviewBlockMaterials, type MaterialReviewReport } from '@/lib/guide-engine/material-review';
+import { type MaterialReviewReport } from '@/lib/guide-engine/material-review';
+import { useBlockMaterialReviews } from '@/hooks/useBlockMaterialReviews';
 
 /** Metadata de tarjeta para tipos conocidos; cualquier otro tipo cae en fallback genérico. */
 const COMBINED_TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
@@ -61,6 +62,7 @@ export interface MaterialBlockWorkbookItem {
 export interface PlanningTabMaterialesProps {
   planning: Planning;
   activeSubTab?: 'extras' | 'teacherGuides';
+  onSubTabChange?: (subTab: 'extras' | 'teacherGuides') => void;
   extras: PlanningExtra[];
   generatingKey: string | null;
   syncingSuite: number | null;
@@ -85,7 +87,7 @@ export interface PlanningTabMaterialesProps {
     }
   ) => Promise<void>;
   handleDeleteExtra: (extraId: string) => Promise<void>;
-  setActiveTab?: (tab: 'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics') => void;
+  setActiveTab?: (tab: 'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics' | any) => void;
   handlePreviewExtra: (extra: PlanningExtra) => void;
   handleSyncSuite: (blockIdx: number) => Promise<void>;
   handleGenerateWorkbook: (blockIndex: number) => Promise<void>;
@@ -96,6 +98,7 @@ export interface PlanningTabMaterialesProps {
 export default function PlanningTabMateriales({
   planning,
   activeSubTab = 'extras',
+  onSubTabChange,
   extras,
   generatingKey,
   syncingSuite,
@@ -107,6 +110,21 @@ export default function PlanningTabMateriales({
   setPreviewExtra,
   setActiveTab = () => {},
 }: PlanningTabMaterialesProps) {
+  const [currentSubTab, setCurrentSubTab] = React.useState<'extras' | 'teacherGuides'>(activeSubTab);
+
+  React.useEffect(() => {
+    if (activeSubTab) {
+      setCurrentSubTab(activeSubTab);
+    }
+  }, [activeSubTab]);
+
+  const handleSubTabSwitch = (subTab: 'extras' | 'teacherGuides') => {
+    setCurrentSubTab(subTab);
+    if (onSubTabChange) {
+      onSubTabChange(subTab);
+    }
+  };
+
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
@@ -135,43 +153,34 @@ export default function PlanningTabMateriales({
     .filter((index) => Number.isFinite(index))
     .sort((a, b) => a - b);
 
-  // Firma estable por versión de libro de bloque para no re-ejecutar R1 durante polling de progreso
-  const blockWorkbooksSignature = Object.entries(blockWorkbooks)
-    .map(([k, item]) => {
-      const wb = item?.workbook;
-      if (!wb) return `${k}:null`;
-      return `${k}:${wb.version ?? 0}:${wb.generatedAt ?? ''}:${wb.totalWords ?? 0}`;
-    })
-    .join('|');
+  // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens) vía hook compartido
+  const blockReviews = useBlockMaterialReviews(planning, blockWorkbooks);
 
-  // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens)
-  const blockReviews = React.useMemo(() => {
-    const map: Record<number, MaterialReviewReport> = {};
-    for (const [key, item] of Object.entries(blockWorkbooks)) {
-      const idx = Number(key);
-      if (Number.isFinite(idx) && item?.workbook) {
-        map[idx] = reviewBlockMaterials({
-          workbook: item.workbook,
-          uacName: planning.uacName || s1?.uacName || '',
-          component: planning.component || s1?.component || '',
-          curriculumName: planning.curriculumName || '',
-        });
-      }
-    }
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    blockWorkbooksSignature,
-    planning.uacName,
-    planning.component,
-    planning.curriculumName,
-    s1?.uacName,
-    s1?.component,
-  ]);
+  const renderSubTabsBar = () => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+      <div className="detail-subtabs">
+        <button
+          type="button"
+          onClick={() => handleSubTabSwitch('extras')}
+          className={`detail-subtab${currentSubTab === 'extras' ? ' is-active' : ''}`}
+        >
+          📋 Instrumentos de Evaluación y Recursos
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSubTabSwitch('teacherGuides')}
+          className={`detail-subtab${currentSubTab === 'teacherGuides' ? ' is-active' : ''}`}
+        >
+          🔒 Solucionario Docente y Guías
+        </button>
+      </div>
+    </div>
+  );
 
-  if (activeSubTab === 'teacherGuides') {
+  if (currentSubTab === 'teacherGuides') {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {renderSubTabsBar()}
           <div className="section-card">
             <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
               <span className="section-card-title" style={{ color: '#fff' }}>📘 Solucionario Pedagógico y Guías del Docente</span>
@@ -398,7 +407,8 @@ export default function PlanningTabMateriales({
   return (
         <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          
+          {renderSubTabsBar()}
+
           {/* Header Banner */}
           <div className="section-card" style={{
             background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',

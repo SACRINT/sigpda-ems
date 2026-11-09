@@ -15,3 +15,6 @@ export type { PlanningTabAuditoriaProps } from './PlanningTabAuditoria';
 
 export { default as PlanningTabAnalitica } from './PlanningTabAnalitica';
 export type { PlanningTabAnaliticaProps } from './PlanningTabAnalitica';
+
+export { default as PlanningTabCalidad } from './PlanningTabCalidad';
+export type { PlanningTabCalidadProps, QualitySubTab } from './PlanningTabCalidad';

@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
+import PlanningDetailHero from '@/components/planeacion/PlanningDetailHero';
+import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
@@ -14,8 +17,7 @@ import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/con
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
-  FileText, Zap, Clock, GraduationCap, Printer, BarChart3,
-  Award, TrendingUp, Download, FileDown, Send, Eye,
+  FileText, Clock, Package, ShieldCheck,
 } from 'lucide-react';
 
 interface PlanningDetailClientProps {
@@ -31,9 +33,8 @@ import {
   PlanningTabDocumento,
   PlanningTabSecuencias,
   PlanningTabMateriales,
-  PlanningTabEvaluador,
-  PlanningTabAuditoria,
-  PlanningTabAnalitica,
+  PlanningTabCalidad,
+  type QualitySubTab,
 } from '@/components/planeacion/tabs';
 import { useAssistant } from '@/components/assistant';
 
@@ -73,9 +74,59 @@ function PlanningDetailModular({
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
-  // Tabs state
-  const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics'>('planning');
+  // Tabs state (4 atomic axes + subtab controlled state)
+  const [activeTab, setActiveTabState] = useState<'planning' | 'lessonPlans' | 'materials' | 'quality'>('planning');
+  const [materialsSubTab, setMaterialsSubTab] = useState<'extras' | 'teacherGuides'>('extras');
+  const [qualitySubTab, setQualitySubTab] = useState<QualitySubTab>('audit');
+  const [showA4Modal, setShowA4Modal] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const setActiveTab = useCallback((tab: string) => {
+    if (tab === 'planning') {
+      setActiveTabState('planning');
+    } else if (tab === 'lessonPlans') {
+      setActiveTabState('lessonPlans');
+    } else if (tab === 'materials') {
+      setActiveTabState('materials');
+    } else if (tab === 'extras') {
+      setActiveTabState('materials');
+      setMaterialsSubTab('extras');
+    } else if (tab === 'teacherGuides') {
+      setActiveTabState('materials');
+      setMaterialsSubTab('teacherGuides');
+    } else if (tab === 'a4print') {
+      setShowA4Modal(true);
+    } else if (tab === 'quality') {
+      setActiveTabState('quality');
+    } else if (tab === 'audit') {
+      setActiveTabState('quality');
+      setQualitySubTab('audit');
+    } else if (tab === 'evaluador') {
+      setActiveTabState('quality');
+      setQualitySubTab('evaluador');
+    } else if (tab === 'analytics') {
+      setActiveTabState('quality');
+      setQualitySubTab('analytics');
+    }
+  }, []);
+
+  // ── Secuencia Didáctica por Sesión state ──────────────────────────────────
+  const [sequenceData, setSequenceData] = useState<Record<number, SecuenciaBloque>>(
+    (planning.sequenceJson as any) || {}
+  );
+
+  // Generate detailed pedagogical sessions for all 3 curricular blocks using Session Progression Engine
+  const curricularBlocks = useMemo(() => resolveCurricularBlocks(content), [content]);
+  const blockSessionsMap: DetailedSession[][] = useMemo(() => {
+    return curricularBlocks.map((block) => {
+      const savedSeq = sequenceData?.[block.blockIndex] || null;
+      return generateCurricularBlockSessions(block, isLaboral, savedSeq);
+    });
+  }, [curricularBlocks, isLaboral, sequenceData]);
+  const allDetailedSessions: DetailedSession[] = useMemo(() => {
+    return blockSessionsMap.flat();
+  }, [blockSessionsMap]);
+  const lessonSessions = allDetailedSessions;
 
   // SAPCU Copiloto Pedagógico: Sincronización contextual bidireccional
   const { setDetallesDocumento } = useAssistant();
@@ -187,11 +238,11 @@ function PlanningDetailModular({
 
   // Load audit when switching to audit tab for the first time
   useEffect(() => {
-    if (activeTab === 'audit' && !auditLoaded && !auditLoading) {
+    if (activeTab === 'quality' && qualitySubTab === 'audit' && !auditLoaded && !auditLoading) {
       handleRunAudit();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, qualitySubTab]);
 
   // Modal Checklist Supervisión
   const [showChecklistModal, setShowChecklistModal] = useState(false);
@@ -231,11 +282,14 @@ function PlanningDetailModular({
       // Recargar extras en estado React
       await loadExtras();
 
-      // Auto-navegar a la pestaña de Planes para ver las 24 sesiones
+      // Auto-navegar a la pestaña de Planes para ver las sesiones
       setActiveTab('lessonPlans');
-      alert(`¡Suite del Bloque ${blockIdx + 1} sincronizada con éxito!\nSe derivaron los 24 Planes de Clase, Rúbricas y Materiales Didácticos.`);
+      const count = blockSessionsMap[blockIdx]?.length || '';
+      toast.success(
+        `¡Suite del Bloque ${blockIdx + 1} sincronizada con éxito! ${count ? `(${count} Planes de Clase derivados)` : ''}`
+      );
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error al sincronizar la Suite');
+      toast.error(err instanceof Error ? err.message : 'Error al sincronizar la Suite');
     } finally {
       setSyncingSuite(null);
     }
@@ -287,7 +341,7 @@ function PlanningDetailModular({
         setExtras((prev) => [...prev, result.extra]);
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al generar el recurso');
+      toast.error(err instanceof Error ? err.message : 'Error al generar el recurso');
     } finally {
       setGeneratingKey(null);
     }
@@ -307,7 +361,7 @@ function PlanningDetailModular({
       if (res.ok) {
         setExtras((prev) => prev.filter((ex) => ex.id !== extraId));
       } else {
-        alert('Error al eliminar el recurso');
+        toast.error('Error al eliminar el recurso');
       }
     } catch (err) {
       console.error(err);
@@ -346,9 +400,6 @@ function PlanningDetailModular({
   }
 
   // ── Secuencia Didáctica por Sesión state ──────────────────────────────────
-  const [sequenceData, setSequenceData] = useState<Record<number, SecuenciaBloque>>(
-    (planning.sequenceJson as any) || {}
-  );
   const [generatingSeqBlock, setGeneratingSeqBlock] = useState<number | null>(null);
   const [editingSeqBlock, setEditingSeqBlock] = useState<number | null>(null);
   const [editedSessions, setEditedSessions] = useState<Record<number, SecuenciaSesion[]>>({});
@@ -714,15 +765,6 @@ function PlanningDetailModular({
   const semestralThresholdMet = accumulatedWorkbookWords >= blockBudget.targetWords.min * totalWorkbookBlocks;
   const semestralReady = allBlocksGenerated;
 
-  // Generate detailed pedagogical sessions for all 3 curricular blocks using Session Progression Engine
-  const curricularBlocks = resolveCurricularBlocks(content);
-  const blockSessionsMap: DetailedSession[][] = curricularBlocks.map((block) => {
-    const savedSeq = sequenceData?.[block.blockIndex] || null;
-    return generateCurricularBlockSessions(block, isLaboral, savedSeq);
-  });
-  const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
-  const lessonSessions = allDetailedSessions;
-
   // Download PDF handler
   const [downloadingSeqPdf, setDownloadingSeqPdf] = useState<boolean>(false);
 
@@ -739,11 +781,11 @@ function PlanningDetailModular({
         },
       });
       if (result.error) {
-        alert(result.error);
+        toast.error(result.error);
       }
     } catch (e) {
       console.error('Error generating PDF:', e);
-      alert('Hubo un error al generar el archivo PDF.');
+      toast.error('Hubo un error al generar el archivo PDF.');
     } finally {
       setDownloadingPdf(false);
     }
@@ -757,14 +799,11 @@ function PlanningDetailModular({
       pdf.save(filename);
     } catch (e) {
       console.error('Error generating Secuencia PDF:', e);
-      alert('Hubo un error al generar el archivo PDF de la secuencia didáctica.');
+      toast.error('Hubo un error al generar el archivo PDF de la secuencia didáctica.');
     } finally {
       setDownloadingSeqPdf(false);
     }
   };
-
-
-
 
   // ── Evaluador state ─────────────────────────────────────────────────────
   const [evalResult, setEvalResult]   = useState<any | null>(planning.evaluationJson || null);
@@ -815,11 +854,11 @@ function PlanningDetailModular({
   };
 
   useEffect(() => {
-    if (activeTab === 'analytics' && !analyticsLoaded && !analyticsLoading) {
+    if (activeTab === 'quality' && qualitySubTab === 'analytics' && !analyticsLoaded && !analyticsLoading) {
       handleLoadAnalytics();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, qualitySubTab]);
 
   // Classroom state
   const [publishingClassroom, setPublishingClassroom] = useState(false);
@@ -841,43 +880,43 @@ function PlanningDetailModular({
       }
 
       if (!data.configured) {
-        alert('Configura Google Classroom en Configuración\n\n' + data.message);
+        toast.error('Configura Google Classroom en Configuración\n\n' + data.message);
         return;
       }
 
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message);
         if (data.courseUrl) {
           window.open(data.courseUrl, '_blank');
         }
       } else {
-        alert(data.message || 'No se pudo publicar la planeación en Classroom.');
+        toast.error(data.message || 'No se pudo publicar la planeación en Classroom.');
       }
     } catch (err: unknown) {
       console.error('Error publishing to classroom:', err);
-      alert(err instanceof Error ? err.message : 'Ocurrió un error al intentar publicar en Google Classroom.');
+      toast.error(err instanceof Error ? err.message : 'Ocurrió un error al intentar publicar en Google Classroom.');
     } finally {
       setPublishingClassroom(false);
     }
   };
 
   if (!content) {
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Header */}
-        <div className="page-header" style={{ borderBottom: '1px solid var(--c-border)', paddingBottom: '16px' }}>
-          <Link href={`/${locale}/dashboard`} className="btn btn-ghost" style={{ marginBottom: '12px', display: 'inline-flex' }}>
-            ← Mis planeaciones
-          </Link>
-          <h1 className="page-title" style={{ fontSize: '28px', color: 'var(--c-navy)' }}>{planning.uacName}</h1>
-          <p className="page-subtitle" style={{ color: 'var(--c-text-muted)', fontSize: '15px' }}>
-            {planning.semester}° Semestre · Componente {planning.component === 'laboral' ? 'Formación Laboral' : 'Fundamental/Ampliado'}
-          </p>
-          <div className="page-actions" style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <DeletePlanningButton id={planning.id} locale={locale} redirectAfterDelete={true} />
-          </div>
-        </div>
+        <PlanningDetailHero
+          locale={locale}
+          planning={planning}
+          isLaboral={isLaboral}
+          weeklyHours={weeklyHours}
+          totalSessions={lessonSessions.length}
+          hasContent={false}
+          downloadingPdf={false}
+          publishingClassroom={false}
+          onDownloadPdf={() => {}}
+          onOpenA4Modal={() => {}}
+          onPublishClassroom={() => {}}
+          onOpenChecklistModal={() => setShowChecklistModal(true)}
+        />
 
         {/* Warning Banner */}
         <div className="card" style={{ border: '1px solid #f5c2c7', backgroundColor: '#f8d7da', color: '#842029', padding: '24px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -900,159 +939,85 @@ function PlanningDetailModular({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Header */}
-      <div className="page-header" style={{ borderBottom: '1px solid var(--c-border)', paddingBottom: '16px' }}>
-        <Link href={`/${locale}/dashboard`} className="btn btn-ghost" style={{ marginBottom: '12px', display: 'inline-flex' }}>
-          ← Mis planeaciones
-        </Link>
-        <h1 className="page-title" style={{ fontSize: '28px', color: 'var(--c-navy)' }}>{planning.uacName}</h1>
-        <p className="page-subtitle" style={{ color: 'var(--c-text-muted)', fontSize: '15px' }}>
-          {planning.semester}° Semestre · Componente {planning.component === 'laboral' ? 'Formación Laboral' : 'Fundamental/Ampliado'}
-        </p>
-        <div className="page-actions" style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {content && (
-            <>
-              <button
-                onClick={handleDownloadPdf}
-                disabled={downloadingPdf}
-                className="btn"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#dc2626',
-                  borderColor: '#dc2626',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                }}
-              >
-                <Download size={15} /> {downloadingPdf ? 'Generando PDF…' : 'Descargar PDF'}
-              </button>
-              <a href={`/api/docx/${planning.id}`} className="btn btn-amber" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <FileDown size={15} /> Descargar Word (DOCX)
-              </a>
-              <button
-                onClick={() => setActiveTab('a4print')}
-                className="btn btn-secondary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Eye size={15} /> Vista Impresión Carta
-              </button>
-              <button
-                onClick={handlePublishClassroom}
-                disabled={publishingClassroom}
-                className="btn"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#15803d',
-                  borderColor: '#15803d',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                }}
-              >
-                <Send size={15} /> {publishingClassroom ? 'Publicando…' : 'Publicar en Classroom'}
-              </button>
-            </>
-          )}
-          <DeletePlanningButton id={planning.id} locale={locale} redirectAfterDelete={true} />
-        </div>
+      {/* Hero Card & Action Toolbar */}
+      <PlanningDetailHero
+        locale={locale}
+        planning={planning}
+        isLaboral={isLaboral}
+        weeklyHours={weeklyHours}
+        totalSessions={lessonSessions.length}
+        hasContent={true}
+        downloadingPdf={downloadingPdf}
+        publishingClassroom={publishingClassroom}
+        onDownloadPdf={handleDownloadPdf}
+        onOpenA4Modal={() => setShowA4Modal(true)}
+        onPublishClassroom={handlePublishClassroom}
+        onOpenChecklistModal={() => setShowChecklistModal(true)}
+      />
 
-      </div>
-
-      {/* Hierarchy & Compliance Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-        color: '#f8fafc',
-        padding: '16px 20px',
-        borderRadius: '10px',
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-        border: '1px solid rgba(255,255,255,0.1)'
-      }}>
-        <div>
-          <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 700, marginBottom: '6px' }}>
-            Jerarquía Normativa MCCEMS 2026-2027
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ background: '#3b82f6', color: '#fff', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
-              Macro: Planeación Didáctica Semestral
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: '12px' }}>➔</span>
-            <span style={{ background: '#10b981', color: '#fff', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
-              Micro: Secuencias Didácticas ({isLaboral ? 'Actividades Clave' : 'Propósitos Formativos'})
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: '12px' }}>➔</span>
-            <span style={{ background: '#f59e0b', color: '#fff', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
-              Micro-operativo: Planes de Clase ({lessonSessions.length} Sesiones)
-            </span>
-            {planning.metodologiaActiva && (
-              <>
-                <span style={{ color: '#94a3b8', fontSize: '12px' }}>·</span>
-                <span style={{ background: '#7c3aed', color: '#fff', fontSize: '12px', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
-                  🎯 {planning.metodologiaActiva}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
+      {/* Tabs Menu — 4 Ejes Atómicos (.detail-tabs) */}
+      <div className="detail-tabs">
+        <button
+          type="button"
+          onClick={() => setActiveTab('planning')}
+          className={`detail-tab${activeTab === 'planning' ? ' is-active' : ''}`}
+          aria-current={activeTab === 'planning' ? 'page' : undefined}
+        >
+          <FileText size={16} />
+          <span>Planeación y Libros</span>
+        </button>
 
         <button
-          onClick={() => setShowChecklistModal(true)}
-          style={{
-            background: 'rgba(255,255,255,0.12)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.25)',
-            borderRadius: '8px',
-            padding: '8px 16px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.2s'
-          }}
+          type="button"
+          onClick={() => setActiveTab('lessonPlans')}
+          className={`detail-tab${activeTab === 'lessonPlans' ? ' is-active' : ''}`}
+          aria-current={activeTab === 'lessonPlans' ? 'page' : undefined}
         >
-          📋 Checklist de Supervisión MCCEMS
+          <Clock size={16} />
+          <span>Planes de Clase</span>
+          <span className="detail-tab-badge">{lessonSessions.length}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('materials')}
+          className={`detail-tab${activeTab === 'materials' ? ' is-active' : ''}`}
+          aria-current={activeTab === 'materials' ? 'page' : undefined}
+        >
+          <Package size={16} />
+          <span>Materiales e Instrumentos</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('quality')}
+          className={`detail-tab${activeTab === 'quality' ? ' is-active' : ''}`}
+          aria-current={activeTab === 'quality' ? 'page' : undefined}
+        >
+          <ShieldCheck size={16} />
+          <span>Calidad y Auditoría</span>
         </button>
       </div>
 
-      {/* Tabs Menu — Lucide icons · estilo pestañas reales (.planning-tabs-bar) */}
-      <div className="planning-tabs-bar">
-        {([
-          { key: 'planning',      label: 'Planeación',         icon: <FileText   size={15}/>, color: 'var(--c-blue-mid)' },
-          { key: 'extras',        label: 'Rúbricas y Materiales', icon: <Zap     size={15}/>, color: 'var(--c-blue-mid)' },
-          { key: 'lessonPlans',   label: `Planes (${lessonSessions.length})`, icon: <Clock size={15}/>, color: 'var(--c-blue-mid)' },
-          { key: 'teacherGuides', label: 'Solucionario Docente',       icon: <GraduationCap size={15}/>, color: '#7c3aed' },
-          { key: 'a4print',       label: 'Formato Carta',      icon: <Printer    size={15}/>, color: 'var(--c-blue-mid)' },
-          { key: 'audit',         label: 'Auditoría',          icon: <BarChart3  size={15}/>, color: '#059669' },
-          { key: 'evaluador',     label: 'Evaluador IA',       icon: <Award      size={15}/>, color: '#dc2626' },
-          { key: 'analytics',     label: 'Analytics',          icon: <TrendingUp size={15}/>, color: '#0891b2' },
-        ] as const).map(({ key, label, icon, color }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setActiveTab(key as any)}
-            className={`planning-tab${activeTab === key ? ' is-active' : ''}`}
-            style={{ '--tab-color': color } as unknown as React.CSSProperties}
-            aria-current={activeTab === key ? 'page' : undefined}
-          >
-            {icon} {label}
-          </button>
-        ))}
-      </div>
-      {/* ── ATOMIC TABS DISPATCHER (Fase 3 Refactor) ────────────────────── */}
-      {(activeTab === 'planning' || activeTab === 'a4print') && (
+      {/* ── ATOMIC TABS DISPATCHER ────────────────────── */}
+      {activeTab === 'planning' && (
         <PlanningTabDocumento
           planning={planning}
           editorialEngineEnabled={editorialEngineEnabled}
-          activeSubTab={activeTab === 'a4print' ? 'a4print' : 'planning'}
+          activeSubTab="planning"
           sequenceData={sequenceData}
+          extras={extras}
+          totalSessions={lessonSessions.length}
+          onOpenA4Modal={() => setShowA4Modal(true)}
+          onNavigateToLessonPlans={() => setActiveTab('lessonPlans')}
+          onNavigateToSolucionario={() => {
+            setActiveTabState('materials');
+            setMaterialsSubTab('teacherGuides');
+          }}
+          onNavigateToInstrumentos={() => {
+            setActiveTabState('materials');
+            setMaterialsSubTab('extras');
+          }}
           downloadingPdf={downloadingPdf}
           handleDownloadPdf={handleDownloadPdf}
           handleDownloadSecuenciaPdf={handleDownloadSecuenciaPdf}
@@ -1103,10 +1068,11 @@ function PlanningDetailModular({
         />
       )}
 
-      {(activeTab === 'extras' || activeTab === 'teacherGuides') && (
+      {activeTab === 'materials' && (
         <PlanningTabMateriales
           planning={planning}
-          activeSubTab={activeTab}
+          activeSubTab={materialsSubTab}
+          onSubTabChange={setMaterialsSubTab}
           extras={extras}
           generatingKey={generatingKey}
           syncingSuite={syncingSuite}
@@ -1122,9 +1088,11 @@ function PlanningDetailModular({
         />
       )}
 
-      {activeTab === 'audit' && (
-        <PlanningTabAuditoria
+      {activeTab === 'quality' && (
+        <PlanningTabCalidad
           planning={planning}
+          activeSubTab={qualitySubTab}
+          onSubTabChange={setQualitySubTab}
           auditReport={auditReport}
           auditLoading={auditLoading}
           auditError={auditError}
@@ -1133,22 +1101,10 @@ function PlanningDetailModular({
           setExpandedDimension={setExpandedDimension}
           handleRunAudit={handleRunAudit}
           handleReAudit={handleReAudit}
-        />
-      )}
-
-      {activeTab === 'evaluador' && (
-        <PlanningTabEvaluador
-          planning={planning}
           evalResult={evalResult}
           evalLoading={evalLoading}
           evalError={evalError}
           handleRunEvaluacion={handleRunEvaluacion}
-        />
-      )}
-
-      {activeTab === 'analytics' && (
-        <PlanningTabAnalitica
-          planning={planning}
           analyticsData={analyticsData}
           analyticsLoading={analyticsLoading}
           analyticsError={analyticsError}
@@ -1156,6 +1112,14 @@ function PlanningDetailModular({
           handleLoadAnalytics={handleLoadAnalytics}
         />
       )}
+
+      {/* Modal Vista Impresión Carta */}
+      <DocumentA4Modal
+        isOpen={showA4Modal}
+        onClose={() => setShowA4Modal(false)}
+        planning={planning}
+        sequenceData={sequenceData}
+      />
 
       {/* Visor Modal Overlay */}
       {previewExtra && (

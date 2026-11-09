@@ -2,17 +2,16 @@
 
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import type { GeneratedPlanningContent, Planning, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
+import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
-import {
-  reviewBlockMaterials,
-  type MaterialReviewReport,
-} from '@/lib/guide-engine/material-review';
+import { type MaterialReviewReport } from '@/lib/guide-engine/material-review';
+import { useBlockMaterialReviews } from '@/hooks/useBlockMaterialReviews';
+import PlanningDownloadsHub from '@/components/planeacion/PlanningDownloadsHub';
 import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
@@ -32,6 +31,12 @@ export interface PlanningTabDocumentoProps {
   planning: Planning;
   activeSubTab?: 'planning' | 'a4print';
   sequenceData?: Record<number, SecuenciaBloque>;
+  extras?: PlanningExtra[];
+  totalSessions?: number;
+  onOpenA4Modal?: () => void;
+  onNavigateToLessonPlans?: () => void;
+  onNavigateToSolucionario?: () => void;
+  onNavigateToInstrumentos?: () => void;
   downloadingPdf?: boolean;
   handleDownloadPdf?: () => Promise<void> | void;
   handleDownloadSecuenciaPdf?: () => Promise<void> | void;
@@ -69,6 +74,14 @@ export default function PlanningTabDocumento({
   planning,
   activeSubTab = 'planning',
   sequenceData = {},
+  extras = [],
+  totalSessions = 54,
+  onOpenA4Modal,
+  onNavigateToLessonPlans,
+  onNavigateToSolucionario,
+  onNavigateToInstrumentos,
+  downloadingPdf = false,
+  handleDownloadPdf,
   handleDownloadSecuenciaPdf = async () => {},
   downloadingSeqPdf = false,
   accumulatedWorkbookWords = 0,
@@ -119,40 +132,7 @@ export default function PlanningTabDocumento({
   const isEditorialEngineEnabled = Boolean(editorialEngineEnabled);
   const hasPlanningId = Boolean(planning?.id);
 
-  // Firma estable de versiones de libros generados para evitar re-ejecutar R1 en cada tick de progreso
-  const blockWorkbooksSignature = Object.entries(blockWorkbooks)
-    .map(([k, item]) => {
-      const wb = item?.workbook;
-      if (!wb) return `${k}:null`;
-      return `${k}:${wb.version ?? 0}:${wb.generatedAt ?? ''}:${wb.totalWords ?? 0}`;
-    })
-    .join('|');
-
-  const blockMaterialReviews = React.useMemo(() => {
-    const map: Record<number, MaterialReviewReport> = {};
-    for (const [key, item] of Object.entries(blockWorkbooks)) {
-      const idx = Number(key);
-      if (Number.isFinite(idx) && item?.workbook) {
-        map[idx] = reviewBlockMaterials({
-          workbook: item.workbook,
-          blockSequence: sequenceData?.[idx] ?? null,
-          uacName: planning?.uacName || s1?.uacName || '',
-          component: planning?.component || s1?.component || '',
-          curriculumName: planning?.curriculumName || '',
-        });
-      }
-    }
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    blockWorkbooksSignature,
-    sequenceData,
-    planning?.uacName,
-    planning?.component,
-    planning?.curriculumName,
-    s1?.uacName,
-    s1?.component,
-  ]);
+  const blockMaterialReviews = useBlockMaterialReviews(planning, blockWorkbooks, sequenceData);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
@@ -308,6 +288,27 @@ export default function PlanningTabDocumento({
               onClose={() => setShowSubscriptionModal(false)}
             />
           )}
+
+          {/* ── CENTRO DE DESCARGAS Y ENTREGABLES (Fase 2 Rediseño) ── */}
+          <PlanningDownloadsHub
+            planning={planning}
+            sequenceData={sequenceData}
+            extras={extras}
+            totalSessions={totalSessions}
+            generatedWorkbookCount={generatedWorkbookCount}
+            totalWorkbookBlocks={totalWorkbookBlocks}
+            semestralReady={semestralReady}
+            blockReviews={blockMaterialReviews}
+            downloadingPdf={downloadingPdf}
+            downloadingSeqPdf={downloadingSeqPdf}
+            onDownloadPdf={handleDownloadPdf}
+            onDownloadSecuenciaPdf={handleDownloadSecuenciaPdf}
+            onOpenA4Modal={onOpenA4Modal}
+            onNavigateToLessonPlans={onNavigateToLessonPlans}
+            onNavigateToSolucionario={onNavigateToSolucionario}
+            onNavigateToInstrumentos={onNavigateToInstrumentos}
+          />
+
           {/* Section I */}
           <div className="section-card">
             <div className="section-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
@@ -458,7 +459,7 @@ export default function PlanningTabDocumento({
           )}
 
           {/* Section IV: Secuencia Didáctica Completa por Momentos Pedagógicos (Opción A) */}
-          <div className="section-card">
+          <div className="section-card" id="libros-bloque">
             <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
                 <span className="section-card-title">IV. Diseño de Secuencia Didáctica (Momentos Pedagógicos)</span>
@@ -1172,9 +1173,9 @@ export default function PlanningTabDocumento({
                                   gap: '5px',
                                   transition: 'all 0.15s',
                                 }}
-                                title="Sincronizar Suite (24 Planes de Clase, Rúbricas y Materiales Didácticos)"
+                                title={`Sincronizar Suite (${block.hours} Planes de Clase, Rúbricas y Materiales Didácticos)`}
                               >
-                                <FileText size={13} /> {syncingSuite === i ? '⏳ Sincronizando Suite…' : '📑 Suite (24 Planes)'}
+                                <FileText size={13} /> {syncingSuite === i ? '⏳ Sincronizando Suite…' : `📑 Suite (${block.hours} Planes)`}
                               </button>
 
                               <button

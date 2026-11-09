@@ -138,7 +138,7 @@ export default function PlanningTabSecuencias({
                   >
                     {syncingSuite !== null
                       ? `⏳ Sincronizando Bloque ${(syncingSuite ?? 0) + 1}...`
-                      : `⚡ Sincronizar ${allDetailedSessions.length || 24} Planes desde el Libro`}
+                      : `⚡ Sincronizar ${allDetailedSessions.length} Planes desde el Libro`}
                   </button>
                 )}
                 {generatedLessonPlans > 0 && (
