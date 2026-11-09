@@ -8,13 +8,25 @@ import {
   getPlanningExtrasByBlock,
   getPlanningExtrasByIds,
   getBlockWorkbook,
+  getAllBlockWorkbooks,
 } from '@/lib/db';
-import { buildExtraDocx } from '@/lib/docx-helpers';
+import { buildExtraDocx, buildCombinedExtraDocx } from '@/lib/docx-helpers';
+import { generateDocx, generateSecuenciaDocx } from '@/lib/docx-generator';
+import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
+import {
+  buildSacrintDeck,
+  buildSacrintInfographic,
+  type SacrintDeckSpec,
+  type SacrintInfographicSpec,
+} from '@/lib/visual-engine/sacrint/spec';
+import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
-import { selectExtrasForBlock } from '@/lib/planning-extras-for-block';
-import type { GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
+import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
+import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
+import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
@@ -25,6 +37,21 @@ import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
+
+const TYPE_LABELS: Record<string, string> = {
+  rubric: 'Rubricas',
+  checklist: 'Lista_de_Cotejo',
+  material: 'Materiales_Docente',
+  teacher_guide: 'Solucionarios',
+  lesson_plan: 'Planes_de_Clase',
+  practice_guide: 'Guias_de_Trabajo',
+  visual: 'Recursos_Visuales',
+};
+
+function typeLabel(type: string): string {
+  if (TYPE_LABELS[type]) return TYPE_LABELS[type];
+  return sanitizeDocFilename(type.replace(/_/g, '-'), 40) || 'Documento';
+}
 
 export async function GET(request: NextRequest) {
   return handleBulkDocx(request);
@@ -50,6 +77,7 @@ async function handleBulkDocx(request: NextRequest) {
     let blockIndex: number | null = null;
     let type: string | undefined = undefined;
     let extraIds: string[] | undefined = undefined;
+    let mode: string | undefined = undefined;
 
     if (request.method === 'POST') {
       try {
@@ -58,6 +86,7 @@ async function handleBulkDocx(request: NextRequest) {
         blockIndex = typeof body.blockIndex === 'number' ? body.blockIndex : null;
         type = body.type;
         extraIds = Array.isArray(body.extraIds) ? body.extraIds : undefined;
+        mode = body.mode;
       } catch {
         // Ignorar error si no hay JSON válido
       }
@@ -75,16 +104,18 @@ async function handleBulkDocx(request: NextRequest) {
       if (idsParam) {
         extraIds = idsParam.split(',').filter(Boolean);
       }
+      mode = searchParams.get('mode') || undefined;
     }
 
     let extras: Array<{ id: string; planning_id: string; type: string; title: string; key_index: number | null; content_text: string }> = [];
     let brandingCtx: BrandingContext | undefined = undefined;
     let zipName = 'Materiales_Educativos_DOCX.zip';
+    let planning: Awaited<ReturnType<typeof getPlanningById>> | null = null;
 
     if (extraIds && extraIds.length > 0) {
       extras = await getPlanningExtrasByIds(extraIds, teacher.id);
     } else if (planningId && blockIndex !== null && !isNaN(blockIndex)) {
-      const planning = await getPlanningById(planningId, teacher.id);
+      planning = await getPlanningById(planningId, teacher.id);
       if (!planning) {
         return new Response('Planeación no encontrada o no autorizada', { status: 404 });
       }
@@ -97,11 +128,11 @@ async function handleBulkDocx(request: NextRequest) {
 
       extras = await getPlanningExtrasByBlock(planningId, blockIndex, teacher.id, type);
       const blockNum = resolveBlockNumber(blockIndex) ?? (blockIndex + 1);
-      const typeLabel = type === 'lesson_plan' ? 'Planes_de_Clase' : 'Materiales';
+      const typeLabelStr = type === 'lesson_plan' ? 'Planes_de_Clase' : 'Materiales';
       const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-      zipName = `${typeLabel}_Bloque_${blockNum}_${cleanSubject}_DOCX.zip`;
+      zipName = `${typeLabelStr}_Bloque_${blockNum}_${cleanSubject}_DOCX.zip`;
     } else if (planningId) {
-      const planning = await getPlanningById(planningId, teacher.id);
+      planning = await getPlanningById(planningId, teacher.id);
       if (!planning) {
         return new Response('Planeación no encontrada o no autorizada', { status: 404 });
       }
@@ -114,7 +145,7 @@ async function handleBulkDocx(request: NextRequest) {
 
       extras = await getPlanningExtras(planningId, teacher.id);
       const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-      zipName = `Paquete_Materiales_${cleanSubject}_DOCX.zip`;
+      zipName = `Paquete_Entregables_${cleanSubject}_DOCX.zip`;
     } else {
       return new Response('Parámetros insuficientes (requiere planningId o extraIds)', { status: 400 });
     }
@@ -128,7 +159,15 @@ async function handleBulkDocx(request: NextRequest) {
       extras = selectExtrasForBlock(extras, planContent, blockIndex, type);
     }
 
-    if (extras.length === 0) {
+    const isMasterPackage = Boolean(
+      planningId &&
+      (blockIndex === null || isNaN(blockIndex)) &&
+      (!extraIds || extraIds.length === 0) &&
+      !type &&
+      mode !== 'individual'
+    );
+
+    if (!isMasterPackage && extras.length === 0) {
       return new Response('No se encontraron materiales para empaquetar', { status: 404 });
     }
 
@@ -137,7 +176,7 @@ async function handleBulkDocx(request: NextRequest) {
     const resolvedPlanId = planningId || extras[0]?.planning_id;
 
     if (resolvedPlanId) {
-      const planningForReview = await getPlanningById(resolvedPlanId, teacher.id).catch(() => null);
+      const planningForReview = planning || (await getPlanningById(resolvedPlanId, teacher.id).catch(() => null));
       const isFullSuite = !type && (!extraIds || extraIds.length === 0);
 
       const extrasByBlock = new Map<number, typeof extras>();
@@ -216,46 +255,291 @@ async function handleBulkDocx(request: NextRequest) {
     }
 
     const zip = new JSZip();
-    const usedNames = new Set<string>();
 
-    // 1. Asignación determinista de nombres de archivo con deduplicación
-    const fileEntries = extras.map((item, i) => {
-      let baseName = sanitizeDocFilenameWithBlock(item.title, 70);
-      if (!baseName) baseName = `extra_${i + 1}`;
+    // RAMA 1: PAQUETE MASTER CONSOLIDADO DE LA PLANEACIÓN (10 Entregables Compilados en 1 Solo Archivo Cada Uno)
+    if (isMasterPackage && planning) {
+      const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+      const contentJson = planning.content_json as GeneratedPlanningContent | null;
+      const planningObj: Planning = {
+        id: planning.id,
+        teacherId: planning.teacher_id,
+        uacName: planning.uac_name,
+        semester: planning.semester,
+        component: planning.component,
+        curriculumName: planning.curriculum_name || '',
+        paecContext: planning.paec_context || '',
+        extractedData: planning.extracted_data,
+        contentJson: planning.content_json,
+        sequenceJson: (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> }).sequence_json || null,
+        workbooksJson: (planning as unknown as { workbooks_json?: Record<string, { current?: ActiveWorkTextbook }> }).workbooks_json || null,
+        status: planning.status,
+        createdAt: planning.created_at,
+        updatedAt: planning.updated_at,
+      };
 
-      let fileName = `${baseName}.docx`;
-      let counter = 1;
-      while (usedNames.has(fileName.toLowerCase())) {
-        fileName = `${baseName}_${counter}.docx`;
-        counter++;
+      // 1. Planeación Didáctica Semestral (Word)
+      if (contentJson) {
+        try {
+          const sequenceJson = (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> }).sequence_json || null;
+          const docxBuf = await generateDocx(contentJson, sequenceJson);
+          zip.file(`01_Planeacion_Didactica_Semestral_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Planeacion Didactica Docx for bulk zip:', { error: err });
+        }
       }
-      usedNames.add(fileName.toLowerCase());
-      return { item, fileName };
-    });
 
-    // 2. Generación paralela en lotes de 8 para alto rendimiento sin saturación de memoria
-    const BATCH_SIZE = 8;
-    for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
-      const batch = fileEntries.slice(i, i + BATCH_SIZE);
-      const generated = await Promise.all(
-        batch.map(async ({ item, fileName }) => {
-          try {
-            const canonicalKeyIndex = item.key_index !== null && item.key_index !== undefined
-              ? (resolveBlockNumber(item.key_index) !== null ? resolveBlockNumber(item.key_index)! - 1 : item.key_index)
-              : null;
-            const docxBuffer = await buildExtraDocx({ ...item, keyIndex: canonicalKeyIndex }, brandingCtx);
-            return { fileName, docxBuffer };
-          } catch (err) {
-            logger.warn(`Error generating DOCX for extra ${item.id} (${fileName}):`, {
-              error: err instanceof Error ? err.message : String(err),
-            });
-            return null;
+      // 2. Secuencia Didáctica (Word)
+      const rawSequenceJson = (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> }).sequence_json;
+      if (contentJson && rawSequenceJson) {
+        try {
+          const contentForSeq = { ...contentJson };
+          const rawMet = (planning as unknown as { metodologia_activa?: string }).metodologia_activa;
+          if (rawMet && !contentForSeq.sectionI?.metodologiaActiva) {
+            contentForSeq.sectionI.metodologiaActiva = rawMet;
           }
-        })
+          const docxBuf = await generateSecuenciaDocx(contentForSeq, rawSequenceJson);
+          zip.file(`02_Secuencia_Didactica_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Secuencia Didactica Docx for bulk zip:', { error: err });
+        }
+      }
+
+      // 3. Planes de Clase (50 min) — Todas las sesiones compiladas en 1 solo archivo
+      const lessonPlans = selectAllExtrasCombined(
+        extras.filter((e) => e.type === 'lesson_plan'),
+        contentJson,
+        'lesson_plan'
       );
-      for (const res of generated) {
-        if (res) {
-          zip.file(res.fileName, res.docxBuffer);
+      if (lessonPlans.length > 0) {
+        try {
+          const docxBuf = await buildCombinedExtraDocx(
+            lessonPlans,
+            brandingCtx,
+            `Planes de Clase (50 min) · Compilado Semestral · ${planning.uac_name}`
+          );
+          zip.file(`03_Planes_de_Clase_Compilado_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Lesson Plans Docx for bulk zip:', { error: err });
+        }
+      }
+
+      // 4. Solucionario Docente — Todos los bloques compilados en 1 solo archivo
+      const teacherGuides = selectAllExtrasCombined(
+        extras.filter((e) => e.type === 'teacher_guide'),
+        contentJson,
+        'teacher_guide'
+      );
+      if (teacherGuides.length > 0) {
+        try {
+          const docxBuf = await buildCombinedExtraDocx(
+            teacherGuides,
+            brandingCtx,
+            `Solucionario Docente · Compilado Semestral · ${planning.uac_name}`
+          );
+          zip.file(`04_Solucionario_Docente_Compilado_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Teacher Guides Docx for bulk zip:', { error: err });
+        }
+      }
+
+      // 5. Guías de Práctica — Todos los bloques compilados en 1 solo archivo
+      const practiceGuides = selectAllExtrasCombined(
+        extras.filter((e) => e.type === 'practice_guide'),
+        contentJson,
+        'practice_guide'
+      );
+      if (practiceGuides.length > 0) {
+        try {
+          const docxBuf = await buildCombinedExtraDocx(
+            practiceGuides,
+            brandingCtx,
+            `Guías de Práctica · Compilado Semestral · ${planning.uac_name}`
+          );
+          zip.file(`05_Guias_de_Practica_Compilado_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Practice Guides Docx for bulk zip:', { error: err });
+        }
+      }
+
+      // 6. Libro de Texto Semestral Consolidado (Word)
+      try {
+        const { docx } = await compileSemestralWorkbook(planning.id, planningObj, { format: 'docx' });
+        if (docx) {
+          zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.docx`, docx);
+        }
+      } catch (err) {
+        logger.warn('Error compiling Semestral Workbook Docx for bulk zip:', { error: err });
+      }
+
+      // 7. Rúbricas Analíticas Oficiales — Todos los bloques compilados en 1 solo archivo
+      const rubrics = selectAllExtrasCombined(
+        extras.filter((e) => e.type === 'rubric'),
+        contentJson,
+        'rubric'
+      );
+      if (rubrics.length > 0) {
+        try {
+          const docxBuf = await buildCombinedExtraDocx(
+            rubrics,
+            brandingCtx,
+            `Rúbricas Analíticas Oficiales · Compilado Semestral · ${planning.uac_name}`
+          );
+          zip.file(`07_Rubricas_Analiticas_Compilado_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Rubrics Docx for bulk zip:', { error: err });
+        }
+      }
+
+      // 8. Listas de Cotejo Formativas — Todos los bloques compilados en 1 solo archivo
+      const checklists = selectAllExtrasCombined(
+        extras.filter((e) => e.type === 'checklist'),
+        contentJson,
+        'checklist'
+      );
+      if (checklists.length > 0) {
+        try {
+          const docxBuf = await buildCombinedExtraDocx(
+            checklists,
+            brandingCtx,
+            `Listas de Cotejo Formativas · Compilado Semestral · ${planning.uac_name}`
+          );
+          zip.file(`08_Listas_de_Cotejo_Compilado_${cleanSubject}.docx`, docxBuf);
+        } catch (err) {
+          logger.warn('Error packaging Checklists Docx for bulk zip:', { error: err });
+        }
+      }
+
+      // 9. Presentaciones SACRINT (.pptx)
+      try {
+        const workbooks = await getAllBlockWorkbooks(planning.id);
+        const entries = Object.entries(workbooks)
+          .map(([k, v]) => {
+            const match = /^block_(\d+)$/.exec(k);
+            return match ? { blockIndex: Number(match[1]), workbook: v?.current } : null;
+          })
+          .filter((e): e is { blockIndex: number; workbook: ActiveWorkTextbook } => Boolean(e?.workbook))
+          .sort((a, b) => a.blockIndex - b.blockIndex);
+
+        const validBlockIndices = new Set([0, 1, 2]);
+        const canonicalEntries = entries.filter((e) => validBlockIndices.has(e.blockIndex));
+        const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
+
+        if (effectiveEntries.length > 0) {
+          const sacrintDecks: SacrintDeckSpec[] = [];
+          for (const entry of effectiveEntries) {
+            const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
+            for (let m = 0; m < missionCount; m++) {
+              sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex: m, mode: 'classroom' }));
+            }
+          }
+          if (sacrintDecks.length > 0) {
+            const pptxBuf = await generateCombinedSacrintPptx(sacrintDecks, {
+              title: `Presentación SACRINT completa — ${planning.uac_name}`,
+              subjectName: planning.uac_name || 'presentacion',
+            });
+            zip.file(`09_Presentaciones_SACRINT_${cleanSubject}.pptx`, pptxBuf);
+          }
+        }
+      } catch (err) {
+        logger.warn('Error packaging Presentations for bulk zip:', { error: err });
+      }
+
+      // 10. Infografías Sintéticas SACRINT (.pdf)
+      try {
+        const workbooks = await getAllBlockWorkbooks(planning.id);
+        const entries = Object.entries(workbooks)
+          .map(([k, v]) => {
+            const match = /^block_(\d+)$/.exec(k);
+            return match ? { blockIndex: Number(match[1]), workbook: v?.current } : null;
+          })
+          .filter((e): e is { blockIndex: number; workbook: ActiveWorkTextbook } => Boolean(e?.workbook))
+          .sort((a, b) => a.blockIndex - b.blockIndex);
+
+        const validBlockIndices = new Set([0, 1, 2]);
+        const canonicalEntries = entries.filter((e) => validBlockIndices.has(e.blockIndex));
+        const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
+
+        if (effectiveEntries.length > 0) {
+          const specs: SacrintInfographicSpec[] = [];
+          for (const entry of effectiveEntries) {
+            const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
+            for (let m = 0; m < missionCount; m++) {
+              specs.push(buildSacrintInfographic(entry.workbook, 'wide', { missionIndex: m }));
+            }
+          }
+          if (specs.length > 0) {
+            const infoBytes = await renderCombinedSacrintInfographicsPdf(specs, 'wide');
+            zip.file(`10_Infografias_Sinteticas_${cleanSubject}.pdf`, infoBytes);
+          }
+        }
+      } catch (err) {
+        logger.warn('Error packaging Infographics for bulk zip:', { error: err });
+      }
+
+      // Otros tipos de extras (p. ej. fichas de trabajo o materiales docentes adicionales)
+      const otherTypes = Array.from(new Set(extras.map((e) => e.type))).filter(
+        (t) => !['lesson_plan', 'teacher_guide', 'practice_guide', 'rubric', 'checklist'].includes(t)
+      );
+      for (const ot of otherTypes) {
+        const matching = selectAllExtrasCombined(
+          extras.filter((e) => e.type === ot),
+          contentJson,
+          ot
+        );
+        if (matching.length > 0) {
+          try {
+            const label = typeLabel(ot);
+            const docxBuf = await buildCombinedExtraDocx(
+              matching,
+              brandingCtx,
+              `${label.replace(/_/g, ' ')} · Compilado Semestral · ${planning.uac_name}`
+            );
+            zip.file(`11_${label}_Compilado_${cleanSubject}.docx`, docxBuf);
+          } catch (err) {
+            logger.warn(`Error packaging extra type ${ot} for bulk zip:`, { error: err });
+          }
+        }
+      }
+    } else {
+      // RAMA 2: DESCARGA INDIVIDUAL / POR BLOQUE ESPECÍFICO (Comportamiento habitual por bloque)
+      const usedNames = new Set<string>();
+      const fileEntries = extras.map((item, i) => {
+        let baseName = sanitizeDocFilenameWithBlock(item.title, 70);
+        if (!baseName) baseName = `extra_${i + 1}`;
+
+        let fileName = `${baseName}.docx`;
+        let counter = 1;
+        while (usedNames.has(fileName.toLowerCase())) {
+          fileName = `${baseName}_${counter}.docx`;
+          counter++;
+        }
+        usedNames.add(fileName.toLowerCase());
+        return { item, fileName };
+      });
+
+      const BATCH_SIZE = 8;
+      for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
+        const batch = fileEntries.slice(i, i + BATCH_SIZE);
+        const generated = await Promise.all(
+          batch.map(async ({ item, fileName }) => {
+            try {
+              const canonicalKeyIndex = item.key_index !== null && item.key_index !== undefined
+                ? (resolveBlockNumber(item.key_index) !== null ? resolveBlockNumber(item.key_index)! - 1 : item.key_index)
+                : null;
+              const docxBuffer = await buildExtraDocx({ ...item, keyIndex: canonicalKeyIndex }, brandingCtx);
+              return { fileName, docxBuffer };
+            } catch (err) {
+              logger.warn(`Error generating DOCX for extra ${item.id} (${fileName}):`, {
+                error: err instanceof Error ? err.message : String(err),
+              });
+              return null;
+            }
+          })
+        );
+        for (const res of generated) {
+          if (res) {
+            zip.file(res.fileName, res.docxBuffer);
+          }
         }
       }
     }

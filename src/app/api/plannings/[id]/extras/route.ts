@@ -16,7 +16,9 @@ import {
   LESSON_PLAN_PROMPT_TEMPLATE,
   PRACTICE_GUIDE_PROMPT_TEMPLATE,
   TEACHER_GUIDE_PROMPT_TEMPLATE,
+  type PracticeGuideAlignment,
 } from '@/lib/prompts/extras-prompts';
+import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import type { GeneratedPlanningContent, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import { generateBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 
@@ -199,6 +201,46 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
       const resolvedPracticeNumber = practiceNumber || (keyIndex !== null ? keyIndex + 1 : 1);
       const resolvedPracticeTitle = practiceTitle || activityName || `Práctica ${resolvedPracticeNumber}: ${planning.uac_name}`;
 
+      const currentBlockActivity = keyIndex !== null ? contentJson?.sectionIV?.activities?.[keyIndex] : null;
+      const planningRecord = planning as unknown as Record<string, unknown>;
+      const seqData = (planningRecord.sequence_json || planningRecord.sequenceJson) as Record<number, SecuenciaBloque> | null;
+      const currentBlockSeq = keyIndex !== null && seqData ? seqData[keyIndex] : null;
+
+      const metObj = planning.metodologia_activa
+        ? CATALOGO_METODOLOGIAS_ACTIVAS.find(
+            (m) =>
+              m.id.toLowerCase() === planning.metodologia_activa?.toLowerCase().trim() ||
+              m.nombre.toLowerCase() === planning.metodologia_activa?.toLowerCase().trim() ||
+              m.nombreCorto.toLowerCase() === planning.metodologia_activa?.toLowerCase().trim()
+          )
+        : null;
+      const metodologiaFases = metObj?.fases || undefined;
+
+      const plannedMaterials = [
+        currentBlockActivity?.apertura?.materials,
+        currentBlockActivity?.ejecucion?.materials,
+        currentBlockActivity?.conclusion?.materials,
+        ...(contentJson?.sectionVI?.studentMaterials || []),
+        ...(contentJson?.sectionVI?.teacherMaterials || []),
+      ].filter(Boolean) as string[];
+
+      const plannedReferences = [
+        ...(contentJson?.sectionVI?.references || []),
+      ].filter(Boolean) as string[];
+
+      const devSessions = currentBlockSeq?.sessions?.filter((s) => s.phase === 'Desarrollo') || [];
+      const devSessionsSummary = devSessions.length > 0
+        ? devSessions.map((s) => `Sesión ${s.sessionNum}: ${s.title} — ${s.learningActivity || s.teachingActivity}`).join('\n')
+        : undefined;
+
+      const practiceAlignment: PracticeGuideAlignment = {
+        saberes: currentBlockActivity?.saberes || null,
+        plannedEjecucion: currentBlockActivity?.ejecucion?.activities || undefined,
+        devSessionsSummary,
+        plannedMaterials: plannedMaterials.length > 0 ? plannedMaterials : undefined,
+        plannedReferences: plannedReferences.length > 0 ? plannedReferences : undefined,
+      };
+
       userPrompt = PRACTICE_GUIDE_PROMPT_TEMPLATE(
         planning.uac_name,
         activityName || `Actividad Clave ${resolvedPracticeNumber}`,
@@ -207,7 +249,9 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
         paecProblem,
         learningOutcome,
         studentContext,
-        planning.metodologia_activa || undefined
+        planning.metodologia_activa || undefined,
+        metodologiaFases,
+        practiceAlignment
       );
     } else if (type === 'teacher_guide') {
       const learningOutcome =

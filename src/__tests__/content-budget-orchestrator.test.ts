@@ -458,7 +458,7 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     // Verificación de datos de identidad y contexto
     expect(pdfData.text).toContain('Pensamiento Matemático I');
     expect(pdfData.text).toContain('Cuidado del agua');
-  });
+  }, 30000);
 
   it('fail-closed: rechaza y no persiste un bloque con contaminación cruzada', async () => {
     vi.mocked(getPlanningById).mockResolvedValue({

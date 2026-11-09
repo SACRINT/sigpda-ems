@@ -314,15 +314,42 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
         />
       );
 
-      const wordZipLink = screen.getByTitle(/Descargar todos los materiales e instrumentos didácticos en un archivo ZIP \(Word\)/i);
+      const wordZipLink = screen.getByTitle(/Descargar.*ZIP \(Word/i);
       expect(wordZipLink.getAttribute('href')).toBe('/api/docx/extra/bulk?planningId=test-planning-1');
+      expect(screen.getByText('Paquete Completo (Word + PPTX ZIP)')).toBeTruthy();
 
-      const pdfZipLink = screen.getByTitle(/Descargar todos los materiales e instrumentos didácticos en un archivo ZIP \(PDF\)/i);
+      const pdfZipLink = screen.getByTitle(/Descargar.*ZIP \(PDF/i);
       expect(pdfZipLink.getAttribute('href')).toBe('/api/pdf/extra/bulk?planningId=test-planning-1');
+      expect(screen.getByText('Paquete Completo (PDF + PPTX ZIP)')).toBeTruthy();
 
       const guiasBtn = screen.getByRole('button', { name: /Ver guías de práctica/i });
       fireEvent.click(guiasBtn);
       expect(onGuiasMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('H-03: maneja divisiones por cero con totalSessions=0 y totalWorkbookBlocks=0 sin NaN ni crash', () => {
+      render(
+        <PlanningDownloadsHub
+          planning={mockPlanning}
+          totalSessions={0}
+          totalWorkbookBlocks={0}
+          generatedWorkbookCount={0}
+          semestralReady={false}
+          blockReviews={{}}
+          extras={[]}
+          onOpenA4Modal={vi.fn()}
+        />
+      );
+
+      const planesCard = screen.getByTestId('hub-card-planes');
+      const disabledPlanesPdf = planesCard.querySelector('a[aria-disabled="true"]');
+      expect(disabledPlanesPdf).toBeTruthy();
+      expect(disabledPlanesPdf?.getAttribute('title')).toContain('No hay sesiones programadas');
+
+      const solucionarioCard = screen.getByTestId('hub-card-solucionario');
+      const disabledSolPdf = solucionarioCard.querySelector('a[aria-disabled="true"]');
+      expect(disabledSolPdf).toBeTruthy();
+      expect(disabledSolPdf?.getAttribute('title')).toContain('No hay bloques curriculares');
     });
 
     it('utiliza etiquetas simplificadas de botones (PDF, Word, PPTX) y bloquea entregables combinados incompletos', () => {
@@ -443,6 +470,67 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       const confirmBtn = screen.getByRole('button', { name: 'Sí' });
       fireEvent.click(confirmBtn);
       expect(handleDeleteMock).toHaveBeenCalledWith('rubric-extra-1');
+    });
+
+    it('H-04: renderiza tablist y tabpanel como hermanos (APG compliant) y no anidados', () => {
+      render(
+        <PlanningTabMateriales
+          planning={mockPlanning}
+          activeSubTab="practiceGuides"
+          onSubTabChange={vi.fn()}
+          extras={[]}
+          generatingKey={null}
+          syncingSuite={null}
+          blockWorkbooks={{}}
+          handleGenerateExtra={vi.fn().mockResolvedValue(undefined)}
+          handleDeleteExtra={vi.fn().mockResolvedValue(undefined)}
+          handlePreviewExtra={vi.fn()}
+          handleSyncSuite={vi.fn().mockResolvedValue(undefined)}
+          handleGenerateWorkbook={vi.fn().mockResolvedValue(undefined)}
+          findExtra={vi.fn().mockReturnValue(undefined)}
+          setPreviewExtra={vi.fn()}
+        />
+      );
+
+      const tablist = screen.getByRole('tablist');
+      const tabpanel = screen.getByRole('tabpanel');
+      expect(tablist).toBeTruthy();
+      expect(tabpanel).toBeTruthy();
+      // El tablist NO debe estar contenido dentro del tabpanel
+      expect(tabpanel.contains(tablist)).toBe(false);
+    });
+  });
+
+  describe('Fase H-01 / H-05 — Prompts y alineación pedagógica de guías de práctica', () => {
+    it('PRACTICE_GUIDE_PROMPT_TEMPLATE incluye fases de metodología y practiceAlignment', async () => {
+      const { PRACTICE_GUIDE_PROMPT_TEMPLATE } = await import('@/lib/prompts/extras-prompts');
+      const prompt = PRACTICE_GUIDE_PROMPT_TEMPLATE(
+        'Pensamiento Matemático III',
+        'Actividad Clave 1',
+        1,
+        'Práctica 1: Modelos Lineales',
+        'Cuidado del agua',
+        'Comprender modelos lineales',
+        'Estudiantes de bachillerato',
+        'abp',
+        ['Fase 1: Planteamiento', 'Fase 2: Investigación', 'Fase 3: Solución'],
+        {
+          saberes: { saber: 'Ecuaciones', saberHacer: 'Graficar', saberSer: 'Colaboración' },
+          plannedEjecucion: 'Resolver problemas en equipo',
+          devSessionsSummary: 'Sesión 1: Planteamiento\nSesión 2: Análisis',
+          plannedMaterials: ['Calculadora', 'Regla'],
+          plannedReferences: ['Libro de Matemáticas III'],
+        }
+      );
+
+      expect(prompt).toContain('Pensamiento Matemático III');
+      expect(prompt).toContain('Práctica 1: Modelos Lineales');
+      expect(prompt).toContain('Fase 1: Planteamiento');
+      expect(prompt).toContain('• Saber (Teórico): Ecuaciones');
+      expect(prompt).toContain('• Saber Hacer (Procedimental - Práctica): Graficar');
+      expect(prompt).toContain('• Saber Ser (Actitudinal / Seguridad): Colaboración');
+      expect(prompt).toContain('Sesión 1: Planteamiento');
+      expect(prompt).toContain('Calculadora, Regla');
     });
   });
 });

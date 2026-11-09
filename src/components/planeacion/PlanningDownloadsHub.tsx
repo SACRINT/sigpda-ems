@@ -122,7 +122,7 @@ export default function PlanningDownloadsHub({
               fontWeight: 600,
             }}
           >
-            Materiales en un solo paquete:
+            Todos los entregables en un solo paquete:
           </span>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <a
@@ -141,9 +141,9 @@ export default function PlanningDownloadsHub({
                 color: '#c7d2fe',
                 fontWeight: 600,
               }}
-              title="Descargar todos los materiales e instrumentos didácticos en un archivo ZIP (Word)"
+              title="Descargar los 10 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
             >
-              <Archive size={12} /> Paquete de Materiales (Word ZIP)
+              <Archive size={12} /> Paquete Completo (Word + PPTX ZIP)
             </a>
             <a
               href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
@@ -161,9 +161,9 @@ export default function PlanningDownloadsHub({
                 color: '#fca5a5',
                 fontWeight: 600,
               }}
-              title="Descargar todos los materiales e instrumentos didácticos en un archivo ZIP (PDF)"
+              title="Descargar los 10 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
             >
-              <Archive size={12} /> Paquete de Materiales (PDF ZIP)
+              <Archive size={12} /> Paquete Completo (PDF + PPTX ZIP)
             </a>
           </div>
         </div>
@@ -242,21 +242,25 @@ export default function PlanningDownloadsHub({
                 label: 'PDF',
                 href: `/api/pdf/extra/combined?planningId=${planning.id}&type=lesson_plan`,
                 targetBlank: true,
-                disabled: generatedLessonPlans < totalSessions || lessonPlansStatus.status === 'blocked',
+                disabled: totalSessions === 0 || generatedLessonPlans < totalSessions || lessonPlansStatus.status === 'blocked',
                 disabledReason:
-                  generatedLessonPlans < totalSessions
-                    ? `Genera las ${totalSessions} sesiones para descargar el compilado (${generatedLessonPlans}/${totalSessions} listas)`
-                    : lessonPlansStatus.tooltip,
+                  totalSessions === 0
+                    ? 'No hay sesiones programadas en la planeación'
+                    : generatedLessonPlans < totalSessions
+                      ? `Genera las ${totalSessions} sesiones para descargar el compilado (${generatedLessonPlans}/${totalSessions} listas)`
+                      : lessonPlansStatus.tooltip,
               },
               {
                 format: 'Word',
                 label: 'Word',
                 href: `/api/docx/extra/combined?planningId=${planning.id}&type=lesson_plan`,
-                disabled: generatedLessonPlans < totalSessions || lessonPlansStatus.status === 'blocked',
+                disabled: totalSessions === 0 || generatedLessonPlans < totalSessions || lessonPlansStatus.status === 'blocked',
                 disabledReason:
-                  generatedLessonPlans < totalSessions
-                    ? `Genera las ${totalSessions} sesiones para descargar el compilado (${generatedLessonPlans}/${totalSessions} listas)`
-                    : lessonPlansStatus.tooltip,
+                  totalSessions === 0
+                    ? 'No hay sesiones programadas en la planeación'
+                    : generatedLessonPlans < totalSessions
+                      ? `Genera las ${totalSessions} sesiones para descargar el compilado (${generatedLessonPlans}/${totalSessions} listas)`
+                      : lessonPlansStatus.tooltip,
               },
             ]}
             onOpenDetail={onNavigateToLessonPlans}
@@ -277,21 +281,25 @@ export default function PlanningDownloadsHub({
                 label: 'PDF',
                 href: `/api/pdf/extra/combined?planningId=${planning.id}&type=teacher_guide`,
                 targetBlank: true,
-                disabled: generatedGuidesCount < totalWorkbookBlocks || answerKeyStatus.status === 'blocked',
+                disabled: totalWorkbookBlocks === 0 || generatedGuidesCount < totalWorkbookBlocks || answerKeyStatus.status === 'blocked',
                 disabledReason:
-                  generatedGuidesCount < totalWorkbookBlocks
-                    ? `Genera el solucionario de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedGuidesCount}/${totalWorkbookBlocks} listos)`
-                    : answerKeyStatus.tooltip,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedGuidesCount < totalWorkbookBlocks
+                      ? `Genera el solucionario de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedGuidesCount}/${totalWorkbookBlocks} listos)`
+                      : answerKeyStatus.tooltip,
               },
               {
                 format: 'Word',
                 label: 'Word',
                 href: `/api/docx/extra/combined?planningId=${planning.id}&type=teacher_guide`,
-                disabled: generatedGuidesCount < totalWorkbookBlocks || answerKeyStatus.status === 'blocked',
+                disabled: totalWorkbookBlocks === 0 || generatedGuidesCount < totalWorkbookBlocks || answerKeyStatus.status === 'blocked',
                 disabledReason:
-                  generatedGuidesCount < totalWorkbookBlocks
-                    ? `Genera el solucionario de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedGuidesCount}/${totalWorkbookBlocks} listos)`
-                    : answerKeyStatus.tooltip,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedGuidesCount < totalWorkbookBlocks
+                      ? `Genera el solucionario de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedGuidesCount}/${totalWorkbookBlocks} listos)`
+                      : answerKeyStatus.tooltip,
               },
             ]}
             onOpenDetail={onNavigateToSolucionario}
@@ -313,22 +321,26 @@ export default function PlanningDownloadsHub({
                 href: `/api/pdf/extra/combined?planningId=${planning.id}&type=practice_guide`,
                 targetBlank: true,
                 disabled:
-                  generatedPracticeGuidesCount < totalWorkbookBlocks || practiceGuidesStatus.status === 'blocked',
+                  totalWorkbookBlocks === 0 || generatedPracticeGuidesCount < totalWorkbookBlocks || practiceGuidesStatus.status === 'blocked',
                 disabledReason:
-                  generatedPracticeGuidesCount < totalWorkbookBlocks
-                    ? `Genera las guías de práctica de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedPracticeGuidesCount}/${totalWorkbookBlocks} listas)`
-                    : practiceGuidesStatus.tooltip,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedPracticeGuidesCount < totalWorkbookBlocks
+                      ? `Genera las guías de práctica de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedPracticeGuidesCount}/${totalWorkbookBlocks} listas)`
+                      : practiceGuidesStatus.tooltip,
               },
               {
                 format: 'Word',
                 label: 'Word',
                 href: `/api/docx/extra/combined?planningId=${planning.id}&type=practice_guide`,
                 disabled:
-                  generatedPracticeGuidesCount < totalWorkbookBlocks || practiceGuidesStatus.status === 'blocked',
+                  totalWorkbookBlocks === 0 || generatedPracticeGuidesCount < totalWorkbookBlocks || practiceGuidesStatus.status === 'blocked',
                 disabledReason:
-                  generatedPracticeGuidesCount < totalWorkbookBlocks
-                    ? `Genera las guías de práctica de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedPracticeGuidesCount}/${totalWorkbookBlocks} listas)`
-                    : practiceGuidesStatus.tooltip,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedPracticeGuidesCount < totalWorkbookBlocks
+                      ? `Genera las guías de práctica de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedPracticeGuidesCount}/${totalWorkbookBlocks} listas)`
+                      : practiceGuidesStatus.tooltip,
               },
             ]}
             onOpenDetail={onNavigateToGuiasPractica || onNavigateToInstrumentos}
@@ -358,20 +370,26 @@ export default function PlanningDownloadsHub({
                 label: 'Word',
                 href: `/api/docx/libro-semestral/${planning.id}`,
                 download: true,
-                disabled: !semestralReady,
-                disabledReason: !semestralReady
-                  ? `Genera los ${totalWorkbookBlocks} bloques para descargar el Compendio Semestral`
-                  : undefined,
+                disabled: totalWorkbookBlocks === 0 || !semestralReady,
+                disabledReason:
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : !semestralReady
+                      ? `Genera los ${totalWorkbookBlocks} bloques para descargar el Compendio Semestral`
+                      : undefined,
               },
               {
                 format: 'PDF',
                 label: 'PDF',
                 href: `/api/pdf/libro-semestral/${planning.id}`,
                 targetBlank: true,
-                disabled: !semestralReady,
-                disabledReason: !semestralReady
-                  ? `Genera los ${totalWorkbookBlocks} bloques para descargar el Compendio Semestral`
-                  : undefined,
+                disabled: totalWorkbookBlocks === 0 || !semestralReady,
+                disabledReason:
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : !semestralReady
+                      ? `Genera los ${totalWorkbookBlocks} bloques para descargar el Compendio Semestral`
+                      : undefined,
               },
             ]}
             onOpenDetail={scrollToBooksSection}
@@ -395,21 +413,25 @@ export default function PlanningDownloadsHub({
                 label: 'PDF',
                 href: `/api/pdf/extra/combined?planningId=${planning.id}&type=rubric`,
                 targetBlank: true,
-                disabled: generatedRubricsCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || generatedRubricsCount < totalWorkbookBlocks,
                 disabledReason:
-                  generatedRubricsCount < totalWorkbookBlocks
-                    ? `Genera las rúbricas de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedRubricsCount}/${totalWorkbookBlocks} listas)`
-                    : undefined,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedRubricsCount < totalWorkbookBlocks
+                      ? `Genera las rúbricas de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedRubricsCount}/${totalWorkbookBlocks} listas)`
+                      : undefined,
               },
               {
                 format: 'Word',
                 label: 'Word',
                 href: `/api/docx/extra/combined?planningId=${planning.id}&type=rubric`,
-                disabled: generatedRubricsCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || generatedRubricsCount < totalWorkbookBlocks,
                 disabledReason:
-                  generatedRubricsCount < totalWorkbookBlocks
-                    ? `Genera las rúbricas de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedRubricsCount}/${totalWorkbookBlocks} listas)`
-                    : undefined,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedRubricsCount < totalWorkbookBlocks
+                      ? `Genera las rúbricas de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedRubricsCount}/${totalWorkbookBlocks} listas)`
+                      : undefined,
               },
             ]}
             onOpenDetail={onNavigateToInstrumentos}
@@ -433,21 +455,25 @@ export default function PlanningDownloadsHub({
                 label: 'PDF',
                 href: `/api/pdf/extra/combined?planningId=${planning.id}&type=checklist`,
                 targetBlank: true,
-                disabled: generatedChecklistsCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || generatedChecklistsCount < totalWorkbookBlocks,
                 disabledReason:
-                  generatedChecklistsCount < totalWorkbookBlocks
-                    ? `Genera las listas de cotejo de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedChecklistsCount}/${totalWorkbookBlocks} listas)`
-                    : undefined,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedChecklistsCount < totalWorkbookBlocks
+                      ? `Genera las listas de cotejo de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedChecklistsCount}/${totalWorkbookBlocks} listas)`
+                      : undefined,
               },
               {
                 format: 'Word',
                 label: 'Word',
                 href: `/api/docx/extra/combined?planningId=${planning.id}&type=checklist`,
-                disabled: generatedChecklistsCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || generatedChecklistsCount < totalWorkbookBlocks,
                 disabledReason:
-                  generatedChecklistsCount < totalWorkbookBlocks
-                    ? `Genera las listas de cotejo de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedChecklistsCount}/${totalWorkbookBlocks} listas)`
-                    : undefined,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedChecklistsCount < totalWorkbookBlocks
+                      ? `Genera las listas de cotejo de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedChecklistsCount}/${totalWorkbookBlocks} listas)`
+                      : undefined,
               },
             ]}
             onOpenDetail={onNavigateToInstrumentos}
@@ -471,11 +497,13 @@ export default function PlanningDownloadsHub({
                 label: 'PPTX',
                 href: `/api/planeaciones/${planning.id}/presentacion/combinada`,
                 targetBlank: true,
-                disabled: generatedWorkbookCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || generatedWorkbookCount < totalWorkbookBlocks,
                 disabledReason:
-                  generatedWorkbookCount < totalWorkbookBlocks
-                    ? `Genera los libros de trabajo de los ${totalWorkbookBlocks} bloques para habilitar las diapositivas (${generatedWorkbookCount}/${totalWorkbookBlocks} listos)`
-                    : undefined,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedWorkbookCount < totalWorkbookBlocks
+                      ? `Genera los libros de trabajo de los ${totalWorkbookBlocks} bloques para habilitar las diapositivas (${generatedWorkbookCount}/${totalWorkbookBlocks} listos)`
+                      : undefined,
               },
             ]}
             onOpenDetail={onNavigateToInstrumentos}
@@ -499,11 +527,13 @@ export default function PlanningDownloadsHub({
                 label: 'PDF',
                 href: `/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`,
                 targetBlank: true,
-                disabled: generatedWorkbookCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || generatedWorkbookCount < totalWorkbookBlocks,
                 disabledReason:
-                  generatedWorkbookCount < totalWorkbookBlocks
-                    ? `Genera los libros de trabajo de los ${totalWorkbookBlocks} bloques para habilitar las infografías (${generatedWorkbookCount}/${totalWorkbookBlocks} listos)`
-                    : undefined,
+                  totalWorkbookBlocks === 0
+                    ? 'No hay bloques curriculares definidos en la planeación'
+                    : generatedWorkbookCount < totalWorkbookBlocks
+                      ? `Genera los libros de trabajo de los ${totalWorkbookBlocks} bloques para habilitar las infografías (${generatedWorkbookCount}/${totalWorkbookBlocks} listos)`
+                      : undefined,
               },
             ]}
             onOpenDetail={onNavigateToInstrumentos}

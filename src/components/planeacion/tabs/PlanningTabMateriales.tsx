@@ -275,15 +275,16 @@ export default function PlanningTabMateriales({
     ).length;
 
     return (
-      <div
-        id="subtabpanel-practiceGuides"
-        role="tabpanel"
-        aria-labelledby="subtab-practiceGuides"
-        tabIndex={0}
-        style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {renderSubTabsBar()}
-        <div className="section-card">
+        <div
+          id="subtabpanel-practiceGuides"
+          role="tabpanel"
+          aria-labelledby="subtab-practiceGuides"
+          tabIndex={0}
+          style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+        >
+          <div className="section-card">
           <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="section-card-title" style={{ color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
               🔬 Guías de Práctica, Taller y Laboratorio
@@ -414,12 +415,15 @@ export default function PlanningTabMateriales({
 
         {/* Feedback */}
         <GenerationFeedback entityType="planning" entityId={planning.id} />
+        </div>
       </div>
     );
   }
 
   if (currentSubTab === 'teacherGuides') {
     return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {renderSubTabsBar()}
         <div
           id="subtabpanel-teacherGuides"
           role="tabpanel"
@@ -427,7 +431,6 @@ export default function PlanningTabMateriales({
           tabIndex={0}
           style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
         >
-          {renderSubTabsBar()}
           <div className="section-card">
             <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
               <span className="section-card-title" style={{ color: '#fff' }}>📘 Solucionario Pedagógico y Guías del Docente</span>
@@ -596,11 +599,14 @@ export default function PlanningTabMateriales({
           {/* Feedback */}
           <GenerationFeedback entityType="planning" entityId={planning.id} />
         </div>
+      </div>
     );
   }
 
   return (
-        <>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+        {renderSubTabsBar()}
         <div
           id="subtabpanel-extras"
           role="tabpanel"
@@ -608,7 +614,6 @@ export default function PlanningTabMateriales({
           tabIndex={0}
           style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}
         >
-          {renderSubTabsBar()}
 
           {/* Header Banner */}
           <div className="section-card" style={{
@@ -1282,9 +1287,10 @@ export default function PlanningTabMateriales({
           })}
 
         </div>
+      </div>
 
-        {/* Feedback Widget */}
-        <GenerationFeedback entityType="planning" entityId={planning.id} />
-        </>
+      {/* Feedback Widget */}
+      <GenerationFeedback entityType="planning" entityId={planning.id} />
+    </>
   );
 }
