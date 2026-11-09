@@ -475,7 +475,7 @@ function PlanningDetailModular({
       setEditingSeqBlock(null);
       setSeqMessage({ block: blockIndex, text: 'Cambios guardados exitosamente.', type: 'success' });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error al guardar cambios');
+      toast.error(err instanceof Error ? err.message : 'Error al guardar cambios');
     }
   };
 
@@ -716,18 +716,22 @@ function PlanningDetailModular({
     }
   };
 
-  const totalWorkbookBlocks = 3;
-  const generatedWorkbookCount = [0, 1, 2].filter(
+  const totalWorkbookBlocks = curricularBlocks.length > 0 ? curricularBlocks.length : 3;
+  const blockIndexes = useMemo(
+    () => (curricularBlocks.length > 0 ? curricularBlocks.map((b) => b.blockIndex) : [0, 1, 2]),
+    [curricularBlocks]
+  );
+  const generatedWorkbookCount = blockIndexes.filter(
     (idx) => Boolean(blockWorkbooks[idx]?.workbook)
   ).length;
-  const allBlocksGenerated = generatedWorkbookCount === 3;
+  const allBlocksGenerated = totalWorkbookBlocks > 0 && generatedWorkbookCount === totalWorkbookBlocks;
 
   const weeklyHours = resolveWeeklyHours(planning as any);
   const blockBudget = computeContentBudget(weeklyHours);
-  // Presupuesto macro unificado semestral (3 bloques curriculares de 6 semanas)
+  // Presupuesto macro unificado semestral (bloques curriculares de la UAC)
   const macroTargetWords = blockBudget.targetWords.ideal * totalWorkbookBlocks;
 
-  const accumulatedWorkbookWords = [0, 1, 2].reduce(
+  const accumulatedWorkbookWords = blockIndexes.reduce(
     (acc, idx) => {
       const wb = blockWorkbooks[idx]?.workbook;
       const prog = blockWorkbooks[idx]?.progress;
@@ -737,8 +741,9 @@ function PlanningDetailModular({
     0
   );
 
-  const blockWordCountDetails = [0, 1, 2].map((idx) => {
-    const roman = idx === 0 ? 'I' : idx === 1 ? 'II' : 'III';
+  const blockWordCountDetails = blockIndexes.map((idx) => {
+    const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+    const roman = romanNumerals[idx] || `${idx + 1}`;
     const wb = blockWorkbooks[idx]?.workbook;
     const prog = blockWorkbooks[idx]?.progress;
     const words = wb?.totalWords || prog?.totalWords || prog?.wordCount;
@@ -909,6 +914,7 @@ function PlanningDetailModular({
           isLaboral={isLaboral}
           weeklyHours={weeklyHours}
           totalSessions={lessonSessions.length}
+          totalBlocks={totalWorkbookBlocks}
           hasContent={false}
           downloadingPdf={false}
           publishingClassroom={false}
@@ -946,6 +952,7 @@ function PlanningDetailModular({
         isLaboral={isLaboral}
         weeklyHours={weeklyHours}
         totalSessions={lessonSessions.length}
+        totalBlocks={totalWorkbookBlocks}
         hasContent={true}
         downloadingPdf={downloadingPdf}
         publishingClassroom={publishingClassroom}
@@ -1073,6 +1080,7 @@ function PlanningDetailModular({
           planning={planning}
           activeSubTab={materialsSubTab}
           onSubTabChange={setMaterialsSubTab}
+          sequenceData={sequenceData}
           extras={extras}
           generatingKey={generatingKey}
           syncingSuite={syncingSuite}

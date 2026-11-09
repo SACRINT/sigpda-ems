@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { GeneratedPlanningContent, Planning, PlanningExtra } from '@/types/planning';
+import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
 import BlockPresentationActions from '@/components/planeacion/slides/BlockPresentationActions';
@@ -11,7 +11,6 @@ import {
 import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
-import { type MaterialReviewReport } from '@/lib/guide-engine/material-review';
 import { useBlockMaterialReviews } from '@/hooks/useBlockMaterialReviews';
 
 /** Metadata de tarjeta para tipos conocidos; cualquier otro tipo cae en fallback genérico. */
@@ -63,6 +62,7 @@ export interface PlanningTabMaterialesProps {
   planning: Planning;
   activeSubTab?: 'extras' | 'teacherGuides';
   onSubTabChange?: (subTab: 'extras' | 'teacherGuides') => void;
+  sequenceData?: Record<number, SecuenciaBloque>;
   extras: PlanningExtra[];
   generatingKey: string | null;
   syncingSuite: number | null;
@@ -87,7 +87,7 @@ export interface PlanningTabMaterialesProps {
     }
   ) => Promise<void>;
   handleDeleteExtra: (extraId: string) => Promise<void>;
-  setActiveTab?: (tab: 'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics' | any) => void;
+  setActiveTab?: (tab: string) => void;
   handlePreviewExtra: (extra: PlanningExtra) => void;
   handleSyncSuite: (blockIdx: number) => Promise<void>;
   handleGenerateWorkbook: (blockIndex: number) => Promise<void>;
@@ -99,6 +99,7 @@ export default function PlanningTabMateriales({
   planning,
   activeSubTab = 'extras',
   onSubTabChange,
+  sequenceData,
   extras,
   generatingKey,
   syncingSuite,
@@ -110,18 +111,14 @@ export default function PlanningTabMateriales({
   setPreviewExtra,
   setActiveTab = () => {},
 }: PlanningTabMaterialesProps) {
-  const [currentSubTab, setCurrentSubTab] = React.useState<'extras' | 'teacherGuides'>(activeSubTab);
-
-  React.useEffect(() => {
-    if (activeSubTab) {
-      setCurrentSubTab(activeSubTab);
-    }
-  }, [activeSubTab]);
+  const [internalSubTab, setInternalSubTab] = React.useState<'extras' | 'teacherGuides'>('extras');
+  const currentSubTab = onSubTabChange ? (activeSubTab || 'extras') : internalSubTab;
 
   const handleSubTabSwitch = (subTab: 'extras' | 'teacherGuides') => {
-    setCurrentSubTab(subTab);
     if (onSubTabChange) {
       onSubTabChange(subTab);
+    } else {
+      setInternalSubTab(subTab);
     }
   };
 
@@ -154,7 +151,7 @@ export default function PlanningTabMateriales({
     .sort((a, b) => a - b);
 
   // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens) vía hook compartido
-  const blockReviews = useBlockMaterialReviews(planning, blockWorkbooks);
+  const blockReviews = useBlockMaterialReviews(planning, blockWorkbooks, sequenceData, extras);
 
   const renderSubTabsBar = () => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>

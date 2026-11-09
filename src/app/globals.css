@@ -1084,4 +1084,7 @@ input[style*="background: #f0f7ff"] { background: rgba(99,102,241,0.1) !importan
     box-shadow: none !important;
     padding: 0 !important;
   }
+  .a4-printable-area {
+    transform: none !important;
+  }
 }

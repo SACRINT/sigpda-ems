@@ -9,7 +9,6 @@ import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
-import { type MaterialReviewReport } from '@/lib/guide-engine/material-review';
 import { useBlockMaterialReviews } from '@/hooks/useBlockMaterialReviews';
 import PlanningDownloadsHub from '@/components/planeacion/PlanningDownloadsHub';
 import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
@@ -75,7 +74,7 @@ export default function PlanningTabDocumento({
   activeSubTab = 'planning',
   sequenceData = {},
   extras = [],
-  totalSessions = 54,
+  totalSessions,
   onOpenA4Modal,
   onNavigateToLessonPlans,
   onNavigateToSolucionario,
@@ -132,7 +131,7 @@ export default function PlanningTabDocumento({
   const isEditorialEngineEnabled = Boolean(editorialEngineEnabled);
   const hasPlanningId = Boolean(planning?.id);
 
-  const blockMaterialReviews = useBlockMaterialReviews(planning, blockWorkbooks, sequenceData);
+  const blockMaterialReviews = useBlockMaterialReviews(planning, blockWorkbooks, sequenceData, extras);
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
@@ -294,7 +293,7 @@ export default function PlanningTabDocumento({
             planning={planning}
             sequenceData={sequenceData}
             extras={extras}
-            totalSessions={totalSessions}
+            totalSessions={totalSessions ?? (s1?.totalHours || 0)}
             generatedWorkbookCount={generatedWorkbookCount}
             totalWorkbookBlocks={totalWorkbookBlocks}
             semestralReady={semestralReady}
@@ -459,7 +458,7 @@ export default function PlanningTabDocumento({
           )}
 
           {/* Section IV: Secuencia Didáctica Completa por Momentos Pedagógicos (Opción A) */}
-          <div className="section-card" id="libros-bloque">
+          <div className="section-card">
             <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
                 <span className="section-card-title">IV. Diseño de Secuencia Didáctica (Momentos Pedagógicos)</span>
@@ -523,6 +522,7 @@ export default function PlanningTabDocumento({
             <div className="section-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* ── BANNER MAESTRO SEMESTRAL (FASE 4: COMPILADOR SIN TOKENS IA) ── */}
               <div
+                id="libros-bloque"
                 style={{
                   borderRadius: '12px',
                   padding: '18px 22px',

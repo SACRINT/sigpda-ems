@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Planning } from '@/types/planning';
+import type { AuditReport } from '@/lib/audit-engine';
 import PlanningTabAuditoria from './PlanningTabAuditoria';
-import PlanningTabEvaluador from './PlanningTabEvaluador';
+import PlanningTabEvaluador, { type PlanningEvaluationResult } from './PlanningTabEvaluador';
 import PlanningTabAnalitica from './PlanningTabAnalitica';
+import type { TeacherProgressSummary } from '@/lib/pedagogical-analytics';
 import { BarChart3, Award, TrendingUp } from 'lucide-react';
 
 export type QualitySubTab = 'audit' | 'evaluador' | 'analytics';
@@ -14,7 +16,7 @@ export interface PlanningTabCalidadProps {
   activeSubTab?: QualitySubTab;
   onSubTabChange?: (tab: QualitySubTab) => void;
   // Auditoría props
-  auditReport: any;
+  auditReport: AuditReport | null;
   auditLoading: boolean;
   auditError: string | null;
   auditLoaded: boolean;
@@ -23,12 +25,12 @@ export interface PlanningTabCalidadProps {
   handleRunAudit: () => Promise<void> | void;
   handleReAudit: () => Promise<void> | void;
   // Evaluador props
-  evalResult: any;
+  evalResult: PlanningEvaluationResult | null;
   evalLoading: boolean;
   evalError: string | null;
   handleRunEvaluacion: (forceReeval?: boolean) => Promise<void> | void;
   // Analytics props
-  analyticsData: any;
+  analyticsData: TeacherProgressSummary | null;
   analyticsLoading: boolean;
   analyticsError: string | null;
   analyticsLoaded: boolean;
@@ -57,18 +59,14 @@ export default function PlanningTabCalidad({
   analyticsLoaded,
   handleLoadAnalytics,
 }: PlanningTabCalidadProps) {
-  const [subTab, setSubTab] = useState<QualitySubTab>(activeSubTab);
-
-  useEffect(() => {
-    if (activeSubTab) {
-      setSubTab(activeSubTab);
-    }
-  }, [activeSubTab]);
+  const [internalSubTab, setInternalSubTab] = useState<QualitySubTab>('audit');
+  const currentSubTab = onSubTabChange ? (activeSubTab || 'audit') : internalSubTab;
 
   const handleSubTabSwitch = (next: QualitySubTab) => {
-    setSubTab(next);
     if (onSubTabChange) {
       onSubTabChange(next);
+    } else {
+      setInternalSubTab(next);
     }
   };
 
@@ -80,7 +78,7 @@ export default function PlanningTabCalidad({
           <button
             type="button"
             onClick={() => handleSubTabSwitch('audit')}
-            className={`detail-subtab${subTab === 'audit' ? ' is-active' : ''}`}
+            className={`detail-subtab${currentSubTab === 'audit' ? ' is-active' : ''}`}
           >
             <BarChart3 size={14} style={{ color: '#10b981' }} />
             <span>Auditoría MCCEMS</span>
@@ -89,7 +87,7 @@ export default function PlanningTabCalidad({
           <button
             type="button"
             onClick={() => handleSubTabSwitch('evaluador')}
-            className={`detail-subtab${subTab === 'evaluador' ? ' is-active' : ''}`}
+            className={`detail-subtab${currentSubTab === 'evaluador' ? ' is-active' : ''}`}
           >
             <Award size={14} style={{ color: '#ef4444' }} />
             <span>Evaluador IA</span>
@@ -98,7 +96,7 @@ export default function PlanningTabCalidad({
           <button
             type="button"
             onClick={() => handleSubTabSwitch('analytics')}
-            className={`detail-subtab${subTab === 'analytics' ? ' is-active' : ''}`}
+            className={`detail-subtab${currentSubTab === 'analytics' ? ' is-active' : ''}`}
           >
             <TrendingUp size={14} style={{ color: '#06b6d4' }} />
             <span>Analytics y Métricas</span>
@@ -107,7 +105,7 @@ export default function PlanningTabCalidad({
       </div>
 
       {/* Subtab content */}
-      {subTab === 'audit' && (
+      {currentSubTab === 'audit' && (
         <PlanningTabAuditoria
           planning={planning}
           auditReport={auditReport}
@@ -121,7 +119,7 @@ export default function PlanningTabCalidad({
         />
       )}
 
-      {subTab === 'evaluador' && (
+      {currentSubTab === 'evaluador' && (
         <PlanningTabEvaluador
           planning={planning}
           evalResult={evalResult}
@@ -131,7 +129,7 @@ export default function PlanningTabCalidad({
         />
       )}
 
-      {subTab === 'analytics' && (
+      {currentSubTab === 'analytics' && (
         <PlanningTabAnalitica
           planning={planning}
           analyticsData={analyticsData}

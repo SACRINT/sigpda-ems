@@ -23,6 +23,7 @@ export interface PlanningDetailHeroProps {
   isLaboral: boolean;
   weeklyHours: number;
   totalSessions: number;
+  totalBlocks?: number;
   hasContent: boolean;
   downloadingPdf: boolean;
   publishingClassroom: boolean;
@@ -32,12 +33,23 @@ export interface PlanningDetailHeroProps {
   onOpenChecklistModal: () => void;
 }
 
+const COMPONENT_LABELS: Record<string, string> = {
+  laboral: 'Formación Laboral',
+  fundamental: 'Currículum Fundamental',
+  ampliado: 'Currículum Ampliado',
+  ext_obligatorio: 'Extracurricular Obligatorio',
+  ext_optativo: 'Extracurricular Optativo',
+  ffeo: 'Formación Fundamental Extendida (FFEO)',
+  ffe_optativa: 'Formación Fundamental Optativa',
+};
+
 export default function PlanningDetailHero({
   locale,
   planning,
   isLaboral,
   weeklyHours,
   totalSessions,
+  totalBlocks = 3,
   hasContent,
   downloadingPdf,
   publishingClassroom,
@@ -121,6 +133,7 @@ export default function PlanningDetailHero({
               <button
                 type="button"
                 onClick={() => setTitleExpanded((prev) => !prev)}
+                aria-expanded={titleExpanded}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -177,7 +190,7 @@ export default function PlanningDetailHero({
                 color: '#93c5fd',
               }}
             >
-              Componente {isLaboral ? 'Formación Laboral' : 'Fundamental / Ampliado'}
+              Componente {planning.component && COMPONENT_LABELS[planning.component] ? COMPONENT_LABELS[planning.component] : (isLaboral ? 'Formación Laboral' : 'Fundamental / Ampliado')}
             </span>
 
             <span
@@ -191,7 +204,7 @@ export default function PlanningDetailHero({
                 color: '#fcd34d',
               }}
             >
-              {weeklyHours} hrs/sem · {totalSessions} sesiones totales (3 bloques)
+              {weeklyHours} hrs/sem · {totalSessions} sesiones totales{totalBlocks ? ` (${totalBlocks} bloques)` : ''}
             </span>
 
             {planning.metodologiaActiva && (

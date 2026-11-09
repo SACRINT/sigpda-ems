@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
+import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import {
   reviewBlockMaterials,
@@ -27,10 +27,31 @@ export interface AggregatedMaterialStatus {
  * Memoizes deterministic R1 material reviews across all curricular blocks
  * using a stable workbook version signature to avoid re-running during progress polling.
  */
+interface ExtraRowLike {
+  id: string;
+  type: string;
+  title?: string;
+  keyIndex?: number | null;
+  key_index?: number | null;
+  contentText?: string;
+  content_text?: string;
+}
+
+function resolveExtraKeyIndex(ex: PlanningExtra): number | null {
+  const row = ex as unknown as ExtraRowLike;
+  return row.keyIndex !== undefined ? row.keyIndex : (row.key_index ?? null);
+}
+
+function resolveExtraContentText(ex: PlanningExtra): string {
+  const row = ex as unknown as ExtraRowLike;
+  return row.contentText || row.content_text || '';
+}
+
 export function useBlockMaterialReviews(
   planning: Planning,
   blockWorkbooks: Record<number, BlockWorkbookLike> = {},
-  sequenceData?: Record<number, SecuenciaBloque>
+  sequenceData?: Record<number, SecuenciaBloque>,
+  persistedExtras?: PlanningExtra[]
 ): Record<number, MaterialReviewReport> {
   const content = planning?.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
@@ -43,17 +64,32 @@ export function useBlockMaterialReviews(
     })
     .join('|');
 
+  const extrasSignature = (persistedExtras || [])
+    .map((e) => `${e.id}:${e.type}:${resolveExtraKeyIndex(e) ?? ''}:${resolveExtraContentText(e).length}`)
+    .join('|');
+
   return useMemo(() => {
     const map: Record<number, MaterialReviewReport> = {};
     for (const [key, item] of Object.entries(blockWorkbooks)) {
       const idx = Number(key);
       if (Number.isFinite(idx) && item?.workbook) {
+        const blockExtras = persistedExtras
+          ?.filter((ex) => resolveExtraKeyIndex(ex) === idx)
+          .map((ex) => ({
+            id: ex.id,
+            type: ex.type,
+            title: ex.title,
+            key_index: resolveExtraKeyIndex(ex),
+            content_text: resolveExtraContentText(ex),
+          }));
+
         map[idx] = reviewBlockMaterials({
           workbook: item.workbook,
           blockSequence: sequenceData?.[idx] ?? null,
           uacName: planning?.uacName || s1?.uacName || '',
           component: planning?.component || s1?.component || '',
           curriculumName: planning?.curriculumName || '',
+          persistedExtras: blockExtras,
         });
       }
     }
@@ -61,6 +97,7 @@ export function useBlockMaterialReviews(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     blockWorkbooksSignature,
+    extrasSignature,
     sequenceData,
     planning?.uacName,
     planning?.component,
@@ -79,7 +116,8 @@ export function summarizeMaterialReviewStatus(
   generatedCount: number
 ): AggregatedMaterialStatus {
   const entries = Object.values(blockReviews);
-  if (generatedCount === 0 && entries.length === 0) {
+  // P1-02: Prevenir falso positivo "Verificado R1" si no hay reportes evaluados aún
+  if (entries.length === 0 || generatedCount === 0) {
     return {
       status: 'pending',
       label: 'Pendiente de generar',

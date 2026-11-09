@@ -69,7 +69,7 @@ export default function PlanningDownloadsHub({
   );
   const practiceGuidesStatus = summarizeMaterialReviewStatus(
     blockReviews,
-    'didactic_material',
+    'recovery_cards',
     generatedPracticeGuidesCount
   );
 
@@ -146,7 +146,7 @@ export default function PlanningDownloadsHub({
             icon={<Layers size={16} />}
             title="Secuencia Didáctica"
             subtitle="Momentos pedagógicos de Apertura, Desarrollo y Cierre por corte."
-            metaBadge="3 bloques"
+            metaBadge={`${totalWorkbookBlocks} bloques`}
             statusBadge={{
               status: hasSequences ? 'ok' : 'pending',
               label: hasSequences ? 'Generada' : 'Por generar',
@@ -215,7 +215,7 @@ export default function PlanningDownloadsHub({
             icon={<GraduationCap size={16} />}
             title="Solucionario Docente"
             subtitle="Respuestas modelo paso a paso y criterios de mediación docente."
-            metaBadge={`${generatedGuidesCount}/3 bloques`}
+            metaBadge={`${generatedGuidesCount}/${totalWorkbookBlocks} bloques`}
             statusBadge={answerKeyStatus}
             actions={[
               {

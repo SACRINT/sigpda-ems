@@ -13,29 +13,62 @@ import type { MaterialReviewReport } from '@/lib/guide-engine/material-review';
 
 const mockPlanning: Planning = {
   id: 'test-planning-1',
-  userId: 'user-1',
+  teacherId: 'user-1',
   uacName: 'Taller de Pensamiento Variacional I y Operaciones Algebraicas Avanzadas en Contexto Situado para Bachillerato',
   semester: 5,
   component: 'laboral',
+  curriculumName: 'MCCEMS 2026-2027',
+  paecContext: 'Contexto comunitario y diagnóstico PAEC',
+  extractedData: null,
+  status: 'generated',
   metodologiaActiva: 'Aprendizaje Basado en Proyectos (ABP)',
-  weeklyHours: 4,
-  createdAt: '2026-01-01',
-  updatedAt: '2026-01-01',
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  updatedAt: new Date('2026-01-01T00:00:00Z'),
   contentJson: {
     sectionI: {
+      teacherName: 'Prof. Juan Pérez',
+      groups: '5A, 5B',
+      schoolYear: '2026-2027',
+      applicationPeriod: 'Agosto - Diciembre 2026',
+      estimatedSessions: '54 sesiones',
       uacName: 'Taller de Pensamiento Variacional I',
       component: 'Formación Laboral',
       semester: 5,
       totalHours: 54,
+      subsystem: 'DGB',
     },
     sectionIV: {
       activities: [
-        { name: 'Actividad Clave 1', hours: 18, corte: 'Corte 1' },
-        { name: 'Actividad Clave 2', hours: 18, corte: 'Corte 2' },
-        { name: 'Actividad Clave 3', hours: 18, corte: 'Corte 3' },
+        {
+          name: 'Actividad Clave 1',
+          hours: 18,
+          corte: 'Corte 1',
+          methodology: 'abp',
+          apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
+          ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
+          conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
+        },
+        {
+          name: 'Actividad Clave 2',
+          hours: 18,
+          corte: 'Corte 2',
+          methodology: 'abp',
+          apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
+          ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
+          conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
+        },
+        {
+          name: 'Actividad Clave 3',
+          hours: 18,
+          corte: 'Corte 3',
+          methodology: 'abp',
+          apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
+          ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
+          conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
+        },
       ],
     },
-  },
+  } as any,
 };
 
 describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
@@ -159,18 +192,24 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       expect(summary.label).toBe('Pendiente de generar');
     });
 
+    it('retorna pending cuando blockReviews está vacío aunque generatedCount sea mayor a 0 (anti falso positivo)', () => {
+      const summary = summarizeMaterialReviewStatus({}, 'lesson_plan', 54);
+      expect(summary.status).toBe('pending');
+      expect(summary.label).toBe('Pendiente de generar');
+    });
+
     it('detecta bloqueos si algún bloque falla la validación R1', () => {
       const mockReports: Record<number, MaterialReviewReport> = {
         0: {
-          blockIndex: 0,
           ok: false,
           score: 60,
-          errors: [{ materialType: 'answer_key', code: 'AK_MISSING', message: 'Falta clave', severity: 'error' }],
+          issues: [{ material: 'answer_key', code: 'AK_MISSING', message: 'Falta clave', severity: 'error' }],
+          errors: [{ material: 'answer_key', code: 'AK_MISSING', message: 'Falta clave', severity: 'error' }],
           warnings: [],
           byMaterial: {
             answer_key: {
               ok: false,
-              issues: [{ materialType: 'answer_key', code: 'AK_MISSING', message: 'Falta clave', severity: 'error' }],
+              issues: [{ material: 'answer_key', code: 'AK_MISSING', message: 'Falta clave', severity: 'error' }],
             },
             rubric: { ok: true, issues: [] },
             checklist: { ok: true, issues: [] },

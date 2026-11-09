@@ -60,21 +60,29 @@ export default function PlanningTabSecuencias({
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
-  const curricularBlocks = resolveCurricularBlocks(content);
-  const blockSessionsMap: DetailedSession[][] = curricularBlocks.map((block) => {
-    const savedSeq = sequenceData?.[block.blockIndex] || null;
-    return generateCurricularBlockSessions(block, isLaboral, savedSeq);
-  });
-  const allDetailedSessions: DetailedSession[] = blockSessionsMap.flat();
-  const generatedLessonPlans = curricularBlocks.reduce((total, block, actIdx) => {
-    const blockSessions = blockSessionsMap[actIdx] || [];
-    const count = blockSessions.filter(
-      (s) =>
-        !!findExtra('lesson_plan', block.blockIndex, undefined, s.sessionNum) ||
-        !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
-    ).length;
-    return total + count;
-  }, 0);
+  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content), [content]);
+  const blockSessionsMap: DetailedSession[][] = React.useMemo(() => {
+    return curricularBlocks.map((block) => {
+      const savedSeq = sequenceData?.[block.blockIndex] || null;
+      return generateCurricularBlockSessions(block, isLaboral, savedSeq);
+    });
+  }, [curricularBlocks, sequenceData, isLaboral]);
+
+  const allDetailedSessions: DetailedSession[] = React.useMemo(() => {
+    return blockSessionsMap.flat();
+  }, [blockSessionsMap]);
+
+  const generatedLessonPlans = React.useMemo(() => {
+    return curricularBlocks.reduce((total, block, actIdx) => {
+      const blockSessions = blockSessionsMap[actIdx] || [];
+      const count = blockSessions.filter(
+        (s) =>
+          !!findExtra('lesson_plan', block.blockIndex, undefined, s.sessionNum) ||
+          !!findExtra('lesson_plan', s.activityIndex, undefined, s.sessionNum)
+      ).length;
+      return total + count;
+    }, 0);
+  }, [curricularBlocks, blockSessionsMap, findExtra]);
 
   return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -109,13 +117,13 @@ export default function PlanningTabSecuencias({
                     fontWeight: 600,
                   }}
                 >
-                  {allDetailedSessions.length} Sesiones · 3 Bloques de Evaluación Formativa
+                  {allDetailedSessions.length} Sesiones · {curricularBlocks.length} Bloques de Evaluación Formativa
                 </span>
                 {handleSyncSuite && (
                   <button
                     type="button"
                     onClick={async () => {
-                      for (let b = 0; b < 3; b++) {
+                      for (let b = 0; b < curricularBlocks.length; b++) {
                         await handleSyncSuite(b);
                       }
                     }}

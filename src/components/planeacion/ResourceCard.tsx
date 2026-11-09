@@ -213,10 +213,11 @@ export default function ResourceCard({
               return (
                 <a
                   key={`${act.format}-${idx}`}
-                  href={isDisabled ? '#' : act.href}
-                  download={act.download}
+                  href={isDisabled ? undefined : act.href}
+                  download={!isDisabled ? act.download : undefined}
                   target={act.targetBlank && !isDisabled ? '_blank' : undefined}
                   rel={act.targetBlank && !isDisabled ? 'noopener noreferrer' : undefined}
+                  tabIndex={isDisabled ? -1 : undefined}
                   aria-disabled={isDisabled}
                   title={act.disabledReason || `Descargar en formato ${act.format}`}
                   onClick={(e) => {
