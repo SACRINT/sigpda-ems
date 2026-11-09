@@ -224,3 +224,4 @@ export default function ChecklistSupervisionModal({
     </div>
   );
 }
+

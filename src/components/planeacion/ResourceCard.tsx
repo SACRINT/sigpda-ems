@@ -118,46 +118,44 @@ export default function ResourceCard({
 }: ResourceCardProps) {
   return (
     <div className="resource-card" data-testid={testId}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {/* Tier 1: Top Metadata Bar (Icon on left, Badges on right) */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             justifyContent: 'space-between',
             gap: '8px',
+            width: '100%',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '30px',
-                height: '30px',
-                borderRadius: '8px',
-                background: 'var(--c-bg-elevated)',
-                border: '1px solid var(--c-border-2)',
-                color: 'var(--c-accent-bright)',
-                flexShrink: 0,
-              }}
-            >
-              {icon}
-            </span>
-            <h4
-              style={{
-                margin: 0,
-                fontSize: '13.5px',
-                fontWeight: 700,
-                color: 'var(--c-text)',
-                lineHeight: 1.3,
-              }}
-            >
-              {title}
-            </h4>
-          </div>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'var(--c-bg-elevated)',
+              border: '1px solid var(--c-border-2)',
+              color: 'var(--c-accent-bright)',
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '6px',
+              flexWrap: 'wrap',
+              minWidth: 0,
+            }}
+          >
             {metaBadge && (
               <span
                 style={{
@@ -178,13 +176,28 @@ export default function ResourceCard({
           </div>
         </div>
 
+        {/* Tier 2: Full-width Title & Subtitle (Prevents text & badge collision) */}
+        <h4
+          style={{
+            margin: '6px 0 2px 0',
+            fontSize: '14.5px',
+            fontWeight: 700,
+            color: 'var(--c-text)',
+            lineHeight: 1.35,
+            wordBreak: 'break-word',
+            width: '100%',
+          }}
+        >
+          {title}
+        </h4>
+
         {subtitle && (
           <p
             style={{
-              margin: 0,
+              margin: '2px 0 0 0',
               fontSize: '12px',
               color: 'var(--c-text-muted)',
-              lineHeight: 1.4,
+              lineHeight: 1.45,
             }}
           >
             {subtitle}

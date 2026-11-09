@@ -139,6 +139,9 @@ export default function PlanningTabDocumento({
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
   const [confirmSeqRegen, setConfirmSeqRegen] = useState<number | null>(null);
   const [confirmWbRegen, setConfirmWbRegen] = useState<number | null>(null);
+  const [collapsedSectionI, setCollapsedSectionI] = useState(false);
+  const [collapsedSectionII, setCollapsedSectionII] = useState(false);
+  const [collapsedDosificacion, setCollapsedDosificacion] = useState(false);
 
   const fallbackSessionCount = React.useMemo(() => {
     return curricularBlocks.reduce((acc, b) => {
@@ -324,8 +327,31 @@ export default function PlanningTabDocumento({
           {/* Section I */}
           <div className="section-card">
             <div className="section-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <span className="section-card-title">I. Datos Generales y Administrativos</span>
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedSectionI((prev) => !prev)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--c-border)',
+                    borderRadius: '6px',
+                    color: 'var(--c-text-2)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '26px',
+                    height: '26px',
+                    padding: 0,
+                  }}
+                  aria-expanded={!collapsedSectionI}
+                  title={collapsedSectionI ? 'Desplegar sección' : 'Plegar sección'}
+                >
+                  {collapsedSectionI ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                </button>
+                <span className="section-card-title">I. Datos Generales y Administrativos</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {canEditDocument ? (
                   <button
                     type="button"
@@ -371,18 +397,35 @@ export default function PlanningTabDocumento({
                     <Lock size={13} /> Editar Datos <span style={{ fontSize: '9px', background: '#eab308', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>PRO</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setCollapsedSectionI((prev) => !prev)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--c-text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                  }}
+                >
+                  {collapsedSectionI ? 'Mostrar' : 'Plegar'}
+                </button>
               </div>
             </div>
-            <div className="section-card-body">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <div><strong>Docente:</strong> {s1?.teacherName}</div>
-                <div><strong>UAC/Ubicación:</strong> {s1?.uacName}</div>
-                <div><strong>Semestre:</strong> {s1?.semester}° Semestre</div>
-                <div><strong>Grupos:</strong> {s1?.groups}</div>
-                <div><strong>Carga horaria:</strong> {s1?.totalHours} hrs.</div>
-                <div><strong>Subsistema:</strong> {s1?.subsystem}</div>
+            {!collapsedSectionI && (
+              <div className="section-card-body">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  <div><strong>Docente:</strong> {s1?.teacherName}</div>
+                  <div><strong>UAC/Ubicación:</strong> {s1?.uacName}</div>
+                  <div><strong>Semestre:</strong> {s1?.semester}° Semestre</div>
+                  <div><strong>Grupos:</strong> {s1?.groups}</div>
+                  <div><strong>Carga horaria:</strong> {s1?.totalHours} hrs.</div>
+                  <div><strong>Subsistema:</strong> {s1?.subsystem}</div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {content && (
@@ -402,71 +445,157 @@ export default function PlanningTabDocumento({
 
           {/* Section II */}
           <div className="section-card">
-            <div className="section-card-header">
-              <span className="section-card-title">II. Propósito Formativo (Intencionalidad Curricular)</span>
+            <div
+              className="section-card-header"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedSectionII((prev) => !prev)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--c-border)',
+                    borderRadius: '6px',
+                    color: 'var(--c-text-2)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '26px',
+                    height: '26px',
+                    padding: 0,
+                  }}
+                  aria-expanded={!collapsedSectionII}
+                  title={collapsedSectionII ? 'Desplegar sección' : 'Plegar sección'}
+                >
+                  {collapsedSectionII ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                </button>
+                <span className="section-card-title">II. Propósito Formativo (Intencionalidad Curricular)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCollapsedSectionII((prev) => !prev)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--c-text-muted)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                }}
+              >
+                {collapsedSectionII ? 'Mostrar' : 'Plegar'}
+              </button>
             </div>
-            <div className="section-card-body">
-              <p style={{ marginBottom: '16px', lineHeight: 1.6 }}>{content?.sectionII?.purpose}</p>
-              
-              <p style={{ fontWeight: 600, marginBottom: '6px' }}>Resultados de Aprendizaje:</p>
-              <ul style={{ listStyleType: 'disc', paddingLeft: '20px', marginBottom: '16px' }}>
-                {content?.sectionII?.learningOutcomes?.map((out, idx) => (
-                  <li key={idx} style={{ marginBottom: '4px', fontSize: '14px' }}>{out}</li>
-                ))}
-              </ul>
+            {!collapsedSectionII && (
+              <div className="section-card-body">
+                <p style={{ marginBottom: '16px', lineHeight: 1.6 }}>{content?.sectionII?.purpose}</p>
+                
+                <p style={{ fontWeight: 600, marginBottom: '6px' }}>Resultados de Aprendizaje:</p>
+                <ul style={{ listStyleType: 'disc', paddingLeft: '20px', marginBottom: '16px' }}>
+                  {content?.sectionII?.learningOutcomes?.map((out, idx) => (
+                    <li key={idx} style={{ marginBottom: '4px', fontSize: '14px' }}>{out}</li>
+                  ))}
+                </ul>
 
-              <p><strong>Vinculación PAEC:</strong></p>
-              <p style={{ color: 'var(--c-text-2)', fontStyle: 'italic', fontSize: '14px' }}>
-                {content?.sectionII?.paecConnection}
-              </p>
-            </div>
+                <p><strong>Vinculación PAEC:</strong></p>
+                <p style={{ color: 'var(--c-text-2)', fontStyle: 'italic', fontSize: '14px' }}>
+                  {content?.sectionII?.paecConnection}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Activities Dosificación Table */}
           {content?.sectionII?.activities && (
             <div className="section-card">
-              <div className="section-card-header">
-                <span className="section-card-title">Dosificación de Actividades Clave y Tiempos</span>
+              <div
+                className="section-card-header"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedDosificacion((prev) => !prev)}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--c-border)',
+                      borderRadius: '6px',
+                      color: 'var(--c-text-2)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '26px',
+                      height: '26px',
+                      padding: 0,
+                    }}
+                    aria-expanded={!collapsedDosificacion}
+                    title={collapsedDosificacion ? 'Desplegar tabla' : 'Plegar tabla'}
+                  >
+                    {collapsedDosificacion ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                  </button>
+                  <span className="section-card-title">Dosificación de Actividades Clave y Tiempos</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedDosificacion((prev) => !prev)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--c-text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                  }}
+                >
+                  {collapsedDosificacion ? 'Mostrar' : 'Plegar'}
+                </button>
               </div>
-              <div className="section-card-body" style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700 }}>{activityLabel}</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Corte de Evaluación</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Horas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {content.sectionII.activities.map((a, i) => (
-                      <tr
-                        key={i}
-                        style={{
-                          background: i % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)',
-                          borderBottom: '1px solid var(--c-border)',
-                        }}
-                      >
-                        <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--c-text)' }}>{a.name}</td>
-                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '3px 12px',
-                            borderRadius: '12px',
-                            fontWeight: 700,
-                            fontSize: '12px',
-                            background: 'rgba(99, 102, 241, 0.15)',
-                            color: 'var(--c-accent-bright)',
-                            border: '1px solid var(--c-accent-border)',
-                          }}>
-                            {a.corte || 'Corte ' + (i + 1)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600, color: 'var(--c-text)' }}>{a.hours} hrs.</td>
+              {!collapsedDosificacion && (
+                <div className="section-card-body" style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
+                        <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700 }}>{activityLabel}</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Corte de Evaluación</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>Horas</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {content.sectionII.activities.map((a, i) => (
+                        <tr
+                          key={i}
+                          style={{
+                            background: i % 2 === 0 ? 'var(--c-bg-surface)' : 'var(--c-bg-elevated)',
+                            borderBottom: '1px solid var(--c-border)',
+                          }}
+                        >
+                          <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--c-text)' }}>{a.name}</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '3px 12px',
+                              borderRadius: '12px',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              background: 'rgba(99, 102, 241, 0.15)',
+                              color: 'var(--c-accent-bright)',
+                              border: '1px solid var(--c-accent-border)',
+                            }}>
+                              {a.corte || 'Corte ' + (i + 1)}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600, color: 'var(--c-text)' }}>{a.hours} hrs.</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -605,9 +734,14 @@ export default function PlanningTabDocumento({
                     </span>
                   </div>
 
-                  <h3 style={{ margin: '4px 0 6px', fontSize: '17px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em' }}>
-                    Libro de Texto Semestral Consolidado (~150-200 Páginas)
-                  </h3>
+                  {(() => {
+                    const estimatedPages = accumulatedWorkbookWords > 0 ? Math.max(1, Math.round(accumulatedWorkbookWords / 450)) : 0;
+                    return (
+                      <h3 style={{ margin: '4px 0 6px', fontSize: '17px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+                        Libro de Texto Semestral Consolidado{estimatedPages > 0 ? ` (~${estimatedPages} Páginas)` : ` (${totalWorkbookBlocks} Bloques)`}
+                      </h3>
+                    );
+                  })()}
                   <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.5, maxWidth: '650px' }}>
                     {semestralReady && semestralThresholdMet
                       ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales institucionales.'

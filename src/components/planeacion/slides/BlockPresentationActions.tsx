@@ -65,55 +65,114 @@ export default function BlockPresentationActions({ planningId, blockIndex }: Blo
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    padding: '6px 12px', fontSize: '12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600,
+  const btnBaseStyle: React.CSSProperties = {
+    padding: '7px 14px',
+    fontSize: '12px',
+    borderRadius: '7px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.15s ease',
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 14px', border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)', borderRadius: 6 }}>
-      <span style={{ fontSize: 12, color: 'var(--c-text-muted)', marginRight: 'auto' }}>
-        🎞️ Presentación electrónica del bloque (generada del Libro, 0 tokens)
-      </span>
-      <button
-        id={`btn-proyectar-${blockIndex}`}
-        type="button"
-        className="btn btn-navy"
-        style={btnStyle}
-        onClick={openViewer}
-        disabled={loading || downloading}
-      >
-        {loading ? '⏳ Cargando…' : '▶ Proyectar'}
-      </button>
-      <button
-        id={`btn-proyectar-sacrint-${blockIndex}`}
-        type="button"
-        className="btn"
-        style={{ ...btnStyle, border: '1px solid rgba(212,175,55,0.55)', color: '#D4AF37', background: 'transparent' }}
-        onClick={() => setShowSacrint(true)}
-        disabled={loading || downloading}
-      >
-        ▶ SACRINT
-      </button>
-      <button
-        id={`btn-descargar-pptx-${blockIndex}`}
-        type="button"
-        className="btn"
-        onClick={downloadPptx}
-        disabled={loading || downloading}
-        style={{ ...btnStyle, border: '1px solid var(--c-border)', color: 'var(--c-text)', background: 'transparent' }}
-      >
-        {downloading ? '⏳ Generando…' : '⬇ Descargar .pptx SACRINT'}
-      </button>
-      <button
-        id={`btn-infografia-${blockIndex}`}
-        type="button"
-        className="btn"
-        style={{ ...btnStyle, border: '1px solid var(--c-border)', color: 'var(--c-text)', background: 'transparent' }}
-        onClick={() => setShowInfographics(true)}
-      >
-        🖼️ Infografías
-      </button>
-      {error && <span role="alert" style={{ color: '#EF4444', fontSize: 12, width: '100%' }}>{error}</span>}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        flexWrap: 'wrap',
+        padding: '12px 18px',
+        border: '1px solid rgba(139, 92, 246, 0.3)',
+        background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.35) 0%, rgba(15, 23, 42, 0.6) 100%)',
+        borderRadius: '9px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: '#e0e7ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          🎞️ Diapositivas e Infografías del Bloque
+        </span>
+        <span
+          style={{
+            fontSize: '11px',
+            padding: '2px 8px',
+            borderRadius: '9999px',
+            background: 'rgba(139, 92, 246, 0.18)',
+            border: '1px solid rgba(139, 92, 246, 0.35)',
+            color: '#c4b5fd',
+            fontWeight: 600,
+          }}
+        >
+          0 Tokens IA
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          id={`btn-proyectar-${blockIndex}`}
+          type="button"
+          style={{
+            ...btnBaseStyle,
+            background: 'rgba(99, 102, 241, 0.25)',
+            border: '1px solid rgba(99, 102, 241, 0.5)',
+            color: '#a5b4fc',
+          }}
+          onClick={openViewer}
+          disabled={loading || downloading}
+        >
+          {loading ? '⏳ Cargando…' : '▶ Proyectar'}
+        </button>
+
+        <button
+          id={`btn-proyectar-sacrint-${blockIndex}`}
+          type="button"
+          style={{
+            ...btnBaseStyle,
+            border: '1px solid rgba(234, 179, 8, 0.55)',
+            color: '#facc15',
+            background: 'rgba(234, 179, 8, 0.12)',
+          }}
+          onClick={() => setShowSacrint(true)}
+          disabled={loading || downloading}
+        >
+          ⭐ SACRINT
+        </button>
+
+        <button
+          id={`btn-descargar-pptx-${blockIndex}`}
+          type="button"
+          onClick={downloadPptx}
+          disabled={loading || downloading}
+          style={{
+            ...btnBaseStyle,
+            border: '1px solid rgba(249, 115, 22, 0.45)',
+            color: '#fdba74',
+            background: 'rgba(249, 115, 22, 0.12)',
+          }}
+        >
+          {downloading ? '⏳ Generando…' : '⬇ Descargar PPTX'}
+        </button>
+
+        <button
+          id={`btn-infografia-${blockIndex}`}
+          type="button"
+          style={{
+            ...btnBaseStyle,
+            border: '1px solid rgba(236, 72, 153, 0.45)',
+            color: '#f472b6',
+            background: 'rgba(236, 72, 153, 0.12)',
+          }}
+          onClick={() => setShowInfographics(true)}
+        >
+          🖼️ Infografías
+        </button>
+      </div>
+
+      {error && <span role="alert" style={{ color: '#fb7185', fontSize: '12px', width: '100%', marginTop: '4px' }}>{error}</span>}
       {deck && <SlidesViewerModal deck={deck} onClose={() => setDeck(null)} />}
       {showSacrint && (
         <SacrintSlidesViewerModal planningId={planningId} blockIndex={blockIndex} onClose={() => setShowSacrint(false)} />

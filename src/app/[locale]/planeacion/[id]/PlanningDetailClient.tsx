@@ -980,9 +980,11 @@ function PlanningDetailModular({
       />
 
       {/* Tabs Menu — 4 Ejes Atómicos (.detail-tabs) */}
-      <div className="detail-tabs">
+      <div className="detail-tabs" role="tablist" aria-label="Ejes principales de planeación">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'planning'}
           onClick={() => setActiveTab('planning')}
           className={`detail-tab${activeTab === 'planning' ? ' is-active' : ''}`}
           aria-current={activeTab === 'planning' ? 'page' : undefined}
@@ -993,6 +995,8 @@ function PlanningDetailModular({
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'lessonPlans'}
           onClick={() => setActiveTab('lessonPlans')}
           className={`detail-tab${activeTab === 'lessonPlans' ? ' is-active' : ''}`}
           aria-current={activeTab === 'lessonPlans' ? 'page' : undefined}
@@ -1004,6 +1008,8 @@ function PlanningDetailModular({
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'materials'}
           onClick={() => setActiveTab('materials')}
           className={`detail-tab${activeTab === 'materials' ? ' is-active' : ''}`}
           aria-current={activeTab === 'materials' ? 'page' : undefined}
@@ -1014,6 +1020,8 @@ function PlanningDetailModular({
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'quality'}
           onClick={() => setActiveTab('quality')}
           className={`detail-tab${activeTab === 'quality' ? ' is-active' : ''}`}
           aria-current={activeTab === 'quality' ? 'page' : undefined}

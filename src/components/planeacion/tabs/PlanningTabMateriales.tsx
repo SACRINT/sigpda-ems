@@ -8,34 +8,9 @@ import BlockPresentationActions from '@/components/planeacion/slides/BlockPresen
 import {
   Zap, RefreshCw, CheckCircle
 } from 'lucide-react';
-import { MaterialFigure } from '@/components/planeacion/MaterialFigure';
 import { parseMaterialTokensWithFallback, isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { useBlockMaterialReviews } from '@/hooks/useBlockMaterialReviews';
-
-/** Metadata de tarjeta para tipos conocidos; cualquier otro tipo cae en fallback genérico. */
-const COMBINED_TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
-  rubric: { icon: '📊', label: 'Rúbricas', color: '#3b82f6' },
-  checklist: { icon: '✅', label: 'Lista de Cotejo', color: '#10b981' },
-  material: { icon: '📦', label: 'Materiales Docente', color: '#f59e0b' },
-  teacher_guide: { icon: '🔒', label: 'Solucionarios', color: '#7c3aed' },
-  lesson_plan: { icon: '🗓️', label: 'Planes de Clase', color: '#0ea5e9' },
-  practice_guide: { icon: '📝', label: 'Guías de Práctica', color: '#ec4899' },
-};
-
-const COMBINED_TYPE_ORDER = ['rubric', 'checklist', 'material', 'teacher_guide', 'lesson_plan', 'practice_guide'];
-
-function combinedTypeMeta(type: string) {
-  return (
-    COMBINED_TYPE_META[type] || {
-      icon: '📄',
-      label: type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-      color: '#64748b',
-    }
-  );
-}
-
-
 
 export interface BlockWorkbookItem {
   blockIndex: number;
@@ -127,37 +102,16 @@ export default function PlanningTabMateriales({
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
   const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content), [content]);
 
-  // Tipos presentes en esta planeación con contenido renderizable (excluye payloads visuales JSON).
-  // La barra es 100% data-driven: cualquier tipo nuevo (incluidos los futuros) aparece solo.
-  const combinedTypes = Array.from(
-    new Set(
-      extras
-        .filter((ex) => ex.type !== 'visual' && !isStructuredVisualPayload(ex.contentText))
-        .map((ex) => ex.type)
-    )
-  ).sort((a, b) => {
-    const ia = COMBINED_TYPE_ORDER.indexOf(a);
-    const ib = COMBINED_TYPE_ORDER.indexOf(b);
-    if (ia !== -1 && ib !== -1) return ia - ib;
-    if (ia !== -1) return -1;
-    if (ib !== -1) return 1;
-    return a.localeCompare(b);
-  });
-
-  const generatedBlockIndexes = Object.entries(blockWorkbooks)
-    .filter(([, item]) => Boolean(item.workbook))
-    .map(([index]) => Number(index))
-    .filter((index) => Number.isFinite(index))
-    .sort((a, b) => a - b);
-
   // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens) vía hook compartido
   const blockReviews = useBlockMaterialReviews(planning, blockWorkbooks, sequenceData, extras);
 
   const renderSubTabsBar = () => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-      <div className="detail-subtabs">
+      <div className="detail-subtabs" role="tablist" aria-label="Subsecciones de materiales e instrumentos">
         <button
           type="button"
+          role="tab"
+          aria-selected={currentSubTab === 'extras'}
           onClick={() => handleSubTabSwitch('extras')}
           aria-current={currentSubTab === 'extras' ? 'page' : undefined}
           className={`detail-subtab${currentSubTab === 'extras' ? ' is-active' : ''}`}
@@ -166,6 +120,8 @@ export default function PlanningTabMateriales({
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={currentSubTab === 'teacherGuides'}
           onClick={() => handleSubTabSwitch('teacherGuides')}
           aria-current={currentSubTab === 'teacherGuides' ? 'page' : undefined}
           className={`detail-subtab${currentSubTab === 'teacherGuides' ? ' is-active' : ''}`}
@@ -440,95 +396,6 @@ export default function PlanningTabMateriales({
               </div>
             </div>
           </div>
-
-          {/* Descargas Combinadas — 1 archivo con todos los bloques por tipo (data-driven) */}
-          {(combinedTypes.length > 0 || generatedBlockIndexes.length > 0) && (
-          <div className="section-card" style={{ border: '1px solid rgba(59, 130, 246, 0.35)' }}>
-            <div className="section-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="section-card-title">📊 Descargas Combinadas — Todos los Bloques en un Solo Archivo</span>
-              <span className="text-xs" style={{ color: 'var(--c-blue-mid)', fontWeight: 600 }}>PDF · Word · PPTX</span>
-            </div>
-            <div className="section-card-body">
-              <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--c-text-muted)', lineHeight: 1.45 }}>
-                Descarga un único archivo con todos los documentos del mismo tipo integrados de todos los bloques curriculares.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
-                {combinedTypes.map((type) => {
-                  const meta = combinedTypeMeta(type);
-                  return (
-                  <div key={type} style={{
-                    display: 'flex', flexDirection: 'column', gap: '6px',
-                    padding: '12px', background: 'var(--c-bg-surface)',
-                    border: `1px solid ${meta.color}33`, borderRadius: '8px'
-                  }}>
-                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: meta.color }}>
-                      {meta.icon} {meta.label} (Todos los bloques)
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <a
-                        href={`/api/pdf/extra/combined?planningId=${planning.id}&type=${type}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn"
-                        style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
-                      >
-                        ↓ PDF
-                      </a>
-                      <a
-                        href={`/api/docx/extra/combined?planningId=${planning.id}&type=${type}`}
-                        className="btn btn-amber"
-                        style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
-                      >
-                        ↓ Word (1 archivo)
-                      </a>
-                    </div>
-                  </div>
-                  );
-                })}
-                {generatedBlockIndexes.length > 0 && (
-                  <>
-                    <div style={{
-                      display: 'flex', flexDirection: 'column', gap: '6px',
-                      padding: '12px', background: 'var(--c-bg-surface)',
-                      border: '1px solid rgba(139, 92, 246, 0.35)', borderRadius: '8px'
-                    }}>
-                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#7c3aed' }}>
-                        🎞️ Presentaciones SACRINT PPTX (Todos los bloques)
-                      </span>
-                      <a
-                        href={`/api/planeaciones/${planning.id}/presentacion/combinada`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn"
-                        style={{ alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#7c3aed', color: '#fff', fontWeight: 600 }}
-                      >
-                        ↓ PPTX (1 archivo)
-                      </a>
-                    </div>
-                    <div style={{
-                      display: 'flex', flexDirection: 'column', gap: '6px',
-                      padding: '12px', background: 'var(--c-bg-surface)',
-                      border: '1px solid rgba(236, 72, 153, 0.35)', borderRadius: '8px'
-                    }}>
-                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#ec4899' }}>
-                        🖼️ Infografías SACRINT (Todos los bloques)
-                      </span>
-                      <a
-                        href={`/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn"
-                        style={{ alignSelf: 'flex-start', padding: '5px 10px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#ec4899', color: '#fff', fontWeight: 600 }}
-                      >
-                        ↓ PDF (1 archivo)
-                      </a>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          )}
 
           {/* Acuerdo Institucional de Acreditación Semestral */}
           {content?.sectionV?.evaluationAgreement && (
@@ -903,21 +770,37 @@ export default function PlanningTabMateriales({
                               const detected = parseMaterialTokensWithFallback(blockText);
                               const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
                               if (allUnique.length === 0) return null;
-                              const displayed = allUnique.slice(0, 4);
                               return (
                                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--c-text-muted)' }}>
-                                    Insumos ilustrados del bloque ({allUnique.length}):
+                                    Insumos requeridos del bloque ({allUnique.length}):
                                   </span>
-                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                    {displayed.map((mat, mIdx) => (
-                                      <MaterialFigure
+                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                    {allUnique.slice(0, 6).map((mat, mIdx) => (
+                                      <span
                                         key={`${mat.slug}-${mIdx}`}
-                                        slug={mat.slug}
-                                        label={mat.label}
-                                        width={68}
-                                      />
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          padding: '3px 8px',
+                                          borderRadius: '6px',
+                                          fontSize: '11px',
+                                          fontWeight: 600,
+                                          background: 'rgba(139, 92, 246, 0.1)',
+                                          border: '1px solid rgba(139, 92, 246, 0.28)',
+                                          color: '#c4b5fd',
+                                        }}
+                                        title={mat.label}
+                                      >
+                                        📐 {mat.label || mat.slug}
+                                      </span>
                                     ))}
+                                    {allUnique.length > 6 && (
+                                      <span style={{ fontSize: '11px', color: 'var(--c-text-muted)', alignSelf: 'center', padding: '2px 4px' }}>
+                                        +{allUnique.length - 6} más
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               );
