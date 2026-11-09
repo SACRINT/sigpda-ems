@@ -13,6 +13,11 @@ import {
   BookOpen,
   FlaskConical,
   FolderDown,
+  ClipboardList,
+  CheckSquare,
+  Presentation,
+  Image as ImageIcon,
+  Archive,
 } from 'lucide-react';
 
 export interface PlanningDownloadsHubProps {
@@ -58,6 +63,9 @@ export default function PlanningDownloadsHub({
   const generatedLessonPlans = extras.filter((ex) => ex.type === 'lesson_plan').length;
   const generatedGuidesCount = extras.filter((ex) => ex.type === 'teacher_guide').length;
   const generatedPracticeGuidesCount = extras.filter((ex) => ex.type === 'practice_guide').length;
+  const generatedRubricsCount = extras.filter((ex) => ex.type === 'rubric').length;
+  const generatedChecklistsCount = extras.filter((ex) => ex.type === 'checklist').length;
+  const hasPresentations = generatedWorkbookCount > 0;
 
   const lessonPlansStatus = summarizeMaterialReviewStatus(
     blockReviews,
@@ -106,15 +114,59 @@ export default function PlanningDownloadsHub({
             Centro de Descargas y Entregables de la Planeación
           </span>
         </div>
-        <span
-          style={{
-            fontSize: '11.5px',
-            color: 'var(--c-text-muted)',
-            fontWeight: 600,
-          }}
-        >
-          Acceso directo a documentos oficiales y cuadernos de trabajo
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span
+            style={{
+              fontSize: '11.5px',
+              color: 'var(--c-text-muted)',
+              fontWeight: 600,
+            }}
+          >
+            Todos los entregables en un solo lugar:
+          </span>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <a
+              href={`/api/docx/extra/bulk?planningId=${planning.id}`}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '11.5px',
+                padding: '4px 9px',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                background: 'rgba(99, 102, 241, 0.12)',
+                border: '1px solid rgba(99, 102, 241, 0.35)',
+                color: '#c7d2fe',
+                fontWeight: 600,
+              }}
+              title="Descargar todos los entregables en un archivo ZIP (Word)"
+            >
+              <Archive size={12} /> Paquete ZIP (Word)
+            </a>
+            <a
+              href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '11.5px',
+                padding: '4px 9px',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                color: '#fca5a5',
+                fontWeight: 600,
+              }}
+              title="Descargar todos los entregables en un archivo ZIP (PDF)"
+            >
+              <Archive size={12} /> Paquete ZIP (PDF)
+            </a>
+          </div>
+        </div>
       </div>
 
       <div className="section-card-body">
@@ -288,7 +340,7 @@ export default function PlanningDownloadsHub({
             testId="hub-card-libros"
             icon={<BookOpen size={16} />}
             title="Libros de Texto Activos"
-            subtitle="Compendio semestral consolidado (~150-200 págs) y cuadernos por bloque."
+            subtitle="Compendio semestral consolidado y cuadernos de trabajo por bloque."
             metaBadge={totalWorkbookBlocks > 0 ? `${generatedWorkbookCount}/${totalWorkbookBlocks} bloques` : `${generatedWorkbookCount} bloques`}
             statusBadge={{
               status: semestralReady
@@ -324,6 +376,120 @@ export default function PlanningDownloadsHub({
             ]}
             onOpenDetail={scrollToBooksSection}
             detailLabel="Ir a bloques"
+          />
+
+          {/* 7. Rúbricas Analíticas Oficiales (Todos los Bloques) */}
+          <ResourceCard
+            testId="hub-card-rubricas"
+            icon={<ClipboardList size={16} />}
+            title="Rúbricas Analíticas Oficiales"
+            subtitle="Descriptores cualitativos por niveles de dominio NEM (unificados)."
+            metaBadge={generatedRubricsCount > 0 ? `${generatedRubricsCount} bloques` : undefined}
+            statusBadge={{
+              status: generatedRubricsCount > 0 ? 'ok' : 'pending',
+              label: generatedRubricsCount > 0 ? `${generatedRubricsCount} listas` : 'Por derivar',
+            }}
+            actions={[
+              {
+                format: 'PDF',
+                label: 'PDF (Todos)',
+                href: `/api/pdf/extra/combined?planningId=${planning.id}&type=rubric`,
+                targetBlank: true,
+                disabled: generatedRubricsCount === 0,
+                disabledReason: generatedRubricsCount === 0 ? 'Sincroniza la suite desde Materiales' : undefined,
+              },
+              {
+                format: 'Word',
+                label: 'Word (1 archivo)',
+                href: `/api/docx/extra/combined?planningId=${planning.id}&type=rubric`,
+                disabled: generatedRubricsCount === 0,
+                disabledReason: generatedRubricsCount === 0 ? 'Sincroniza la suite desde Materiales' : undefined,
+              },
+            ]}
+            onOpenDetail={onNavigateToInstrumentos}
+            detailLabel="Ver rúbricas"
+          />
+
+          {/* 8. Listas de Cotejo de Verificación (Todos los Bloques) */}
+          <ResourceCard
+            testId="hub-card-listas"
+            icon={<CheckSquare size={16} />}
+            title="Listas de Cotejo Formativas"
+            subtitle="Reactivos observables de autoevaluación y coevaluación (unificados)."
+            metaBadge={generatedChecklistsCount > 0 ? `${generatedChecklistsCount} bloques` : undefined}
+            statusBadge={{
+              status: generatedChecklistsCount > 0 ? 'ok' : 'pending',
+              label: generatedChecklistsCount > 0 ? `${generatedChecklistsCount} listas` : 'Por derivar',
+            }}
+            actions={[
+              {
+                format: 'PDF',
+                label: 'PDF (Todos)',
+                href: `/api/pdf/extra/combined?planningId=${planning.id}&type=checklist`,
+                targetBlank: true,
+                disabled: generatedChecklistsCount === 0,
+                disabledReason: generatedChecklistsCount === 0 ? 'Sincroniza la suite desde Materiales' : undefined,
+              },
+              {
+                format: 'Word',
+                label: 'Word (1 archivo)',
+                href: `/api/docx/extra/combined?planningId=${planning.id}&type=checklist`,
+                disabled: generatedChecklistsCount === 0,
+                disabledReason: generatedChecklistsCount === 0 ? 'Sincroniza la suite desde Materiales' : undefined,
+              },
+            ]}
+            onOpenDetail={onNavigateToInstrumentos}
+            detailLabel="Ver listas"
+          />
+
+          {/* 9. Presentaciones Diapositivas SACRINT (Todos los Bloques) */}
+          <ResourceCard
+            testId="hub-card-presentaciones"
+            icon={<Presentation size={16} />}
+            title="Presentaciones SACRINT (.pptx)"
+            subtitle="Diapositivas interactivas generadas del libro para proyección en aula."
+            metaBadge={hasPresentations ? `${generatedWorkbookCount} bloques` : undefined}
+            statusBadge={{
+              status: hasPresentations ? 'ok' : 'pending',
+              label: hasPresentations ? `${generatedWorkbookCount} listas` : 'Por generar',
+            }}
+            actions={[
+              {
+                format: 'PPTX',
+                label: 'PPTX (1 archivo)',
+                href: `/api/planeaciones/${planning.id}/presentacion/combinada`,
+                targetBlank: true,
+                disabled: !hasPresentations,
+                disabledReason: !hasPresentations ? 'Genera los libros de trabajo para habilitar las diapositivas' : undefined,
+              },
+            ]}
+            onOpenDetail={onNavigateToInstrumentos}
+            detailLabel="Ver diapositivas"
+          />
+
+          {/* 10. Infografías Sintéticas SACRINT (Todos los Bloques) */}
+          <ResourceCard
+            testId="hub-card-infografias"
+            icon={<ImageIcon size={16} />}
+            title="Infografías Sintéticas SACRINT"
+            subtitle="Láminas infográficas pedagógicas vectoriales de alta resolución (unificadas)."
+            metaBadge={hasPresentations ? `${generatedWorkbookCount} bloques` : undefined}
+            statusBadge={{
+              status: hasPresentations ? 'ok' : 'pending',
+              label: hasPresentations ? `${generatedWorkbookCount} listas` : 'Por generar',
+            }}
+            actions={[
+              {
+                format: 'PDF',
+                label: 'PDF (Todos)',
+                href: `/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`,
+                targetBlank: true,
+                disabled: !hasPresentations,
+                disabledReason: !hasPresentations ? 'Genera los libros de trabajo para habilitar las infografías' : undefined,
+              },
+            ]}
+            onOpenDetail={onNavigateToInstrumentos}
+            detailLabel="Ver infografías"
           />
         </div>
       </div>

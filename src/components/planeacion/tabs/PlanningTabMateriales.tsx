@@ -560,43 +560,43 @@ export default function PlanningTabMateriales({
                 {/* Contenido de la sección */}
                 <div className="section-card-body">
                   {hasAnyMaterial || hasWorkbook ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      {/* Grid de 4 recursos */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Grid de 3 recursos minimalistas */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
                         
                         {/* 1. Rúbrica Analítica Oficial */}
                         <div style={{
-                          padding: '16px',
+                          padding: '12px 14px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '12px'
+                          gap: '10px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Instrumento Normativo
                               </span>
-                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>4 Niveles NEM</span>
+                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>4 Niveles NEM</span>
                             </div>
-                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📊 Rúbrica Analítica de Evaluación ({blockNumStr})
+                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              📊 Rúbrica Analítica ({blockNumStr})
                             </h4>
-                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Descriptores cualitativos por niveles de dominio (Sobresaliente, Notable, Suficiente e Insuficiente) vinculados a los aprendizajes del bloque.
+                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                              Descriptores cualitativos por niveles de dominio vinculados a los aprendizajes del bloque.
                             </p>
                           </div>
 
                           <div>
                             {rubricExtra ? (
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => setPreviewExtra(rubricExtra)}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
                                 >
                                   👁️ Ver
                                 </button>
@@ -608,7 +608,7 @@ export default function PlanningTabMateriales({
                                   aria-disabled={rubricBlocked}
                                   title={rubricTooltip}
                                   className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ Word
                                 </a>
@@ -622,7 +622,7 @@ export default function PlanningTabMateriales({
                                   aria-disabled={rubricBlocked}
                                   title={rubricTooltip}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ PDF
                                 </a>
@@ -630,7 +630,7 @@ export default function PlanningTabMateriales({
                                   onClick={() => handleDeleteExtra(rubricExtra.id)}
                                   className="btn"
                                   title="Eliminar rúbrica"
-                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
                                 >
                                   🗑️
                                 </button>
@@ -640,7 +640,7 @@ export default function PlanningTabMateriales({
                                 onClick={() => handleSyncSuite(block.blockIndex)}
                                 disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
                               >
                                 {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
@@ -650,37 +650,37 @@ export default function PlanningTabMateriales({
 
                         {/* 2. Lista de Cotejo Formativa */}
                         <div style={{
-                          padding: '16px',
+                          padding: '12px 14px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '12px'
+                          gap: '10px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Instrumento Formativo
                               </span>
-                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Dicotómico</span>
+                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Dicotómico</span>
                             </div>
-                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              ✅ Lista de Cotejo de Verificación ({blockNumStr})
+                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              ✅ Lista de Cotejo ({blockNumStr})
                             </h4>
-                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Reactivos observables y verificables para la autoevaluación y coevaluación del producto formativo del bloque.
+                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                              Reactivos observables de autoevaluación y coevaluación del producto formativo.
                             </p>
                           </div>
 
                           <div>
                             {checklistExtra ? (
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => setPreviewExtra(checklistExtra)}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
                                 >
                                   👁️ Ver
                                 </button>
@@ -692,7 +692,7 @@ export default function PlanningTabMateriales({
                                   aria-disabled={checklistBlocked}
                                   title={checklistTooltip}
                                   className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ Word
                                 </a>
@@ -706,7 +706,7 @@ export default function PlanningTabMateriales({
                                   aria-disabled={checklistBlocked}
                                   title={checklistTooltip}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ PDF
                                 </a>
@@ -714,7 +714,7 @@ export default function PlanningTabMateriales({
                                   onClick={() => handleDeleteExtra(checklistExtra.id)}
                                   className="btn"
                                   title="Eliminar lista de cotejo"
-                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
                                 >
                                   🗑️
                                 </button>
@@ -724,7 +724,7 @@ export default function PlanningTabMateriales({
                                 onClick={() => handleSyncSuite(block.blockIndex)}
                                 disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
                               >
                                 {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
@@ -734,30 +734,30 @@ export default function PlanningTabMateriales({
 
                         {/* 3. Materiales Didácticos del Docente */}
                         <div style={{
-                          padding: '16px',
+                          padding: '12px 14px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '12px'
+                          gap: '10px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Soporte Docente
                               </span>
-                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>Insumos Técnicos</span>
+                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Insumos Técnicos</span>
                             </div>
-                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📦 Materiales Didácticos e Insumos ({blockNumStr})
+                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              📦 Materiales e Insumos ({blockNumStr})
                             </h4>
-                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Guión técnico, reactivos didácticos, casos análogos, recursos digitales y requerimientos de aula/taller.
+                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                              Guión técnico, reactivos didácticos y requerimientos de aula/taller.
                             </p>
 
-                            {/* T-IMG-07 / F-R13-03: Figuras e insumos ilustrados detectados */}
+                            {/* Insumos ilustrados detectados en formato píldoras */}
                             {(() => {
                               const blockText = [
                                 materialExtra?.contentText || '',
@@ -771,24 +771,21 @@ export default function PlanningTabMateriales({
                               const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
                               if (allUnique.length === 0) return null;
                               return (
-                                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--c-text-muted)' }}>
-                                    Insumos requeridos del bloque ({allUnique.length}):
-                                  </span>
-                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                    {allUnique.slice(0, 6).map((mat, mIdx) => (
+                                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                    {allUnique.slice(0, 5).map((mat, mIdx) => (
                                       <span
                                         key={`${mat.slug}-${mIdx}`}
                                         style={{
                                           display: 'inline-flex',
                                           alignItems: 'center',
-                                          gap: '4px',
-                                          padding: '3px 8px',
-                                          borderRadius: '6px',
-                                          fontSize: '11px',
+                                          gap: '3px',
+                                          padding: '2px 6px',
+                                          borderRadius: '5px',
+                                          fontSize: '10.5px',
                                           fontWeight: 600,
                                           background: 'rgba(139, 92, 246, 0.1)',
-                                          border: '1px solid rgba(139, 92, 246, 0.28)',
+                                          border: '1px solid rgba(139, 92, 246, 0.25)',
                                           color: '#c4b5fd',
                                         }}
                                         title={mat.label}
@@ -796,9 +793,9 @@ export default function PlanningTabMateriales({
                                         📐 {mat.label || mat.slug}
                                       </span>
                                     ))}
-                                    {allUnique.length > 6 && (
-                                      <span style={{ fontSize: '11px', color: 'var(--c-text-muted)', alignSelf: 'center', padding: '2px 4px' }}>
-                                        +{allUnique.length - 6} más
+                                    {allUnique.length > 5 && (
+                                      <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)', alignSelf: 'center', padding: '1px 3px' }}>
+                                        +{allUnique.length - 5}
                                       </span>
                                     )}
                                   </div>
@@ -807,13 +804,13 @@ export default function PlanningTabMateriales({
                             })()}
                           </div>
 
-                          <div>
+                          <div style={{ marginTop: '4px' }}>
                             {materialExtra ? (
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => setPreviewExtra(materialExtra)}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
                                 >
                                   👁️ Ver
                                 </button>
@@ -825,7 +822,7 @@ export default function PlanningTabMateriales({
                                   aria-disabled={materialBlocked}
                                   title={materialTooltip}
                                   className="btn btn-amber"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ Word
                                 </a>
@@ -839,7 +836,7 @@ export default function PlanningTabMateriales({
                                   aria-disabled={materialBlocked}
                                   title={materialTooltip}
                                   className="btn"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
                                 >
                                   ↓ PDF
                                 </a>
@@ -847,7 +844,7 @@ export default function PlanningTabMateriales({
                                   onClick={() => handleDeleteExtra(materialExtra.id)}
                                   className="btn"
                                   title="Eliminar material didáctico"
-                                  style={{ padding: '5px 8px', fontSize: '11.5px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
                                 >
                                   🗑️
                                 </button>
@@ -857,105 +854,7 @@ export default function PlanningTabMateriales({
                                 onClick={() => handleSyncSuite(block.blockIndex)}
                                 disabled={syncingSuite === block.blockIndex}
                                 className="btn btn-navy"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 4. Solucionario — Redirigido a pestaña dedicada (deduplicación) */}
-                        <div style={{
-                          padding: '16px',
-                          background: 'var(--c-bg-surface)',
-                          border: '1px dashed #7c3aed55',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          gap: '10px',
-                          textAlign: 'center'
-                        }}>
-                          <div>
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              Solucionario Pedagógico
-                            </span>
-                            <h4 style={{ margin: '6px 0 4px 0', fontSize: '13px', fontWeight: 600, color: 'var(--c-text-muted)' }}>
-                              📘 Disponible en pestaña dedicada
-                            </h4>
-                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              El Solucionario y Guía del Docente tiene su propia pestaña con gestión completa.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => setActiveTab?.('teacherGuides')}
-                            className="btn"
-                            style={{ padding: '6px 14px', fontSize: '11.5px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 600, cursor: 'pointer' }}
-                          >
-                            → Ir al Solucionario
-                          </button>
-                        </div>
-
-                        {/* 5. Recursos Gráficos y Visuales Vectoriales */}
-                        <div style={{
-                          padding: '16px',
-                          background: 'var(--c-bg-surface)',
-                          border: '1px solid var(--c-border)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                          gridColumn: '1 / -1'
-                        }}>
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#ec4899', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Motor Visual Capa 0
-                              </span>
-                              <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
-                                {visualExtras.length > 0 ? `${visualExtras.length} Diagramas Generados` : 'Visualización Vectorial'}
-                              </span>
-                            </div>
-                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              🎨 Recursos Gráficos del Bloque ({blockNumStr})
-                            </h4>
-                            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--c-text-muted)', lineHeight: 1.4 }}>
-                              Diagramas vectoriales generativos (STEM, Humanidades, Económico-Administrativas) insertados en las misiones del libro de trabajo.
-                            </p>
-                          </div>
-
-                          <div>
-                            {visualExtras.length > 0 ? (
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                {visualExtras.map((vExtra, vIdx) => (
-                                  <div key={vExtra.id || vIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(236, 72, 153, 0.08)', border: '1px solid rgba(236, 72, 153, 0.25)', borderRadius: '6px', padding: '4px 8px' }}>
-                                    <button
-                                      onClick={() => setPreviewExtra(vExtra)}
-                                      className="btn"
-                                      style={{ padding: '4px 8px', fontSize: '11.5px', background: 'var(--c-bg-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)', borderRadius: '4px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                    >
-                                      👁️ {vExtra.title || `Gráfico Misión ${vIdx + 1}`}
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteExtra(vExtra.id)}
-                                      className="btn"
-                                      title="Eliminar gráfico"
-                                      style={{ padding: '4px 6px', fontSize: '11px', background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer' }}
-                                    >
-                                      🗑️
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSyncSuite(block.blockIndex)}
-                                disabled={syncingSuite === block.blockIndex}
-                                className="btn btn-navy"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', borderRadius: '4px', cursor: 'pointer' }}
+                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
                               >
                                 {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
                               </button>
@@ -964,6 +863,48 @@ export default function PlanningTabMateriales({
                         </div>
 
                       </div>
+
+                      {/* Recursos Gráficos si existen diagramas generados */}
+                      {visualExtras.length > 0 && (
+                        <div style={{
+                          padding: '10px 14px',
+                          background: 'rgba(236, 72, 153, 0.05)',
+                          border: '1px solid rgba(236, 72, 153, 0.25)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#f472b6' }}>
+                              🎨 Recursos Gráficos ({visualExtras.length} diagramas)
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {visualExtras.map((vExtra, vIdx) => (
+                              <div key={vExtra.id || vIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(236, 72, 153, 0.1)', border: '1px solid rgba(236, 72, 153, 0.3)', borderRadius: '5px', padding: '3px 6px' }}>
+                                <button
+                                  onClick={() => setPreviewExtra(vExtra)}
+                                  className="btn"
+                                  style={{ padding: '2px 6px', fontSize: '11px', background: 'transparent', border: 'none', color: '#fbcfe8', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  👁️ {vExtra.title || `Gráfico Misión ${vIdx + 1}`}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteExtra(vExtra.id)}
+                                  className="btn"
+                                  title="Eliminar gráfico"
+                                  style={{ padding: '2px 4px', fontSize: '10px', background: 'transparent', border: 'none', color: '#fb7185', cursor: 'pointer' }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Barra de estado del bloque */}
                       <div style={{

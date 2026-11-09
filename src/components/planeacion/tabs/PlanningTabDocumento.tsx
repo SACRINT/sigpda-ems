@@ -655,9 +655,6 @@ export default function PlanningTabDocumento({
                     </button>
                   </>
                 )}
-                <span className="text-xs" style={{ background: 'var(--c-accent-subtle)', color: 'var(--c-accent-bright)', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, border: '1px solid var(--c-accent-border)' }}>
-                  MCCEMS
-                </span>
               </div>
             </div>
 
