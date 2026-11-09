@@ -14,7 +14,6 @@ import {
   FlaskConical,
   FolderDown,
   ClipboardList,
-  CheckSquare,
   Presentation,
   Image as ImageIcon,
   Archive,
@@ -65,6 +64,7 @@ export default function PlanningDownloadsHub({
   const generatedPracticeGuidesCount = extras.filter((ex) => ex.type === 'practice_guide').length;
   const generatedRubricsCount = extras.filter((ex) => ex.type === 'rubric').length;
   const generatedChecklistsCount = extras.filter((ex) => ex.type === 'checklist').length;
+  const hasEvaluationReady = generatedRubricsCount > 0 || generatedChecklistsCount > 0;
   const hasPresentations = generatedWorkbookCount > 0;
 
   const lessonPlansStatus = summarizeMaterialReviewStatus(
@@ -396,91 +396,51 @@ export default function PlanningDownloadsHub({
             detailLabel="Ir a bloques"
           />
 
-          {/* 7. Rúbricas Analíticas Oficiales (Todos los Bloques) */}
+          {/* 7. Instrumentos de Evaluación Formativa y Sumativa (Todos los Bloques) */}
           <ResourceCard
-            testId="hub-card-rubricas"
+            testId="hub-card-instrumentos"
             icon={<ClipboardList size={16} />}
-            title="Rúbricas Analíticas Oficiales"
-            subtitle="Descriptores cualitativos por niveles de dominio NEM (unificados)."
-            metaBadge={generatedRubricsCount > 0 ? `${generatedRubricsCount} bloques` : undefined}
+            title="Instrumentos de Evaluación"
+            subtitle="Rúbricas analíticas, listas de cotejo y herramientas formativas unificadas por bloque."
+            metaBadge={hasEvaluationReady ? `${Math.max(generatedRubricsCount, generatedChecklistsCount)} bloques` : undefined}
             statusBadge={{
-              status: generatedRubricsCount > 0 ? 'ok' : 'pending',
-              label: generatedRubricsCount > 0 ? `${generatedRubricsCount} listas` : 'Por derivar',
+              status: hasEvaluationReady ? 'ok' : 'pending',
+              label: hasEvaluationReady
+                ? `${generatedRubricsCount} rúbricas · ${generatedChecklistsCount} listas`
+                : 'Por derivar',
             }}
             actions={[
               {
                 format: 'PDF',
                 label: 'PDF',
-                href: `/api/pdf/extra/combined?planningId=${planning.id}&type=rubric`,
+                href: `/api/pdf/extra/combined?planningId=${planning.id}&type=evaluation`,
                 targetBlank: true,
-                disabled: totalWorkbookBlocks === 0 || generatedRubricsCount < totalWorkbookBlocks,
+                disabled: totalWorkbookBlocks === 0 || !hasEvaluationReady,
                 disabledReason:
                   totalWorkbookBlocks === 0
                     ? 'No hay bloques curriculares definidos en la planeación'
-                    : generatedRubricsCount < totalWorkbookBlocks
-                      ? `Genera las rúbricas de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedRubricsCount}/${totalWorkbookBlocks} listas)`
+                    : !hasEvaluationReady
+                      ? `Genera los instrumentos de evaluación en los bloques curriculares`
                       : undefined,
               },
               {
                 format: 'Word',
                 label: 'Word',
-                href: `/api/docx/extra/combined?planningId=${planning.id}&type=rubric`,
-                disabled: totalWorkbookBlocks === 0 || generatedRubricsCount < totalWorkbookBlocks,
+                href: `/api/docx/extra/combined?planningId=${planning.id}&type=evaluation`,
+                disabled: totalWorkbookBlocks === 0 || !hasEvaluationReady,
                 disabledReason:
                   totalWorkbookBlocks === 0
                     ? 'No hay bloques curriculares definidos en la planeación'
-                    : generatedRubricsCount < totalWorkbookBlocks
-                      ? `Genera las rúbricas de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedRubricsCount}/${totalWorkbookBlocks} listas)`
+                    : !hasEvaluationReady
+                      ? `Genera los instrumentos de evaluación en los bloques curriculares`
                       : undefined,
               },
             ]}
             onOpenDetail={onNavigateToInstrumentos}
-            detailLabel="Ver rúbricas"
+            detailLabel="Ver instrumentos"
           />
 
-          {/* 8. Listas de Cotejo de Verificación (Todos los Bloques) */}
-          <ResourceCard
-            testId="hub-card-listas"
-            icon={<CheckSquare size={16} />}
-            title="Listas de Cotejo Formativas"
-            subtitle="Reactivos observables de autoevaluación y coevaluación (unificados)."
-            metaBadge={generatedChecklistsCount > 0 ? `${generatedChecklistsCount} bloques` : undefined}
-            statusBadge={{
-              status: generatedChecklistsCount > 0 ? 'ok' : 'pending',
-              label: generatedChecklistsCount > 0 ? `${generatedChecklistsCount} listas` : 'Por derivar',
-            }}
-            actions={[
-              {
-                format: 'PDF',
-                label: 'PDF',
-                href: `/api/pdf/extra/combined?planningId=${planning.id}&type=checklist`,
-                targetBlank: true,
-                disabled: totalWorkbookBlocks === 0 || generatedChecklistsCount < totalWorkbookBlocks,
-                disabledReason:
-                  totalWorkbookBlocks === 0
-                    ? 'No hay bloques curriculares definidos en la planeación'
-                    : generatedChecklistsCount < totalWorkbookBlocks
-                      ? `Genera las listas de cotejo de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedChecklistsCount}/${totalWorkbookBlocks} listas)`
-                      : undefined,
-              },
-              {
-                format: 'Word',
-                label: 'Word',
-                href: `/api/docx/extra/combined?planningId=${planning.id}&type=checklist`,
-                disabled: totalWorkbookBlocks === 0 || generatedChecklistsCount < totalWorkbookBlocks,
-                disabledReason:
-                  totalWorkbookBlocks === 0
-                    ? 'No hay bloques curriculares definidos en la planeación'
-                    : generatedChecklistsCount < totalWorkbookBlocks
-                      ? `Genera las listas de cotejo de los ${totalWorkbookBlocks} bloques para descargar el compilado (${generatedChecklistsCount}/${totalWorkbookBlocks} listas)`
-                      : undefined,
-              },
-            ]}
-            onOpenDetail={onNavigateToInstrumentos}
-            detailLabel="Ver listas"
-          />
-
-          {/* 9. Presentaciones Diapositivas SACRINT (Todos los Bloques) */}
+          {/* 8. Presentaciones Diapositivas SACRINT (Todos los Bloques) */}
           <ResourceCard
             testId="hub-card-presentaciones"
             icon={<Presentation size={16} />}
@@ -510,7 +470,7 @@ export default function PlanningDownloadsHub({
             detailLabel="Ver diapositivas"
           />
 
-          {/* 10. Infografías Sintéticas SACRINT (Todos los Bloques) */}
+          {/* 9. Infografías Sintéticas SACRINT (Todos los Bloques) */}
           <ResourceCard
             testId="hub-card-infografias"
             icon={<ImageIcon size={16} />}

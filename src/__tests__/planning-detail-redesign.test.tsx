@@ -499,6 +499,41 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       // El tablist NO debe estar contenido dentro del tabpanel
       expect(tabpanel.contains(tablist)).toBe(false);
     });
+
+    it('separa visualmente los Instrumentos de Evaluación de Soporte Docente y Protocolos Situados', () => {
+      const mockRubric = {
+        id: 'rubric-extra-1',
+        planningId: 'test-planning-1',
+        type: 'rubric' as const,
+        title: 'Rúbrica Analítica de Desempeño',
+        contentText: 'Criterios de evaluación',
+        keyIndex: 0,
+        createdAt: new Date(),
+      };
+
+      render(
+        <PlanningTabMateriales
+          planning={mockPlanning}
+          activeSubTab="extras"
+          onSubTabChange={vi.fn()}
+          extras={[mockRubric]}
+          generatingKey={null}
+          syncingSuite={null}
+          blockWorkbooks={{}}
+          handleGenerateExtra={vi.fn().mockResolvedValue(undefined)}
+          handleDeleteExtra={vi.fn().mockResolvedValue(undefined)}
+          handlePreviewExtra={vi.fn()}
+          handleSyncSuite={vi.fn().mockResolvedValue(undefined)}
+          handleGenerateWorkbook={vi.fn().mockResolvedValue(undefined)}
+          findExtra={vi.fn().mockImplementation((type) => (type === 'rubric' ? mockRubric : undefined))}
+          setPreviewExtra={vi.fn()}
+        />
+      );
+
+      expect(screen.getAllByText(/Instrumentos de Evaluación Formativa y Sumativa/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Soporte Docente y Protocolos Situados/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Compendio bloque:/i).length).toBeGreaterThan(0);
+    });
   });
 
   describe('Fase H-01 / H-05 — Prompts y alineación pedagógica de guías de práctica', () => {
@@ -535,9 +570,9 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
     });
   });
 
-  describe('Fase H-04 — Paquete ZIP Maestro con exactamente 10 entregables consolidados', () => {
-    it('El catálogo del paquete maestro define estrictamente los 10 archivos canónicos (01..10) sin archivo 11 suelto', () => {
-      // Las 10 claves canónicas correspondientes a las 10 tarjetas del Centro de Descargas
+  describe('Fase H-04 — Paquete ZIP Maestro con exactamente 9 entregables consolidados', () => {
+    it('El catálogo del paquete maestro define estrictamente los 9 archivos canónicos (01..09) con Instrumentos de Evaluación unificados', () => {
+      // Las 9 claves canónicas correspondientes a las 9 tarjetas del Centro de Descargas
       const canonicalDeliverablePrefixes = [
         '01_Planeacion_Didactica_Semestral_',
         '02_Secuencia_Didactica_',
@@ -545,19 +580,63 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
         '04_Solucionario_Docente_Compilado_',
         '05_Guias_de_Practica_Compilado_',
         '06_Libro_de_Texto_Semestral_Consolidado_',
-        '07_Rubricas_Analiticas_Compilado_',
-        '08_Listas_de_Cotejo_Compilado_',
-        '09_Presentaciones_SACRINT_',
-        '10_Infografias_Sinteticas_',
+        '07_Instrumentos_de_Evaluacion_Compilado_',
+        '08_Presentaciones_SACRINT_',
+        '09_Infografias_Sinteticas_',
       ];
 
-      expect(canonicalDeliverablePrefixes).toHaveLength(10);
-      expect(canonicalDeliverablePrefixes.some((p) => p.startsWith('11_'))).toBe(false);
-      // Validar orden estricto de prefijos 01 a 10
-      for (let i = 1; i <= 10; i++) {
+      expect(canonicalDeliverablePrefixes).toHaveLength(9);
+      expect(canonicalDeliverablePrefixes.some((p) => p.startsWith('10_'))).toBe(false);
+      // Validar orden estricto de prefijos 01 a 09
+      for (let i = 1; i <= 9; i++) {
         const expectedPrefix = `${String(i).padStart(2, '0')}_`;
         expect(canonicalDeliverablePrefixes[i - 1].startsWith(expectedPrefix)).toBe(true);
       }
+    });
+
+    it('PlanningDownloadsHub renderiza la tarjeta unificada de Instrumentos de Evaluación con enlaces type=evaluation', () => {
+      render(
+        <PlanningDownloadsHub
+          planning={mockPlanning}
+          extras={[
+            {
+              id: 'rub-1',
+              planningId: 'test-planning-1',
+              type: 'rubric',
+              title: 'Rúbrica Bloque 1',
+              contentText: 'Texto rúbrica',
+              keyIndex: 0,
+              createdAt: new Date(),
+            },
+            {
+              id: 'chk-1',
+              planningId: 'test-planning-1',
+              type: 'checklist',
+              title: 'Lista Cotejo Bloque 1',
+              contentText: 'Texto lista',
+              keyIndex: 0,
+              createdAt: new Date(),
+            },
+          ]}
+          totalSessions={54}
+          generatedWorkbookCount={3}
+          totalWorkbookBlocks={3}
+          semestralReady={true}
+          blockReviews={{}}
+        />
+      );
+
+      const card = screen.getByTestId('hub-card-instrumentos');
+      expect(card).toBeDefined();
+      expect(card.textContent).toContain('Instrumentos de Evaluación');
+      expect(card.textContent).toContain('1 rúbricas · 1 listas');
+
+      const links = card.querySelectorAll('a');
+      const pdfLink = Array.from(links).find((a) => a.textContent?.includes('PDF'));
+      const wordLink = Array.from(links).find((a) => a.textContent?.includes('Word'));
+
+      expect(pdfLink?.getAttribute('href')).toContain('type=evaluation');
+      expect(wordLink?.getAttribute('href')).toContain('type=evaluation');
     });
   });
 

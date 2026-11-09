@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PDFDocument } from 'pdf-lib';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType, getBlockWorkbook } from '@/lib/db';
+import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType, getPlanningExtras, getBlockWorkbook } from '@/lib/db';
 import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
-import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import { resolveBlockNumber, resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
 import {
   mapExtraTypeToMaterialType,
   reviewBlockMaterials,
+  type MaterialType,
   type ReviewIssue,
 } from '@/lib/guide-engine/material-review';
 import type { GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
@@ -27,6 +28,9 @@ const TYPE_LABELS: Record<string, string> = {
   lesson_plan: 'Planes_de_Clase',
   practice_guide: 'Guias_de_Trabajo',
   visual: 'Recursos_Visuales',
+  evaluation: 'Instrumentos_de_Evaluacion',
+  instrumentos: 'Instrumentos_de_Evaluacion',
+  instruments: 'Instrumentos_de_Evaluacion',
 };
 
 function typeLabel(type: string): string {
@@ -102,25 +106,64 @@ async function handleCombinedPdf(request: NextRequest) {
       semester: planning.semester,
     };
 
+    const isEvaluationType = cleanType === 'evaluation' || cleanType === 'instrumentos' || cleanType === 'instruments';
+
     // Todos los bloques del tipo solicitado, excluyendo payloads visuales JSON (no renderizables)
-    const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
-    let allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
+    let allExtras: Awaited<ReturnType<typeof getPlanningExtrasByType>>;
+    if (isEvaluationType) {
+      const fullList = await getPlanningExtras(planningId, teacher.id);
+      allExtras = fullList.filter(
+        (ex) =>
+          !isStructuredVisualPayload(ex.content_text) &&
+          (['rubric', 'checklist', 'scale', 'observation_guide', 'portfolio', 'exam'].includes(ex.type) ||
+            ex.type.startsWith('evaluation') ||
+            ex.type.startsWith('instrument'))
+      );
+    } else {
+      const fetched = await getPlanningExtrasByType(planningId, teacher.id, cleanType);
+      allExtras = fetched.filter((ex) => !isStructuredVisualPayload(ex.content_text));
+    }
 
     // Descarga unificada de UN bloque o de TODOS los bloques:
     // filtrado determinista, deduplicación y orden numérico estricto de sesiones
-    if (blockIndex !== null) {
-      allExtras = selectExtrasForBlock(
-        allExtras,
-        planning.content_json as GeneratedPlanningContent | null,
-        blockIndex,
-        cleanType
-      );
+    if (isEvaluationType) {
+      const contentJson = planning.content_json as GeneratedPlanningContent | null;
+      if (blockIndex !== null) {
+        const rubrics = selectExtrasForBlock(allExtras.filter((e) => e.type === 'rubric'), contentJson, blockIndex, 'rubric');
+        const checklists = selectExtrasForBlock(allExtras.filter((e) => e.type === 'checklist'), contentJson, blockIndex, 'checklist');
+        const others = allExtras.filter((e) => e.type !== 'rubric' && e.type !== 'checklist' && (e.key_index === blockIndex || (e.key_index !== null && resolveBlockNumber(e.key_index) === blockIndex + 1)));
+        allExtras = [...rubrics, ...checklists, ...others];
+      } else {
+        const blocks = resolveCurricularBlocks(contentJson);
+        const combined: typeof allExtras = [];
+        const blockList = blocks && blocks.length > 0 ? blocks : [{ blockIndex: 0 }, { blockIndex: 1 }, { blockIndex: 2 }];
+        for (const b of blockList) {
+          const bRubrics = selectExtrasForBlock(allExtras.filter((e) => e.type === 'rubric'), contentJson, b.blockIndex, 'rubric');
+          const bChecklists = selectExtrasForBlock(allExtras.filter((e) => e.type === 'checklist'), contentJson, b.blockIndex, 'checklist');
+          const bOthers = allExtras.filter((e) => e.type !== 'rubric' && e.type !== 'checklist' && (e.key_index === b.blockIndex || (e.key_index !== null && resolveBlockNumber(e.key_index) === b.blockIndex + 1)));
+          combined.push(...bRubrics, ...bChecklists, ...bOthers);
+        }
+        const seenIds = new Set(combined.map((e) => e.id));
+        for (const ex of allExtras) {
+          if (!seenIds.has(ex.id)) combined.push(ex);
+        }
+        allExtras = combined;
+      }
     } else {
-      allExtras = selectAllExtrasCombined(
-        allExtras,
-        planning.content_json as GeneratedPlanningContent | null,
-        cleanType
-      );
+      if (blockIndex !== null) {
+        allExtras = selectExtrasForBlock(
+          allExtras,
+          planning.content_json as GeneratedPlanningContent | null,
+          blockIndex,
+          cleanType
+        );
+      } else {
+        allExtras = selectAllExtrasCombined(
+          allExtras,
+          planning.content_json as GeneratedPlanningContent | null,
+          cleanType
+        );
+      }
     }
 
     if (allExtras.length === 0) {
@@ -128,7 +171,10 @@ async function handleCombinedPdf(request: NextRequest) {
     }
 
     // Gate determinista R1 fail-closed
-    const mType = mapExtraTypeToMaterialType(cleanType);
+    const mTypesToCheck: MaterialType[] = isEvaluationType
+      ? ['rubric', 'checklist']
+      : [mapExtraTypeToMaterialType(cleanType)];
+
     const blockIndicesToCheck =
       blockIndex !== null
         ? [blockIndex]
@@ -176,10 +222,12 @@ async function handleCombinedPdf(request: NextRequest) {
         curriculumName: planning.curriculum_name || '',
       });
 
-      const scopedIssues = review.byMaterial[mType]?.issues ?? [];
-      for (const issue of scopedIssues) {
-        if (issue.severity === 'error') accumulatedErrors.push(issue);
-        else accumulatedWarnings.push(issue);
+      for (const mType of mTypesToCheck) {
+        const scopedIssues = review.byMaterial[mType]?.issues ?? [];
+        for (const issue of scopedIssues) {
+          if (issue.severity === 'error') accumulatedErrors.push(issue);
+          else accumulatedWarnings.push(issue);
+        }
       }
     }
 

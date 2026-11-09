@@ -23,7 +23,7 @@ import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
-import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import { resolveBlockNumber, resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
@@ -356,45 +356,41 @@ async function handleBulkDocx(request: NextRequest) {
         logger.warn('Error compiling Semestral Workbook Docx for bulk zip:', { error: err });
       }
 
-      // 7. Rúbricas Analíticas Oficiales — Todos los bloques compilados en 1 solo archivo
-      const rubrics = selectAllExtrasCombined(
-        extras.filter((e) => e.type === 'rubric'),
-        contentJson,
-        'rubric'
-      );
-      if (rubrics.length > 0) {
-        try {
-          const docxBuf = await buildCombinedExtraDocx(
-            rubrics,
-            brandingCtx,
-            `Rúbricas Analíticas Oficiales · Compilado Semestral · ${planning.uac_name}`
-          );
-          zip.file(`07_Rubricas_Analiticas_Compilado_${cleanSubject}.docx`, docxBuf);
-        } catch (err) {
-          logger.warn('Error packaging Rubrics Docx for bulk zip:', { error: err });
+      // 7. Instrumentos de Evaluación Formativa y Sumativa — Todos los bloques compilados en 1 solo archivo
+      const evalBlocks = resolveCurricularBlocks(contentJson);
+      const evalBlockList = evalBlocks && evalBlocks.length > 0 ? evalBlocks : [{ blockIndex: 0 }, { blockIndex: 1 }, { blockIndex: 2 }];
+      const combinedEvalExtras: typeof extras = [];
+      for (const b of evalBlockList) {
+        const bRubrics = selectExtrasForBlock(extras.filter((e) => e.type === 'rubric'), contentJson, b.blockIndex, 'rubric');
+        const bChecklists = selectExtrasForBlock(extras.filter((e) => e.type === 'checklist'), contentJson, b.blockIndex, 'checklist');
+        const bOthers = extras.filter((e) =>
+          ['scale', 'observation_guide', 'portfolio', 'exam'].includes(e.type) ||
+          e.type.startsWith('evaluation') ||
+          e.type.startsWith('instrument')
+        ).filter((e) => e.key_index === b.blockIndex);
+        combinedEvalExtras.push(...bRubrics, ...bChecklists, ...bOthers);
+      }
+      const seenEvalIds = new Set(combinedEvalExtras.map((e) => e.id));
+      for (const e of extras) {
+        if (!seenEvalIds.has(e.id) && (['rubric', 'checklist', 'scale', 'observation_guide', 'portfolio', 'exam'].includes(e.type) || e.type.startsWith('evaluation') || e.type.startsWith('instrument'))) {
+          combinedEvalExtras.push(e);
         }
       }
 
-      // 8. Listas de Cotejo Formativas — Todos los bloques compilados en 1 solo archivo
-      const checklists = selectAllExtrasCombined(
-        extras.filter((e) => e.type === 'checklist'),
-        contentJson,
-        'checklist'
-      );
-      if (checklists.length > 0) {
+      if (combinedEvalExtras.length > 0) {
         try {
           const docxBuf = await buildCombinedExtraDocx(
-            checklists,
+            combinedEvalExtras,
             brandingCtx,
-            `Listas de Cotejo Formativas · Compilado Semestral · ${planning.uac_name}`
+            `Instrumentos de Evaluación · Compilado Semestral · ${planning.uac_name}`
           );
-          zip.file(`08_Listas_de_Cotejo_Compilado_${cleanSubject}.docx`, docxBuf);
+          zip.file(`07_Instrumentos_de_Evaluacion_Compilado_${cleanSubject}.docx`, docxBuf);
         } catch (err) {
-          logger.warn('Error packaging Checklists Docx for bulk zip:', { error: err });
+          logger.warn('Error packaging Evaluation Instruments Docx for bulk zip:', { error: err });
         }
       }
 
-      // 9. Presentaciones SACRINT (.pptx)
+      // 8. Presentaciones SACRINT (.pptx)
       try {
         const workbooks = await getAllBlockWorkbooks(planning.id);
         const entries = Object.entries(workbooks)
@@ -422,14 +418,14 @@ async function handleBulkDocx(request: NextRequest) {
               title: `Presentación SACRINT completa — ${planning.uac_name}`,
               subjectName: planning.uac_name || 'presentacion',
             });
-            zip.file(`09_Presentaciones_SACRINT_${cleanSubject}.pptx`, pptxBuf);
+            zip.file(`08_Presentaciones_SACRINT_${cleanSubject}.pptx`, pptxBuf);
           }
         }
       } catch (err) {
         logger.warn('Error packaging Presentations for bulk zip:', { error: err });
       }
 
-      // 10. Infografías Sintéticas SACRINT (.pdf)
+      // 9. Infografías Sintéticas SACRINT (.pdf)
       try {
         const workbooks = await getAllBlockWorkbooks(planning.id);
         const entries = Object.entries(workbooks)
@@ -454,7 +450,7 @@ async function handleBulkDocx(request: NextRequest) {
           }
           if (specs.length > 0) {
             const infoBytes = await renderCombinedSacrintInfographicsPdf(specs, 'wide');
-            zip.file(`10_Infografias_Sinteticas_${cleanSubject}.pdf`, infoBytes);
+            zip.file(`09_Infografias_Sinteticas_${cleanSubject}.pdf`, infoBytes);
           }
         }
       } catch (err) {

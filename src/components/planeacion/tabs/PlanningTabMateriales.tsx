@@ -812,361 +812,463 @@ export default function PlanningTabMateriales({
                 {/* Contenido de la sección */}
                 <div className="section-card-body">
                   {hasAnyMaterial || hasWorkbook ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Grid de 3 recursos minimalistas */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
-                        
-                        {/* 1. Rúbrica Analítica Oficial */}
-                        <div style={{
-                          padding: '10px 12px',
-                          background: 'var(--c-bg-surface)',
-                          border: '1px solid var(--c-border)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '8px',
-                        }}>
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Instrumento Normativo
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>4 Niveles NEM</span>
-                            </div>
-                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📊 Rúbrica Analítica ({blockNumStr})
-                            </h4>
-                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
-                              Descriptores cualitativos por niveles de dominio vinculados a los aprendizajes del bloque.
-                            </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* ── SECCIÓN 1: INSTRUMENTOS DE EVALUACIÓN FORMATIVA Y SUMATIVA ── */}
+                      <div
+                        style={{
+                          background: 'rgba(15, 23, 42, 0.4)',
+                          border: '1px solid rgba(59, 130, 246, 0.22)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                            marginBottom: '10px',
+                            paddingBottom: '8px',
+                            borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--c-text)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              📋 Instrumentos de Evaluación Formativa y Sumativa
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                padding: '1px 7px',
+                                borderRadius: '10px',
+                                background: (rubricExtra || checklistExtra) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.12)',
+                                color: (rubricExtra || checklistExtra) ? '#34d399' : '#94a3b8',
+                                border: `1px solid ${(rubricExtra || checklistExtra) ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
+                              }}
+                            >
+                              {(rubricExtra && checklistExtra) ? '2 listos' : (rubricExtra || checklistExtra) ? '1 listo' : 'Pendientes'}
+                            </span>
                           </div>
 
-                          <div>
-                            {rubricExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button
-                                  onClick={() => setPreviewExtra(rubricExtra)}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
-                                >
-                                  👁️ Ver
-                                </button>
-                                <a
-                                  href={rubricBlocked ? '#' : `/api/docx/extra/${rubricExtra.id}`}
-                                  onClick={(e) => {
-                                    if (rubricBlocked) e.preventDefault();
-                                  }}
-                                  aria-disabled={rubricBlocked}
-                                  title={rubricTooltip}
-                                  className="btn btn-amber"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
-                                >
-                                  ↓ Word
-                                </a>
-                                <a
-                                  href={rubricBlocked ? '#' : `/api/pdf/extra/${rubricExtra.id}`}
-                                  target={rubricBlocked ? undefined : '_blank'}
-                                  rel={rubricBlocked ? undefined : 'noopener noreferrer'}
-                                  onClick={(e) => {
-                                    if (rubricBlocked) e.preventDefault();
-                                  }}
-                                  aria-disabled={rubricBlocked}
-                                  title={rubricTooltip}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
-                                >
-                                  ↓ PDF
-                                </a>
-                                {renderDeleteControl(rubricExtra.id, 'Eliminar rúbrica', 'small')}
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSyncSuite(block.blockIndex)}
-                                disabled={syncingSuite === block.blockIndex}
-                                className="btn btn-navy"
-                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                          {/* Acciones de descarga compilada de instrumentos del bloque */}
+                          {(rubricExtra || checklistExtra) && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>
+                                Compendio bloque:
+                              </span>
+                              <a
+                                href={`/api/docx/extra/combined?planningId=${planning.id}&type=evaluation&blockIndex=${block.blockIndex}`}
+                                className="btn btn-amber"
+                                style={{ padding: '3px 8px', fontSize: '10.5px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                title="Descargar todos los instrumentos de este bloque en un solo archivo Word"
                               >
-                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
-                              </button>
-                            )}
-                          </div>
+                                ↓ Word ({rubricExtra && checklistExtra ? '2 en 1' : '1'})
+                              </a>
+                              <a
+                                href={`/api/pdf/extra/combined?planningId=${planning.id}&type=evaluation&blockIndex=${block.blockIndex}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn"
+                                style={{ padding: '3px 8px', fontSize: '10.5px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                title="Descargar todos los instrumentos de este bloque en un solo archivo PDF"
+                              >
+                                ↓ PDF ({rubricExtra && checklistExtra ? '2 en 1' : '1'})
+                              </a>
+                            </div>
+                          )}
                         </div>
 
-                        {/* 2. Lista de Cotejo Formativa */}
-                        <div style={{
-                          padding: '10px 12px',
-                          background: 'var(--c-bg-surface)',
-                          border: '1px solid var(--c-border)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '8px',
-                        }}>
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Instrumento Formativo
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Dicotómico</span>
-                            </div>
-                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              ✅ Lista de Cotejo ({blockNumStr})
-                            </h4>
-                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
-                              Reactivos observables de autoevaluación y coevaluación del producto formativo.
-                            </p>
-                          </div>
-
-                          <div>
-                            {checklistExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button
-                                  onClick={() => setPreviewExtra(checklistExtra)}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
-                                >
-                                  👁️ Ver
-                                </button>
-                                <a
-                                  href={checklistBlocked ? '#' : `/api/docx/extra/${checklistExtra.id}`}
-                                  onClick={(e) => {
-                                    if (checklistBlocked) e.preventDefault();
-                                  }}
-                                  aria-disabled={checklistBlocked}
-                                  title={checklistTooltip}
-                                  className="btn btn-amber"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
-                                >
-                                  ↓ Word
-                                </a>
-                                <a
-                                  href={checklistBlocked ? '#' : `/api/pdf/extra/${checklistExtra.id}`}
-                                  target={checklistBlocked ? undefined : '_blank'}
-                                  rel={checklistBlocked ? undefined : 'noopener noreferrer'}
-                                  onClick={(e) => {
-                                    if (checklistBlocked) e.preventDefault();
-                                  }}
-                                  aria-disabled={checklistBlocked}
-                                  title={checklistTooltip}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
-                                >
-                                  ↓ PDF
-                                </a>
-                                {renderDeleteControl(checklistExtra.id, 'Eliminar lista de cotejo', 'small')}
+                        {/* Grid de Instrumentos de Evaluación */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                          {/* 1. Rúbrica Analítica Oficial */}
+                          <div style={{
+                            padding: '10px 12px',
+                            background: 'var(--c-bg-surface)',
+                            border: '1px solid var(--c-border)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                          }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Instrumento Normativo
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>4 Niveles NEM</span>
                               </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSyncSuite(block.blockIndex)}
-                                disabled={syncingSuite === block.blockIndex}
-                                className="btn btn-navy"
-                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 3. Materiales Didácticos del Docente */}
-                        <div style={{
-                          padding: '10px 12px',
-                          background: 'var(--c-bg-surface)',
-                          border: '1px solid var(--c-border)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '8px',
-                        }}>
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Soporte Docente
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Insumos Técnicos</span>
+                              <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                                📊 Rúbrica Analítica ({blockNumStr})
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                                Descriptores cualitativos por niveles de dominio vinculados a los aprendizajes del bloque.
+                              </p>
                             </div>
-                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              📦 Materiales e Insumos ({blockNumStr})
-                            </h4>
-                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
-                              Guión técnico, reactivos didácticos y requerimientos de aula/taller.
-                            </p>
 
-                            {/* Insumos ilustrados detectados en formato píldoras */}
-                            {(() => {
-                              const blockText = [
-                                materialExtra?.contentText || '',
-                                ...block.activities.flatMap((a) => [
-                                  a.apertura?.materials || '',
-                                  a.ejecucion?.materials || '',
-                                  a.conclusion?.materials || '',
-                                ]),
-                              ].join(' ');
-                              const detected = parseMaterialTokensWithFallback(blockText);
-                              const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
-                              if (allUnique.length === 0) return null;
-                              return (
-                                <div style={{ marginTop: '6px', display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                  {allUnique.slice(0, 3).map((mat, mIdx) => (
-                                    <span
-                                      key={`${mat.slug}-${mIdx}`}
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '2px',
-                                        padding: '1px 5px',
-                                        borderRadius: '4px',
-                                        fontSize: '10px',
-                                        fontWeight: 600,
-                                        background: 'rgba(139, 92, 246, 0.1)',
-                                        border: '1px solid rgba(139, 92, 246, 0.25)',
-                                        color: '#c4b5fd',
-                                      }}
-                                      title={mat.label}
-                                    >
-                                      📐 {mat.label || mat.slug}
-                                    </span>
-                                  ))}
-                                  {allUnique.length > 3 && (
-                                    <span style={{ fontSize: '10px', color: 'var(--c-text-muted)' }}>
-                                      +{allUnique.length - 3} más
-                                    </span>
-                                  )}
+                            <div>
+                              {rubricExtra ? (
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <button
+                                    onClick={() => setPreviewExtra(rubricExtra)}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  >
+                                    👁️ Ver
+                                  </button>
+                                  <a
+                                    href={rubricBlocked ? '#' : `/api/docx/extra/${rubricExtra.id}`}
+                                    onClick={(e) => {
+                                      if (rubricBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={rubricBlocked}
+                                    title={rubricTooltip}
+                                    className="btn btn-amber"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ Word
+                                  </a>
+                                  <a
+                                    href={rubricBlocked ? '#' : `/api/pdf/extra/${rubricExtra.id}`}
+                                    target={rubricBlocked ? undefined : '_blank'}
+                                    rel={rubricBlocked ? undefined : 'noopener noreferrer'}
+                                    onClick={(e) => {
+                                      if (rubricBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={rubricBlocked}
+                                    title={rubricTooltip}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: rubricBlocked ? 0.45 : 1, cursor: rubricBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ PDF
+                                  </a>
+                                  {renderDeleteControl(rubricExtra.id, 'Eliminar rúbrica', 'small')}
                                 </div>
-                              );
-                            })()}
+                              ) : (
+                                <button
+                                  onClick={() => handleSyncSuite(block.blockIndex)}
+                                  disabled={syncingSuite === block.blockIndex}
+                                  className="btn btn-navy"
+                                  style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
-                          <div style={{ marginTop: '4px' }}>
-                            {materialExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button
-                                  onClick={() => setPreviewExtra(materialExtra)}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
-                                >
-                                  👁️ Ver
-                                </button>
-                                <a
-                                  href={materialBlocked ? '#' : `/api/docx/extra/${materialExtra.id}`}
-                                  onClick={(e) => {
-                                    if (materialBlocked) e.preventDefault();
-                                  }}
-                                  aria-disabled={materialBlocked}
-                                  title={materialTooltip}
-                                  className="btn btn-amber"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
-                                >
-                                  ↓ Word
-                                </a>
-                                <a
-                                  href={materialBlocked ? '#' : `/api/pdf/extra/${materialExtra.id}`}
-                                  target={materialBlocked ? undefined : '_blank'}
-                                  rel={materialBlocked ? undefined : 'noopener noreferrer'}
-                                  onClick={(e) => {
-                                    if (materialBlocked) e.preventDefault();
-                                  }}
-                                  aria-disabled={materialBlocked}
-                                  title={materialTooltip}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
-                                >
-                                  ↓ PDF
-                                </a>
-                                {renderDeleteControl(materialExtra.id, 'Eliminar material didáctico', 'small')}
+                          {/* 2. Lista de Cotejo Formativa */}
+                          <div style={{
+                            padding: '10px 12px',
+                            background: 'var(--c-bg-surface)',
+                            border: '1px solid var(--c-border)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                          }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Instrumento Formativo
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Dicotómico</span>
                               </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSyncSuite(block.blockIndex)}
-                                disabled={syncingSuite === block.blockIndex}
-                                className="btn btn-navy"
-                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
-                              </button>
-                            )}
+                              <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                                ✅ Lista de Cotejo ({blockNumStr})
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                                Reactivos observables de autoevaluación y coevaluación del producto formativo.
+                              </p>
+                            </div>
+
+                            <div>
+                              {checklistExtra ? (
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <button
+                                    onClick={() => setPreviewExtra(checklistExtra)}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  >
+                                    👁️ Ver
+                                  </button>
+                                  <a
+                                    href={checklistBlocked ? '#' : `/api/docx/extra/${checklistExtra.id}`}
+                                    onClick={(e) => {
+                                      if (checklistBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={checklistBlocked}
+                                    title={checklistTooltip}
+                                    className="btn btn-amber"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ Word
+                                  </a>
+                                  <a
+                                    href={checklistBlocked ? '#' : `/api/pdf/extra/${checklistExtra.id}`}
+                                    target={checklistBlocked ? undefined : '_blank'}
+                                    rel={checklistBlocked ? undefined : 'noopener noreferrer'}
+                                    onClick={(e) => {
+                                      if (checklistBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={checklistBlocked}
+                                    title={checklistTooltip}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: checklistBlocked ? 0.45 : 1, cursor: checklistBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ PDF
+                                  </a>
+                                  {renderDeleteControl(checklistExtra.id, 'Eliminar lista de cotejo', 'small')}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleSyncSuite(block.blockIndex)}
+                                  disabled={syncingSuite === block.blockIndex}
+                                  className="btn btn-navy"
+                                  style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── SECCIÓN 2: SOPORTE DOCENTE Y PROTOCOLOS SITUADOS ── */}
+                      <div
+                        style={{
+                          background: 'rgba(15, 23, 42, 0.25)',
+                          border: '1px solid rgba(139, 92, 246, 0.22)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                            marginBottom: '10px',
+                            paddingBottom: '8px',
+                            borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--c-text)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              🛠️ Soporte Docente y Protocolos Situados
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
+                              Insumos de aula/taller y protocolos formativos
+                            </span>
                           </div>
                         </div>
 
-                        {/* 4. Guía de Práctica / Protocolo Situado */}
-                        <div style={{
-                          padding: '10px 12px',
-                          background: 'var(--c-bg-surface)',
-                          border: '1px solid var(--c-border)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '8px',
-                        }}>
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Protocolo Situado
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Taller / Lab</span>
+                        {/* Grid de Soporte Docente y Protocolos */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                          {/* 3. Materiales Didácticos del Docente */}
+                          <div style={{
+                            padding: '10px 12px',
+                            background: 'var(--c-bg-surface)',
+                            border: '1px solid var(--c-border)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                          }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Soporte Docente
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Insumos Técnicos</span>
+                              </div>
+                              <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                                📦 Materiales e Insumos ({blockNumStr})
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                                Guión técnico, reactivos didácticos y requerimientos de aula/taller.
+                              </p>
+
+                              {/* Insumos ilustrados detectados en formato píldoras */}
+                              {(() => {
+                                const blockText = [
+                                  materialExtra?.contentText || '',
+                                  ...block.activities.flatMap((a) => [
+                                    a.apertura?.materials || '',
+                                    a.ejecucion?.materials || '',
+                                    a.conclusion?.materials || '',
+                                  ]),
+                                ].join(' ');
+                                const detected = parseMaterialTokensWithFallback(blockText);
+                                const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
+                                if (allUnique.length === 0) return null;
+                                return (
+                                  <div style={{ marginTop: '6px', display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    {allUnique.slice(0, 3).map((mat, mIdx) => (
+                                      <span
+                                        key={`${mat.slug}-${mIdx}`}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '2px',
+                                          padding: '1px 5px',
+                                          borderRadius: '4px',
+                                          fontSize: '10px',
+                                          fontWeight: 600,
+                                          background: 'rgba(139, 92, 246, 0.1)',
+                                          border: '1px solid rgba(139, 92, 246, 0.25)',
+                                          color: '#c4b5fd',
+                                        }}
+                                        title={mat.label}
+                                      >
+                                        📐 {mat.label || mat.slug}
+                                      </span>
+                                    ))}
+                                    {allUnique.length > 3 && (
+                                      <span style={{ fontSize: '10px', color: 'var(--c-text-muted)' }}>
+                                        +{allUnique.length - 3} más
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
-                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
-                              🔬 Guía de Práctica ({blockNumStr})
-                            </h4>
-                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
-                              Protocolo formativo de experimentación, seguridad e investigación situada.
-                            </p>
+
+                            <div style={{ marginTop: '4px' }}>
+                              {materialExtra ? (
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <button
+                                    onClick={() => setPreviewExtra(materialExtra)}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  >
+                                    👁️ Ver
+                                  </button>
+                                  <a
+                                    href={materialBlocked ? '#' : `/api/docx/extra/${materialExtra.id}`}
+                                    onClick={(e) => {
+                                      if (materialBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={materialBlocked}
+                                    title={materialTooltip}
+                                    className="btn btn-amber"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ Word
+                                  </a>
+                                  <a
+                                    href={materialBlocked ? '#' : `/api/pdf/extra/${materialExtra.id}`}
+                                    target={materialBlocked ? undefined : '_blank'}
+                                    rel={materialBlocked ? undefined : 'noopener noreferrer'}
+                                    onClick={(e) => {
+                                      if (materialBlocked) e.preventDefault();
+                                    }}
+                                    aria-disabled={materialBlocked}
+                                    title={materialTooltip}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, opacity: materialBlocked ? 0.45 : 1, cursor: materialBlocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    ↓ PDF
+                                  </a>
+                                  {renderDeleteControl(materialExtra.id, 'Eliminar material didáctico', 'small')}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleSyncSuite(block.blockIndex)}
+                                  disabled={syncingSuite === block.blockIndex}
+                                  className="btn btn-navy"
+                                  style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
-                          <div style={{ marginTop: '4px' }}>
-                            {practiceGuideExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          {/* 4. Guía de Práctica / Protocolo Situado */}
+                          <div style={{
+                            padding: '10px 12px',
+                            background: 'var(--c-bg-surface)',
+                            border: '1px solid var(--c-border)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                          }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Protocolo Situado
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Taller / Lab</span>
+                              </div>
+                              <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                                🔬 Guía de Práctica ({blockNumStr})
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                                Protocolo formativo de experimentación, seguridad e investigación situada.
+                              </p>
+                            </div>
+
+                            <div style={{ marginTop: '4px' }}>
+                              {practiceGuideExtra ? (
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewExtra(practiceGuideExtra)}
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  >
+                                    👁️ Ver
+                                  </button>
+                                  <a
+                                    href={`/api/docx/extra/${practiceGuideExtra.id}`}
+                                    className="btn btn-amber"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                  >
+                                    ↓ Word
+                                  </a>
+                                  <a
+                                    href={`/api/pdf/extra/${practiceGuideExtra.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn"
+                                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                  >
+                                    ↓ PDF
+                                  </a>
+                                  {renderDeleteControl(practiceGuideExtra.id, 'Eliminar guía de práctica', 'small')}
+                                </div>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setPreviewExtra(practiceGuideExtra)}
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                  onClick={() =>
+                                    handleGenerateExtra(
+                                      'practice_guide',
+                                      `Guía de Práctica · Bloque ${block.blockIndex + 1}: ${blockTitle}`,
+                                      block.blockIndex,
+                                      { activityName: blockTitle, practiceNumber: block.blockIndex + 1, practiceTitle: blockTitle }
+                                    )
+                                  }
+                                  disabled={generatingKey !== null}
+                                  className="btn btn-navy"
+                                  style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
                                 >
-                                  👁️ Ver
+                                  {generatingKey?.startsWith(`practice_guide-${block.blockIndex}--`) ? '⏳ Generando…' : '⚡ Generar Guía'}
                                 </button>
-                                <a
-                                  href={`/api/docx/extra/${practiceGuideExtra.id}`}
-                                  className="btn btn-amber"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
-                                >
-                                  ↓ Word
-                                </a>
-                                <a
-                                  href={`/api/pdf/extra/${practiceGuideExtra.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="btn"
-                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
-                                >
-                                  ↓ PDF
-                                </a>
-                                {renderDeleteControl(practiceGuideExtra.id, 'Eliminar guía de práctica', 'small')}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleGenerateExtra(
-                                    'practice_guide',
-                                    `Guía de Práctica · Bloque ${block.blockIndex + 1}: ${blockTitle}`,
-                                    block.blockIndex,
-                                    { activityName: blockTitle, practiceNumber: block.blockIndex + 1, practiceTitle: blockTitle }
-                                  )
-                                }
-                                disabled={generatingKey !== null}
-                                className="btn btn-navy"
-                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                {generatingKey?.startsWith(`practice_guide-${block.blockIndex}--`) ? '⏳ Generando…' : '⚡ Generar Guía'}
-                              </button>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </div>
-
                       </div>
 
                       {/* Recursos Gráficos si existen diagramas generados */}
