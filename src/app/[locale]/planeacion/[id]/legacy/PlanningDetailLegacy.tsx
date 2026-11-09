@@ -13,6 +13,7 @@ import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-clie
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/content-budget';
+import { getPlatformName } from '@/lib/config';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -4189,7 +4190,7 @@ export default function PlanningDetailLegacy({
 
             <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>
-                ✓ Cumplimiento del 100% verificado por DidácticaIA
+                ✓ Cumplimiento del 100% verificado por {getPlatformName()}
               </span>
               <button onClick={() => setShowChecklistModal(false)} className="btn btn-navy" style={{ padding: '8px 18px', fontSize: '13px', borderRadius: '6px' }}>
                 Entendido

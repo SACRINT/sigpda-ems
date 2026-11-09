@@ -780,8 +780,100 @@ export async function buildCombinedExtraDocx(
     `${firstBranding.typeLabel} · ${extras.length} documentos (todos los bloques)`;
 
   const children: (Paragraph | Table)[] = [];
+
+  // Cuando hay múltiples documentos (compilado semestral), insertar carátula e índice de contenido (TOC)
+  if (extras.length > 1) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 80 },
+        children: [
+          new TextRun({
+            text: docTitle.toUpperCase(),
+            bold: true,
+            size: 24,
+            color: C.accent,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 180 },
+        children: [
+          new TextRun({
+            text: `ÍNDICE DE CONTENIDO · COMPILADO DE ${extras.length} DOCUMENTOS`,
+            bold: true,
+            size: 16,
+            color: '555555',
+            font: 'Arial',
+          }),
+        ],
+      })
+    );
+
+    const tocRows = [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          new TableCell({
+            width: { size: 10, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: C.accent },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: '#', bold: true, size: 16, color: 'FFFFFF', font: 'Arial' })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 90, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: C.accent },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: 'DOCUMENTO / SESIÓN REGISTRADA', bold: true, size: 16, color: 'FFFFFF', font: 'Arial' })],
+              }),
+            ],
+          }),
+        ],
+      }),
+      ...extras.map((extra, idx) =>
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 10, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.CLEAR, fill: idx % 2 === 0 ? 'F9FAFB' : 'FFFFFF' },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: String(idx + 1), size: 14, font: 'Arial' })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 90, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.CLEAR, fill: idx % 2 === 0 ? 'F9FAFB' : 'FFFFFF' },
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: extra.title || `Documento ${idx + 1}`, size: 14, font: 'Arial' })],
+                }),
+              ],
+            }),
+          ],
+        })
+      ),
+    ];
+
+    children.push(
+      new Table({
+        rows: tocRows,
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      })
+    );
+  }
+
   extras.forEach((extra, idx) => {
-    if (idx > 0) {
+    if (idx > 0 || extras.length > 1) {
       children.push(
         new Paragraph({
           pageBreakBefore: true,

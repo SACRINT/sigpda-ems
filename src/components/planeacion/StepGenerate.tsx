@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
+import { getPlatformName } from '@/lib/config';
 
 interface Props {
   planningId: string | null;
@@ -217,7 +218,7 @@ export default function StepGenerate({
         <p className="generation-subtitle">
           {currentStep === 'done'
             ? 'Tu planeación didáctica está lista para descargar en formato DOCX editable.'
-            : 'La plataforma Didáctica-IA está construyendo las 7 secciones del formato oficial MCCEMS 2026-2027.'}
+            : `La plataforma ${getPlatformName()} está construyendo las 7 secciones del formato oficial MCCEMS 2026-2027.`}
         </p>
 
         <div className="generation-steps">

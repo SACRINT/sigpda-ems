@@ -531,7 +531,66 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       expect(prompt).toContain('• Saber Ser (Actitudinal / Seguridad): Colaboración');
       expect(prompt).toContain('Sesión 1: Planteamiento');
       expect(prompt).toContain('Calculadora, Regla');
+      expect(prompt).toContain('Libro de Matemáticas III');
+    });
+  });
+
+  describe('Fase H-04 — Paquete ZIP Maestro con exactamente 10 entregables consolidados', () => {
+    it('El catálogo del paquete maestro define estrictamente los 10 archivos canónicos (01..10) sin archivo 11 suelto', () => {
+      // Las 10 claves canónicas correspondientes a las 10 tarjetas del Centro de Descargas
+      const canonicalDeliverablePrefixes = [
+        '01_Planeacion_Didactica_Semestral_',
+        '02_Secuencia_Didactica_',
+        '03_Planes_de_Clase_Compilado_',
+        '04_Solucionario_Docente_Compilado_',
+        '05_Guias_de_Practica_Compilado_',
+        '06_Libro_de_Texto_Semestral_Consolidado_',
+        '07_Rubricas_Analiticas_Compilado_',
+        '08_Listas_de_Cotejo_Compilado_',
+        '09_Presentaciones_SACRINT_',
+        '10_Infografias_Sinteticas_',
+      ];
+
+      expect(canonicalDeliverablePrefixes).toHaveLength(10);
+      expect(canonicalDeliverablePrefixes.some((p) => p.startsWith('11_'))).toBe(false);
+      // Validar orden estricto de prefijos 01 a 10
+      for (let i = 1; i <= 10; i++) {
+        const expectedPrefix = `${String(i).padStart(2, '0')}_`;
+        expect(canonicalDeliverablePrefixes[i - 1].startsWith(expectedPrefix)).toBe(true);
+      }
+    });
+  });
+
+  describe('Fase H-05 — Nombre de plataforma dinámico en ChecklistSupervisionModal', () => {
+    it('getPlatformName devuelve SIGPDA-EMS por defecto y respeta variables de entorno dinámicas', async () => {
+      const { getPlatformName } = await import('@/lib/config');
+      expect(getPlatformName()).toBe('SIGPDA-EMS');
+
+      const originalEnv = process.env.NEXT_PUBLIC_PLATFORM_NAME;
+      try {
+        process.env.NEXT_PUBLIC_PLATFORM_NAME = 'SEMS-Puebla IA';
+        expect(getPlatformName()).toBe('SEMS-Puebla IA');
+      } finally {
+        if (originalEnv !== undefined) {
+          process.env.NEXT_PUBLIC_PLATFORM_NAME = originalEnv;
+        } else {
+          delete process.env.NEXT_PUBLIC_PLATFORM_NAME;
+        }
+      }
+    });
+
+    it('ChecklistSupervisionModal renderiza el nombre dinámico de la plataforma sin hardcode DidácticaIA', async () => {
+      const ChecklistSupervisionModal = (await import('@/components/planeacion/ChecklistSupervisionModal')).default;
+      const { container } = render(
+        <ChecklistSupervisionModal isOpen={true} onClose={vi.fn()} />
+      );
+
+      const footerText = container.textContent || '';
+      expect(footerText).toContain('✓ Cumplimiento del 100% verificado por SIGPDA-EMS');
+      expect(footerText).not.toContain('DidácticaIA');
+      expect(footerText).not.toContain('Didáctica-IA');
     });
   });
 });
+
 

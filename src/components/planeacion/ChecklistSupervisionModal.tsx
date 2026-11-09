@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { getPlatformName } from '@/lib/config';
 
 export interface ChecklistSupervisionModalProps {
   isOpen: boolean;
@@ -209,7 +210,7 @@ export default function ChecklistSupervisionModal({
           }}
         >
           <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>
-            ✓ Cumplimiento del 100% verificado por DidácticaIA
+            ✓ Cumplimiento del 100% verificado por {getPlatformName()}
           </span>
           <button
             type="button"

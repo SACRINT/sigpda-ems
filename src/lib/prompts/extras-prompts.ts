@@ -294,6 +294,7 @@ ${practiceAlignment.saberes ? `- Saberes a desarrollar:
   • Saber Hacer (Procedimental - Práctica): ${practiceAlignment.saberes.saberHacer}
   • Saber Ser (Actitudinal / Seguridad): ${practiceAlignment.saberes.saberSer}` : ''}
 ${practiceAlignment.plannedMaterials && practiceAlignment.plannedMaterials.length > 0 ? `- Materiales planificados en el bloque: ${practiceAlignment.plannedMaterials.join(', ')}` : ''}
+${practiceAlignment.plannedReferences && practiceAlignment.plannedReferences.length > 0 ? `- Referencias y bibliografía planificada: ${practiceAlignment.plannedReferences.join(', ')}` : ''}
 
 DIRECTRIZ DE ALINEACIÓN DE LA GUÍA:
 La IA DEBE desglosar y enriquecer las actividades prácticas planificadas por el docente. El procedimiento por fases, el formato de registro de datos y la evidencia final entregable DEBEN corresponder a las sesiones de desarrollo y a los saberes prácticos especificados arriba. Puedes detallar los pasos técnicos, precauciones y preguntas reflexivas, pero NO debes inventar prácticas ni materiales no contemplados en la planeación.

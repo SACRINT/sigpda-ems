@@ -11,6 +11,26 @@ export const API_CONFIG = {
 
 export const SCHOOL_YEAR = '2026-2027';
 
+export const DEFAULT_PLATFORM_NAME = 'SIGPDA-EMS';
+
+/**
+ * Obtiene el nombre oficial de la plataforma de manera dinámica:
+ * 1. Variable de entorno NEXT_PUBLIC_PLATFORM_NAME
+ * 2. Variable de entorno NEXT_PUBLIC_APP_NAME
+ * 3. Fallback canónico: DEFAULT_PLATFORM_NAME ('SIGPDA-EMS')
+ */
+export function getPlatformName(): string {
+  if (typeof process !== 'undefined') {
+    if (process.env?.NEXT_PUBLIC_PLATFORM_NAME) {
+      return process.env.NEXT_PUBLIC_PLATFORM_NAME.trim();
+    }
+    if (process.env?.NEXT_PUBLIC_APP_NAME) {
+      return process.env.NEXT_PUBLIC_APP_NAME.trim();
+    }
+  }
+  return DEFAULT_PLATFORM_NAME;
+}
+
 /**
  * Obtiene la URL base de la aplicación de manera dinámica y resiliente:
  * 1. window.location.origin (en entorno de navegador)

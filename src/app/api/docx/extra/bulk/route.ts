@@ -38,21 +38,6 @@ import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-const TYPE_LABELS: Record<string, string> = {
-  rubric: 'Rubricas',
-  checklist: 'Lista_de_Cotejo',
-  material: 'Materiales_Docente',
-  teacher_guide: 'Solucionarios',
-  lesson_plan: 'Planes_de_Clase',
-  practice_guide: 'Guias_de_Trabajo',
-  visual: 'Recursos_Visuales',
-};
-
-function typeLabel(type: string): string {
-  if (TYPE_LABELS[type]) return TYPE_LABELS[type];
-  return sanitizeDocFilename(type.replace(/_/g, '-'), 40) || 'Documento';
-}
-
 export async function GET(request: NextRequest) {
   return handleBulkDocx(request);
 }
@@ -474,31 +459,6 @@ async function handleBulkDocx(request: NextRequest) {
         }
       } catch (err) {
         logger.warn('Error packaging Infographics for bulk zip:', { error: err });
-      }
-
-      // Otros tipos de extras (p. ej. fichas de trabajo o materiales docentes adicionales)
-      const otherTypes = Array.from(new Set(extras.map((e) => e.type))).filter(
-        (t) => !['lesson_plan', 'teacher_guide', 'practice_guide', 'rubric', 'checklist'].includes(t)
-      );
-      for (const ot of otherTypes) {
-        const matching = selectAllExtrasCombined(
-          extras.filter((e) => e.type === ot),
-          contentJson,
-          ot
-        );
-        if (matching.length > 0) {
-          try {
-            const label = typeLabel(ot);
-            const docxBuf = await buildCombinedExtraDocx(
-              matching,
-              brandingCtx,
-              `${label.replace(/_/g, ' ')} · Compilado Semestral · ${planning.uac_name}`
-            );
-            zip.file(`11_${label}_Compilado_${cleanSubject}.docx`, docxBuf);
-          } catch (err) {
-            logger.warn(`Error packaging extra type ${ot} for bulk zip:`, { error: err });
-          }
-        }
       }
     } else {
       // RAMA 2: DESCARGA INDIVIDUAL / POR BLOQUE ESPECÍFICO (Comportamiento habitual por bloque)

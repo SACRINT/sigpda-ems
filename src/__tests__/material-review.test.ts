@@ -473,7 +473,7 @@ describe('Fase R1 — Revisor Determinista de Materiales Derivados (material-rev
     expect(report.warnings.length).toBeGreaterThan(0);
   });
 
-  it('Benchmark de rendimiento: p95 < 400 ms por bloque de 24 sesiones (con warmup JIT)', () => {
+  it('Benchmark de rendimiento: p95 CPU < 200 ms por bloque de 24 sesiones (con warmup JIT)', () => {
     const wb = buildValidWorkbook(24);
     for (let i = 0; i < 5; i++) {
       reviewBlockMaterials({ workbook: wb }); // warmup JIT
@@ -481,16 +481,17 @@ describe('Fase R1 — Revisor Determinista de Materiales Derivados (material-rev
     const durations: number[] = [];
 
     for (let i = 0; i < 20; i++) {
-      const t0 = performance.now();
+      const startCpu = process.cpuUsage();
       const res = reviewBlockMaterials({ workbook: wb });
-      const t1 = performance.now();
+      const diff = process.cpuUsage(startCpu);
+      const cpuMs = (diff.user + diff.system) / 1000;
       expect(res.ok).toBe(true);
-      durations.push(t1 - t0);
+      durations.push(cpuMs);
     }
 
     durations.sort((a, b) => a - b);
     const p95 = durations[Math.floor(durations.length * 0.95)];
-    expect(p95).toBeLessThan(400);
+    expect(p95).toBeLessThan(200);
   });
 });
 

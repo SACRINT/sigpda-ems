@@ -566,54 +566,6 @@ export default function PlanningTabDocumento({
                   Eslabón Didáctico Micro: Sesiones de 50 min distribuidas en Apertura, Desarrollo y Cierre.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                {Object.keys(sequenceData).length > 0 && (
-                  <>
-                    <a
-                      href={`/api/docx/secuencia/${planning.id}`}
-                      className="btn"
-                      style={{
-                        padding: '5px 12px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        background: 'rgba(99, 102, 241, 0.15)',
-                        border: '1px solid var(--c-accent-border)',
-                        color: 'var(--c-accent-bright)',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                      }}
-                      title="Descargar solo la Secuencia Didáctica oficial en Word (.docx)"
-                    >
-                      <Download size={13} /> Secuencia (Word)
-                    </a>
-                    <button
-                      type="button"
-                      onClick={handleDownloadSecuenciaPdf}
-                      disabled={downloadingSeqPdf}
-                      className="btn"
-                      style={{
-                        padding: '5px 12px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        color: '#f87171',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                      }}
-                      title="Descargar solo la Secuencia Didáctica oficial en PDF (.pdf)"
-                    >
-                      {downloadingSeqPdf ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />} Secuencia (PDF)
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
 
             <div className="section-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -687,6 +639,57 @@ export default function PlanningTabDocumento({
                     >
                       ⚡ 0 Tokens IA (Ensamblado Instantáneo)
                     </span>
+
+                    {(() => {
+                      const qualityValues = Object.values(blockWorkbooks)
+                        .map((item) => item?.workbook?.qualityScore)
+                        .filter((s): s is number => typeof s === 'number');
+                      const avgQuality = qualityValues.length > 0
+                        ? Math.round(qualityValues.reduce((a, b) => a + b, 0) / qualityValues.length)
+                        : null;
+
+                      const alignmentValues = Object.values(blockWorkbooks)
+                        .map((item) => item?.workbook?.planningAlignment?.score)
+                        .filter((s): s is number => typeof s === 'number');
+                      const avgAlignment = alignmentValues.length > 0
+                        ? Math.round(alignmentValues.reduce((a, b) => a + b, 0) / alignmentValues.length)
+                        : null;
+
+                      return (
+                        <>
+                          {avgQuality !== null && (
+                            <span
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: 700,
+                                padding: '3px 10px',
+                                borderRadius: '20px',
+                                background: avgQuality >= 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.18)',
+                                color: avgQuality >= 80 ? '#34d399' : '#fcd34d',
+                                border: `1px solid ${avgQuality >= 80 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.35)'}`,
+                              }}
+                            >
+                              Calidad: {avgQuality}/100
+                            </span>
+                          )}
+                          {avgAlignment !== null && (
+                            <span
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: 700,
+                                padding: '3px 10px',
+                                borderRadius: '20px',
+                                background: avgAlignment >= 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.18)',
+                                color: avgAlignment >= 80 ? '#34d399' : '#fcd34d',
+                                border: `1px solid ${avgAlignment >= 80 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.35)'}`,
+                              }}
+                            >
+                              Alineación: {avgAlignment}/100
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {(() => {
