@@ -2,6 +2,14 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 import ResourceCard from '@/components/planeacion/ResourceCard';
 import PlanningDetailHero from '@/components/planeacion/PlanningDetailHero';
 import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';
@@ -168,10 +176,7 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
           weeklyHours={3}
           totalSessions={54}
           hasContent={true}
-          downloadingPdf={false}
           publishingClassroom={false}
-          onDownloadPdf={vi.fn()}
-          onOpenA4Modal={vi.fn()}
           onPublishClassroom={vi.fn()}
           onOpenChecklistModal={vi.fn()}
         />
@@ -184,7 +189,7 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       expect(screen.getByText(/🎯 Aprendizaje Basado en Proyectos/i)).toBeTruthy();
     });
 
-    it('elimina botones redundantes de PDF y Word del hero para un diseño minimalista', () => {
+    it('elimina botones redundantes de PDF, Word y Vista Carta del hero y expone Classroom y Eliminar con confirmación', () => {
       render(
         <PlanningDetailHero
           locale="es"
@@ -194,19 +199,26 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
           totalSessions={54}
           hasContent={true}
           publishingClassroom={false}
-          onOpenA4Modal={vi.fn()}
           onPublishClassroom={vi.fn()}
           onOpenChecklistModal={vi.fn()}
         />
       );
 
-      // Los botones duplicados ya no deben existir en el hero
+      // Los botones duplicados ya no existen en el hero
       expect(screen.queryByRole('button', { name: /Descargar PDF/i })).toBeNull();
       expect(screen.queryByRole('link', { name: /Word \(DOCX\)/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Vista Carta/i })).toBeNull();
 
-      // Los botones no repetidos se conservan
-      expect(screen.getByRole('button', { name: /Vista Carta/i })).toBeTruthy();
+      // Botón de Classroom está visible
       expect(screen.getByRole('button', { name: /Classroom/i })).toBeTruthy();
+
+      // Botón de Eliminar está en la barra de acciones y al hacer clic pide confirmación inline sin window.confirm
+      const deleteBtn = screen.getByRole('button', { name: /Eliminar/i });
+      expect(deleteBtn).toBeTruthy();
+      fireEvent.click(deleteBtn);
+      expect(screen.getByText(/¿Eliminar planeación\?/i)).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Sí, borrar/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Cancelar/i })).toBeTruthy();
     });
   });
 
@@ -312,6 +324,34 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       fireEvent.click(guiasBtn);
       expect(onGuiasMock).toHaveBeenCalledTimes(1);
     });
+
+    it('utiliza etiquetas simplificadas de botones (PDF, Word, PPTX) y bloquea entregables combinados incompletos', () => {
+      render(
+        <PlanningDownloadsHub
+          planning={mockPlanning}
+          totalSessions={54}
+          totalWorkbookBlocks={3}
+          generatedWorkbookCount={1}
+          semestralReady={false}
+          blockReviews={{}}
+          extras={[]}
+          onOpenA4Modal={vi.fn()}
+        />
+      );
+
+      // Los botones no deben tener sufijos redundantes como '(18 en 1)' o '(Todos)'
+      expect(screen.queryByText(/PDF \(18 en 1\)/i)).toBeNull();
+      expect(screen.queryByText(/Word \(18 en 1\)/i)).toBeNull();
+      expect(screen.queryByText(/PDF \(Todos\)/i)).toBeNull();
+      expect(screen.queryByText(/Word \(1 archivo\)/i)).toBeNull();
+      expect(screen.queryByText(/Compendio Word/i)).toBeNull();
+
+      // Card de planes: debe estar deshabilitado porque 0 < 54 sesiones
+      const planesCard = screen.getByTestId('hub-card-planes');
+      const disabledPdf = planesCard.querySelector('a[aria-disabled="true"]');
+      expect(disabledPdf).toBeTruthy();
+      expect(disabledPdf?.getAttribute('title')).toContain('Genera las 54 sesiones');
+    });
   });
 
   describe('PlanningTabMateriales', () => {
@@ -342,6 +382,67 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       const extrasTabBtn = screen.getByRole('tab', { name: /Instrumentos de Evaluación y Recursos/i });
       fireEvent.click(extrasTabBtn);
       expect(onSubTabChangeMock).toHaveBeenCalledWith('extras');
+    });
+
+    it('incorpora atributos ARIA en subtabs y confirmación inline sin window.confirm al eliminar recursos', async () => {
+      const mockRubricExtra = {
+        id: 'rubric-extra-1',
+        planningId: 'test-planning-1',
+        type: 'rubric' as const,
+        title: 'Rúbrica Analítica · Bloque 1',
+        contentText: 'Criterios de evaluación',
+        keyIndex: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const handleDeleteMock = vi.fn().mockResolvedValue(undefined);
+
+      render(
+        <PlanningTabMateriales
+          planning={mockPlanning}
+          activeSubTab="extras"
+          extras={[mockRubricExtra]}
+          generatingKey={null}
+          syncingSuite={null}
+          blockWorkbooks={{}}
+          handleGenerateExtra={vi.fn().mockResolvedValue(undefined)}
+          handleDeleteExtra={handleDeleteMock}
+          handlePreviewExtra={vi.fn()}
+          handleSyncSuite={vi.fn().mockResolvedValue(undefined)}
+          handleGenerateWorkbook={vi.fn().mockResolvedValue(undefined)}
+          findExtra={vi.fn().mockImplementation((type, blockIdx) => (type === 'rubric' && blockIdx === 0 ? mockRubricExtra : undefined))}
+          setPreviewExtra={vi.fn()}
+        />
+      );
+
+      // Verificación de ARIA en subtabs
+      const tabBtn = screen.getByRole('tab', { name: /Instrumentos de Evaluación y Recursos/i });
+      expect(tabBtn.getAttribute('id')).toBe('subtab-extras');
+      expect(tabBtn.getAttribute('aria-controls')).toBe('subtabpanel-extras');
+
+      const panel = screen.getByRole('tabpanel');
+      expect(panel.getAttribute('id')).toBe('subtabpanel-extras');
+
+      // Verificación de confirmación inline al eliminar
+      const deleteBtn = screen.getAllByTitle('Eliminar rúbrica')[0];
+      expect(deleteBtn).toBeTruthy();
+      fireEvent.click(deleteBtn);
+
+      // Aparece la confirmación inline
+      expect(screen.getByText('¿Borrar?')).toBeTruthy();
+      const cancelBtn = screen.getByRole('button', { name: 'No' });
+
+      // Si hace clic en No, se cancela la confirmación
+      fireEvent.click(cancelBtn);
+      expect(screen.queryByText('¿Borrar?')).toBeNull();
+      expect(handleDeleteMock).not.toHaveBeenCalled();
+
+      // Si hace clic en Sí, se ejecuta la eliminación
+      fireEvent.click(screen.getAllByTitle('Eliminar rúbrica')[0]);
+      const confirmBtn = screen.getByRole('button', { name: 'Sí' });
+      fireEvent.click(confirmBtn);
+      expect(handleDeleteMock).toHaveBeenCalledWith('rubric-extra-1');
     });
   });
 });

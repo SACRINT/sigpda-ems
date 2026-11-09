@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 interface DeletePlanningButtonProps {
   id: string;
@@ -20,12 +21,9 @@ export default function DeletePlanningButton({
 }: DeletePlanningButtonProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  async function handleDelete() {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta planeación? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
+  async function executeDelete() {
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/plannings/${id}`, {
@@ -33,6 +31,7 @@ export default function DeletePlanningButton({
       });
 
       if (res.ok) {
+        toast.success('Planeación eliminada correctamente');
         if (redirectAfterDelete) {
           router.push(`/${locale}/dashboard`);
           router.refresh();
@@ -40,21 +39,74 @@ export default function DeletePlanningButton({
           window.location.reload();
         }
       } else {
-        const data = await res.json();
-        alert(data.error || 'Error al eliminar la planeación');
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Error al eliminar la planeación');
         setIsDeleting(false);
+        setConfirming(false);
       }
     } catch {
-      alert('Ocurrió un error al intentar eliminar la planeación.');
+      toast.error('Ocurrió un error al intentar eliminar la planeación.');
       setIsDeleting(false);
+      setConfirming(false);
     }
   }
 
   const btnClass = size === 'sm' ? 'btn btn-danger btn-sm' : 'btn btn-danger';
 
+  if (confirming) {
+    return (
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          borderRadius: '8px',
+          padding: '4px 8px',
+        }}
+      >
+        <span style={{ fontSize: '12px', color: '#fca5a5', fontWeight: 600 }}>¿Eliminar planeación?</span>
+        <button
+          type="button"
+          onClick={executeDelete}
+          disabled={isDeleting}
+          style={{
+            padding: '3px 8px',
+            fontSize: '11px',
+            background: '#dc2626',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isDeleting ? 'not-allowed' : 'pointer',
+            fontWeight: 700,
+          }}
+        >
+          {isDeleting ? 'Eliminando…' : 'Sí, borrar'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={isDeleting}
+          style={{
+            padding: '3px 6px',
+            fontSize: '11px',
+            background: 'transparent',
+            color: '#cbd5e1',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <button
-      onClick={handleDelete}
+      type="button"
+      onClick={() => setConfirming(true)}
       disabled={isDeleting}
       className={`${btnClass} ${className}`}
       style={{
@@ -65,8 +117,10 @@ export default function DeletePlanningButton({
         backgroundColor: '#dc3545',
         color: '#ffffff',
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
         fontWeight: 600,
+        padding: '7px 12px',
+        fontSize: '13px',
         opacity: isDeleting ? 0.7 : 1,
         transition: 'opacity 0.2s',
       }}

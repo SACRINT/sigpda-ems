@@ -761,7 +761,7 @@ export default function PlanningTabDocumento({
                           }}
                           title="Descargar Libro Maestro Semestral completo en Word (.docx)"
                         >
-                          <Download size={15} /> Compendio Semestral (Word)
+                          <Download size={15} /> Descargar Libro Completo (Word)
                         </a>
                         <a
                           href={`/api/pdf/libro-semestral/${planning.id}`}
@@ -785,32 +785,34 @@ export default function PlanningTabDocumento({
                           }}
                           title="Descargar o ver Libro Maestro Semestral completo en PDF (.pdf)"
                         >
-                          <Download size={15} /> Compendio Semestral (PDF)
+                          <Download size={15} /> Descargar Libro Completo (PDF)
                         </a>
-                        <a
-                          href={`/api/sacrint/manifest/${planning.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn"
-                          style={{
-                            padding: '9px 16px',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                            color: '#ffffff',
-                            borderRadius: '8px',
-                            textDecoration: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '7px',
-                            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            transition: 'transform 0.15s, box-shadow 0.15s',
-                          }}
-                          title="Descargar Manifiesto Institucional de Curso para SACRINT_SYSTEMS (.json)"
-                        >
-                          <Download size={15} /> Manifiesto SACRINT (JSON)
-                        </a>
+                        {canEditDocument && (
+                          <a
+                            href={`/api/sacrint/manifest/${planning.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn"
+                            style={{
+                              padding: '9px 14px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: '#ffffff',
+                              borderRadius: '8px',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              transition: 'transform 0.15s, box-shadow 0.15s',
+                            }}
+                            title="Exportación avanzada: Manifiesto Institucional de Curso para SACRINT Nexus (.json)"
+                          >
+                            <Download size={14} /> Manifiesto SACRINT (JSON) <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.25)', padding: '1px 4px', borderRadius: '3px' }}>PRO</span>
+                          </a>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1024,7 +1026,7 @@ export default function PlanningTabDocumento({
                               gap: '5px',
                             }}
                           >
-                            <Zap size={13} /> {hasSeq ? '🔄 Regenerar con IA' : '⚡ Generar Secuencia (IA)'}
+                            <Zap size={13} /> {hasSeq ? '🔄 Regenerar Secuencia Didáctica' : '⚡ Generar Secuencia Didáctica'}
                           </button>
                         )}
 
@@ -1296,14 +1298,14 @@ export default function PlanningTabDocumento({
                                   gap: '5px',
                                   transition: 'all 0.15s',
                                 }}
-                                title={`Sincronizar Suite (${block.hours} Planes de Clase, Rúbricas y Materiales Didácticos)`}
+                                title={`Sincronizar ${block.hours} Planes de Clase y recursos didácticos`}
                               >
-                                <FileText size={13} /> {syncingSuite === i ? '⏳ Sincronizando Suite…' : `📑 Suite (${block.hours} Planes)`}
+                                <FileText size={13} /> {syncingSuite === i ? '⏳ Sincronizando Planes…' : `📑 Sincronizar Planes de Clase (${block.hours} Planes)`}
                               </button>
 
                               {confirmWbRegen === i ? (
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ fontSize: '11px', color: '#fef08a' }}>¿Regenerar libro B{i + 1}?</span>
+                                  <span style={{ fontSize: '11px', color: '#fef08a' }}>¿Regenerar Libro Bloque {i + 1}?</span>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1345,7 +1347,7 @@ export default function PlanningTabDocumento({
                                 }}
                                 title="Volver a generar este libro de bloque con IA"
                               >
-                                <RefreshCw size={12} /> Regenerar
+                                <RefreshCw size={12} /> Regenerar Libro Bloque {i + 1}
                               </button>
                             )}
                           </>

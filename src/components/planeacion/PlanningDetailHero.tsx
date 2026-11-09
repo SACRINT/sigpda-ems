@@ -1,16 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import type { Planning } from '@/types/planning';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import {
   ArrowLeft,
-  Printer,
   Send,
-  MoreHorizontal,
   CheckCircle2,
-  ClipboardCheck,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -23,10 +20,7 @@ export interface PlanningDetailHeroProps {
   totalSessions: number;
   totalBlocks?: number;
   hasContent: boolean;
-  downloadingPdf?: boolean;
   publishingClassroom: boolean;
-  onDownloadPdf?: () => void;
-  onOpenA4Modal: () => void;
   onPublishClassroom: () => void;
   onOpenChecklistModal: () => void;
 }
@@ -50,35 +44,12 @@ export default function PlanningDetailHero({
   totalBlocks = 3,
   hasContent,
   publishingClassroom,
-  onOpenA4Modal,
   onPublishClassroom,
   onOpenChecklistModal,
 }: PlanningDetailHeroProps) {
   const [titleExpanded, setTitleExpanded] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const isLongTitle = (planning?.uacName?.length || 0) > 95;
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-      }
-    };
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [menuOpen]);
 
   return (
     <header className="detail-hero" data-testid="planning-detail-hero">
@@ -222,144 +193,37 @@ export default function PlanningDetailHero({
         </div>
 
         {/* Action Toolbar */}
-        <div className="detail-hero-actions">
+        <div className="detail-hero-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {hasContent && (
-            <>
-              <button
-                type="button"
-                onClick={onOpenA4Modal}
-                className="btn btn-secondary"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 13px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                <Printer size={15} /> Vista Carta
-              </button>
-
-              <button
-                type="button"
-                onClick={onPublishClassroom}
-                disabled={publishingClassroom}
-                className="btn"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 13px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  background: 'rgba(21, 128, 61, 0.22)',
-                  border: '1px solid rgba(34, 197, 94, 0.4)',
-                  color: '#86efac',
-                  borderRadius: '8px',
-                  cursor: publishingClassroom ? 'not-allowed' : 'pointer',
-                }}
-              >
-                <Send size={14} />
-                {publishingClassroom ? 'Publicando…' : 'Classroom'}
-              </button>
-            </>
-          )}
-
-          {/* Overflow Menu (Más opciones) */}
-          <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              aria-expanded={menuOpen}
-              aria-haspopup="menu"
-              aria-controls="hero-more-menu"
-              title="Más acciones y opciones de supervisión"
+              onClick={onPublishClassroom}
+              disabled={publishingClassroom}
+              className="btn"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '5px',
-                padding: '8px 11px',
-                borderRadius: '8px',
-                background: 'var(--c-bg-elevated)',
-                border: '1px solid var(--c-border-2)',
-                color: 'var(--c-text-2)',
+                gap: '6px',
+                padding: '8px 13px',
                 fontSize: '13px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                background: 'rgba(21, 128, 61, 0.22)',
+                border: '1px solid rgba(34, 197, 94, 0.4)',
+                color: '#86efac',
+                borderRadius: '8px',
+                cursor: publishingClassroom ? 'not-allowed' : 'pointer',
               }}
             >
-              <MoreHorizontal size={16} />
+              <Send size={14} />
+              {publishingClassroom ? 'Publicando…' : 'Classroom'}
             </button>
+          )}
 
-            {menuOpen && (
-              <div
-                id="hero-more-menu"
-                role="menu"
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 6px)',
-                  minWidth: '250px',
-                  background: 'var(--c-bg-elevated)',
-                  border: '1px solid var(--c-border-2)',
-                  borderRadius: '10px',
-                  padding: '8px',
-                  boxShadow: 'var(--shadow-lg)',
-                  zIndex: 60,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenChecklistModal();
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--c-text)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <ClipboardCheck size={15} style={{ color: '#34d399' }} />
-                  Checklist de Supervisión MCCEMS
-                </button>
-
-                <div
-                  style={{
-                    height: '1px',
-                    background: 'var(--c-border)',
-                    margin: '2px 0',
-                  }}
-                />
-
-                <div style={{ padding: '4px 6px' }}>
-                  <DeletePlanningButton
-                    id={planning.id}
-                    locale={locale}
-                    redirectAfterDelete={true}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+          <DeletePlanningButton
+            id={planning.id}
+            locale={locale}
+            redirectAfterDelete={true}
+          />
         </div>
       </div>
     </header>

@@ -934,10 +934,7 @@ function PlanningDetailModular({
           totalSessions={lessonSessions.length}
           totalBlocks={totalWorkbookBlocks}
           hasContent={false}
-          downloadingPdf={false}
           publishingClassroom={false}
-          onDownloadPdf={() => {}}
-          onOpenA4Modal={() => {}}
           onPublishClassroom={() => {}}
           onOpenChecklistModal={() => setShowChecklistModal(true)}
         />
@@ -972,10 +969,7 @@ function PlanningDetailModular({
         totalSessions={lessonSessions.length}
         totalBlocks={totalWorkbookBlocks}
         hasContent={true}
-        downloadingPdf={downloadingPdf}
         publishingClassroom={publishingClassroom}
-        onDownloadPdf={handleDownloadPdf}
-        onOpenA4Modal={() => setShowA4Modal(true)}
         onPublishClassroom={handlePublishClassroom}
         onOpenChecklistModal={() => setShowChecklistModal(true)}
       />

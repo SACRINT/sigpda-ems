@@ -56,6 +56,7 @@ export default function PlanningTabSecuencias({
   handleSyncSuite,
   syncingSuite = null,
 }: PlanningTabSecuenciasProps) {
+  const [confirmDeleteExtraId, setConfirmDeleteExtraId] = React.useState<string | null>(null);
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
@@ -704,22 +705,65 @@ export default function PlanningTabSecuencias({
                                     >
                                       ↓ PDF
                                     </a>
-                                    <button
-                                      onClick={() => handleDeleteExtra(generated.id)}
-                                      className="btn"
-                                      title="Eliminar plan generado"
-                                      style={{
-                                        padding: '4px 8px',
-                                        fontSize: '11px',
-                                        background: 'rgba(239, 68, 68, 0.15)',
-                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                        color: '#f87171',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      🗑️
-                                    </button>
+                                    {confirmDeleteExtraId === generated.id ? (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px' }}>
+                                        <span style={{ color: '#fca5a5', fontWeight: 600 }}>¿Borrar?</span>
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            setConfirmDeleteExtraId(null);
+                                            await handleDeleteExtra(generated.id);
+                                          }}
+                                          className="btn"
+                                          style={{
+                                            padding: '2px 5px',
+                                            fontSize: '10.5px',
+                                            background: '#dc2626',
+                                            color: '#fff',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            border: 'none',
+                                          }}
+                                        >
+                                          Sí
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setConfirmDeleteExtraId(null)}
+                                          className="btn"
+                                          style={{
+                                            padding: '2px 5px',
+                                            fontSize: '10.5px',
+                                            background: 'rgba(255,255,255,0.12)',
+                                            color: '#cbd5e1',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            border: 'none',
+                                          }}
+                                        >
+                                          No
+                                        </button>
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDeleteExtraId(generated.id)}
+                                        className="btn"
+                                        title="Eliminar plan generado"
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '11px',
+                                          background: 'rgba(239, 68, 68, 0.15)',
+                                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                                          color: '#f87171',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        🗑️
+                                      </button>
+                                    )}
                                   </div>
                                 ) : (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

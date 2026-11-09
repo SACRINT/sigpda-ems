@@ -14,6 +14,7 @@ import {
   RUBRIC_PROMPT_TEMPLATE,
   MATERIAL_PROMPT_TEMPLATE,
   LESSON_PLAN_PROMPT_TEMPLATE,
+  PRACTICE_GUIDE_PROMPT_TEMPLATE,
   TEACHER_GUIDE_PROMPT_TEMPLATE,
 } from '@/lib/prompts/extras-prompts';
 import type { GeneratedPlanningContent, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
@@ -187,6 +188,26 @@ Resultados de Aprendizaje: ${(contentJson?.sectionII?.learningOutcomes || []).jo
           macroEjecucion: currentBlockActivity?.ejecucion?.activities,
           macroConclusion: currentBlockActivity?.conclusion?.activities,
         }
+      );
+    } else if (type === 'practice_guide') {
+      const studentContext = planning.extracted_data?.studentContext || 'Estudiantes de bachillerato general estatal';
+      const learningOutcome =
+        keyIndex !== null && contentJson?.sectionII?.learningOutcomes?.[keyIndex]
+          ? contentJson.sectionII.learningOutcomes[keyIndex]
+          : 'Protocolo formativo de práctica y experimentación situada';
+
+      const resolvedPracticeNumber = practiceNumber || (keyIndex !== null ? keyIndex + 1 : 1);
+      const resolvedPracticeTitle = practiceTitle || activityName || `Práctica ${resolvedPracticeNumber}: ${planning.uac_name}`;
+
+      userPrompt = PRACTICE_GUIDE_PROMPT_TEMPLATE(
+        planning.uac_name,
+        activityName || `Actividad Clave ${resolvedPracticeNumber}`,
+        resolvedPracticeNumber,
+        resolvedPracticeTitle,
+        paecProblem,
+        learningOutcome,
+        studentContext,
+        planning.metodologia_activa || undefined
       );
     } else if (type === 'teacher_guide') {
       const learningOutcome =

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * src/components/assistant/UniversalPedagogicalAssistant.tsx
  * SACRINT Systems IA · SAPCU
  * Widget flotante universal del copiloto pedagógico.
@@ -305,10 +305,10 @@ export default function UniversalPedagogicalAssistant() {
           <button
             onClick={toggleOpen}
             className={styles.trigger}
-            aria-label="Abrir Asistente Pedagógico Universal"
+            aria-label="Abrir SIGPDA Bot IA"
+            title="SIGPDA Bot IA (Asistente Pedagógico)"
           >
             <Sparkles className={styles.triggerIcon} />
-            <span>SIGPDA Bot IA</span>
             <span className={styles.statusDot} />
           </button>
         )}

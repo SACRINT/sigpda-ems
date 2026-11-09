@@ -87,6 +87,7 @@ export default function PlanningTabMateriales({
   setActiveTab = () => {},
 }: PlanningTabMaterialesProps) {
   const [internalSubTab, setInternalSubTab] = React.useState<'extras' | 'teacherGuides' | 'practiceGuides'>('extras');
+  const [confirmDeleteExtraId, setConfirmDeleteExtraId] = React.useState<string | null>(null);
   const currentSubTab = onSubTabChange ? (activeSubTab || 'extras') : internalSubTab;
 
   const handleSubTabSwitch = (subTab: 'extras' | 'teacherGuides' | 'practiceGuides') => {
@@ -95,6 +96,126 @@ export default function PlanningTabMateriales({
     } else {
       setInternalSubTab(subTab);
     }
+  };
+
+  const renderDeleteControl = (
+    extraId: string,
+    label: string = 'Eliminar',
+    variant: 'normal' | 'small' | 'mini' = 'normal'
+  ) => {
+    if (confirmDeleteExtraId === extraId) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: variant === 'mini' ? '10px' : '11px',
+          }}
+        >
+          <span style={{ color: '#fca5a5', fontWeight: 600 }}>¿Borrar?</span>
+          <button
+            type="button"
+            onClick={async () => {
+              setConfirmDeleteExtraId(null);
+              await handleDeleteExtra(extraId);
+            }}
+            className="btn"
+            style={{
+              padding: variant === 'mini' ? '2px 4px' : '2px 6px',
+              fontSize: variant === 'mini' ? '10px' : '11px',
+              background: '#dc2626',
+              color: '#fff',
+              borderRadius: '4px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            Sí
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteExtraId(null)}
+            className="btn"
+            style={{
+              padding: variant === 'mini' ? '2px 4px' : '2px 6px',
+              fontSize: variant === 'mini' ? '10px' : '11px',
+              background: 'rgba(255,255,255,0.12)',
+              color: '#cbd5e1',
+              borderRadius: '4px',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            No
+          </button>
+        </span>
+      );
+    }
+
+    if (variant === 'mini') {
+      return (
+        <button
+          type="button"
+          onClick={() => setConfirmDeleteExtraId(extraId)}
+          className="btn"
+          title={label}
+          style={{
+            padding: '2px 4px',
+            fontSize: '10px',
+            background: 'transparent',
+            border: 'none',
+            color: '#fb7185',
+            cursor: 'pointer',
+          }}
+        >
+          ✕
+        </button>
+      );
+    }
+
+    if (variant === 'small') {
+      return (
+        <button
+          type="button"
+          onClick={() => setConfirmDeleteExtraId(extraId)}
+          className="btn"
+          title={label}
+          style={{
+            padding: '4px 6px',
+            fontSize: '11px',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#f87171',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          🗑️
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirmDeleteExtraId(extraId)}
+        className="btn"
+        title={label}
+        style={{
+          padding: '6px 12px',
+          fontSize: '12px',
+          background: 'rgba(244,63,94,0.15)',
+          border: '1px solid rgba(244,63,94,0.3)',
+          color: '#fb7185',
+          borderRadius: '6px',
+          cursor: 'pointer',
+        }}
+      >
+        🗑️
+      </button>
+    );
   };
 
   const content = planning.contentJson as GeneratedPlanningContent | null;
@@ -109,6 +230,8 @@ export default function PlanningTabMateriales({
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
       <div className="detail-subtabs" role="tablist" aria-label="Subsecciones de materiales e instrumentos">
         <button
+          id="subtab-extras"
+          aria-controls="subtabpanel-extras"
           type="button"
           role="tab"
           aria-selected={currentSubTab === 'extras'}
@@ -119,6 +242,8 @@ export default function PlanningTabMateriales({
           📋 Instrumentos de Evaluación y Recursos
         </button>
         <button
+          id="subtab-practiceGuides"
+          aria-controls="subtabpanel-practiceGuides"
           type="button"
           role="tab"
           aria-selected={currentSubTab === 'practiceGuides'}
@@ -129,6 +254,8 @@ export default function PlanningTabMateriales({
           🔬 Guías de Práctica
         </button>
         <button
+          id="subtab-teacherGuides"
+          aria-controls="subtabpanel-teacherGuides"
           type="button"
           role="tab"
           aria-selected={currentSubTab === 'teacherGuides'}
@@ -148,7 +275,13 @@ export default function PlanningTabMateriales({
     ).length;
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div
+        id="subtabpanel-practiceGuides"
+        role="tabpanel"
+        aria-labelledby="subtab-practiceGuides"
+        tabIndex={0}
+        style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+      >
         {renderSubTabsBar()}
         <div className="section-card">
           <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -231,14 +364,7 @@ export default function PlanningTabMateriales({
                             >
                               ↓ PDF
                             </a>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteExtra(generatedGuide.id)}
-                              className="btn"
-                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px', cursor: 'pointer' }}
-                            >
-                              🗑️
-                            </button>
+                            {renderDeleteControl(generatedGuide.id, 'Eliminar guía de práctica')}
                           </>
                         ) : (
                           <button
@@ -294,7 +420,13 @@ export default function PlanningTabMateriales({
 
   if (currentSubTab === 'teacherGuides') {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div
+          id="subtabpanel-teacherGuides"
+          role="tabpanel"
+          aria-labelledby="subtab-teacherGuides"
+          tabIndex={0}
+          style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+        >
           {renderSubTabsBar()}
           <div className="section-card">
             <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', color: '#fff' }}>
@@ -405,13 +537,7 @@ export default function PlanningTabMateriales({
                                   >
                                     ↓ PDF
                                   </a>
-                                  <button
-                                    onClick={() => handleDeleteExtra(generatedGuide.id)}
-                                    className="btn"
-                                    style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px' }}
-                                  >
-                                    🗑️
-                                  </button>
+                                  {renderDeleteControl(generatedGuide.id, 'Eliminar solucionario')}
                                 </>
                               );
                             })()
@@ -475,7 +601,13 @@ export default function PlanningTabMateriales({
 
   return (
         <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+        <div
+          id="subtabpanel-extras"
+          role="tabpanel"
+          aria-labelledby="subtab-extras"
+          tabIndex={0}
+          style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}
+        >
           {renderSubTabsBar()}
 
           {/* Header Banner */}
@@ -681,33 +813,33 @@ export default function PlanningTabMateriales({
                         
                         {/* 1. Rúbrica Analítica Oficial */}
                         <div style={{
-                          padding: '12px 14px',
+                          padding: '10px 12px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '10px',
+                          gap: '8px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Instrumento Normativo
                               </span>
                               <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>4 Niveles NEM</span>
                             </div>
-                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
                               📊 Rúbrica Analítica ({blockNumStr})
                             </h4>
-                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
                               Descriptores cualitativos por niveles de dominio vinculados a los aprendizajes del bloque.
                             </p>
                           </div>
 
                           <div>
                             {rubricExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 <button
                                   onClick={() => setPreviewExtra(rubricExtra)}
                                   className="btn"
@@ -741,14 +873,7 @@ export default function PlanningTabMateriales({
                                 >
                                   ↓ PDF
                                 </a>
-                                <button
-                                  onClick={() => handleDeleteExtra(rubricExtra.id)}
-                                  className="btn"
-                                  title="Eliminar rúbrica"
-                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
-                                >
-                                  🗑️
-                                </button>
+                                {renderDeleteControl(rubricExtra.id, 'Eliminar rúbrica', 'small')}
                               </div>
                             ) : (
                               <button
@@ -765,33 +890,33 @@ export default function PlanningTabMateriales({
 
                         {/* 2. Lista de Cotejo Formativa */}
                         <div style={{
-                          padding: '12px 14px',
+                          padding: '10px 12px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '10px',
+                          gap: '8px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Instrumento Formativo
                               </span>
                               <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Dicotómico</span>
                             </div>
-                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
                               ✅ Lista de Cotejo ({blockNumStr})
                             </h4>
-                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
                               Reactivos observables de autoevaluación y coevaluación del producto formativo.
                             </p>
                           </div>
 
                           <div>
                             {checklistExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 <button
                                   onClick={() => setPreviewExtra(checklistExtra)}
                                   className="btn"
@@ -825,14 +950,7 @@ export default function PlanningTabMateriales({
                                 >
                                   ↓ PDF
                                 </a>
-                                <button
-                                  onClick={() => handleDeleteExtra(checklistExtra.id)}
-                                  className="btn"
-                                  title="Eliminar lista de cotejo"
-                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
-                                >
-                                  🗑️
-                                </button>
+                                {renderDeleteControl(checklistExtra.id, 'Eliminar lista de cotejo', 'small')}
                               </div>
                             ) : (
                               <button
@@ -849,26 +967,26 @@ export default function PlanningTabMateriales({
 
                         {/* 3. Materiales Didácticos del Docente */}
                         <div style={{
-                          padding: '12px 14px',
+                          padding: '10px 12px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '10px',
+                          gap: '8px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Soporte Docente
                               </span>
                               <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Insumos Técnicos</span>
                             </div>
-                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
                               📦 Materiales e Insumos ({blockNumStr})
                             </h4>
-                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
                               Guión técnico, reactivos didácticos y requerimientos de aula/taller.
                             </p>
 
@@ -886,34 +1004,32 @@ export default function PlanningTabMateriales({
                               const allUnique = Array.from(new Map(detected.map((m) => [m.slug, m])).values());
                               if (allUnique.length === 0) return null;
                               return (
-                                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                    {allUnique.slice(0, 5).map((mat, mIdx) => (
-                                      <span
-                                        key={`${mat.slug}-${mIdx}`}
-                                        style={{
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '3px',
-                                          padding: '2px 6px',
-                                          borderRadius: '5px',
-                                          fontSize: '10.5px',
-                                          fontWeight: 600,
-                                          background: 'rgba(139, 92, 246, 0.1)',
-                                          border: '1px solid rgba(139, 92, 246, 0.25)',
-                                          color: '#c4b5fd',
-                                        }}
-                                        title={mat.label}
-                                      >
-                                        📐 {mat.label || mat.slug}
-                                      </span>
-                                    ))}
-                                    {allUnique.length > 5 && (
-                                      <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)', alignSelf: 'center', padding: '1px 3px' }}>
-                                        +{allUnique.length - 5}
-                                      </span>
-                                    )}
-                                  </div>
+                                <div style={{ marginTop: '6px', display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  {allUnique.slice(0, 3).map((mat, mIdx) => (
+                                    <span
+                                      key={`${mat.slug}-${mIdx}`}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '2px',
+                                        padding: '1px 5px',
+                                        borderRadius: '4px',
+                                        fontSize: '10px',
+                                        fontWeight: 600,
+                                        background: 'rgba(139, 92, 246, 0.1)',
+                                        border: '1px solid rgba(139, 92, 246, 0.25)',
+                                        color: '#c4b5fd',
+                                      }}
+                                      title={mat.label}
+                                    >
+                                      📐 {mat.label || mat.slug}
+                                    </span>
+                                  ))}
+                                  {allUnique.length > 3 && (
+                                    <span style={{ fontSize: '10px', color: 'var(--c-text-muted)' }}>
+                                      +{allUnique.length - 3} más
+                                    </span>
+                                  )}
                                 </div>
                               );
                             })()}
@@ -921,7 +1037,7 @@ export default function PlanningTabMateriales({
 
                           <div style={{ marginTop: '4px' }}>
                             {materialExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 <button
                                   onClick={() => setPreviewExtra(materialExtra)}
                                   className="btn"
@@ -955,14 +1071,7 @@ export default function PlanningTabMateriales({
                                 >
                                   ↓ PDF
                                 </a>
-                                <button
-                                  onClick={() => handleDeleteExtra(materialExtra.id)}
-                                  className="btn"
-                                  title="Eliminar material didáctico"
-                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
-                                >
-                                  🗑️
-                                </button>
+                                {renderDeleteControl(materialExtra.id, 'Eliminar material didáctico', 'small')}
                               </div>
                             ) : (
                               <button
@@ -979,33 +1088,33 @@ export default function PlanningTabMateriales({
 
                         {/* 4. Guía de Práctica / Protocolo Situado */}
                         <div style={{
-                          padding: '12px 14px',
+                          padding: '10px 12px',
                           background: 'var(--c-bg-surface)',
                           border: '1px solid var(--c-border)',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '10px',
+                          gap: '8px',
                         }}>
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 Protocolo Situado
                               </span>
                               <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Taller / Lab</span>
                             </div>
-                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                            <h4 style={{ margin: '2px 0 3px 0', fontSize: '12.5px', fontWeight: 700, color: 'var(--c-text)' }}>
                               🔬 Guía de Práctica ({blockNumStr})
                             </h4>
-                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                            <p style={{ margin: 0, fontSize: '11px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
                               Protocolo formativo de experimentación, seguridad e investigación situada.
                             </p>
                           </div>
 
                           <div style={{ marginTop: '4px' }}>
                             {practiceGuideExtra ? (
-                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 <button
                                   type="button"
                                   onClick={() => setPreviewExtra(practiceGuideExtra)}
@@ -1030,15 +1139,7 @@ export default function PlanningTabMateriales({
                                 >
                                   ↓ PDF
                                 </a>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteExtra(practiceGuideExtra.id)}
-                                  className="btn"
-                                  title="Eliminar guía de práctica"
-                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
-                                >
-                                  🗑️
-                                </button>
+                                {renderDeleteControl(practiceGuideExtra.id, 'Eliminar guía de práctica', 'small')}
                               </div>
                             ) : (
                               <button
@@ -1091,14 +1192,7 @@ export default function PlanningTabMateriales({
                                 >
                                   👁️ {vExtra.title || `Gráfico Misión ${vIdx + 1}`}
                                 </button>
-                                <button
-                                  onClick={() => handleDeleteExtra(vExtra.id)}
-                                  className="btn"
-                                  title="Eliminar gráfico"
-                                  style={{ padding: '2px 4px', fontSize: '10px', background: 'transparent', border: 'none', color: '#fb7185', cursor: 'pointer' }}
-                                >
-                                  ✕
-                                </button>
+                                {renderDeleteControl(vExtra.id, 'Eliminar gráfico', 'mini')}
                               </div>
                             ))}
                           </div>
