@@ -36,6 +36,7 @@ export interface PlanningTabDocumentoProps {
   onNavigateToLessonPlans?: () => void;
   onNavigateToSolucionario?: () => void;
   onNavigateToInstrumentos?: () => void;
+  onNavigateToGuiasPractica?: () => void;
   downloadingPdf?: boolean;
   handleDownloadPdf?: () => Promise<void> | void;
   handleDownloadSecuenciaPdf?: () => Promise<void> | void;
@@ -79,6 +80,7 @@ export default function PlanningTabDocumento({
   onNavigateToLessonPlans,
   onNavigateToSolucionario,
   onNavigateToInstrumentos,
+  onNavigateToGuiasPractica,
   downloadingPdf = false,
   handleDownloadPdf,
   handleDownloadSecuenciaPdf = async () => {},
@@ -135,6 +137,16 @@ export default function PlanningTabDocumento({
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQuickEditModal, setShowQuickEditModal] = useState(false);
+  const [confirmSeqRegen, setConfirmSeqRegen] = useState<number | null>(null);
+  const [confirmWbRegen, setConfirmWbRegen] = useState<number | null>(null);
+
+  const fallbackSessionCount = React.useMemo(() => {
+    return curricularBlocks.reduce((acc, b) => {
+      const seqSessions = sequenceData[b.blockIndex]?.sessions?.length;
+      return acc + (seqSessions ?? b.hours);
+    }, 0);
+  }, [curricularBlocks, sequenceData]);
+  const effectiveTotalSessions = totalSessions ?? fallbackSessionCount;
   const editorialBook = useEditorialBook({
     planningId: planning?.id,
     onPremiumRequired: () => {
@@ -293,7 +305,7 @@ export default function PlanningTabDocumento({
             planning={planning}
             sequenceData={sequenceData}
             extras={extras}
-            totalSessions={totalSessions ?? (s1?.totalHours || 0)}
+            totalSessions={effectiveTotalSessions}
             generatedWorkbookCount={generatedWorkbookCount}
             totalWorkbookBlocks={totalWorkbookBlocks}
             semestralReady={semestralReady}
@@ -306,6 +318,7 @@ export default function PlanningTabDocumento({
             onNavigateToLessonPlans={onNavigateToLessonPlans}
             onNavigateToSolucionario={onNavigateToSolucionario}
             onNavigateToInstrumentos={onNavigateToInstrumentos}
+            onNavigateToGuiasPractica={onNavigateToGuiasPractica}
           />
 
           {/* Section I */}
@@ -874,14 +887,35 @@ export default function PlanningTabDocumento({
                             <span>Diseñando sesiones con IA…</span>
                             <span style={{ fontSize: '10.5px', opacity: 0.85, fontWeight: 500 }}>(espera ~15-20s)</span>
                           </button>
+                        ) : confirmSeqRegen === i ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '11px', color: '#fef08a' }}>¿Regenerar Bloque {i + 1}?</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmSeqRegen(null);
+                                handleGenerateSecuencia(i);
+                              }}
+                              className="btn"
+                              style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, background: '#dc2626', color: '#fff', borderRadius: '4px' }}
+                            >
+                              Sí
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmSeqRegen(null)}
+                              className="btn"
+                              style={{ padding: '3px 8px', fontSize: '11px', background: 'rgba(255,255,255,0.12)', color: '#fff', borderRadius: '4px' }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => {
                               if (hasSeq) {
-                                if (confirm(`¿Deseas volver a generar la secuencia didáctica del Bloque ${i + 1} con IA? Se consumirán tokens de IA y se actualizarán las ${block.hours} sesiones.`)) {
-                                  handleGenerateSecuencia(i);
-                                }
+                                setConfirmSeqRegen(i);
                               } else {
                                 handleGenerateSecuencia(i);
                               }
@@ -1178,15 +1212,35 @@ export default function PlanningTabDocumento({
                                 <FileText size={13} /> {syncingSuite === i ? '⏳ Sincronizando Suite…' : `📑 Suite (${block.hours} Planes)`}
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirm(`¿Regenerar el Libro de Trabajo del Bloque ${i + 1}? Se volverán a ejecutar los 4 redactores concurrentes con IA.`)) {
-                                    handleGenerateWorkbook(i);
-                                  }
-                                }}
-                                disabled={wbItem.generating}
-                                className="btn"
+                              {confirmWbRegen === i ? (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '11px', color: '#fef08a' }}>¿Regenerar libro B{i + 1}?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setConfirmWbRegen(null);
+                                      handleGenerateWorkbook(i);
+                                    }}
+                                    className="btn"
+                                    style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, background: '#dc2626', color: '#fff', borderRadius: '4px' }}
+                                  >
+                                    Sí
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmWbRegen(null)}
+                                    className="btn"
+                                    style={{ padding: '3px 8px', fontSize: '11px', background: 'rgba(255,255,255,0.12)', color: '#fff', borderRadius: '4px' }}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmWbRegen(i)}
+                                  disabled={wbItem.generating}
+                                  className="btn"
                                 style={{
                                   padding: '6px 10px',
                                   fontSize: '11.5px',
@@ -1204,8 +1258,9 @@ export default function PlanningTabDocumento({
                               >
                                 <RefreshCw size={12} /> Regenerar
                               </button>
-                            </>
-                          ) : (
+                            )}
+                          </>
+                        ) : (
                             <button
                               type="button"
                               onClick={() => handleGenerateWorkbook(i)}

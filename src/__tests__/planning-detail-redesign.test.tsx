@@ -8,8 +8,80 @@ import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';
 import {
   summarizeMaterialReviewStatus,
 } from '@/hooks/useBlockMaterialReviews';
-import type { Planning } from '@/types/planning';
+import type { GeneratedPlanningContent, Planning } from '@/types/planning';
 import type { MaterialReviewReport } from '@/lib/guide-engine/material-review';
+
+const mockContent: GeneratedPlanningContent = {
+  sectionI: {
+    teacherName: 'Prof. Juan Pérez',
+    groups: '5A, 5B',
+    schoolYear: '2026-2027',
+    applicationPeriod: 'Agosto - Diciembre 2026',
+    estimatedSessions: '54 sesiones',
+    uacName: 'Taller de Pensamiento Variacional I',
+    component: 'Formación Laboral',
+    semester: 5,
+    totalHours: 54,
+    subsystem: 'DGB',
+  },
+  sectionII: {
+    purpose: 'Propósito formativo del taller',
+    learningOutcomes: ['Resultado de aprendizaje 1'],
+    paecConnection: 'Articulación con proyecto escolar y comunitario',
+    activities: [
+      { name: 'Actividad Clave 1', hours: 18, order: 1, corte: 'Corte 1' },
+      { name: 'Actividad Clave 2', hours: 18, order: 2, corte: 'Corte 2' },
+      { name: 'Actividad Clave 3', hours: 18, order: 3, corte: 'Corte 3' },
+    ],
+  },
+  sectionIII: {
+    fundamentalCurriculum: [],
+    expandedCurriculum: [],
+  },
+  sectionIV: {
+    note: 'Secuencia didáctica por bloques',
+    activities: [
+      {
+        name: 'Actividad Clave 1',
+        hours: 18,
+        corte: 'Corte 1',
+        methodology: 'abp',
+        apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
+        ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
+        conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
+      },
+      {
+        name: 'Actividad Clave 2',
+        hours: 18,
+        corte: 'Corte 2',
+        methodology: 'abp',
+        apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
+        ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
+        conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
+      },
+      {
+        name: 'Actividad Clave 3',
+        hours: 18,
+        corte: 'Corte 3',
+        methodology: 'abp',
+        apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
+        ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
+        conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
+      },
+    ],
+  },
+  sectionV: {
+    evaluations: [],
+  },
+  sectionVI: {
+    studentMaterials: [],
+    teacherMaterials: [],
+    digital: [],
+    spaces: [],
+    references: [],
+  },
+  sectionVII: {},
+};
 
 const mockPlanning: Planning = {
   id: 'test-planning-1',
@@ -24,51 +96,7 @@ const mockPlanning: Planning = {
   metodologiaActiva: 'Aprendizaje Basado en Proyectos (ABP)',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
-  contentJson: {
-    sectionI: {
-      teacherName: 'Prof. Juan Pérez',
-      groups: '5A, 5B',
-      schoolYear: '2026-2027',
-      applicationPeriod: 'Agosto - Diciembre 2026',
-      estimatedSessions: '54 sesiones',
-      uacName: 'Taller de Pensamiento Variacional I',
-      component: 'Formación Laboral',
-      semester: 5,
-      totalHours: 54,
-      subsystem: 'DGB',
-    },
-    sectionIV: {
-      activities: [
-        {
-          name: 'Actividad Clave 1',
-          hours: 18,
-          corte: 'Corte 1',
-          methodology: 'abp',
-          apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
-          ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
-          conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
-        },
-        {
-          name: 'Actividad Clave 2',
-          hours: 18,
-          corte: 'Corte 2',
-          methodology: 'abp',
-          apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
-          ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
-          conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
-        },
-        {
-          name: 'Actividad Clave 3',
-          hours: 18,
-          corte: 'Corte 3',
-          methodology: 'abp',
-          apertura: { activities: 'Inicio', processes: 'Exploración', materials: 'Cuaderno' },
-          ejecucion: { activities: 'Desarrollo', processes: 'Construcción', materials: 'Guía' },
-          conclusion: { activities: 'Cierre', processes: 'Evaluación', materials: 'Rúbrica' },
-        },
-      ],
-    },
-  } as any,
+  contentJson: mockContent,
 };
 
 describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {

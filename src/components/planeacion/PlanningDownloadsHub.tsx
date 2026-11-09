@@ -32,6 +32,7 @@ export interface PlanningDownloadsHubProps {
   onNavigateToLessonPlans?: () => void;
   onNavigateToSolucionario?: () => void;
   onNavigateToInstrumentos?: () => void;
+  onNavigateToGuiasPractica?: () => void;
 }
 
 export default function PlanningDownloadsHub({
@@ -51,6 +52,7 @@ export default function PlanningDownloadsHub({
   onNavigateToLessonPlans,
   onNavigateToSolucionario,
   onNavigateToInstrumentos,
+  onNavigateToGuiasPractica,
 }: PlanningDownloadsHubProps) {
   const hasSequences = Object.keys(sequenceData).length > 0;
   const generatedLessonPlans = extras.filter((ex) => ex.type === 'lesson_plan').length;
@@ -146,7 +148,7 @@ export default function PlanningDownloadsHub({
             icon={<Layers size={16} />}
             title="Secuencia Didáctica"
             subtitle="Momentos pedagógicos de Apertura, Desarrollo y Cierre por corte."
-            metaBadge={`${totalWorkbookBlocks} bloques`}
+            metaBadge={totalWorkbookBlocks > 0 ? `${totalWorkbookBlocks} bloques` : undefined}
             statusBadge={{
               status: hasSequences ? 'ok' : 'pending',
               label: hasSequences ? 'Generada' : 'Por generar',
@@ -215,7 +217,7 @@ export default function PlanningDownloadsHub({
             icon={<GraduationCap size={16} />}
             title="Solucionario Docente"
             subtitle="Respuestas modelo paso a paso y criterios de mediación docente."
-            metaBadge={`${generatedGuidesCount}/${totalWorkbookBlocks} bloques`}
+            metaBadge={totalWorkbookBlocks > 0 ? `${generatedGuidesCount}/${totalWorkbookBlocks} bloques` : `${generatedGuidesCount} bloques`}
             statusBadge={answerKeyStatus}
             actions={[
               {
@@ -277,8 +279,8 @@ export default function PlanningDownloadsHub({
                     : practiceGuidesStatus.tooltip,
               },
             ]}
-            onOpenDetail={onNavigateToInstrumentos}
-            detailLabel="Ver materiales"
+            onOpenDetail={onNavigateToGuiasPractica || onNavigateToInstrumentos}
+            detailLabel="Ver guías de práctica"
           />
 
           {/* 6. Libros de Texto Activos */}
@@ -287,7 +289,7 @@ export default function PlanningDownloadsHub({
             icon={<BookOpen size={16} />}
             title="Libros de Texto Activos"
             subtitle="Compendio semestral consolidado (~150-200 págs) y cuadernos por bloque."
-            metaBadge={`${generatedWorkbookCount}/${totalWorkbookBlocks} bloques`}
+            metaBadge={totalWorkbookBlocks > 0 ? `${generatedWorkbookCount}/${totalWorkbookBlocks} bloques` : `${generatedWorkbookCount} bloques`}
             statusBadge={{
               status: semestralReady
                 ? 'ok'

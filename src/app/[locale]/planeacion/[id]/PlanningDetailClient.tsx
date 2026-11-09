@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -9,12 +8,16 @@ import { ExtraPreviewModal } from '@/components/planeacion/ExtraPreviewModal';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import PlanningDetailHero from '@/components/planeacion/PlanningDetailHero';
 import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';
+import ChecklistSupervisionModal from '@/components/planeacion/ChecklistSupervisionModal';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
 import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/content-budget';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
+import type { PlanningEvaluationResult } from '@/components/planeacion/tabs/PlanningTabEvaluador';
+import type { TeacherProgressSummary } from '@/lib/pedagogical-analytics';
+import type { AuditReport } from '@/lib/audit-engine';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
   FileText, Clock, Package, ShieldCheck,
@@ -112,7 +115,7 @@ function PlanningDetailModular({
 
   // ── Secuencia Didáctica por Sesión state ──────────────────────────────────
   const [sequenceData, setSequenceData] = useState<Record<number, SecuenciaBloque>>(
-    (planning.sequenceJson as any) || {}
+    (planning.sequenceJson as Record<number, SecuenciaBloque>) || {}
   );
 
   // Generate detailed pedagogical sessions for all 3 curricular blocks using Session Progression Engine
@@ -176,7 +179,7 @@ function PlanningDetailModular({
   };
 
   // ── Audit state ─────────────────────────────────────────────────────────
-  const [auditReport, setAuditReport] = useState<any | null>(null);
+  const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditLoaded, setAuditLoaded] = useState(false);
@@ -368,36 +371,40 @@ function PlanningDetailModular({
     }
   }
 
-  // Helper to find existing generated extra
-  function findExtra(type: string, keyIndex: number | null, title?: string, sessionNum?: number) {
-    return extras.find((ex) => {
-      if (ex.type !== type) return false;
-      const exKey = (ex as any).keyIndex !== undefined ? (ex as any).keyIndex : (ex as any).key_index;
-      
-      // CRÍTICO: Si se especificó el bloque (keyIndex), este DEBE coincidir estrictamente
-      // para evitar que los planes de clase de un bloque aparezcan falsamente en otros bloques.
-      if (keyIndex !== null) {
-        if (exKey === null || exKey === undefined || Number(exKey) !== Number(keyIndex)) {
-          return false;
+  // Helper to find existing generated extra (memoizado para estabilidad referencial)
+  const findExtra = useCallback(
+    (type: string, keyIndex: number | null, title?: string, sessionNum?: number) => {
+      return extras.find((ex) => {
+        if (ex.type !== type) return false;
+        const rawEx = ex as unknown as { key_index?: number | null; keyIndex?: number | null };
+        const exKey = ex.keyIndex !== undefined && ex.keyIndex !== null ? ex.keyIndex : (rawEx.key_index ?? null);
+
+        // CRÍTICO: Si se especificó el bloque (keyIndex), este DEBE coincidir estrictamente
+        // para evitar que los planes de clase de un bloque aparezcan falsamente en otros bloques.
+        if (keyIndex !== null) {
+          if (exKey === null || exKey === undefined || Number(exKey) !== Number(keyIndex)) {
+            return false;
+          }
         }
-      }
 
-      if (type === 'lesson_plan' && sessionNum !== undefined) {
-        return (
-          ex.title.includes(`Sesión ${sessionNum} `) ||
-          ex.title.includes(`Sesión ${sessionNum}:`) ||
-          ex.title.includes(`Sesión ${sessionNum} -`) ||
-          ex.title.endsWith(`Sesión ${sessionNum}`) ||
-          Boolean(ex.title.match(new RegExp(`\\bSesión\\s+${sessionNum}\\b`, 'i')))
-        );
-      }
+        if (type === 'lesson_plan' && sessionNum !== undefined) {
+          return (
+            ex.title.includes(`Sesión ${sessionNum} `) ||
+            ex.title.includes(`Sesión ${sessionNum}:`) ||
+            ex.title.includes(`Sesión ${sessionNum} -`) ||
+            ex.title.endsWith(`Sesión ${sessionNum}`) ||
+            Boolean(ex.title.match(new RegExp(`\\bSesión\\s+${sessionNum}\\b`, 'i')))
+          );
+        }
 
-      if (type === 'material' && title) {
-        return ex.title.toLowerCase().includes(title.toLowerCase());
-      }
-      return true;
-    });
-  }
+        if (type === 'material' && title) {
+          return ex.title.toLowerCase().includes(title.toLowerCase());
+        }
+        return true;
+      });
+    },
+    [extras]
+  );
 
   // ── Secuencia Didáctica por Sesión state ──────────────────────────────────
   const [generatingSeqBlock, setGeneratingSeqBlock] = useState<number | null>(null);
@@ -488,7 +495,7 @@ function PlanningDetailModular({
     setEditingSeqBlock(blockIndex);
   };
 
-  const handleUpdateEditedSession = (blockIndex: number, sessionIdx: number, field: keyof SecuenciaSesion, val: any) => {
+  const handleUpdateEditedSession = (blockIndex: number, sessionIdx: number, field: keyof SecuenciaSesion, val: unknown) => {
     setEditedSessions(prev => {
       const currentList = prev[blockIndex] ? [...prev[blockIndex]] : [...(sequenceData[blockIndex]?.sessions || [])];
       if (currentList[sessionIdx]) {
@@ -508,9 +515,19 @@ function PlanningDetailModular({
     error: string | null;
   }
 
+  interface RawWorkbookRecord {
+    current?: ActiveWorkTextbook | null;
+    version?: number;
+    progress?: GenerationProgressState | null;
+  }
+
   const initialWorkbooks: Record<number, BlockWorkbookItem> = {};
-  const rawWorkbooks = ((planning as any).workbooksJson || (planning as any).workbooks_json || {}) as Record<string, any>;
-  [0, 1, 2].forEach((idx) => {
+  const rawWorkbooks = (planning.workbooksJson ||
+    (planning as unknown as { workbooks_json?: Record<string, RawWorkbookRecord> }).workbooks_json ||
+    {}) as Record<string, RawWorkbookRecord>;
+
+  const initialBlockIndexes = curricularBlocks.map((b) => b.blockIndex);
+  initialBlockIndexes.forEach((idx) => {
     const entry = rawWorkbooks[`block_${idx}`];
     initialWorkbooks[idx] = {
       loaded: Boolean(entry?.current),
@@ -716,9 +733,9 @@ function PlanningDetailModular({
     }
   };
 
-  const totalWorkbookBlocks = curricularBlocks.length > 0 ? curricularBlocks.length : 3;
+  const totalWorkbookBlocks = curricularBlocks.length;
   const blockIndexes = useMemo(
-    () => (curricularBlocks.length > 0 ? curricularBlocks.map((b) => b.blockIndex) : [0, 1, 2]),
+    () => curricularBlocks.map((b) => b.blockIndex),
     [curricularBlocks]
   );
   const generatedWorkbookCount = blockIndexes.filter(
@@ -726,7 +743,7 @@ function PlanningDetailModular({
   ).length;
   const allBlocksGenerated = totalWorkbookBlocks > 0 && generatedWorkbookCount === totalWorkbookBlocks;
 
-  const weeklyHours = resolveWeeklyHours(planning as any);
+  const weeklyHours = resolveWeeklyHours(planning);
   const blockBudget = computeContentBudget(weeklyHours);
   // Presupuesto macro unificado semestral (bloques curriculares de la UAC)
   const macroTargetWords = blockBudget.targetWords.ideal * totalWorkbookBlocks;
@@ -811,7 +828,7 @@ function PlanningDetailModular({
   };
 
   // ── Evaluador state ─────────────────────────────────────────────────────
-  const [evalResult, setEvalResult]   = useState<any | null>(planning.evaluationJson || null);
+  const [evalResult, setEvalResult]   = useState<PlanningEvaluationResult | null>((planning.evaluationJson as PlanningEvaluationResult) || null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError,   setEvalError]   = useState<string | null>(null);
   const [, setEvalLoaded]             = useState(Boolean(planning.evaluationJson));
@@ -837,7 +854,7 @@ function PlanningDetailModular({
   };
 
   // ── Analytics state ──────────────────────────────────────────────────────
-  const [analyticsData, setAnalyticsData]   = useState<any | null>(null);
+  const [analyticsData, setAnalyticsData]   = useState<TeacherProgressSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError,   setAnalyticsError]   = useState<string | null>(null);
   const [analyticsLoaded,  setAnalyticsLoaded]  = useState(false);
@@ -1025,6 +1042,10 @@ function PlanningDetailModular({
             setActiveTabState('materials');
             setMaterialsSubTab('extras');
           }}
+          onNavigateToGuiasPractica={() => {
+            setActiveTabState('materials');
+            setMaterialsSubTab('extras');
+          }}
           downloadingPdf={downloadingPdf}
           handleDownloadPdf={handleDownloadPdf}
           handleDownloadSecuenciaPdf={handleDownloadSecuenciaPdf}
@@ -1135,69 +1156,16 @@ function PlanningDetailModular({
           isOpen={previewExtra !== null}
           onClose={() => setPreviewExtra(null)}
           title={previewExtra.title || 'Vista Previa'}
-          contentText={previewExtra.contentText || (previewExtra as any).content_text || ''}
+          contentText={previewExtra.contentText || (previewExtra as unknown as { content_text?: string }).content_text || ''}
           type={previewExtra.type || 'document'}
         />
       )}
 
-      {/* Modal Lista de Cotejo de Supervisión */}
-      {showChecklistModal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px'
-        }}>
-          <div style={{
-            background: 'var(--c-card-bg)', border: '1px solid var(--c-border-2)', borderRadius: '12px', maxWidth: '750px', width: '100%',
-            maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: 'var(--shadow-xl)',
-            color: 'var(--c-text)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--c-border)', paddingBottom: '12px', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--c-text)', margin: 0 }}>
-                  📋 Lista de Cotejo de Supervisión MCCEMS (2026-2027)
-                </h3>
-                <p style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', margin: '4px 0 0 0' }}>
-                  Alineado a <em>03 Lista de cotejo Plan de Clase 1-4_SEM.pdf</em> y normativas del Bachillerato General Estatal.
-                </p>
-              </div>
-              <button onClick={() => setShowChecklistModal(false)} style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                { label: 'Propósitos Formativos / Contenidos Formativos', desc: 'Contenidos temáticos oficiales de la UAC vinculados al MCCEMS.', status: true },
-                { label: 'Meta Educativa', desc: 'Metas de aprendizaje claras, objetivas y orientadas al logro de trayectoria.', status: true },
-                { label: 'Transversalidad Disciplinar', desc: 'Conexión coherente con otras asignaturas del mismo semestre y currículum ampliado.', status: true },
-                { label: 'Exploración de Conocimientos Previos', desc: 'Fase de Apertura con recuperación activa de saberes e ideas de los estudiantes.', status: true },
-                { label: 'Actividades de Aprendizaje Acordes', desc: 'Actividades continuas, contextualizadas a la comunidad de Puebla y al PAEC.', status: true },
-                { label: 'Metodología Socio-crítica / Estrategias Activas', desc: 'Uso obligatorio de ABP, Método de Casos o Simulaciones prácticas (Nivel 2 de complejidad).', status: true },
-                { label: 'Productos Esperados', desc: 'Entregables físicos/digitales concretos por sesión y por Actividad Clave.', status: true },
-                { label: 'Temporalidad y Dosificación de Tiempos', desc: 'Dosificación matemática estricta por Cortes (18h/24h por corte) y sesiones de 50 min.', status: true },
-                { label: 'Momentos de Evaluación Formativa', desc: 'Evaluación Diagnóstica, Formativa y Sumativa con Hetero, Co y Autoevaluación.', status: true },
-                { label: 'Metacognición Formativa en Cierre', desc: 'Fase de Cierre orientada a la reflexión del aprendizaje y consolidación de competencias.', status: true },
-                { label: 'Instrumentos Objetivos de Evaluación', desc: 'Rúbricas analíticas y Listas de cotejo para Producto y Desempeño.', status: true }
-              ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '10px 12px', background: 'var(--c-bg-surface)', borderRadius: '8px', border: '1px solid var(--c-border)' }}>
-                  <span style={{ background: '#10b981', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', flexShrink: 0, marginTop: '2px' }}>✓</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--c-text)' }}>{i + 1}. {item.label}</div>
-                    <div style={{ fontSize: '12.5px', color: 'var(--c-text-muted)', marginTop: '2px' }}>{item.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>
-                ✓ Cumplimiento del 100% verificado por DidácticaIA
-              </span>
-              <button onClick={() => setShowChecklistModal(false)} className="btn btn-navy" style={{ padding: '8px 18px', fontSize: '13px', borderRadius: '6px' }}>
-                Entendido
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Lista de Cotejo de Supervisión (W3C WAI-ARIA / Focus Trap) */}
+      <ChecklistSupervisionModal
+        isOpen={showChecklistModal}
+        onClose={() => setShowChecklistModal(false)}
+      />
     </div>
   );
 }

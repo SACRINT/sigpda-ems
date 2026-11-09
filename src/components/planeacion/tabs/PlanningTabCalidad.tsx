@@ -78,6 +78,7 @@ export default function PlanningTabCalidad({
           <button
             type="button"
             onClick={() => handleSubTabSwitch('audit')}
+            aria-current={currentSubTab === 'audit' ? 'page' : undefined}
             className={`detail-subtab${currentSubTab === 'audit' ? ' is-active' : ''}`}
           >
             <BarChart3 size={14} style={{ color: '#10b981' }} />
@@ -87,6 +88,7 @@ export default function PlanningTabCalidad({
           <button
             type="button"
             onClick={() => handleSubTabSwitch('evaluador')}
+            aria-current={currentSubTab === 'evaluador' ? 'page' : undefined}
             className={`detail-subtab${currentSubTab === 'evaluador' ? ' is-active' : ''}`}
           >
             <Award size={14} style={{ color: '#ef4444' }} />
@@ -96,6 +98,7 @@ export default function PlanningTabCalidad({
           <button
             type="button"
             onClick={() => handleSubTabSwitch('analytics')}
+            aria-current={currentSubTab === 'analytics' ? 'page' : undefined}
             className={`detail-subtab${currentSubTab === 'analytics' ? ' is-active' : ''}`}
           >
             <TrendingUp size={14} style={{ color: '#06b6d4' }} />

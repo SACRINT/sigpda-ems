@@ -159,6 +159,7 @@ export default function PlanningTabMateriales({
         <button
           type="button"
           onClick={() => handleSubTabSwitch('extras')}
+          aria-current={currentSubTab === 'extras' ? 'page' : undefined}
           className={`detail-subtab${currentSubTab === 'extras' ? ' is-active' : ''}`}
         >
           📋 Instrumentos de Evaluación y Recursos
@@ -166,6 +167,7 @@ export default function PlanningTabMateriales({
         <button
           type="button"
           onClick={() => handleSubTabSwitch('teacherGuides')}
+          aria-current={currentSubTab === 'teacherGuides' ? 'page' : undefined}
           className={`detail-subtab${currentSubTab === 'teacherGuides' ? ' is-active' : ''}`}
         >
           🔒 Solucionario Docente y Guías

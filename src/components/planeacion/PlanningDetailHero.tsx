@@ -319,6 +319,7 @@ export default function PlanningDetailHero({
               onClick={() => setMenuOpen((prev) => !prev)}
               aria-expanded={menuOpen}
               aria-haspopup="menu"
+              aria-controls="hero-more-menu"
               title="Más acciones y opciones de supervisión"
               style={{
                 display: 'inline-flex',
@@ -340,6 +341,7 @@ export default function PlanningDetailHero({
 
             {menuOpen && (
               <div
+                id="hero-more-menu"
                 role="menu"
                 style={{
                   position: 'absolute',
