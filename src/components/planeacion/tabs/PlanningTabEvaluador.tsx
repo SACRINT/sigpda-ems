@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Planning } from '@/types/planning';
 import { evaluatePlanningQuality, PlanningQualityReport } from '@/lib/planning/quality-pipeline';
 
@@ -50,6 +50,8 @@ export default function PlanningTabEvaluador({
       return null;
     }
   }, [planning]);
+
+  const [confirmingReeval, setConfirmingReeval] = useState(false);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -284,16 +286,38 @@ export default function PlanningTabEvaluador({
                         ))}
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (confirm('¿Deseas volver a auditar esta planeación con la IA? Se consumirán tokens de IA para regenerar la evaluación.')) {
-                          handleRunEvaluacion(true);
-                        }
-                      }}
-                      style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--c-bg-elevated)', color: 'var(--c-text)', border: '1px solid var(--c-border-2)', borderRadius: '6px', cursor: 'pointer' }}
-                    >
-                      🔄 Re-evaluar
-                    </button>
+                    {confirmingReeval ? (
+                      <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--c-bg-elevated)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                        <span style={{ fontSize: '11.5px', color: '#fcd34d', fontWeight: 600 }}>¿Re-auditar consumiendo tokens?</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmingReeval(false);
+                            handleRunEvaluacion(true);
+                          }}
+                          className="btn"
+                          style={{ padding: '3px 8px', fontSize: '11px', background: '#dc2626', color: '#fff', borderRadius: '4px', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingReeval(false)}
+                          className="btn"
+                          style={{ padding: '3px 8px', fontSize: '11px', background: 'rgba(255,255,255,0.12)', color: 'var(--c-text)', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingReeval(true)}
+                        style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--c-bg-elevated)', color: 'var(--c-text)', border: '1px solid var(--c-border-2)', borderRadius: '6px', cursor: 'pointer' }}
+                      >
+                        🔄 Re-evaluar
+                      </button>
+                    )}
                   </div>
 
                   {/* Criteria table */}

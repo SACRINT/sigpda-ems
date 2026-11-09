@@ -35,15 +35,15 @@ export interface MaterialBlockWorkbookItem {
 
 export interface PlanningTabMaterialesProps {
   planning: Planning;
-  activeSubTab?: 'extras' | 'teacherGuides';
-  onSubTabChange?: (subTab: 'extras' | 'teacherGuides') => void;
+  activeSubTab?: 'extras' | 'teacherGuides' | 'practiceGuides';
+  onSubTabChange?: (subTab: 'extras' | 'teacherGuides' | 'practiceGuides') => void;
   sequenceData?: Record<number, SecuenciaBloque>;
   extras: PlanningExtra[];
   generatingKey: string | null;
   syncingSuite: number | null;
   blockWorkbooks: Record<number, MaterialBlockWorkbookItem>;
   handleGenerateExtra: (
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -86,10 +86,10 @@ export default function PlanningTabMateriales({
   setPreviewExtra,
   setActiveTab = () => {},
 }: PlanningTabMaterialesProps) {
-  const [internalSubTab, setInternalSubTab] = React.useState<'extras' | 'teacherGuides'>('extras');
+  const [internalSubTab, setInternalSubTab] = React.useState<'extras' | 'teacherGuides' | 'practiceGuides'>('extras');
   const currentSubTab = onSubTabChange ? (activeSubTab || 'extras') : internalSubTab;
 
-  const handleSubTabSwitch = (subTab: 'extras' | 'teacherGuides') => {
+  const handleSubTabSwitch = (subTab: 'extras' | 'teacherGuides' | 'practiceGuides') => {
     if (onSubTabChange) {
       onSubTabChange(subTab);
     } else {
@@ -121,6 +121,16 @@ export default function PlanningTabMateriales({
         <button
           type="button"
           role="tab"
+          aria-selected={currentSubTab === 'practiceGuides'}
+          onClick={() => handleSubTabSwitch('practiceGuides')}
+          aria-current={currentSubTab === 'practiceGuides' ? 'page' : undefined}
+          className={`detail-subtab${currentSubTab === 'practiceGuides' ? ' is-active' : ''}`}
+        >
+          🔬 Guías de Práctica
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={currentSubTab === 'teacherGuides'}
           onClick={() => handleSubTabSwitch('teacherGuides')}
           aria-current={currentSubTab === 'teacherGuides' ? 'page' : undefined}
@@ -131,6 +141,156 @@ export default function PlanningTabMateriales({
       </div>
     </div>
   );
+
+  if (currentSubTab === 'practiceGuides') {
+    const practiceGuidesCount = extras.filter(
+      (ex) => ex.type === 'practice_guide' && !isStructuredVisualPayload(ex.contentText)
+    ).length;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {renderSubTabsBar()}
+        <div className="section-card">
+          <div className="section-card-header" style={{ background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="section-card-title" style={{ color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🔬 Guías de Práctica, Taller y Laboratorio
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.2)', color: '#fff' }}>
+              {practiceGuidesCount} de {curricularBlocks.length} generadas
+            </span>
+          </div>
+          <div className="section-card-body">
+            <div style={{ padding: '12px', background: 'rgba(2, 132, 199, 0.12)', borderLeft: '3px solid #0284c7', borderRadius: '6px', marginBottom: '16px', fontSize: '13.5px' }}>
+              <p style={{ color: '#7dd3fc', fontWeight: 600, marginBottom: '4px' }}>💡 Protocolos Situados de Práctica (MCCEMS)</p>
+              <p style={{ color: 'var(--c-text)', marginBottom: '6px' }}>
+                Instrumentos de trabajo experimental, técnico, de taller o estudio de caso situados en el contexto formativo del estudiante.
+                Establecen el propósito, las normas de seguridad e higiene, materiales necesarios, procedimiento paso a paso y criterios de verificación formativa.
+              </p>
+            </div>
+
+            {/* One card per canonical curricular block */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {curricularBlocks.map((block) => {
+                const practiceNum = block.blockIndex + 1;
+                const practiceTitle = block.title || block.name;
+                const generatedGuide = findExtra('practice_guide', block.blockIndex);
+                const loadingKey = `practice_guide-${block.blockIndex}--`;
+                const isCurrentGenerating = generatingKey?.startsWith(loadingKey);
+
+                return (
+                  <div
+                    key={block.blockIndex}
+                    style={{
+                      padding: '14px 18px',
+                      background: 'var(--c-bg-surface)',
+                      border: generatedGuide ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid var(--c-border)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {isLaboral ? `AC ${block.blockIndex + 1}` : `Bloque ${practiceNum}`}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--c-text-muted)' }}>
+                            {generatedGuide ? '✓ Protocolo Generado' : '⏳ Pendiente'}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: 0, fontSize: '14.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                          🔬 Guía de Práctica · {practiceTitle}
+                        </h4>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {generatedGuide ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewExtra(generatedGuide)}
+                              className="btn"
+                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38bdf8', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              👁️ Ver
+                            </button>
+                            <a
+                              href={`/api/docx/extra/${generatedGuide.id}`}
+                              className="btn"
+                              style={{ padding: '6px 14px', fontSize: '12px', background: '#0284c7', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
+                            >
+                              ↓ Word
+                            </a>
+                            <a
+                              href={`/api/pdf/extra/${generatedGuide.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ padding: '6px 14px', fontSize: '12px', background: '#dc2626', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
+                            >
+                              ↓ PDF
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExtra(generatedGuide.id)}
+                              className="btn"
+                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#fb7185', borderRadius: '6px', cursor: 'pointer' }}
+                            >
+                              🗑️
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleGenerateExtra(
+                                'practice_guide',
+                                `Guía de Práctica · Bloque ${practiceNum}: ${practiceTitle}`,
+                                block.blockIndex,
+                                {
+                                  activityName: block.title,
+                                  practiceNumber: practiceNum,
+                                  practiceTitle: practiceTitle,
+                                }
+                              )
+                            }
+                            disabled={generatingKey !== null}
+                            className="btn"
+                            style={{
+                              padding: '8px 18px',
+                              fontSize: '13px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: generatingKey !== null ? '#7dd3fc' : '#0284c7',
+                              color: '#fff',
+                              fontWeight: 600,
+                              cursor: generatingKey !== null ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {isCurrentGenerating ? '⏳ Generando guía...' : '🔬 Generar Guía de Práctica'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {curricularBlocks.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--c-text-muted)', padding: '40px 0', fontSize: '14px' }}>
+                  No se encontraron bloques curriculares en esta planeación.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Feedback */}
+        <GenerationFeedback entityType="planning" entityId={planning.id} />
+      </div>
+    );
+  }
 
   if (currentSubTab === 'teacherGuides') {
     return (
@@ -154,52 +314,6 @@ export default function PlanningTabMateriales({
                   </p>
                 )}
               </div>
-
-              {/* Descarga combinada — todos los solucionarios en 1 solo archivo */}
-              {(() => {
-                const guideCount = extras.filter(
-                  (ex) => ex.type === 'teacher_guide' && !isStructuredVisualPayload(ex.contentText)
-                ).length;
-                if (guideCount === 0) return null;
-                return (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '10px',
-                      padding: '10px 14px',
-                      background: 'rgba(124, 58, 237, 0.08)',
-                      border: '1px dashed rgba(124, 58, 237, 0.4)',
-                      borderRadius: '8px',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    <span style={{ fontSize: '12.5px', color: '#c4b5fd', fontWeight: 600 }}>
-                      📦 Descarga combinada: los {guideCount} solucionarios (todos los bloques) en un solo archivo
-                    </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <a
-                        href={`/api/pdf/extra/combined?planningId=${planning.id}&type=teacher_guide`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn"
-                        style={{ padding: '6px 14px', fontSize: '12px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
-                      >
-                        ↓ PDF (1 archivo)
-                      </a>
-                      <a
-                        href={`/api/docx/extra/combined?planningId=${planning.id}&type=teacher_guide`}
-                        className="btn"
-                        style={{ padding: '6px 14px', fontSize: '12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}
-                      >
-                        ↓ Word (1 archivo)
-                      </a>
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* One card per canonical curricular block (Corte 1, 2, 3) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -423,6 +537,7 @@ export default function PlanningTabMateriales({
             const rubricExtra = findExtra('rubric', block.blockIndex);
             const checklistExtra = findExtra('checklist', block.blockIndex);
             const materialExtra = findExtra('material', block.blockIndex);
+            const practiceGuideExtra = findExtra('practice_guide', block.blockIndex);
             const guideExtra = findExtra('teacher_guide', block.blockIndex);
             const visualExtras = extras.filter((ex) => {
               if (ex.type !== 'visual') return false;
@@ -430,7 +545,7 @@ export default function PlanningTabMateriales({
             });
 
             const hasWorkbook = Boolean(blockWorkbooks[block.blockIndex]?.workbook);
-            const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || guideExtra || visualExtras.length > 0);
+            const hasAnyMaterial = Boolean(rubricExtra || checklistExtra || materialExtra || practiceGuideExtra || guideExtra || visualExtras.length > 0);
             const blockReview = blockReviews[block.blockIndex];
             const rubricBlocked = blockReview ? !blockReview.byMaterial.rubric.ok : false;
             const rubricTooltip = blockReview?.byMaterial.rubric.issues.map((i) => `${i.code}: ${i.message}`).join('\n') || undefined;
@@ -857,6 +972,90 @@ export default function PlanningTabMateriales({
                                 style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
                               >
                                 {syncingSuite === block.blockIndex ? '⏳ Sincronizando…' : '⚡ Extraer del Libro'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 4. Guía de Práctica / Protocolo Situado */}
+                        <div style={{
+                          padding: '12px 14px',
+                          background: 'var(--c-bg-surface)',
+                          border: '1px solid var(--c-border)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Protocolo Situado
+                              </span>
+                              <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)' }}>Taller / Lab</span>
+                            </div>
+                            <h4 style={{ margin: '2px 0 4px 0', fontSize: '13.5px', fontWeight: 700, color: 'var(--c-text)' }}>
+                              🔬 Guía de Práctica ({blockNumStr})
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--c-text-muted)', lineHeight: 1.35 }}>
+                              Protocolo formativo de experimentación, seguridad e investigación situada.
+                            </p>
+                          </div>
+
+                          <div style={{ marginTop: '4px' }}>
+                            {practiceGuideExtra ? (
+                              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewExtra(practiceGuideExtra)}
+                                  className="btn"
+                                  style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--c-blue-pale)', border: '1px solid var(--c-blue-mid)', color: 'var(--c-blue-mid)', borderRadius: '4px', fontWeight: 600 }}
+                                >
+                                  👁️ Ver
+                                </button>
+                                <a
+                                  href={`/api/docx/extra/${practiceGuideExtra.id}`}
+                                  className="btn btn-amber"
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  ↓ Word
+                                </a>
+                                <a
+                                  href={`/api/pdf/extra/${practiceGuideExtra.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn"
+                                  style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textDecoration: 'none', background: '#dc2626', color: '#fff', fontWeight: 600 }}
+                                >
+                                  ↓ PDF
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExtra(practiceGuideExtra.id)}
+                                  className="btn"
+                                  title="Eliminar guía de práctica"
+                                  style={{ padding: '4px 6px', fontSize: '11px', background: '#FEE2E2', border: '1px solid #EF4444', color: '#EF4444', borderRadius: '4px' }}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleGenerateExtra(
+                                    'practice_guide',
+                                    `Guía de Práctica · Bloque ${block.blockIndex + 1}: ${blockTitle}`,
+                                    block.blockIndex,
+                                    { activityName: blockTitle, practiceNumber: block.blockIndex + 1, practiceTitle: blockTitle }
+                                  )
+                                }
+                                disabled={generatingKey !== null}
+                                className="btn btn-navy"
+                                style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                {generatingKey?.startsWith(`practice_guide-${block.blockIndex}--`) ? '⏳ Generando…' : '⚡ Generar Guía'}
                               </button>
                             )}
                           </div>

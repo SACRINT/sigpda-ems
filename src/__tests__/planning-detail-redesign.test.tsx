@@ -5,6 +5,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ResourceCard from '@/components/planeacion/ResourceCard';
 import PlanningDetailHero from '@/components/planeacion/PlanningDetailHero';
 import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';
+import PlanningDownloadsHub from '@/components/planeacion/PlanningDownloadsHub';
+import PlanningTabMateriales from '@/components/planeacion/tabs/PlanningTabMateriales';
 import {
   summarizeMaterialReviewStatus,
 } from '@/hooks/useBlockMaterialReviews';
@@ -181,6 +183,31 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       expect(screen.getByText(/3 hrs\/sem · 54 sesiones totales/i)).toBeTruthy();
       expect(screen.getByText(/🎯 Aprendizaje Basado en Proyectos/i)).toBeTruthy();
     });
+
+    it('elimina botones redundantes de PDF y Word del hero para un diseño minimalista', () => {
+      render(
+        <PlanningDetailHero
+          locale="es"
+          planning={mockPlanning}
+          isLaboral={true}
+          weeklyHours={3}
+          totalSessions={54}
+          hasContent={true}
+          publishingClassroom={false}
+          onOpenA4Modal={vi.fn()}
+          onPublishClassroom={vi.fn()}
+          onOpenChecklistModal={vi.fn()}
+        />
+      );
+
+      // Los botones duplicados ya no deben existir en el hero
+      expect(screen.queryByRole('button', { name: /Descargar PDF/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /Word \(DOCX\)/i })).toBeNull();
+
+      // Los botones no repetidos se conservan
+      expect(screen.getByRole('button', { name: /Vista Carta/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Classroom/i })).toBeTruthy();
+    });
   });
 
   describe('DocumentA4Modal', () => {
@@ -255,6 +282,66 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       const summary = summarizeMaterialReviewStatus(mockReports, 'answer_key', 1);
       expect(summary.status).toBe('blocked');
       expect(summary.label).toContain('Bloqueado R1');
+    });
+  });
+
+  describe('PlanningDownloadsHub', () => {
+    it('renderiza enlaces de Paquete ZIP con URLs correctas y navega a guías de práctica', () => {
+      const onGuiasMock = vi.fn();
+      render(
+        <PlanningDownloadsHub
+          planning={mockPlanning}
+          totalSessions={54}
+          totalWorkbookBlocks={3}
+          generatedWorkbookCount={3}
+          semestralReady={true}
+          blockReviews={{}}
+          onOpenA4Modal={vi.fn()}
+          onNavigateToLessonPlans={vi.fn()}
+          onNavigateToGuiasPractica={onGuiasMock}
+        />
+      );
+
+      const wordZipLink = screen.getByTitle(/Descargar todos los materiales e instrumentos didácticos en un archivo ZIP \(Word\)/i);
+      expect(wordZipLink.getAttribute('href')).toBe('/api/docx/extra/bulk?planningId=test-planning-1');
+
+      const pdfZipLink = screen.getByTitle(/Descargar todos los materiales e instrumentos didácticos en un archivo ZIP \(PDF\)/i);
+      expect(pdfZipLink.getAttribute('href')).toBe('/api/pdf/extra/bulk?planningId=test-planning-1');
+
+      const guiasBtn = screen.getByRole('button', { name: /Ver guías de práctica/i });
+      fireEvent.click(guiasBtn);
+      expect(onGuiasMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('PlanningTabMateriales', () => {
+    it('renderiza la vista dedicada de Guías de Práctica cuando activeSubTab="practiceGuides"', () => {
+      const onSubTabChangeMock = vi.fn();
+      render(
+        <PlanningTabMateriales
+          planning={mockPlanning}
+          activeSubTab="practiceGuides"
+          onSubTabChange={onSubTabChangeMock}
+          extras={[]}
+          generatingKey={null}
+          syncingSuite={null}
+          blockWorkbooks={{}}
+          handleGenerateExtra={vi.fn().mockResolvedValue(undefined)}
+          handleDeleteExtra={vi.fn().mockResolvedValue(undefined)}
+          handlePreviewExtra={vi.fn()}
+          handleSyncSuite={vi.fn().mockResolvedValue(undefined)}
+          handleGenerateWorkbook={vi.fn().mockResolvedValue(undefined)}
+          findExtra={vi.fn().mockReturnValue(undefined)}
+          setPreviewExtra={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/Guías de Práctica, Taller y Laboratorio/i)).toBeTruthy();
+      expect(screen.getByText(/Protocolos Situados de Práctica \(MCCEMS\)/i)).toBeTruthy();
+
+      const extrasTabBtn = screen.getByRole('tab', { name: /Instrumentos de Evaluación y Recursos/i });
+      fireEvent.click(extrasTabBtn);
+      expect(onSubTabChangeMock).toHaveBeenCalledWith('extras');
     });
   });
 });

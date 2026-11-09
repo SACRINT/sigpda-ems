@@ -122,7 +122,7 @@ export default function PlanningDownloadsHub({
               fontWeight: 600,
             }}
           >
-            Todos los entregables en un solo lugar:
+            Materiales en un solo paquete:
           </span>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <a
@@ -141,9 +141,9 @@ export default function PlanningDownloadsHub({
                 color: '#c7d2fe',
                 fontWeight: 600,
               }}
-              title="Descargar todos los entregables en un archivo ZIP (Word)"
+              title="Descargar todos los materiales e instrumentos didácticos en un archivo ZIP (Word)"
             >
-              <Archive size={12} /> Paquete ZIP (Word)
+              <Archive size={12} /> Paquete de Materiales (Word ZIP)
             </a>
             <a
               href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
@@ -161,9 +161,9 @@ export default function PlanningDownloadsHub({
                 color: '#fca5a5',
                 fontWeight: 600,
               }}
-              title="Descargar todos los entregables en un archivo ZIP (PDF)"
+              title="Descargar todos los materiales e instrumentos didácticos en un archivo ZIP (PDF)"
             >
-              <Archive size={12} /> Paquete ZIP (PDF)
+              <Archive size={12} /> Paquete de Materiales (PDF ZIP)
             </a>
           </div>
         </div>

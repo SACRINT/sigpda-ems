@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import {
   getTeacherByEmail,
   getPlanningById,
+  getPlanningExtras,
   getPlanningExtrasByBlock,
   getPlanningExtrasByIds,
   getBlockWorkbook,
@@ -99,8 +100,23 @@ async function handleBulkPdf(request: NextRequest) {
       const typeLabel = type === 'lesson_plan' ? 'Planes_de_Clase' : 'Materiales';
       const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
       zipName = `${typeLabel}_Bloque_${blockNum}_${cleanSubject}_PDF.zip`;
+    } else if (planningId) {
+      const planning = await getPlanningById(planningId, teacher.id);
+      if (!planning) {
+        return new Response('Planeación no encontrada o no autorizada', { status: 404 });
+      }
+
+      brandingCtx = {
+        schoolName: planning.extracted_data?.schoolName,
+        cct: planning.extracted_data?.cct,
+        semester: planning.semester,
+      };
+
+      extras = await getPlanningExtras(planningId, teacher.id);
+      const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+      zipName = `Paquete_Materiales_${cleanSubject}_PDF.zip`;
     } else {
-      return new Response('Parámetros insuficientes (requiere planningId y blockIndex o extraIds)', { status: 400 });
+      return new Response('Parámetros insuficientes (requiere planningId o extraIds)', { status: 400 });
     }
 
     // Excluir payloads visuales JSON (recursos gráficos almacenados como content_text)

@@ -345,6 +345,7 @@ export default function PlanningTabDocumento({
                     padding: 0,
                   }}
                   aria-expanded={!collapsedSectionI}
+                  aria-controls="section-body-I"
                   title={collapsedSectionI ? 'Desplegar sección' : 'Plegar sección'}
                 >
                   {collapsedSectionI ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
@@ -397,25 +398,10 @@ export default function PlanningTabDocumento({
                     <Lock size={13} /> Editar Datos <span style={{ fontSize: '9px', background: '#eab308', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>PRO</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setCollapsedSectionI((prev) => !prev)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--c-text-muted)',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: '2px 6px',
-                  }}
-                >
-                  {collapsedSectionI ? 'Mostrar' : 'Plegar'}
-                </button>
               </div>
             </div>
             {!collapsedSectionI && (
-              <div className="section-card-body">
+              <div id="section-body-I" role="region" aria-label="Datos Generales y Administrativos" className="section-card-body">
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                   <div><strong>Docente:</strong> {s1?.teacherName}</div>
                   <div><strong>UAC/Ubicación:</strong> {s1?.uacName}</div>
@@ -467,30 +453,16 @@ export default function PlanningTabDocumento({
                     padding: 0,
                   }}
                   aria-expanded={!collapsedSectionII}
+                  aria-controls="section-body-II"
                   title={collapsedSectionII ? 'Desplegar sección' : 'Plegar sección'}
                 >
                   {collapsedSectionII ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
                 </button>
                 <span className="section-card-title">II. Propósito Formativo (Intencionalidad Curricular)</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setCollapsedSectionII((prev) => !prev)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--c-text-muted)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '2px 6px',
-                }}
-              >
-                {collapsedSectionII ? 'Mostrar' : 'Plegar'}
-              </button>
             </div>
             {!collapsedSectionII && (
-              <div className="section-card-body">
+              <div id="section-body-II" role="region" aria-label="Propósito Formativo" className="section-card-body">
                 <p style={{ marginBottom: '16px', lineHeight: 1.6 }}>{content?.sectionII?.purpose}</p>
                 
                 <p style={{ fontWeight: 600, marginBottom: '6px' }}>Resultados de Aprendizaje:</p>
@@ -533,30 +505,16 @@ export default function PlanningTabDocumento({
                       padding: 0,
                     }}
                     aria-expanded={!collapsedDosificacion}
+                    aria-controls="section-body-dosificacion"
                     title={collapsedDosificacion ? 'Desplegar tabla' : 'Plegar tabla'}
                   >
                     {collapsedDosificacion ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
                   </button>
                   <span className="section-card-title">Dosificación de Actividades Clave y Tiempos</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCollapsedDosificacion((prev) => !prev)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--c-text-muted)',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: '2px 6px',
-                  }}
-                >
-                  {collapsedDosificacion ? 'Mostrar' : 'Plegar'}
-                </button>
               </div>
               {!collapsedDosificacion && (
-                <div className="section-card-body" style={{ overflowX: 'auto' }}>
+                <div id="section-body-dosificacion" role="region" aria-label="Dosificación de Actividades Clave" className="section-card-body" style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ background: 'var(--c-bg-elevated)', color: 'var(--c-text)', borderBottom: '1px solid var(--c-border)' }}>
@@ -735,7 +693,7 @@ export default function PlanningTabDocumento({
                     const estimatedPages = accumulatedWorkbookWords > 0 ? Math.max(1, Math.round(accumulatedWorkbookWords / 450)) : 0;
                     return (
                       <h3 style={{ margin: '4px 0 6px', fontSize: '17px', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.01em' }}>
-                        Libro de Texto Semestral Consolidado{estimatedPages > 0 ? ` (~${estimatedPages} Páginas)` : ` (${totalWorkbookBlocks} Bloques)`}
+                        Libro de Texto Semestral Consolidado{estimatedPages > 0 ? ` (~${estimatedPages} págs. estimadas)` : ` (${totalWorkbookBlocks} Bloques)`}
                       </h3>
                     );
                   })()}

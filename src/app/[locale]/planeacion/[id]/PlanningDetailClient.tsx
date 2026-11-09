@@ -79,7 +79,7 @@ function PlanningDetailModular({
 
   // Tabs state (4 atomic axes + subtab controlled state)
   const [activeTab, setActiveTabState] = useState<'planning' | 'lessonPlans' | 'materials' | 'quality'>('planning');
-  const [materialsSubTab, setMaterialsSubTab] = useState<'extras' | 'teacherGuides'>('extras');
+  const [materialsSubTab, setMaterialsSubTab] = useState<'extras' | 'teacherGuides' | 'practiceGuides'>('extras');
   const [qualitySubTab, setQualitySubTab] = useState<QualitySubTab>('audit');
   const [showA4Modal, setShowA4Modal] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -94,6 +94,9 @@ function PlanningDetailModular({
     } else if (tab === 'extras') {
       setActiveTabState('materials');
       setMaterialsSubTab('extras');
+    } else if (tab === 'practiceGuides' || tab === 'guiasPractica') {
+      setActiveTabState('materials');
+      setMaterialsSubTab('practiceGuides');
     } else if (tab === 'teacherGuides') {
       setActiveTabState('materials');
       setMaterialsSubTab('teacherGuides');
@@ -300,7 +303,7 @@ function PlanningDetailModular({
 
   // Generate extra handler
   async function handleGenerateExtra(
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'teacher_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -352,10 +355,6 @@ function PlanningDetailModular({
 
   // Delete extra handler
   async function handleDeleteExtra(extraId: string) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este recurso generado?')) {
-      return;
-    }
-
     try {
       const res = await fetch(`/api/plannings/${planning.id}/extras?extraId=${extraId}`, {
         method: 'DELETE',
@@ -363,11 +362,13 @@ function PlanningDetailModular({
 
       if (res.ok) {
         setExtras((prev) => prev.filter((ex) => ex.id !== extraId));
+        toast.success('Recurso eliminado correctamente');
       } else {
         toast.error('Error al eliminar el recurso');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Error al eliminar el recurso');
     }
   }
 
@@ -984,6 +985,8 @@ function PlanningDetailModular({
         <button
           type="button"
           role="tab"
+          id="tab-btn-planning"
+          aria-controls="tabpanel-planning"
           aria-selected={activeTab === 'planning'}
           onClick={() => setActiveTab('planning')}
           className={`detail-tab${activeTab === 'planning' ? ' is-active' : ''}`}
@@ -996,6 +999,8 @@ function PlanningDetailModular({
         <button
           type="button"
           role="tab"
+          id="tab-btn-lessonPlans"
+          aria-controls="tabpanel-lessonPlans"
           aria-selected={activeTab === 'lessonPlans'}
           onClick={() => setActiveTab('lessonPlans')}
           className={`detail-tab${activeTab === 'lessonPlans' ? ' is-active' : ''}`}
@@ -1009,6 +1014,8 @@ function PlanningDetailModular({
         <button
           type="button"
           role="tab"
+          id="tab-btn-materials"
+          aria-controls="tabpanel-materials"
           aria-selected={activeTab === 'materials'}
           onClick={() => setActiveTab('materials')}
           className={`detail-tab${activeTab === 'materials' ? ' is-active' : ''}`}
@@ -1021,6 +1028,8 @@ function PlanningDetailModular({
         <button
           type="button"
           role="tab"
+          id="tab-btn-quality"
+          aria-controls="tabpanel-quality"
           aria-selected={activeTab === 'quality'}
           onClick={() => setActiveTab('quality')}
           className={`detail-tab${activeTab === 'quality' ? ' is-active' : ''}`}
@@ -1032,123 +1041,151 @@ function PlanningDetailModular({
       </div>
 
       {/* ── ATOMIC TABS DISPATCHER ────────────────────── */}
-      {activeTab === 'planning' && (
-        <PlanningTabDocumento
-          planning={planning}
-          editorialEngineEnabled={editorialEngineEnabled}
-          activeSubTab="planning"
-          sequenceData={sequenceData}
-          extras={extras}
-          totalSessions={lessonSessions.length}
-          onOpenA4Modal={() => setShowA4Modal(true)}
-          onNavigateToLessonPlans={() => setActiveTab('lessonPlans')}
-          onNavigateToSolucionario={() => {
-            setActiveTabState('materials');
-            setMaterialsSubTab('teacherGuides');
-          }}
-          onNavigateToInstrumentos={() => {
-            setActiveTabState('materials');
-            setMaterialsSubTab('extras');
-          }}
-          onNavigateToGuiasPractica={() => {
-            setActiveTabState('materials');
-            setMaterialsSubTab('extras');
-          }}
-          downloadingPdf={downloadingPdf}
-          handleDownloadPdf={handleDownloadPdf}
-          handleDownloadSecuenciaPdf={handleDownloadSecuenciaPdf}
-          downloadingSeqPdf={downloadingSeqPdf}
-          accumulatedWorkbookWords={accumulatedWorkbookWords}
-          macroTargetWords={macroTargetWords}
-          generatedWorkbookCount={generatedWorkbookCount}
-          totalWorkbookBlocks={totalWorkbookBlocks}
-          blockWordCountDetails={blockWordCountDetails}
-          semestralThresholdMet={semestralThresholdMet}
-          semestralReady={semestralReady}
-          generatingSeqBlock={generatingSeqBlock}
-          editingSeqBlock={editingSeqBlock}
-          expandedSeqBlock={expandedSeqBlock}
-          blockWorkbooks={blockWorkbooks}
-          editedSessions={editedSessions}
-          handleGenerateSecuencia={handleGenerateSecuencia}
-          setExpandedSeqBlock={setExpandedSeqBlock}
-          handleSyncSuite={handleSyncSuite}
-          syncingSuite={syncingSuite}
-          handleGenerateWorkbook={handleGenerateWorkbook}
-          seqMessage={seqMessage}
-          handleSaveSecuencia={handleSaveSecuencia}
-          setEditingSeqBlock={setEditingSeqBlock}
-          handleStartEdit={handleStartEdit}
-          handleUpdateEditedSession={handleUpdateEditedSession}
-          canEditDocument={canEditDocument}
-          onPlanningUpdated={handlePlanningUpdated}
-        />
-      )}
+      <div
+        id="tabpanel-planning"
+        role="tabpanel"
+        aria-labelledby="tab-btn-planning"
+        hidden={activeTab !== 'planning'}
+      >
+        {activeTab === 'planning' && (
+          <PlanningTabDocumento
+            planning={planning}
+            editorialEngineEnabled={editorialEngineEnabled}
+            activeSubTab="planning"
+            sequenceData={sequenceData}
+            extras={extras}
+            totalSessions={lessonSessions.length}
+            onOpenA4Modal={() => setShowA4Modal(true)}
+            onNavigateToLessonPlans={() => setActiveTab('lessonPlans')}
+            onNavigateToSolucionario={() => {
+              setActiveTabState('materials');
+              setMaterialsSubTab('teacherGuides');
+            }}
+            onNavigateToInstrumentos={() => {
+              setActiveTabState('materials');
+              setMaterialsSubTab('extras');
+            }}
+            onNavigateToGuiasPractica={() => {
+              setActiveTabState('materials');
+              setMaterialsSubTab('practiceGuides');
+            }}
+            downloadingPdf={downloadingPdf}
+            handleDownloadPdf={handleDownloadPdf}
+            handleDownloadSecuenciaPdf={handleDownloadSecuenciaPdf}
+            downloadingSeqPdf={downloadingSeqPdf}
+            accumulatedWorkbookWords={accumulatedWorkbookWords}
+            macroTargetWords={macroTargetWords}
+            generatedWorkbookCount={generatedWorkbookCount}
+            totalWorkbookBlocks={totalWorkbookBlocks}
+            blockWordCountDetails={blockWordCountDetails}
+            semestralThresholdMet={semestralThresholdMet}
+            semestralReady={semestralReady}
+            generatingSeqBlock={generatingSeqBlock}
+            editingSeqBlock={editingSeqBlock}
+            expandedSeqBlock={expandedSeqBlock}
+            blockWorkbooks={blockWorkbooks}
+            editedSessions={editedSessions}
+            handleGenerateSecuencia={handleGenerateSecuencia}
+            setExpandedSeqBlock={setExpandedSeqBlock}
+            handleSyncSuite={handleSyncSuite}
+            syncingSuite={syncingSuite}
+            handleGenerateWorkbook={handleGenerateWorkbook}
+            seqMessage={seqMessage}
+            handleSaveSecuencia={handleSaveSecuencia}
+            setEditingSeqBlock={setEditingSeqBlock}
+            handleStartEdit={handleStartEdit}
+            handleUpdateEditedSession={handleUpdateEditedSession}
+            canEditDocument={canEditDocument}
+            onPlanningUpdated={handlePlanningUpdated}
+          />
+        )}
+      </div>
 
-      {activeTab === 'lessonPlans' && (
-        <PlanningTabSecuencias
-          planning={planning}
-          sequenceData={sequenceData}
-          collapsedBlocks={collapsedBlocks}
-          toggleBlock={toggleBlock}
-          toggleAllBlocks={toggleAllBlocks}
-          allBlocksCollapsed={allBlocksCollapsed}
-          findExtra={findExtra}
-          generatingKey={generatingKey}
-          setPreviewExtra={setPreviewExtra}
-          handleDeleteExtra={handleDeleteExtra}
-          handleGenerateExtra={handleGenerateExtra}
-          blockWorkbooks={blockWorkbooks}
-          handleSyncSuite={handleSyncSuite}
-          syncingSuite={syncingSuite}
-        />
-      )}
+      <div
+        id="tabpanel-lessonPlans"
+        role="tabpanel"
+        aria-labelledby="tab-btn-lessonPlans"
+        hidden={activeTab !== 'lessonPlans'}
+      >
+        {activeTab === 'lessonPlans' && (
+          <PlanningTabSecuencias
+            planning={planning}
+            sequenceData={sequenceData}
+            collapsedBlocks={collapsedBlocks}
+            toggleBlock={toggleBlock}
+            toggleAllBlocks={toggleAllBlocks}
+            allBlocksCollapsed={allBlocksCollapsed}
+            findExtra={findExtra}
+            generatingKey={generatingKey}
+            setPreviewExtra={setPreviewExtra}
+            handleDeleteExtra={handleDeleteExtra}
+            handleGenerateExtra={handleGenerateExtra}
+            blockWorkbooks={blockWorkbooks}
+            handleSyncSuite={handleSyncSuite}
+            syncingSuite={syncingSuite}
+          />
+        )}
+      </div>
 
-      {activeTab === 'materials' && (
-        <PlanningTabMateriales
-          planning={planning}
-          activeSubTab={materialsSubTab}
-          onSubTabChange={setMaterialsSubTab}
-          sequenceData={sequenceData}
-          extras={extras}
-          generatingKey={generatingKey}
-          syncingSuite={syncingSuite}
-          blockWorkbooks={blockWorkbooks}
-          handleGenerateExtra={handleGenerateExtra}
-          handlePreviewExtra={(ex) => setPreviewExtra(ex)}
-          handleDeleteExtra={handleDeleteExtra}
-          handleSyncSuite={handleSyncSuite}
-          handleGenerateWorkbook={handleGenerateWorkbook}
-          findExtra={findExtra}
-          setPreviewExtra={setPreviewExtra}
-          setActiveTab={setActiveTab}
-        />
-      )}
+      <div
+        id="tabpanel-materials"
+        role="tabpanel"
+        aria-labelledby="tab-btn-materials"
+        hidden={activeTab !== 'materials'}
+      >
+        {activeTab === 'materials' && (
+          <PlanningTabMateriales
+            planning={planning}
+            activeSubTab={materialsSubTab}
+            onSubTabChange={setMaterialsSubTab}
+            sequenceData={sequenceData}
+            extras={extras}
+            generatingKey={generatingKey}
+            syncingSuite={syncingSuite}
+            blockWorkbooks={blockWorkbooks}
+            handleGenerateExtra={handleGenerateExtra}
+            handlePreviewExtra={(ex) => setPreviewExtra(ex)}
+            handleDeleteExtra={handleDeleteExtra}
+            handleSyncSuite={handleSyncSuite}
+            handleGenerateWorkbook={handleGenerateWorkbook}
+            findExtra={findExtra}
+            setPreviewExtra={setPreviewExtra}
+            setActiveTab={setActiveTab}
+          />
+        )}
+      </div>
 
-      {activeTab === 'quality' && (
-        <PlanningTabCalidad
-          planning={planning}
-          activeSubTab={qualitySubTab}
-          onSubTabChange={setQualitySubTab}
-          auditReport={auditReport}
-          auditLoading={auditLoading}
-          auditError={auditError}
-          auditLoaded={auditLoaded}
-          expandedDimension={expandedDimension}
-          setExpandedDimension={setExpandedDimension}
-          handleRunAudit={handleRunAudit}
-          handleReAudit={handleReAudit}
-          evalResult={evalResult}
-          evalLoading={evalLoading}
-          evalError={evalError}
-          handleRunEvaluacion={handleRunEvaluacion}
-          analyticsData={analyticsData}
-          analyticsLoading={analyticsLoading}
-          analyticsError={analyticsError}
-          analyticsLoaded={analyticsLoaded}
-          handleLoadAnalytics={handleLoadAnalytics}
-        />
-      )}
+      <div
+        id="tabpanel-quality"
+        role="tabpanel"
+        aria-labelledby="tab-btn-quality"
+        hidden={activeTab !== 'quality'}
+      >
+        {activeTab === 'quality' && (
+          <PlanningTabCalidad
+            planning={planning}
+            activeSubTab={qualitySubTab}
+            onSubTabChange={setQualitySubTab}
+            auditReport={auditReport}
+            auditLoading={auditLoading}
+            auditError={auditError}
+            auditLoaded={auditLoaded}
+            expandedDimension={expandedDimension}
+            setExpandedDimension={setExpandedDimension}
+            handleRunAudit={handleRunAudit}
+            handleReAudit={handleReAudit}
+            evalResult={evalResult}
+            evalLoading={evalLoading}
+            evalError={evalError}
+            handleRunEvaluacion={handleRunEvaluacion}
+            analyticsData={analyticsData}
+            analyticsLoading={analyticsLoading}
+            analyticsError={analyticsError}
+            analyticsLoaded={analyticsLoaded}
+            handleLoadAnalytics={handleLoadAnalytics}
+          />
+        )}
+      </div>
 
       {/* Modal Vista Impresión Carta */}
       <DocumentA4Modal

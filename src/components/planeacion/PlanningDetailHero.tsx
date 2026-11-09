@@ -6,8 +6,6 @@ import type { Planning } from '@/types/planning';
 import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import {
   ArrowLeft,
-  Download,
-  FileDown,
   Printer,
   Send,
   MoreHorizontal,
@@ -25,9 +23,9 @@ export interface PlanningDetailHeroProps {
   totalSessions: number;
   totalBlocks?: number;
   hasContent: boolean;
-  downloadingPdf: boolean;
+  downloadingPdf?: boolean;
   publishingClassroom: boolean;
-  onDownloadPdf: () => void;
+  onDownloadPdf?: () => void;
   onOpenA4Modal: () => void;
   onPublishClassroom: () => void;
   onOpenChecklistModal: () => void;
@@ -51,9 +49,7 @@ export default function PlanningDetailHero({
   totalSessions,
   totalBlocks = 3,
   hasContent,
-  downloadingPdf,
   publishingClassroom,
-  onDownloadPdf,
   onOpenA4Modal,
   onPublishClassroom,
   onOpenChecklistModal,
@@ -229,46 +225,6 @@ export default function PlanningDetailHero({
         <div className="detail-hero-actions">
           {hasContent && (
             <>
-              <button
-                type="button"
-                onClick={onDownloadPdf}
-                disabled={downloadingPdf}
-                className="btn"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  background: '#dc2626',
-                  border: '1px solid #ef4444',
-                  color: '#ffffff',
-                  borderRadius: '8px',
-                  cursor: downloadingPdf ? 'not-allowed' : 'pointer',
-                }}
-              >
-                <Download size={15} />
-                {downloadingPdf ? 'Generando PDF…' : 'Descargar PDF'}
-              </button>
-
-              <a
-                href={`/api/docx/${planning.id}`}
-                className="btn btn-amber"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                }}
-              >
-                <FileDown size={15} /> Word (DOCX)
-              </a>
-
               <button
                 type="button"
                 onClick={onOpenA4Modal}
