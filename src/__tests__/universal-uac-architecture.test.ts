@@ -154,24 +154,27 @@ describe('Arquitectura Universal Multi-UAC (Fases 1 a 6)', () => {
   });
 
   describe('Fase 4: Enlaces Educativos Resilientes (Cero 404)', () => {
-    it('convierte enlaces watch?v= alucinados en búsquedas educativas válidas de YouTube', () => {
+    it('sustituye enlaces watch?v= de ejemplo por un recurso curado (sin búsquedas)', () => {
       const safe = sanitizeEducationalResourceUrl(
         'https://www.youtube.com/watch?v=ejemplo_cir',
         'Circuitos de activación neuromuscular',
         'video'
       );
-      expect(safe).toContain('https://www.youtube.com/results?search_query=');
+      expect(safe).toMatch(/^https:\/\//);
       expect(safe).not.toContain('watch?v=ejemplo_cir');
+      expect(safe).not.toContain('youtube.com/results');
+      expect(safe).not.toContain('google.com/search');
     });
 
-    it('convierte enlaces scholar.google bloqueados por bot-detection a búsqueda limpia de Google', () => {
+    it('sustituye enlaces scholar.google por un recurso curado (sin búsquedas)', () => {
       const safeWeb = sanitizeEducationalResourceUrl(
         'https://scholar.google.es/scholar?q=fisiologia+del+ejercicio',
         'Fisiología del ejercicio y frecuencia cardíaca básica',
         'web'
       );
-      expect(safeWeb).toContain('https://www.google.com/search?q=');
+      expect(safeWeb).toMatch(/^https:\/\//);
       expect(safeWeb).not.toContain('scholar.google');
+      expect(safeWeb).not.toContain('google.com/search');
     });
   });
 

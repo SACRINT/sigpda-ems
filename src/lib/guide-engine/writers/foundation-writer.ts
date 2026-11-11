@@ -34,6 +34,11 @@ import { logger } from '@/lib/logger';
 import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../pedagogical-quality-gate';
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import {
+  resolveCheckpoint,
+  resolveConceptZero,
+  resolvePhenomenonHook,
+} from './mission-narrative';
 
 export async function generateFoundationMission(input: WriterInput): Promise<WriterOutput> {
   const foundationMission = input.missions.find((m) => m.missionType === 'foundation') || input.missions[0];
@@ -120,7 +125,7 @@ REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
    (f) practica: 2 ejercicios contextualizados con datos reales; enunciados detallados (mínimo 60 palabras cada uno) con "pista" orientadora (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados con operaciones completas;
    (g) aplicacion: (80 a 120 palabras) tarea de transferencia y aplicación al entorno comunitario;
    (h) autoevaluacion: 2-3 preguntas reflexivas metacognitivas;
-   (i) recursos: 1-2 enlaces verosímiles de ampliación (YouTube o web);
+   (i) recursos: 1-2 enlaces directos del catálogo curado o institucional (PROHIBIDO google.com/search y youtube.com/results);
    (j) productoIntegrador: (60 a 90 palabras) avance concreto y fechado del entregable para el portafolio.
    Los planes deben VARIAR entre sesiones (cada sesión aborda una arista distinta del tema) y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
 7. Cuaderno activo: Incluye 2-4 etiquetas <!--workbook:...--> (lines:rows=8, table:cols=..., code:lines=15, drawing:height=160).
@@ -156,8 +161,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el concepto central?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video educativo sobre el tema", "url": "https://www.youtube.com/results?search_query=tema+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=tema+bachillerato", "tipo": "web" }
+        { "titulo": "Simulaciones y visualizaciones interactivas", "url": "https://phet.colorado.edu/es/", "tipo": "web" },
+        { "titulo": "Videos y práctica guiada", "url": "https://www.khanacademy.org/", "tipo": "video" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }
@@ -334,20 +339,39 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
+    const phenomenonHook = resolvePhenomenonHook({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: parsed.coreExplanation,
+      phenomenonStory: parsed.phenomenonStory,
+      detonatingQuestion: parsed.detonatingQuestion,
+    });
+    const conceptZero = resolveConceptZero({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: parsed.coreExplanation,
+      physicalAnalogy: parsed.physicalAnalogy,
+      coreExplanation: parsed.coreExplanation,
+    });
+    const checkpoint = resolveCheckpoint({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: parsed.coreExplanation,
+      checkpointQuestion: parsed.formativeCheckpoint?.question,
+      criteriaChecklist: parsed.formativeCheckpoint?.criteriaChecklist,
+    });
+
     const missionSection: MissionSection = {
       missionIndex: foundationMission?.missionIndex || 1,
       title: missionTitle,
       coveredSessions,
       sessionTopic: foundationMission?.sessionTopic || 'Fundamentos',
       sessionFocus: foundationMission?.focus || 'Concepto Cero y Andamiaje',
-      phenomenonHook: {
-        story: parsed.phenomenonStory || 'Desafío del entorno escolar poblano.',
-        detonatingQuestion: parsed.detonatingQuestion || '¿Cómo podemos explicar y modelar esta situación?',
-      },
-      conceptZero: {
-        physicalAnalogy: parsed.physicalAnalogy || 'Analogía intuitiva cotidiana.',
-        coreExplanation: parsed.coreExplanation || 'Fundamento conceptual inicial.',
-      },
+      phenomenonHook,
+      conceptZero,
       iDoSection: {
         stepByStepDemo: cleanIDoDemo,
       },
@@ -361,9 +385,8 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       },
       troubleshooting: [],
       formativeCheckpoint: {
-        question: parsed.formativeCheckpoint?.question || '¿Qué aprendiste hoy y cómo se conecta con tu comunidad?',
-        reflectionPrompts: parsed.formativeCheckpoint?.reflectionPrompts || ['Identifica un ejemplo similar en tu entorno.'],
-        criteriaChecklist: parsed.formativeCheckpoint?.criteriaChecklist || ['Explico el concepto sin memorizar fórmulas.'],
+        ...checkpoint,
+        reflectionPrompts: parsed.formativeCheckpoint?.reflectionPrompts || [],
       },
       sessionPlans,
       wordCount: totalMissionWords,

@@ -25,6 +25,7 @@ import type {
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset, SecuenciaBloque } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
+import { isGenericSearchUrl, pickCuratedResourceForText } from '@/lib/resources/curated-resources';
 import {
   resolveVisualForMission,
   resolveEquipmentVisualForMission,
@@ -2084,26 +2085,20 @@ function printPdfCheckItem(
 export function sanitizeEducationalResourceUrl(url: string, titulo: string, tipo: string): string {
   const cleanTitle = sanitizePdfText(stripMarkdown(titulo || 'Recurso educativo EMS')).trim();
   const rawUrl = (url || '').trim();
-  const isYoutubeWatch = /youtube\.com\/watch\?v=|youtu\.be\//i.test(rawUrl);
-  const isScholar = /scholar\.google/i.test(rawUrl);
   const isPlaceholderUrl =
     !rawUrl ||
-    isScholar ||
-    /ejemplo|example\.com|tu-enlace|url-del-recurso|watch\?v=123|watch\?v=abc/i.test(rawUrl);
+    /scholar\.google|example\.com|tu-enlace|url-del-recurso|watch\?v=(?:123|abc|ejemplo)/i.test(rawUrl);
 
-  if (tipo === 'video' || isYoutubeWatch) {
-    if (rawUrl.includes('youtube.com/results?search_query=')) {
-      return rawUrl;
-    }
-    const query = encodeURIComponent(`${cleanTitle} educación media superior`);
-    return `https://www.youtube.com/results?search_query=${query}`;
+  // P0: una búsqueda no es un recurso didáctico. Se sustituye por la biblioteca curada.
+  if (isPlaceholderUrl || isGenericSearchUrl(rawUrl)) {
+    const curated = pickCuratedResourceForText(
+      `${cleanTitle} ${tipo}`,
+      tipo === 'video' ? 'video' : tipo === 'lectura' ? 'lectura' : 'web'
+    );
+    return curated.url;
   }
 
-  if (isPlaceholderUrl || isScholar) {
-    const query = encodeURIComponent(`${cleanTitle} bachillerato`);
-    return `https://www.google.com/search?q=${query}`;
-  }
-
+  // Los enlaces directos (incluido YouTube watch) se conservan: no se destruyen.
   return rawUrl;
 }
 

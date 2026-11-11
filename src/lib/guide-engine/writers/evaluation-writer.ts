@@ -18,6 +18,7 @@ import { robustJsonParse } from '@/lib/ai-response-parser';
 import type {
   EvaluationSection,
   MissionSection,
+  SessionPlan,
   WorkbookElement,
 } from '@/types/work-textbook';
 import {
@@ -39,6 +40,13 @@ import {
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import {
+  resolveAutonomousChallenge,
+  resolveCheckpoint,
+  resolveConceptZero,
+  resolveGuidedPractice,
+  resolvePhenomenonHook,
+} from './mission-narrative';
 
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
   const { evalMission, coveredSessions, title: missionTitle } = resolveEvaluationMission(input);
@@ -91,13 +99,13 @@ ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redacci
  ` : '');
 
   const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
-Tu tarea es redactar el paquete integral de 4 instrumentos de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
+Tu tarea es redactar el paquete integral de instrumentos y componentes de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
 
 ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 1. Rúbrica analítica (300 a 500 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios (suma 100%).
 2. Lista de verificación técnica (200 a 350 palabras): 10 a 15 reactivos medibles clasificados por categorías.
-3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con retroalimentación docente formativa.
+3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con justificación formativa.
 4. Autoevaluación metacognitiva (150 a 250 palabras): 4 a 6 preguntas abiertas de reflexión y transferencia.
 5. Evaluación Escalonada (tieredExercises - 300 a 500 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
 6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
@@ -117,6 +125,20 @@ ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
+  "phenomenonHook": {
+    "story": "Escenario real de la comunidad que pone a prueba los aprendizajes del bloque (con datos del PAEC)...",
+    "detonatingQuestion": "Pregunta que exige interpretar evidencias y decidir el nivel de desempeño..."
+  },
+  "conceptZero": {
+    "physicalAnalogy": "Analogía específica del proceso de evaluación de esta UAC (no una frase genérica)...",
+    "coreExplanation": "Criterio conceptual central para juzgar la calidad del producto o evidencia..."
+  },
+  "guidedPractice": "Coevaluación guiada concreta: qué intercambiar, qué verificar y cómo registrar observaciones...",
+  "autonomousChallenge": "Reto individual de autoevaluación y transferencia con evidencia concreta...",
+  "formativeCheckpoint": {
+    "question": "Pregunta de verificación propia de esta evaluación...",
+    "criteriaChecklist": ["Criterio de auto-verificación específico 1", "Criterio específico 2"]
+  },
   "rubric": [
     {
       "criterion": "Rigor metodológico y procedimental",
@@ -197,7 +219,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "questionNumber": 1,
       "question": "¿Pregunta de juicio crítico o resolución?",
       "scenario": "Situación problemática en comunidad de Puebla...",
-      "answerExplanation": "Justificación formativa y retroalimentación docente > 150 palabras..."
+      "answerExplanation": "Justificación formativa > 150 palabras..."
     }
   ],
   "metacognitiveReflection": {
@@ -221,8 +243,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el criterio central?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video de repaso e integración", "url": "https://www.youtube.com/results?search_query=repaso+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=evaluacion+bachillerato", "tipo": "web" }
+        { "titulo": "Práctica y repaso con retroalimentación", "url": "https://www.khanacademy.org/", "tipo": "video" },
+        { "titulo": "Estándares de competencia y evaluación", "url": "https://www.conocer.gob.mx/", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }
@@ -253,7 +275,7 @@ DISTRIBUCIÓN CALIBRADA DE PALABRAS:
 - criticalThinkingQuiz: ~${quizTarget} palabras
 - metacognitiveReflection: ~${metaTarget} palabras
 
-Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad conceptual y desarrollo analítico:`;
+Genera los instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad conceptual y desarrollo analítico:`;
 
   const useSharding = Boolean(input.scheduler);
   const narrativeMaxTokens = useSharding ? 8192 : 16384;
@@ -338,15 +360,18 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
         ? parsed.tieredExercises
         : undefined,
       criticalThinkingQuiz: parsed.criticalThinkingQuiz || [],
-      metacognitiveReflection: parsed.metacognitiveReflection || {
-        prompts: ['Reflexiona sobre tu aprendizaje en este bloque.'],
-      },
+      metacognitiveReflection: resolveMetacognitiveReflection(parsed),
     };
 
-    const missionSection = buildEvaluationMissionSection(input, evaluationSection);
     const sessionPlans = shardedPromise
       ? (await shardedPromise).plans
       : completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
+    const missionSection = buildEvaluationMissionSection(
+      input,
+      evaluationSection,
+      sessionPlans,
+      parsed as ParsedEvaluationNarrative
+    );
     missionSection.sessionPlans = sessionPlans;
     assertNoGenericContent(missionSection, `EvaluationWriter · ${missionSection.title}`);
     const evalRealText = getEvaluationRealText(evaluationSection);
@@ -410,9 +435,47 @@ function resolveEvaluationMission(input: WriterInput): {
  * Construye la sección de misión (MissionSection) correspondiente a la evaluación
  * para garantizar el contrato uniforme de salida entre todos los redactores.
  */
+interface ParsedEvaluationNarrative {
+  phenomenonHook?: { story?: string; detonatingQuestion?: string };
+  conceptZero?: { physicalAnalogy?: string; coreExplanation?: string };
+  guidedPractice?: string;
+  autonomousChallenge?: string;
+  formativeCheckpoint?: { question?: string; criteriaChecklist?: string[] };
+  reflectionQuestions?: string[];
+}
+
+function resolveMetacognitiveReflection(parsed: {
+  metacognitiveReflection?: { prompts?: string[] };
+  rubric?: Array<{ criterion?: string }>;
+  criticalThinkingQuiz?: Array<{ question?: string }>;
+}): { prompts: string[] } {
+  const explicit = (parsed.metacognitiveReflection?.prompts ?? []).filter(
+    (prompt): prompt is string => typeof prompt === 'string' && prompt.trim().length >= 10
+  );
+  if (explicit.length > 0) return { prompts: explicit };
+
+  const fromRubric = (parsed.rubric ?? [])
+    .map((criterion) =>
+      criterion.criterion
+        ? `¿Cómo demuestras el criterio "${criterion.criterion}" en tu producto o evidencia?`
+        : ''
+    )
+    .filter((prompt) => prompt.length >= 10)
+    .slice(0, 3);
+  if (fromRubric.length > 0) return { prompts: fromRubric };
+
+  const fromQuiz = (parsed.criticalThinkingQuiz ?? [])
+    .map((quiz) => quiz.question ?? '')
+    .filter((question) => question.length >= 10)
+    .slice(0, 3);
+  return { prompts: fromQuiz };
+}
+
 function buildEvaluationMissionSection(
   input: WriterInput,
-  evaluation: EvaluationSection
+  evaluation: EvaluationSection,
+  sessionPlans: SessionPlan[],
+  parsed: ParsedEvaluationNarrative
 ): MissionSection {
   const { evalMission, coveredSessions, missionIndex, title } = resolveEvaluationMission(input);
 
@@ -445,40 +508,79 @@ function buildEvaluationMissionSection(
     )
     .join('\n\n');
 
+  const firstQuiz = evaluation.criticalThinkingQuiz?.[0];
+  const advancedExercise =
+    evaluation.tieredExercises?.find((level) => level.level === 'avanzado')?.exercises?.[0];
+  const checklistSample = (evaluation.checklist ?? [])
+    .slice(0, 3)
+    .map((item) => item.item)
+    .filter((item) => typeof item === 'string' && item.length >= 8);
+
+  const phenomenonHook = resolvePhenomenonHook({
+    uacName: input.uacName,
+    paecContext: input.paecContext,
+    sessionPlans,
+    objective: firstQuiz?.question,
+    phenomenonStory: parsed?.phenomenonHook?.story ?? firstQuiz?.scenario,
+    detonatingQuestion: parsed?.phenomenonHook?.detonatingQuestion ?? firstQuiz?.question,
+  });
+  const conceptZero = resolveConceptZero({
+    uacName: input.uacName,
+    paecContext: input.paecContext,
+    sessionPlans,
+    objective: firstQuiz?.answerExplanation,
+    physicalAnalogy: parsed?.conceptZero?.physicalAnalogy,
+    coreExplanation: parsed?.conceptZero?.coreExplanation ?? firstQuiz?.answerExplanation,
+  });
+  const guidedPractice = resolveGuidedPractice({
+    uacName: input.uacName,
+    paecContext: input.paecContext,
+    sessionPlans,
+    guidedPractice: parsed?.guidedPractice ?? checklistSample.join('; '),
+  });
+  const autonomousChallenge = resolveAutonomousChallenge({
+    uacName: input.uacName,
+    paecContext: input.paecContext,
+    sessionPlans,
+    autonomousChallenge: parsed?.autonomousChallenge ?? advancedExercise?.statement,
+  });
+  const checkpoint = resolveCheckpoint(
+    {
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: firstQuiz?.question,
+      checkpointQuestion: parsed?.formativeCheckpoint?.question,
+      criteriaChecklist:
+        parsed?.formativeCheckpoint?.criteriaChecklist ??
+        (evaluation.rubric ?? []).map((criterion) => criterion.criterion).filter(Boolean),
+    },
+    (evaluation.rubric ?? []).map((criterion) => criterion.criterion).filter(Boolean)
+  );
+
   return {
     missionIndex,
     title,
     coveredSessions,
     sessionTopic: evalMission?.sessionTopic || `Evaluación y Cierre Formativo de ${input.blockName}`,
     sessionFocus: 'Demostración de aprendizajes, coevaluación y rúbrica NEM',
-    phenomenonHook: {
-      story: `La evaluación formativa en el modelo NEM no es una prueba memorística; es la oportunidad en que tú y tu equipo demuestran ante la comunidad escolar cómo los conocimientos construidos en ${input.uacName} responden a la problemática de ${input.paecContext}.`,
-      detonatingQuestion: '¿De qué manera tus evidencias demuestran que alcanzaste las metas de aprendizaje y qué impacto real tienen tus soluciones?',
-    },
-    conceptZero: {
-      physicalAnalogy: 'La evaluación es como el control de calidad final en una línea de producción: no busca descartar piezas, sino asegurar que cada una cumpla con la resistencia y confiabilidad requerida para su propósito real.',
-      coreExplanation: 'La evaluación formativa combina tres miradas indispensables: la heteroevaluación docente guiada por una rúbrica analítica, la coevaluación técnica entre compañeros mediante lista de cotejo, y la autoevaluación reflexiva sobre tu propio progreso cognitivo.',
-    },
+    phenomenonHook,
+    conceptZero,
     iDoSection: {
       stepByStepDemo: `Rúbrica Analítica Oficial NEM:\n\n${rubricDescription}`,
     },
     weDoSection: {
-      guidedPractice: 'Sesión de coevaluación técnica: los equipos contrastan sus entregables utilizando la lista de cotejo y registran observaciones constructivas.',
+      guidedPractice,
       workbookElements: [workbookElements[0]],
     },
     youDoSection: {
-      autonomousChallenge: 'Autoevaluación individual y resolución de los reactivos de juicio crítico en el cuaderno de trabajo.',
+      autonomousChallenge,
       workbookElements: [workbookElements[1]],
     },
     troubleshooting: [],
     formativeCheckpoint: {
-      question: '¿Qué evidencias concretas avalan el nivel de desempeño que asignaste a tu proyecto?',
-      reflectionPrompts: evaluation.metacognitiveReflection.prompts,
-      criteriaChecklist: [
-        'Contrasté mi producto contra todos los niveles de la rúbrica analítica.',
-        'Completé la lista de cotejo con imparcialidad técnica.',
-        'Redacté mis compromisos de mejora para el siguiente periodo.',
-      ],
+      ...checkpoint,
+      reflectionPrompts: evaluation.metacognitiveReflection?.prompts ?? [],
     },
     wordCount: 650,
   };

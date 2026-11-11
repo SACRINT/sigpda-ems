@@ -19,6 +19,7 @@ import { getInstitutionalContext } from '@/lib/institutional-context';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { evaluatePlanningQuality } from '@/lib/planning/quality-pipeline';
+import { validateAnexo12 } from '@/lib/planning/anexo12-validator';
 import {
   repairExtractedDataWithCatalog,
   enforceOfficialProgresiones,
@@ -272,6 +273,23 @@ export async function POST(
                     contenidoFormativo: a.contenidoFormativo,
                   })),
                 }
+              );
+            }
+
+            // Gate determinista de conformidad con el Anexo 12 USICAMM.
+            const anexo12Audit = validateAnexo12(parsedContent, {
+              uacName: planning.uac_name || undefined,
+              semester: planning.semester as number,
+              component: planning.component as string,
+            });
+            (parsedContent as unknown as Record<string, unknown>).anexo12Audit = anexo12Audit;
+            if (anexo12Audit.ok) {
+              logger.info(
+                `[Anexo12] Planeación ${id} conforme — score ${anexo12Audit.score}/100 (${anexo12Audit.passed}/${anexo12Audit.total}).`
+              );
+            } else {
+              logger.warn(
+                `[Anexo12] Planeación ${id} NO CONFORME — ${anexo12Audit.criticalFailures} fallo(s) crítico(s), score ${anexo12Audit.score}/100.`
               );
             }
 

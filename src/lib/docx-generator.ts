@@ -576,6 +576,59 @@ function buildSectionV(content: GeneratedPlanningContent): (Paragraph | Table)[]
   elements.push(tbl(rows, c));
   elements.push(sp());
 
+  // ── Bitácora 50-20-30 (Anexo 12 USICAMM) ──────────────────────────────────
+  const bitacora = s.bitacora502030;
+  if (bitacora) {
+    elements.push(subH('Bitácora 50-20-30 (Anexo 12)'));
+    const criteria: Array<[string, string | undefined]> = [
+      ['Criterio 50% (proceso)', bitacora.criterioProceso50],
+      ['Evidencia colectiva 20%', bitacora.evidenciaColectiva20],
+      ['Evidencia individual 30%', bitacora.evidenciaIndividual30],
+      ['Ticket de salida', bitacora.ticketSalidaPregunta],
+    ];
+    for (const [label, value] of criteria) {
+      elements.push(new Paragraph({
+        spacing: { before: 40, after: 40 },
+        children: [
+          new TextRun({ text: `${label}: `, bold: true, size: 18, font: 'Arial', color: C.dark }),
+          new TextRun({ text: value || 'No especificado', size: 18, font: 'Arial', color: C.text }),
+        ],
+      }));
+    }
+
+    const filas = Array.isArray(bitacora.filasEstudiantes) ? bitacora.filasEstudiantes : [];
+    if (filas.length > 0) {
+      const bw = [0.05, 0.17, 0.07, 0.07, 0.07, 0.07, 0.09, 0.09, 0.32].map((p) => Math.floor(CONTENT * p));
+      bw[bw.length - 1] = CONTENT - bw.slice(0, -1).reduce((a, b) => a + b, 0);
+      const bitRows: TableRow[] = [
+        new TableRow({ children: [
+          tcM('No', { w: bw[0], align: AlignmentType.CENTER, size: 14 }),
+          tcM('Estudiante', { w: bw[1], size: 14 }),
+          tcM('Particip.', { w: bw[2], align: AlignmentType.CENTER, size: 13 }),
+          tcM('Dialog.', { w: bw[3], align: AlignmentType.CENTER, size: 13 }),
+          tcM('Cuestion.', { w: bw[4], align: AlignmentType.CENTER, size: 13 }),
+          tcM('Apoyo', { w: bw[5], align: AlignmentType.CENTER, size: 13 }),
+          tcM('Ev. colectiva 20%', { w: bw[6], align: AlignmentType.CENTER, size: 12 }),
+          tcM('Ev. individual 30%', { w: bw[7], align: AlignmentType.CENTER, size: 12 }),
+          tcM('Notas de acompañamiento', { w: bw[8], size: 13 }),
+        ]}),
+        ...filas.map((fila, index) => new TableRow({ children: [
+          tc(String(fila.no ?? ''), { w: bw[0], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(fila.nombreEstudiante || '', { w: bw[1], size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(fila.participativo ? 'Sí' : 'No', { w: bw[2], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(fila.dialogante ? 'Sí' : 'No', { w: bw[3], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(fila.cuestionador ? 'Sí' : 'No', { w: bw[4], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(fila.apoyo ? 'Sí' : 'No', { w: bw[5], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(String(fila.evidenciaColectivaCalificacion ?? ''), { w: bw[6], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(String(fila.evidenciaIndividualCalificacion ?? ''), { w: bw[7], align: AlignmentType.CENTER, size: 14, fill: index % 2 === 0 ? C.white : C.alt }),
+          tc(fila.notasAcompanamiento || '', { w: bw[8], size: 13, fill: index % 2 === 0 ? C.white : C.alt }),
+        ]})),
+      ];
+      elements.push(tbl(bitRows, bw));
+      elements.push(sp());
+    }
+  }
+
   return elements;
 }
 

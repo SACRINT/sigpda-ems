@@ -133,11 +133,9 @@ describe('GUARDIÁN DE INVARIANTES CURRICULARES (SEP / MCCEMS 2026-2027)', () =>
       expect(sanitized).not.toContain('scholar.google');
       expect(sanitized).not.toContain('example.com');
       expect(sanitized).not.toContain('watch?v=ejemplo');
-      if (test.type === 'video') {
-        expect(sanitized).toContain('youtube.com/results?search_query=');
-      } else {
-        expect(sanitized).toContain('google.com/search?q=');
-      }
+      expect(sanitized).not.toContain('google.com/search');
+      expect(sanitized).not.toContain('youtube.com/results');
+      expect(sanitized).toMatch(/^https:\/\//);
     }
   });
 

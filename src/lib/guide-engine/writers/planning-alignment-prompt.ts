@@ -7,7 +7,8 @@
  */
 
 import type { PlanningActivities } from './writer-contract';
-import { buildDisciplinaryPromptBlock } from '@/lib/prompts/disciplinary-adapters';
+import { buildDisciplinaryPromptBlock, getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import { formatCuratedResourcesForPrompt } from '@/lib/resources/curated-resources';
 
 export type WriterRoleFocus = 'foundation' | 'lab' | 'project' | 'evaluation';
 
@@ -25,11 +26,17 @@ export function buildPlanningAlignmentPrompt(
   const disciplinaryBlock = uacName
     ? buildDisciplinaryPromptBlock(uacName, component, curriculumName || careerOrProgramName)
     : '';
+  const adapter = uacName
+    ? getDisciplinaryAdapter(uacName, component, curriculumName || careerOrProgramName)
+    : null;
+  const curatedBlock = formatCuratedResourcesForPrompt(adapter?.id ?? 'general', 8);
   const urlGuardrail = `
-REGLA DE ENLACES EDUCATIVOS RESILIENTES (CERO 404):
-- En el arreglo "recursos" de cada "sessionPlans", NUNCA inventes IDs de video ("watch?v=...") que no existen.
-- Para recursos de tipo "video", usa SIEMPRE consultas de búsqueda funcional de YouTube: "https://www.youtube.com/results?search_query=TEMA+EDUCACION+MEDIA+SUPERIOR".
-- Para recursos de tipo "web" o "lectura", usa dominios educativos reales (Khan Academy, PhET, UNAM, INEGI, RAE, SEP) o búsqueda web formativa: "https://www.google.com/search?q=TEMA+bachillerato".`;
+REGLA DE ENLACES EDUCATIVOS CURADOS (CERO 404 Y CERO BÚSQUEDAS GENÉRICAS):
+- En el arreglo "recursos" de cada "sessionPlans" usa enlaces DIRECTOS y verificables.
+- PROHIBIDO usar google.com/search, youtube.com/results, bing, duckduckgo o similares como recurso didáctico.
+- NUNCA inventes IDs de video ("watch?v=...") que no puedas verificar; si no conoces un enlace directo, usa la raíz de una institución de la biblioteca curada.
+- Prioriza simuladores y repositorios institucionales sobre videos genéricos.
+${curatedBlock}`;
 
   if (!pa) return `${disciplinaryBlock}${urlGuardrail}`;
 

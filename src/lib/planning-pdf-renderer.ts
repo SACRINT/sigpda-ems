@@ -33,6 +33,13 @@ const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Filas
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
+function sanitizePdfText(value: string): string {
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
 const { PHASE_APERTURA, PHASE_DESARROLLO, PHASE_CIERRE } = COLORS;
 
@@ -694,6 +701,61 @@ export async function generatePlanningPDF(
   });
 
   currentY = doc.lastAutoTable!.finalY + 2.5;
+
+  // ─── Sección V.2: Bitácora 50-20-30 (Anexo 12 USICAMM) ─────────────────
+  const bitacora = s5?.bitacora502030;
+  if (bitacora) {
+    autoTable(doc, {
+      startY: currentY,
+      head: [[{ content: 'V.2 BITÁCORA 50-20-30 — EVALUACIÓN FORMATIVA (ANEXO 12)', colSpan: 2, styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] } }]],
+      body: [
+        [{ content: 'Criterio 50% (proceso)', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 52 } }, { content: sanitizePdfText(bitacora.criterioProceso50 || 'No especificado') }],
+        [{ content: 'Evidencia colectiva 20%', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, { content: sanitizePdfText(bitacora.evidenciaColectiva20 || 'No especificada') }],
+        [{ content: 'Evidencia individual 30%', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, { content: sanitizePdfText(bitacora.evidenciaIndividual30 || 'No especificada') }],
+        [{ content: 'Ticket de salida', styles: { fontStyle: 'bold', fillColor: GRAY_BG } }, { content: sanitizePdfText(bitacora.ticketSalidaPregunta || 'No especificado') }],
+      ],
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
+      margin: { left: margin, right: margin },
+      pageBreak: 'avoid',
+    });
+    currentY = doc.lastAutoTable!.finalY + 2.5;
+
+    const filasBitacora = Array.isArray(bitacora.filasEstudiantes) ? bitacora.filasEstudiantes : [];
+    if (filasBitacora.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        head: [[
+          { content: 'No', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Estudiante', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' } },
+          { content: 'Particip.', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Dialog.', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Cuestion.', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Apoyo', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Ev. colectiva 20%', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Ev. individual 30%', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' } },
+          { content: 'Notas de acompañamiento', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold' } },
+        ]],
+        body: filasBitacora.map((fila) => [
+          { content: String(fila.no ?? ''), styles: { halign: 'center' } },
+          sanitizePdfText(fila.nombreEstudiante || ''),
+          { content: fila.participativo ? 'Sí' : 'No', styles: { halign: 'center' } },
+          { content: fila.dialogante ? 'Sí' : 'No', styles: { halign: 'center' } },
+          { content: fila.cuestionador ? 'Sí' : 'No', styles: { halign: 'center' } },
+          { content: fila.apoyo ? 'Sí' : 'No', styles: { halign: 'center' } },
+          { content: String(fila.evidenciaColectivaCalificacion ?? ''), styles: { halign: 'center' } },
+          { content: String(fila.evidenciaIndividualCalificacion ?? ''), styles: { halign: 'center' } },
+          sanitizePdfText(fila.notasAcompanamiento || ''),
+        ]),
+        theme: 'grid',
+        styles: { fontSize: 6, cellPadding: 1.2, textColor: TEXT_DARK },
+        margin: { left: margin, right: margin },
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+      });
+      currentY = doc.lastAutoTable!.finalY + 2.5;
+    }
+  }
 
   // ─── Firmas Oficiales Tripartitas (Docente / Director / Supervisión) ─────
   autoTable(doc, {

@@ -14,6 +14,10 @@ import type { WriterScheduler } from '../writer-scheduler';
 import { countSessionPlanWords } from '../content-budget';
 import { isMathUAC, validateSessionPlanContamination } from '../cross-contamination-guard';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import {
+  isGenericSearchUrl,
+  pickCuratedResourceForText,
+} from '@/lib/resources/curated-resources';
 import { hasGenericContent } from '../quality/no-generic-content';
 import type {
   CanonicalSeed,
@@ -212,6 +216,37 @@ export function normalizeHttpUrl(raw: string): string {
 }
 
 /**
+ * Sustituye recursos de "búsqueda" (Google/YouTube results) por entradas de la
+ * biblioteca curada. Nunca deja una sesión sin recurso de ampliación.
+ */
+export function ensureCuratedResourceList(
+  recursos: RecursoItem[],
+  context?: FallbackPlanContext
+): RecursoItem[] {
+  const topic = [context?.uacName, context?.sessionTopic, context?.blockName, context?.component]
+    .filter(Boolean)
+    .join(' ');
+
+  const buildCurated = (tipo: RecursoItem['tipo'], extra = ''): RecursoItem => {
+    const resource = pickCuratedResourceForText(
+      `${topic} ${extra}`,
+      tipo === 'video' ? 'video' : tipo === 'lectura' ? 'lectura' : 'web'
+    );
+    return {
+      titulo: resource.titulo,
+      url: resource.url,
+      tipo: resource.tipo === 'video' ? 'video' : resource.tipo === 'lectura' ? 'lectura' : 'web',
+    };
+  };
+
+  const mapped = recursos.map((recurso) =>
+    isGenericSearchUrl(recurso.url) ? buildCurated(recurso.tipo, recurso.titulo) : recurso
+  );
+
+  return mapped.length > 0 ? mapped : [buildCurated('web')];
+}
+
+/**
  * Sanitiza el array `sessionPlans` devuelto por la IA: garantiza que cada plan
  * corresponda a una sesión cubierta real y que sea LIBRO PARA EL ESTUDIANTE
  * (voz en "tú", sin verbos de instrucción al docente). Acepta también la forma
@@ -220,7 +255,8 @@ export function normalizeHttpUrl(raw: string): string {
  */
 export function sanitizeSessionPlans(
   raw: unknown,
-  coveredSessions: number[]
+  coveredSessions: number[],
+  context?: FallbackPlanContext
 ): SessionPlan[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0 || coveredSessions.length === 0) return undefined;
 
@@ -313,6 +349,11 @@ export function sanitizeSessionPlans(
       })
       .filter((r): r is RecursoItem => r !== null);
 
+    // Recursos curados: una búsqueda de Google/YouTube no es un recurso didáctico.
+    // Se sustituye por una entrada de la biblioteca curada o por el recurso
+    // institucional más afín a la UAC/sesión.
+    const recursosCurados = ensureCuratedResourceList(recursos, context);
+
     // Autoevaluación: string[] (nuevo) o un string (heredado evaluacionObjetivo).
     // Nunca se completa con preguntas genéricas: si faltan, el reparador IA debe
     // generarlas o el plan se rechaza antes de publicarse.
@@ -383,7 +424,7 @@ export function sanitizeSessionPlans(
       practica,
       aplicacion,
       autoevaluacion,
-      recursos,
+      recursos: recursosCurados,
       productoIntegrador,
       isFallback: rec.isFallback === true,
     };
@@ -584,7 +625,7 @@ export function completeSessionPlans(
 ): SessionPlan[] {
   if (coveredSessions.length === 0) return [];
 
-  const sanitized = sanitizeSessionPlans(raw, coveredSessions) ?? [];
+  const sanitized = sanitizeSessionPlans(raw, coveredSessions, context) ?? [];
 
   // Deduplica por sesión (si la IA repitió un plan, se conserva el primero).
   const plans: SessionPlan[] = [];

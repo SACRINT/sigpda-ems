@@ -43,6 +43,12 @@ import {
 } from '@/lib/materials/slug-index';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import {
+  resolveCheckpoint,
+  resolveConceptZero,
+  resolveGuidedPractice,
+  resolvePhenomenonHook,
+} from './mission-narrative';
 
 export async function generateProjectMission(input: WriterInput): Promise<WriterOutput> {
   const projectMission = input.missions.find((m) => m.missionType === 'project') || input.missions[input.missions.length - 2] || input.missions[0];
@@ -128,6 +134,19 @@ DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
+  "phenomenonHook": {
+    "story": "Necesidad o problema real de la comunidad que detona este producto/proyecto (con datos del PAEC)...",
+    "detonatingQuestion": "Pregunta que obliga a decidir el diseño, el alcance o la viabilidad del producto..."
+  },
+  "conceptZero": {
+    "physicalAnalogy": "Analogía específica del producto/proyecto (no una frase genérica)...",
+    "coreExplanation": "Principio técnico o conceptual que sustenta la solución..."
+  },
+  "guidedPractice": "Tarea guiada colaborativa concreta para avanzar el producto en el taller o la comunidad...",
+  "formativeCheckpoint": {
+    "question": "Pregunta de verificación propia de esta fase del proyecto...",
+    "criteriaChecklist": ["Criterio de aceptación específico 1", "Criterio específico 2"]
+  },
   "artifactName": "Nombre motivador y descriptivo del producto o proyecto...",
   "communityUtility": "Descripción extensa de utilidad comunitaria e impacto...",
   "learningObjectives": [
@@ -153,7 +172,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
     "Bitácora o registro firmado por fase",
     "Presentación ante el grupo"
   ],
-  "registrationFormat": "BITÁCORA TÉCNICA DE PROYECTO\\nSemana: [ ] Fecha: [ ] Equipo: [ ]\\nActividad: _________________\\nParámetros: ___________ Error: ______\\nIncidencia: _________________ Solución: _________________\\nFirma Docente: _________ Sello: [ ]",
+  "registrationFormat": "BITÁCORA TÉCNICA DE PROYECTO\\nSemana: [ ] Fecha: [ ] Equipo: [ ]\\nActividad: _________________\\nParámetros: ___________ Error: ______\\nIncidencia: _________________ Solución: _________________\\nValidación del equipo: _________",
   "phases": [
     {
       "phaseNum": 1,
@@ -193,8 +212,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el avance de mi producto o proyecto?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video de proyecto aplicado", "url": "https://www.youtube.com/results?search_query=proyecto+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=proyecto+bachillerato", "tipo": "web" }
+        { "titulo": "Proyectos y prototipos paso a paso", "url": "https://www.instructables.com/", "tipo": "web" },
+        { "titulo": "Diseño 3D, circuitos y simulación", "url": "https://www.tinkercad.com/", "tipo": "video" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }
@@ -439,25 +458,53 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
+    const phenomenonHook = resolvePhenomenonHook({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: projectSection.communityUtility,
+      phenomenonStory: parsed?.phenomenonHook?.story,
+      detonatingQuestion: parsed?.phenomenonHook?.detonatingQuestion,
+    });
+    const conceptZero = resolveConceptZero({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: projectSection.communityUtility,
+      physicalAnalogy: parsed?.conceptZero?.physicalAnalogy,
+      coreExplanation: projectSection.communityUtility,
+    });
+    const guidedPractice = resolveGuidedPractice({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      guidedPractice: parsed?.guidedPractice ?? projectSection.executionSteps?.slice(0, 2).join(' '),
+    });
+    const checkpoint = resolveCheckpoint(
+      {
+        uacName: input.uacName,
+        paecContext: input.paecContext,
+        sessionPlans,
+        objective: projectSection.communityUtility,
+        checkpointQuestion: parsed?.formativeCheckpoint?.question,
+        criteriaChecklist: parsed?.formativeCheckpoint?.criteriaChecklist,
+      },
+      projectSection.acceptanceCriteria ?? []
+    );
+
     const missionSection: MissionSection = {
       missionIndex: projectMission?.missionIndex || 3,
       title: missionTitle,
       coveredSessions,
       sessionTopic: projectSection.artifactName,
       sessionFocus: 'Desarrollo del producto e integración socioproductiva',
-      phenomenonHook: {
-        story: `Llegamos a la fase de transferencia y aplicación: aquí transformamos el conocimiento de ${input.uacName} en un producto o proyecto real que atiende la problemática de ${input.paecContext}.`,
-        detonatingQuestion: '¿De qué manera una solución bien diseñada puede mejorar la calidad de vida o el aprendizaje en nuestro entorno escolar y comunitario?',
-      },
-      conceptZero: {
-        physicalAnalogy: 'Un proyecto es como resolver un problema real: no basta con tener una idea, hay que probarla, revisarla y mejorarla con evidencias.',
-        coreExplanation: projectSection.communityUtility,
-      },
+      phenomenonHook,
+      conceptZero,
       iDoSection: {
         stepByStepDemo: `Fases del Proyecto Formativo:\n${phasesText}`,
       },
       weDoSection: {
-        guidedPractice: 'Desarrollo colaborativo en equipos de trabajo con seguimiento docente en el aula y taller.',
+        guidedPractice,
         workbookElements: [workbookElements[0]],
       },
       youDoSection: {
@@ -466,9 +513,8 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
       },
       troubleshooting: [],
       formativeCheckpoint: {
-        question: '¿Qué impacto esperado tiene tu producto o proyecto en la comunidad o en tu perfil profesional?',
-        reflectionPrompts: ['Evalúa la viabilidad y pertinencia de tu propuesta.'],
-        criteriaChecklist: ['El producto o evidencia cumple los criterios de aceptación acordados.'],
+        ...checkpoint,
+        reflectionPrompts: parsed.reflectionQuestions || projectSection.learningObjectives?.slice(0, 3) || [],
       },
       sessionPlans,
       wordCount: totalMissionWords,

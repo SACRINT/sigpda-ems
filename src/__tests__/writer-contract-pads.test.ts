@@ -74,13 +74,15 @@ describe('sanitizeSessionPlans — sin relleno genérico', () => {
     expect(plans[0].recursos[0].url).toBe('https://www.youtube.com/watch?v=sinp');
   });
 
-  it('recurso con URL basura → se descarta y el plan se conserva', () => {
+  it('recurso con URL basura → se sustituye por un recurso curado y el plan se conserva', () => {
     const plans = sanitize(
       rawPlan({
         recursos: [{ titulo: 'Enlace roto', url: 'no-es-una-url-valida', tipo: 'video' }],
       }),
     )!;
-    expect(plans[0].recursos).toHaveLength(0);
+    expect(plans[0].recursos).toHaveLength(1);
+    expect(plans[0].recursos[0].url).toMatch(/^https:\/\//);
+    expect(plans[0].recursos[0].url).not.toContain('no-es-una-url-valida');
     expect(plans[0].sessionNumber).toBe(1);
   });
 

@@ -38,6 +38,11 @@ import {
 import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import {
+  resolveCheckpoint,
+  resolveConceptZero,
+  resolvePhenomenonHook,
+} from './mission-narrative';
 
 export async function generateLabMission(input: WriterInput): Promise<WriterOutput> {
   const labMission = input.missions.find((m) => m.missionType === 'lab') || input.missions[1] || input.missions[0];
@@ -146,6 +151,18 @@ DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
+  "phenomenonHook": {
+    "story": "Caso real de la comunidad o del taller que detona la práctica (2-4 frases, con datos del PAEC)...",
+    "detonatingQuestion": "Pregunta que confronta el error conceptual o la decisión técnica central de la práctica..."
+  },
+  "conceptZero": {
+    "physicalAnalogy": "Analogía física o cotidiana ESPECÍFICA de esta práctica (no una frase genérica)...",
+    "coreExplanation": "Explicación conceptual central que el estudiante debe construir..."
+  },
+  "formativeCheckpoint": {
+    "question": "Pregunta de verificación de comprensión propia de esta práctica...",
+    "criteriaChecklist": ["Criterio de auto-verificación específico 1", "Criterio específico 2"]
+  },
   "labTitle": "Título oficial de la práctica...",
   "objective": "Objetivo claro y contundente...",
   "materialsList": ["✓ Insumo / Herramienta 1", "✓ Software / Equipo 2"],
@@ -180,8 +197,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Puedo explicar el procedimiento?", "¿Logré la práctica sin mirar?"],
       "recursos": [
-        { "titulo": "Video práctico sobre el tema", "url": "https://www.youtube.com/results?search_query=practica+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=practica+bachillerato", "tipo": "web" }
+        { "titulo": "Simulaciones y laboratorio virtual", "url": "https://phet.colorado.edu/es/", "tipo": "web" },
+        { "titulo": "Práctica guiada y ejercicios", "url": "https://www.khanacademy.org/", "tipo": "video" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }
@@ -427,20 +444,39 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
     const totalMissionWords = sectionWordCount + sessionPlansWords;
 
+    const phenomenonHook = resolvePhenomenonHook({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: parsed.objective,
+      phenomenonStory: parsed?.phenomenonHook?.story,
+      detonatingQuestion: parsed?.phenomenonHook?.detonatingQuestion,
+    });
+    const conceptZero = resolveConceptZero({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: parsed.objective,
+      physicalAnalogy: parsed?.conceptZero?.physicalAnalogy,
+      coreExplanation: parsed?.conceptZero?.coreExplanation,
+    });
+    const checkpoint = resolveCheckpoint({
+      uacName: input.uacName,
+      paecContext: input.paecContext,
+      sessionPlans,
+      objective: parsed.objective,
+      checkpointQuestion: parsed?.formativeCheckpoint?.question,
+      criteriaChecklist: parsed?.formativeCheckpoint?.criteriaChecklist,
+    });
+
     const missionSection: MissionSection = {
       missionIndex: labMission?.missionIndex || 2,
       title: missionTitle,
       coveredSessions,
       sessionTopic: labMission?.sessionTopic || 'Práctica disciplinar',
       sessionFocus: labMission?.focus || 'Destrezas prácticas y procedimentales',
-      phenomenonHook: {
-        story: `Durante esta práctica en el aula o taller, abordaremos directamente cómo manipular variables operativas de ${input.uacName} para resolver retos vinculados a ${input.paecContext}.`,
-        detonatingQuestion: '¿De qué forma la precisión en la recolección de datos y la ejecución determina la confiabilidad del producto final?',
-      },
-      conceptZero: {
-        physicalAnalogy: 'Cada registro de la actividad es como un mapa de navegación: un dato impreciso en el punto de partida te aleja del resultado esperado.',
-        coreExplanation: parsed.objective || 'Desarrollar habilidades operativas y analíticas con rigor procedimental.',
-      },
+      phenomenonHook,
+      conceptZero,
       iDoSection: {
         stepByStepDemo: `Protocolo Técnico:\n${cleanStepByStep}`,
       },
@@ -462,9 +498,8 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
       },
       troubleshooting: troubles,
       formativeCheckpoint: {
-        question: '¿Los valores experimentales coincidieron con los calculados teóricamente? Justifica tu respuesta.',
-        reflectionPrompts: parsed.reflectionQuestions || ['Analiza las causas de dispersión de tus datos.'],
-        criteriaChecklist: ['Registré todas las lecturas con sus unidades de medida correspondientes.'],
+        ...checkpoint,
+        reflectionPrompts: parsed.reflectionQuestions || [],
       },
       sessionPlans,
       wordCount: totalMissionWords,

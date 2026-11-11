@@ -171,7 +171,7 @@ function specVariant(type: SessionMissionType, discipline: string): SessionSpecV
           'ejemplo numérico o procedimental con planteamiento contextualizado, datos explícitos, desarrollo paso a paso numerado en 4 pasos y análisis del resultado',
         practica:
           '2 ejercicios contextualizados con datos reales; enunciados detallados (mínimo 60 palabras cada uno) con "pista" orientadora (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados con operaciones completas',
-        recursos: '1-2 enlaces verosímiles de ampliación (YouTube o web)',
+        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
         productoLabel: 'avance concreto y fechado del entregable para el portafolio',
       };
     case 'lab':
@@ -184,7 +184,7 @@ function specVariant(type: SessionMissionType, discipline: string): SessionSpecV
           'ejemplo numérico/experimental paso a paso con datos de laboratorio, sustitución y cálculos en 4 pasos numerados (Planteamiento, Paso 1 Datos, Paso 2 Ecuación, Paso 3 Operaciones, Paso 4 Conclusión)',
         practica:
           '2 ejercicios/tareas concretas con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados',
-        recursos: '1-2 enlaces reales a video o web de ampliación',
+        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
         productoLabel: 'qué agrega el estudiante a su proyecto hoy',
       };
     case 'project':
@@ -195,7 +195,7 @@ function specVariant(type: SessionMissionType, discipline: string): SessionSpecV
         ejemplo: 'ejemplo numérico, procedimental o analítico resuelto paso a paso con datos del proyecto en 4 pasos numerados',
         practica:
           '2 tareas/ejercicios con datos concretos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados',
-        recursos: '1-2 enlaces reales a video o web de ampliación',
+        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
         productoLabel: 'avance concreto del producto del proyecto',
       };
     case 'evaluation':
@@ -207,7 +207,7 @@ function specVariant(type: SessionMissionType, discipline: string): SessionSpecV
         ejemplo: 'ejemplo evaluativo resuelto paso a paso con rúbrica comentada, cálculos y 4 pasos numerados',
         practica:
           '2 reactivos formativos complejos con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados',
-        recursos: '1-2 enlaces reales a video o web de ampliación',
+        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
         productoLabel: 'evidencia final que el estudiante integra a su portafolio',
       };
   }
@@ -456,7 +456,7 @@ export async function generateShardedSessionPlans(
 
   // Valida densidad por sesión sobre planes ya sanitizados
   const thresholds = densityThresholdsFor(ctx.targetWordsPerPlan);
-  let sanitized = sanitizeSessionPlans(raw, ctx.coveredSessions) ?? [];
+  let sanitized = sanitizeSessionPlans(raw, ctx.coveredSessions, ctx.fallbackContext) ?? [];
   const deficient = sanitized
     .map((plan) => ({ plan, report: evaluateSessionPlanDensity(plan, thresholds) }))
     .filter((x) => !x.report.ok);
@@ -481,7 +481,7 @@ export async function generateShardedSessionPlans(
     );
     repairs.forEach((res, idx) => {
       if (res.status !== 'fulfilled') return;
-      const candidate = sanitizeSessionPlans(res.value, [targets[idx].plan.sessionNumber])?.[0];
+      const candidate = sanitizeSessionPlans(res.value, [targets[idx].plan.sessionNumber], ctx.fallbackContext)?.[0];
       if (!candidate) return;
       const before = targets[idx].report;
       const after = evaluateSessionPlanDensity(candidate, thresholds);
@@ -542,7 +542,7 @@ export async function regenerateSessionsWithTerms(
   results.forEach((res, idx) => {
     if (res.status !== 'fulfilled') return;
     const session = entries[idx][0];
-    const candidate = sanitizeSessionPlans(res.value, [session])?.[0];
+    const candidate = sanitizeSessionPlans(res.value, [session], ctx.fallbackContext)?.[0];
     if (!candidate) return;
     const prev = merged.find((p) => p.sessionNumber === session);
     const candReport = evaluateSessionPlanDensity(candidate, thresholds);
