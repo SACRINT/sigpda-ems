@@ -12,7 +12,10 @@ export type KnownFeatureFlag =
   | 'PAEC_ORCHESTRATOR_V2'
   | 'CARTOGRAFIA_ORCHESTRATOR_V2'
   | 'HORARIOS_ORCHESTRATOR_V2'
-  | 'EDITORIAL_PUBLISHER_ENGINE';
+  | 'EDITORIAL_PUBLISHER_ENGINE'
+  | 'KNOWLEDGE_LAYER_ENABLED'
+  | 'KNOWLEDGE_TELEMETRY'
+  | 'PROMPT_CATALOG_ENABLED';
 
 export type FlagSource = 'override' | 'env' | 'default';
 
@@ -34,6 +37,9 @@ export class FeatureFlagService {
     ['CARTOGRAFIA_ORCHESTRATOR_V2', false],
     ['HORARIOS_ORCHESTRATOR_V2', false],
     ['EDITORIAL_PUBLISHER_ENGINE', false],
+    ['KNOWLEDGE_LAYER_ENABLED', false],
+    ['KNOWLEDGE_TELEMETRY', false],
+    ['PROMPT_CATALOG_ENABLED', false],
   ]);
 
   /**

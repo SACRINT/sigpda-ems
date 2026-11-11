@@ -263,8 +263,15 @@ export function countSessionPlanWords(plan: {
 
 /**
  * Valida la cobertura de sesiones y consistencia de páginas/palabras frente al presupuesto.
- * Aplica tolerancia editorial estricta: para 3h/semana requiere estrictamente entre 45 y 50 páginas
- * (20,250 a 22,500 palabras) con tolerancia editorial máxima de ±2% por oscilaciones de tokenización.
+ *
+ * Dos niveles distintos, no confundirlos:
+ * - `withinTargetRange` es el rango FORMAL estricto [min, max] (para 3 h/semana:
+ *   20,250 a 22,500 palabras, ~45–50 páginas). Solo se usa para diagnóstico.
+ * - El gate editorial que acepta o rechaza el libro vive en
+ *   `block-guide-orchestrator.ts` y aplica una tolerancia de ±10% sobre ese rango
+ *   (18,225 a 24,750 palabras) para absorber tokenización y riqueza técnica.
+ * - El margen ±2% de este módulo es únicamente para clasificar advertencias
+ *   (leve vs. crítica); NO autoriza ni bloquea nada.
  */
 export function validateSessionCoverage(params: {
   sessions: Array<{ sessionNumber: number; isFallback?: boolean }>;

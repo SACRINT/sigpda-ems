@@ -15,6 +15,7 @@ import { buildUserPrompt } from '@/lib/prompts/build-prompt';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PlanningContentSchema, type PlanningContentDTO } from '@/lib/ai-schemas';
 import { getUserLibraryContext } from '@/lib/context-extractor';
+import { getInstitutionalContext } from '@/lib/institutional-context';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { evaluatePlanningQuality } from '@/lib/planning/quality-pipeline';
@@ -160,8 +161,13 @@ export async function POST(
 
     // NOTA: La normativa oficial NO se inyecta en planeaciones didácticas de aula.
     // Decisión de diseño institucional: solo PMC y PIPS llevan fundamentación jurídica.
+    // La Capa de Conocimiento SEP aporta únicamente dominios metodológico/curricular.
+    const knowledgeContext = await getInstitutionalContext('planeacion');
 
     let fullUserPrompt = userPrompt;
+    if (knowledgeContext.block) {
+      fullUserPrompt += `\n\n${knowledgeContext.block}`;
+    }
     if (libraryContext) {
       fullUserPrompt += `\n\n${libraryContext}`;
     }

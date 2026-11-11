@@ -11,6 +11,7 @@ import {
 } from '@/lib/prompts/pips-chunks';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { getNormativaForGenerator } from '@/lib/normativa-context';
+import { getInstitutionalContext } from '@/lib/institutional-context';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 
 export const runtime = 'nodejs';
@@ -141,10 +142,12 @@ async function generateChunkWithRetry(
 
     // PARTE 1: Presentación + Fundamentación Normativa + Diagnóstico
     const normativaContext = await getNormativaForGenerator('pips');
+    const knowledgeContext = await getInstitutionalContext('pips');
     const prompt1 = getChunk1Prompt(row, plantelesData, totalAlumnos, totalPersonal);
 
     let prompt1WithCtx = prompt1;
     if (normativaContext) prompt1WithCtx = `${normativaContext}\n\n${prompt1WithCtx}`;
+    if (knowledgeContext.block) prompt1WithCtx = `${knowledgeContext.block}\n\n${prompt1WithCtx}`;
     if (libraryContext) prompt1WithCtx = `${libraryContext}\n\n${prompt1WithCtx}`;
 
     const chunk1Result = await generateChunkWithRetry(

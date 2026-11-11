@@ -14,6 +14,7 @@ import type { WriterScheduler } from '../writer-scheduler';
 import { countSessionPlanWords } from '../content-budget';
 import { isMathUAC, validateSessionPlanContamination } from '../cross-contamination-guard';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import { hasGenericContent } from '../quality/no-generic-content';
 import type {
   CanonicalSeed,
   MissionSection,
@@ -105,6 +106,12 @@ export interface WriterInput {
    * Mapa (sessionNumber -> términos faltantes) asignado a este redactor en Fase 8.5.
    */
   surgicalSessionTerms?: Map<number, string[]>;
+  /**
+   * Bloque de contexto institucional SEP (Capa de Conocimiento). Solo dominios
+   * metodológico/curricular; se inyecta como referencia, nunca como instrucción.
+   * Vacío/undefined cuando `KNOWLEDGE_LAYER_ENABLED=false`.
+   */
+  institutionalContext?: string;
 }
 
 export interface WriterOutput {
@@ -194,19 +201,6 @@ export function evaluateQuality(params: {
 }
 
 /**
- * Preguntas de autoevaluación de respaldo (mínimo editorial: 2 por sesión).
- * Completan planes donde la IA devolvió menos de 2 ítems válidos.
- */
-export const DEFAULT_AUTOEVALUACION: readonly string[] = [
-  '¿Puedo explicar con mis palabras el concepto central de esta sesión?',
-  '¿Logré resolver la práctica sin mirar el ejemplo?',
-];
-
-/** Pista genérica de respaldo cuando la IA no devolvió orientación para el ejercicio. */
-export const FALLBACK_PISTA =
-  'Observa el ejemplo resuelto paso a paso y aplica el mismo procedimiento con los datos del ejercicio.';
-
-/**
  * Normaliza URLs casi-válidas devueltas por la IA (p.ej. "www.youtube.com/watch?v=…"
  * sin protocolo) añadiendo https://. Cadenas que no parecen dominio se conservan tal
  * cual para que las reglas de validación las descarten sin inventar enlaces.
@@ -286,7 +280,7 @@ export function sanitizeSessionPlans(
       .map((p): PracticaItem | null => {
         if (typeof p === 'string') {
           const t = toStudentVoice(p);
-          return t.length >= 10 ? { enunciado: t, pista: FALLBACK_PISTA } : null;
+          return t.length >= 10 ? { enunciado: t, pista: '' } : null;
         }
         if (p && typeof p === 'object') {
           const pr = p as Record<string, unknown>;
@@ -296,7 +290,7 @@ export function sanitizeSessionPlans(
           const pistaCruda = asText(pr.pista ?? pr.hint ?? pr.pista_, 5);
           return {
             enunciado,
-            pista: pistaCruda.length >= 5 ? pistaCruda : FALLBACK_PISTA,
+            pista: pistaCruda,
             ...(solucion.length > 0 ? { solucion } : {}),
           };
         }
@@ -320,7 +314,8 @@ export function sanitizeSessionPlans(
       .filter((r): r is RecursoItem => r !== null);
 
     // Autoevaluación: string[] (nuevo) o un string (heredado evaluacionObjetivo).
-    // Mínimo editorial: 2 ítems (StudentSessionSchema) — se completa con defaults.
+    // Nunca se completa con preguntas genéricas: si faltan, el reparador IA debe
+    // generarlas o el plan se rechaza antes de publicarse.
     const autoevalRaw = Array.isArray(rec.autoevaluacion) ? rec.autoevaluacion : [rec.autoevaluacion];
     const autoevaluacion = autoevalRaw
       .map((a) => toStudentVoice(asText(a)))
@@ -357,29 +352,40 @@ export function sanitizeSessionPlans(
     const productoIntegrador = toStudentVoice(asText(rec.productoIntegrador ?? rec.entregable ?? rec.evidencia, 10));
     const objetivo = toStudentVoice(asText(rec.objetivo ?? rec.meta, 10));
 
-    const defaultPractica: PracticaItem[] = [
-      {
-        enunciado: `Resuelve los ejercicios prácticos de la sesión ${sessionNumber} aplicando el modelo conceptual estudiado con datos de tu entorno.`,
-        pista: FALLBACK_PISTA,
-      },
-    ];
+    // Gate fail-closed: un plan con campos teóricos ausentes NO se rellena con
+    // texto genérico. Se descarta aquí para que completeSessionPlans lance
+    // IncompleteSessionPlansError y el orquestador reintente al writer.
+    const missingCoreFields = [
+      !objetivo ? 'objetivo' : null,
+      !motivacion ? 'motivacion' : null,
+      !saberesPrevios ? 'saberesPrevios' : null,
+      !contenido ? 'contenido' : null,
+      !ejemploResuelto ? 'ejemploResuelto' : null,
+      !aplicacion ? 'aplicacion' : null,
+      !productoIntegrador ? 'productoIntegrador' : null,
+    ].filter((field): field is string => field !== null);
+
+    if (missingCoreFields.length > 0) {
+      logger.warn(
+        `[writer-contract] Sesión ${sessionNumber} descartada: faltan campos teóricos reales (${missingCoreFields.join(', ')}). ` +
+          'No se inyecta relleno genérico; se fuerza reintento del writer.'
+      );
+      continue;
+    }
 
     const plan: SessionPlan = {
       sessionNumber,
-      objetivo: objetivo || `Al terminar la sesión ${sessionNumber} sabrás aplicar los conceptos del tema en situaciones reales.`,
-      motivacion: motivacion || `Imagina que en tu comunidad existe un problema real que puede resolverse con lo que vas a aprender hoy.`,
-      saberesPrevios: saberesPrevios || `Ya conoces ideas previas del tema de la sesión anterior; úsalas como punto de partida.`,
-      contenido: contenido || `En esta sesión estudiarás los conceptos fundamentales del tema con definiciones, fórmulas y ejemplos que podrás aplicar de inmediato.`,
-      ejemploResuelto: ejemploResuelto || `A continuación verás un ejemplo resuelto paso a paso con números concretos; sigue el procedimiento en tu cuaderno.`,
-      practica: practica.length > 0 ? practica : defaultPractica,
-      aplicacion: aplicacion || `Aplica lo aprendido a una situación de tu vida diaria y registra la evidencia en tu cuaderno.`,
-      autoevaluacion:
-        autoevaluacion.length >= 2
-          ? autoevaluacion
-          : [...autoevaluacion, ...DEFAULT_AUTOEVALUACION].slice(0, 2),
+      objetivo,
+      motivacion,
+      saberesPrevios,
+      contenido,
+      ejemploResuelto,
+      practica,
+      aplicacion,
+      autoevaluacion,
       recursos,
-      productoIntegrador: productoIntegrador || `Agrega a tu producto integrador el avance de esta sesión con evidencia legible y fechada.`,
-      isFallback: false,
+      productoIntegrador,
+      isFallback: rec.isFallback === true,
     };
     validPlans.push(plan);
   }
@@ -612,11 +618,17 @@ export const FALLBACK_SIGNATURE_SNIPPET = 'profundizaremos en el análisis siste
 export function detectFallbackWords(sessions: SessionPlan[], uacName?: string): number {
   let fallbackWords = 0;
   for (const plan of sessions) {
-    if (plan.isFallback) {
+    // La detección es por contenido, no solo por la bandera isFallback: un plan
+    // puede traer texto de contingencia sin estar marcado y aun así ser genérico.
+    if (plan.isFallback || hasGenericContent(plan)) {
       fallbackWords += countSessionPlanWords(plan);
-    } else if (plan.contenido && plan.contenido.includes(FALLBACK_SIGNATURE_SNIPPET)) {
+      continue;
+    }
+    if (plan.contenido && plan.contenido.includes(FALLBACK_SIGNATURE_SNIPPET)) {
       fallbackWords += countSessionPlanWords(plan);
-    } else if (uacName && !isMathUAC(uacName)) {
+      continue;
+    }
+    if (uacName && !isMathUAC(uacName)) {
       const issues = validateSessionPlanContamination(plan, uacName);
       if (issues.length > 0) {
         fallbackWords += countSessionPlanWords(plan);

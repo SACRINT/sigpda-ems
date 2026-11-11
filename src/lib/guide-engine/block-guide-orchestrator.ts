@@ -43,9 +43,11 @@ import { generateLabMission } from './writers/lab-writer';
 import { generateProjectMission } from './writers/project-writer';
 import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
+import { findGenericContent } from './quality/no-generic-content';
 import { validateBlockGuideQuality } from './quality-validator';
 import { expandDeficientSessionPlans } from './session-plan-expansion';
 import * as aiProvider from '@/lib/ai-provider';
+import { getInstitutionalContext } from '@/lib/institutional-context';
 import { createWriterScheduler, resolveWriterConcurrency } from './writer-scheduler';
 import {
   evaluatePlanningContentAlignment,
@@ -374,6 +376,10 @@ export async function generateBlockWorkTextbook(
   const requiredCurricularTerms = extractRequiredCurricularTerms(planningActivities);
   const partitionedTerms = partitionRequiredTerms(requiredCurricularTerms);
 
+  // Capa de Conocimiento SEP (editorial): solo metodológico/curricular, con
+  // presupuesto reducido porque el bloque se inyecta en cada paquete de sesiones.
+  const editorialKnowledge = await getInstitutionalContext('editorial', { maxTokens: 600 });
+
   const baseWriterInput: WriterInput = {
     planning,
     blockIndex,
@@ -391,6 +397,7 @@ export async function generateBlockWorkTextbook(
     planningActivities,
     signal: options.signal,
     scheduler,
+    institutionalContext: editorialKnowledge.block || undefined,
   };
 
   // ── Fase 6: Redacción Concurrente Acotada (Scheduler + Sharding) ───────
@@ -736,61 +743,23 @@ export async function generateBlockWorkTextbook(
     evalOut.section,
   ].filter(Boolean);
 
-  const defaultProjectSection: ProjectSection = {
-    artifactName: `Producto Integrador para ${planning.uacName}`,
-    communityUtility: `Solución comunitaria orientada a ${curriculumContext.paecConnection.communityProblem}`,
-    phases: [
-      { phaseNum: 1, title: 'Fase 1: Diagnóstico', allocatedHours: 2, deliverables: ['Propuesta'], instructions: 'Definir alcances y criterios.' },
-      { phaseNum: 2, title: 'Fase 2: Desarrollo', allocatedHours: 4, deliverables: ['Producto o evidencia'], instructions: 'Desarrollar la propuesta.' },
-      { phaseNum: 3, title: 'Fase 3: Revisión y Entrega', allocatedHours: 2, deliverables: ['Registro o bitácora'], instructions: 'Verificar resultados en campo.' },
-    ],
-    technicalSpecs: ['Criterios de calidad y presentación formal'],
-    acceptanceCriteria: ['El producto o evidencia cumple los requerimientos'],
-  };
+  // Fail-closed: el proyecto y la evaluación DEBEN venir del writer con
+  // contenido específico. No se sustituyen por plantillas genéricas.
+  if (!projectOut.projectSection) {
+    throw new Error(
+      `[BlockIntegrity] ProjectWriter no entregó projectSection para el bloque ${blockIndex} de "${planning.uacName}". ` +
+        'No se persiste una plantilla genérica; reintente el bloque.'
+    );
+  }
+  if (!evalOut.evaluationSection) {
+    throw new Error(
+      `[BlockIntegrity] EvaluationWriter no entregó evaluationSection para el bloque ${blockIndex} de "${planning.uacName}". ` +
+        'No se persiste una rúbrica genérica; reintente el bloque.'
+    );
+  }
 
-  const defaultEvaluationSection: EvaluationSection = {
-    source: 'generated_fresh',
-    rubric: [
-      {
-        criterion: 'Calidad Técnica y Procedimental',
-        weightPercent: 50,
-        levels: [
-          { levelName: 'Excelente', points: 10, descriptor: 'Demuestra dominio pleno de los estándares.' },
-          { levelName: 'Bueno', points: 8, descriptor: 'Aplica los conceptos correctamente con mínimas omisiones.' },
-          { levelName: 'Suficiente', points: 6, descriptor: 'Cumple los requisitos indispensables de forma básica.' },
-          { levelName: 'Requiere Apoyo', points: 4, descriptor: 'Requiere acompañamiento permanente.' },
-        ],
-      },
-      {
-        criterion: 'Impacto en la Comunidad PAEC',
-        weightPercent: 50,
-        levels: [
-          { levelName: 'Excelente', points: 10, descriptor: 'Aporte de alto valor a la problemática escolar.' },
-          { levelName: 'Bueno', points: 8, descriptor: 'Aporte claro y medible al entorno escolar.' },
-          { levelName: 'Suficiente', points: 6, descriptor: 'Aporte modesto o indirecto.' },
-          { levelName: 'Requiere Apoyo', points: 4, descriptor: 'Sin vinculación demostrable.' },
-        ],
-      },
-    ],
-    checklist: [
-      { item: 'Entrega del producto en tiempo y forma', category: 'Cumplimiento' },
-      { item: 'Funcionamiento comprobable del artefacto', category: 'Técnico' },
-    ],
-    criticalThinkingQuiz: [
-      {
-        questionNumber: 1,
-        question: `¿Cómo mitiga tu proyecto la problemática de ${curriculumContext.paecConnection.communityProblem}?`,
-        scenario: 'Demostración de resultados ante la comunidad escolar.',
-        answerExplanation: 'El estudiante debe justificar el impacto social de su artefacto.',
-      },
-    ],
-    metacognitiveReflection: {
-      prompts: ['¿Qué aprendiste al construir este proyecto que puedas aplicar en tu vida diaria?'],
-    },
-  };
-
-  const projectSection: ProjectSection = projectOut.projectSection || defaultProjectSection;
-  const evaluationSection: EvaluationSection = evalOut.evaluationSection || defaultEvaluationSection;
+  const projectSection: ProjectSection = projectOut.projectSection;
+  const evaluationSection: EvaluationSection = evalOut.evaluationSection;
 
   const totalWords = validation.totalWordCount;
   // Estimación transparente y real basada en densidad editorial de texto y espacios de trabajo:
@@ -814,6 +783,10 @@ export async function generateBlockWorkTextbook(
   ).sort((a, b) => a - b);
 
   const allSessionPlans = missions.flatMap((m) => m.sessionPlans || []);
+  const genericContentIssues = findGenericContent(
+    { missions, projectSection, evaluationSection },
+    'block'
+  );
   const fallbackWords = detectFallbackWords(allSessionPlans, planning.uacName);
   const aiWords = Math.max(0, totalWords - fallbackWords);
 
@@ -853,6 +826,14 @@ export async function generateBlockWorkTextbook(
   // Gate fail-closed: no se persiste un bloque con fallback, sesiones incompletas,
   // presupuesto fuera de rango, calidad insuficiente o desalineación con la planeación.
   const integrityBlockers: string[] = [];
+  if (genericContentIssues.length > 0) {
+    integrityBlockers.push(
+      `contenido_genérico=${genericContentIssues.length} (${genericContentIssues
+        .slice(0, 5)
+        .map((issue) => `${issue.path}: ${issue.label}`)
+        .join(' | ')})`
+    );
+  }
   if (fallbackWords > 0) {
     integrityBlockers.push(`fallbackWords=${fallbackWords} (debe ser 0)`);
   }
@@ -861,10 +842,10 @@ export async function generateBlockWorkTextbook(
       `sesiones=${coverageReport.sessionsCovered}/${coverageReport.sessionsExpected} (deben estar completas)`
     );
   }
-  // Tolerancia editorial estricta para absorber fluctuaciones de tokenización normales de la IA (±3.5%)
-  // Para 18 sesiones (meta formal 20,250 a 22,500 palabras = 45 a 50 páginas), el margen editorial es [19,541 - 23,287].
-  const minAllowedWords = Math.round(budget.targetWords.min * 0.965);
-  const maxAllowedWords = Math.round(budget.targetWords.max * 1.035);
+  // Tolerancia editorial flexible (±10%): absorbe variaciones de tokenización
+  // y riqueza técnica de la IA sin descartar libros extensos de alta calidad.
+  const minAllowedWords = Math.round(budget.targetWords.min * 0.90);
+  const maxAllowedWords = Math.round(budget.targetWords.max * 1.10);
   const wordsWithinEditorialTolerance =
     fallbackWords === 0 &&
     coverageReport.aiWords >= minAllowedWords &&

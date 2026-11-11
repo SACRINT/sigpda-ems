@@ -22,11 +22,11 @@ import { runScheduled } from '../writer-scheduler';
 import {
   completeSessionPlans,
   sanitizeSessionPlans,
-  FALLBACK_PISTA,
   type FallbackPlanContext,
   type WriterInput,
   type WriterOutput,
 } from './writer-contract';
+import { isGenericText } from '../quality/no-generic-content';
 
 export type SessionMissionType = 'foundation' | 'lab' | 'project' | 'evaluation';
 
@@ -135,7 +135,7 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
   }
   const practica = plan.practica || [];
   const goodPractica = practica.filter(
-    (p) => wordCount(p.enunciado) >= t.minPracticaEnunciadoWords && p.pista && p.pista !== FALLBACK_PISTA
+    (p) => wordCount(p.enunciado) >= t.minPracticaEnunciadoWords && p.pista && !isGenericText(p.pista)
   ).length;
   if (goodPractica < t.minPractica) {
     deficits.push(`solo ${goodPractica} ejercicios completos con enunciado y pista propia (mínimo ${t.minPractica})`);
@@ -277,7 +277,7 @@ export function buildSessionPackPrompts(
   const system = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en ${ctx.disciplineName}.
 Redactas los PLANES DE SESIÓN de la misión de ${MISSION_LABEL[missionType]} ("${ctx.missionTitle}") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder aprender SOLO, leyendo el libro, sin que el maestro esté presente.
 UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
-${alignment}${termsBlock}${ctx.extraGuardrails ? `\n${ctx.extraGuardrails}` : ''}
+${alignment}${termsBlock}${ctx.extraGuardrails ? `\n${ctx.extraGuardrails}` : ''}${input.institutionalContext ? `\n\n${input.institutionalContext}` : ''}
 
 REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 - Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a aprender", "tu cuaderno", "observa", "resuelve").

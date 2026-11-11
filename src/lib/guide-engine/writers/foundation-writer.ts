@@ -23,6 +23,7 @@ import {
 } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { assertNoGenericContent } from '../quality/no-generic-content';
 import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
@@ -199,9 +200,12 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
   const effectiveSystemInstruction = useSharding
     ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
     : systemInstruction;
-  const effectivePrompt = useSharding
+  const basePrompt = useSharding
     ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
     : prompt;
+  const effectivePrompt = input.institutionalContext
+    ? `${input.institutionalContext}\n\n${basePrompt}`
+    : basePrompt;
 
   try {
     let attempt: 1 | 2 = 1;
@@ -364,6 +368,8 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       sessionPlans,
       wordCount: totalMissionWords,
     };
+
+    assertNoGenericContent(missionSection, `FoundationWriter · ${missionTitle}`);
 
     const quality = evaluateQuality({
       wordCount: totalMissionWords,

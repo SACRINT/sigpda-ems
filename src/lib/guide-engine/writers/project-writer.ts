@@ -27,6 +27,7 @@ import {
 } from './session-plan-completion';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { assertNoGenericContent } from '../quality/no-generic-content';
 import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
@@ -236,9 +237,12 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
   const effectiveSystemInstruction = useSharding
     ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
     : systemInstruction;
-  const effectivePrompt = useSharding
+  const basePrompt = useSharding
     ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
     : prompt;
+  const effectivePrompt = input.institutionalContext
+    ? `${input.institutionalContext}\n\n${basePrompt}`
+    : basePrompt;
 
   try {
     let attempt: 1 | 2 = 1;
@@ -469,6 +473,8 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
       sessionPlans,
       wordCount: totalMissionWords,
     };
+
+    assertNoGenericContent(missionSection, `ProjectWriter · ${missionTitle}`);
 
     const quality = evaluateQuality({
       wordCount: totalMissionWords,

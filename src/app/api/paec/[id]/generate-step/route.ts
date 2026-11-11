@@ -34,6 +34,7 @@ import { validatePaecStepInputs } from '@/lib/paec-input-guard';
 import { logActivity, generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
+import { getInstitutionalContext } from '@/lib/institutional-context';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import {
   PaecPaso1Schema,
@@ -128,9 +129,10 @@ export async function POST(
 
     // Inyectar contexto regulatorio oficial (H-311) evaluado una sola vez por llamada POST
     const regulatoryContext = getPaecRegulatoryContext(step);
-    const stepSystemPrompt = regulatoryContext
-      ? `${PAEC_SYSTEM_PROMPT}\n\n${regulatoryContext}`
-      : PAEC_SYSTEM_PROMPT;
+    const knowledgeContext = await getInstitutionalContext('paec');
+    const stepSystemPrompt = [PAEC_SYSTEM_PROMPT, regulatoryContext, knowledgeContext.block]
+      .filter(Boolean)
+      .join('\n\n');
 
     let userPrompt = '';
     let fieldName = '';

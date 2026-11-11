@@ -5,6 +5,7 @@ import { generateWithRotation, resolveUserIsPremium, logActivity } from '@/lib/a
 import { logger } from '@/lib/logger';
 import { getUserLibraryContext } from '@/lib/context-extractor';
 import { getNormativaForGenerator, getStructuredNormativaForGenerator } from '@/lib/normativa-context';
+import { getInstitutionalContext } from '@/lib/institutional-context';
 import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PmcDiagnosticoSchema, PmcPlanAccionSchema } from '@/lib/ai-schemas';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
@@ -375,7 +376,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         libraryContext,
         normativaDocs
       );
-      const prompt = ragBlock ? `${basePrompt}\n\n${ragBlock}` : basePrompt;
+      const knowledgeContext = await getInstitutionalContext('pmc');
+      const prompt = [basePrompt, knowledgeContext.block, ragBlock].filter(Boolean).join('\n\n');
 
       const isPremium = await resolveUserIsPremium(teacher.id);
       const rawText = await generateWithRotation(
@@ -582,7 +584,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         libraryContext,
         normativaDocs
       );
-      const prompt = ragBlock ? `${basePrompt}\n\n${ragBlock}` : basePrompt;
+      const knowledgeContext = await getInstitutionalContext('pmc');
+      const prompt = [basePrompt, knowledgeContext.block, ragBlock].filter(Boolean).join('\n\n');
 
       const isPremium = await resolveUserIsPremium(teacher.id);
       const rawText = await generateWithRotation(

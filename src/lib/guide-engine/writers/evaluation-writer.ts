@@ -29,6 +29,7 @@ import {
 } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { formatRequiredTermsDirective } from '../planning-content-alignment';
+import { assertNoGenericContent } from '../quality/no-generic-content';
 import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
@@ -260,9 +261,12 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
   const effectiveSystemInstruction = useSharding
     ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
     : systemInstruction;
-  const effectivePrompt = useSharding
+  const basePrompt = useSharding
     ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
     : prompt;
+  const effectivePrompt = input.institutionalContext
+    ? `${input.institutionalContext}\n\n${basePrompt}`
+    : basePrompt;
 
   try {
     let attempt: 1 | 2 = 1;
@@ -344,6 +348,7 @@ Genera los 4 instrumentos oficiales de evaluación NEM Y las ${sessionCount} ses
       ? (await shardedPromise).plans
       : completeSessionPlans(parsed.sessionPlans, coveredSessions, fallbackContext);
     missionSection.sessionPlans = sessionPlans;
+    assertNoGenericContent(missionSection, `EvaluationWriter · ${missionSection.title}`);
     const evalRealText = getEvaluationRealText(evaluationSection);
     const sectionWordCount = evalRealText.split(/\s+/).filter(Boolean).length;
     const sessionPlansWords = sessionPlans.reduce((acc, sp) => acc + countSessionPlanWords(sp), 0);
