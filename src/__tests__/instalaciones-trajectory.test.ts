@@ -5,6 +5,10 @@ import {
   getCurriculumTrajectory,
 } from '@/lib/curriculum/trajectories';
 import { validateCurriculumTrajectory } from '@/lib/curriculum/trajectory-validator';
+import {
+  buildFormativeContents,
+  validateFormativeContents,
+} from '@/lib/curriculum/trajectory-contents';
 import type { CurriculumTrajectory } from '@/lib/curriculum/trajectory-types';
 
 function cloneTrajectory(): CurriculumTrajectory {
@@ -32,6 +36,26 @@ describe('trayectoria Instalaciones Residenciales (BGE 2024)', () => {
       expect(node.keyActivities).toHaveLength(3);
       expect(node.keyActivities.every((activity) => activity.hours === 18)).toBe(true);
       expect(node.keyActivities.reduce((sum, activity) => sum + activity.hours, 0)).toBe(54);
+      expect(node.keyActivities.every((activity) => activity.contents.length > 0)).toBe(true);
+    }
+  });
+
+  it('genera contenidos_formativos canónicos: 3 entradas por UAC con temas oficiales', () => {
+    const report = validateFormativeContents(INSTALACIONES_RESIDENCIALES_TRAJECTORY);
+    expect(report.errors).toEqual([]);
+    expect(report.ok).toBe(true);
+
+    for (const node of INSTALACIONES_RESIDENCIALES_TRAJECTORY.nodes) {
+      const items = buildFormativeContents(node);
+      expect(items).toHaveLength(3);
+      expect(items.map((item) => item.numero)).toEqual([1, 2, 3]);
+      for (const [index, item] of items.entries()) {
+        expect(item.actividad_clave).toBe(node.keyActivities[index].name);
+        expect(item.contenidos).toEqual(node.keyActivities[index].contents);
+        expect(item.contenidos.length).toBeGreaterThan(0);
+        expect(item.source).toBe('official_pdf_2024');
+        expect(item.needs_review).toBe(false);
+      }
     }
   });
 
@@ -80,6 +104,15 @@ describe('trayectoria Instalaciones Residenciales (BGE 2024)', () => {
     const report = validateCurriculumTrajectory(trajectory);
     expect(report.ok).toBe(false);
     expect(report.errors.some((error) => error.code === 'activity_hours')).toBe(true);
+  });
+
+  it('detecta actividades sin contenidos formativos', () => {
+    const trajectory = cloneTrajectory();
+    trajectory.nodes[0].keyActivities[0].contents = [];
+
+    const report = validateCurriculumTrajectory(trajectory);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some((error) => error.code === 'activity_contents')).toBe(true);
   });
 
   it('se localiza por id y por nombre de UAC (con acentos y mayúsculas)', () => {

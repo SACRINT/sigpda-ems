@@ -49,6 +49,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-3.1-A1',
           name: 'Identifica instalaciones básicas de una vivienda de acuerdo con los diferentes espacios',
           hours: 18,
+          contents: [
+            'Instalaciones básicas de una vivienda: eléctrica, hidráulica, sanitaria y de gas',
+            'Espacios de la vivienda y servicios asociados',
+          ],
           description:
             'Recorrido por una vivienda para identificar instalaciones eléctrica, hidráulica, sanitaria y de gas por espacio; registro en portafolio y tabla comparativa.',
         },
@@ -56,6 +60,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-3.1-A2',
           name: 'Interpreta símbolos para la construcción e instalaciones hidráulicas, de gas y eléctricas',
           hours: 18,
+          contents: ['Simbología de construcción e instalaciones'],
           description:
             'Investigación y comparación de simbología de construcción e instalaciones hidráulicas, de gas y eléctricas; material visual y plenaria.',
         },
@@ -63,6 +68,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-3.1-A3',
           name: 'Elabora croquis de construcción e instalaciones hidráulicas, de gas y eléctricas de una vivienda bajo la supervisión del experto',
           hours: 18,
+          contents: [
+            'Croquis, planos, escalas y dimensiones',
+            'Lectura e interpretación de planos arquitectónicos',
+          ],
           description:
             'Rediseño de croquis de construcción e instalaciones con espacios, dimensiones y simbología, bajo supervisión del experto.',
         },
@@ -95,6 +104,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-3.2-A1',
           name: 'Verifica materiales de construcción acordes a las necesidades de las instalaciones hidráulicas, de gas y eléctricas',
           hours: 18,
+          contents: [
+            'Materiales de construcción para instalaciones hidráulicas, de gas y eléctricas',
+            'Proveedores, costos y criterios de selección',
+          ],
           description:
             'Registro y clasificación de materiales de construcción por instalación residencial básica, con fuentes confiables y tabla comparativa.',
         },
@@ -102,6 +115,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-3.2-A2',
           name: 'Cuantifica materiales como tuberías, conexiones, pegamentos, codos que son necesarios por cada instalación',
           hours: 18,
+          contents: [
+            'Cuantificación de tuberías, conexiones, pegamentos y codos',
+            'Mezclas y proporciones de agregados',
+          ],
           description:
             'Cuantificación de tuberías, conexiones, pegamentos y codos por instalación; tabla de doble entrada y costos.',
         },
@@ -109,6 +126,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-3.2-A3',
           name: 'Verifica calidad del material a utilizar de acuerdo con manuales hidrosanitarios, de gas y eléctricos',
           hours: 18,
+          contents: ['Certificaciones, sellos y normas de calidad'],
           description:
             'Verificación de calidad y certificaciones de materiales según manuales hidrosanitarios, de gas y eléctricos.',
         },
@@ -139,6 +157,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-4.1-A1',
           name: 'Verifica equipo de seguridad para trasladar materiales de construcción',
           hours: 18,
+          contents: ['Equipo de seguridad para construcción e instalaciones'],
           description:
             'Reconocimiento del equipo de seguridad para trabajos de albañilería y traslado de materiales; ficha y lista de cotejo.',
         },
@@ -146,6 +165,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-4.1-A2',
           name: 'Utiliza equipo de seguridad para cada proceso de instalación eléctrica, hidrosanitaria y de gas',
           hours: 18,
+          contents: [
+            'Riesgos en el traslado y almacenamiento de materiales',
+            'Manejo manual de cargas y ergonomía',
+          ],
           description:
             'Uso del equipo de seguridad en procesos de instalación eléctrica, hidrosanitaria y de gas; registro de accidentes e incidentes.',
         },
@@ -153,6 +176,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-4.1-A3',
           name: 'Transporta material con base a normas, reglamentos de seguridad y prevención de riesgos',
           hours: 18,
+          contents: [
+            'Normas y reglamentos de seguridad y prevención de riesgos',
+            'Registro de accidentes e incidentes',
+          ],
           description:
             'Transporte de materiales con base en normas, reglamentos de seguridad y prevención de riesgos.',
         },
@@ -184,6 +211,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-4.2-A1',
           name: 'Organiza equipo y herramientas por categorías y uso residencial',
           hours: 18,
+          contents: ['Herramientas y equipo de albañilería e instalaciones'],
           description:
             'Clasificación de herramientas y equipo de albañilería e instalaciones por categoría y uso residencial.',
         },
@@ -191,6 +219,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-4.2-A2',
           name: 'Realiza cortes y ranuras para la construcción bajo las indicaciones del experto',
           hours: 18,
+          contents: [
+            'Cortes y ranuras en muros, pisos y techos',
+            'Grietas y criterios de intervención',
+          ],
           description:
             'Cortes y ranuras en muros, pisos y techos bajo indicaciones del experto; selección de herramienta y equipo.',
         },
@@ -198,6 +230,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-4.2-A3',
           name: 'Realiza cortes, ranuras en instalaciones hidráulicas, eléctricas y de gas bajo las indicaciones del experto',
           hours: 18,
+          contents: [
+            'Cortes y ranuras en instalaciones hidráulicas, eléctricas y de gas',
+            'Uniones, sellado y acabados',
+          ],
           description:
             'Cortes y ranuras en instalaciones hidráulicas, eléctricas y de gas bajo indicaciones del experto.',
         },
@@ -229,6 +265,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-5.1-A1',
           name: 'Considera formas y manejo de los muebles, tuberías y conexiones para la construcción e instalaciones residenciales',
           hours: 18,
+          contents: [
+            'Muebles, tuberías y conexiones: formas y manejo',
+            'Áreas y zonas de trabajo para instalaciones',
+          ],
           description:
             'Reconocimiento de formas y manejo de muebles, tuberías y conexiones; tendido de redes residenciales y portafolio.',
         },
@@ -236,6 +276,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-5.1-A2',
           name: 'Clasifica materiales de plomería, hidráulica e instalaciones de gas de acuerdo con las dimensiones de la vivienda y los muebles',
           hours: 18,
+          contents: ['Materiales de plomería, hidráulica y gas'],
           description:
             'Clasificación de materiales de plomería, hidráulica y gas según dimensiones de la vivienda y muebles.',
         },
@@ -243,6 +284,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-5.1-A3',
           name: 'Utiliza materiales y equipo para la limpieza de muebles, tuberías y conexiones',
           hours: 18,
+          contents: [
+            'Limpieza de muebles, tuberías y conexiones',
+            'Productos de limpieza y medidas de seguridad',
+          ],
           description:
             'Uso de materiales y equipo para la limpieza de muebles, tuberías y conexiones; productos y seguridad.',
         },
@@ -273,6 +318,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-5.2-A1',
           name: 'Reúne elementos constructivos básicos de una vivienda',
           hours: 18,
+          contents: [
+            'Elementos constructivos básicos: cimentación, cadenas, castillos, muros, losas y acabados',
+            'Agregados: arena, cemento, grava, mortero y agua',
+          ],
           description:
             'Identificación de elementos constructivos básicos: cimentación, cadenas, castillos, muros, losas y acabados.',
         },
@@ -280,6 +329,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-5.2-A2',
           name: 'Traslada materiales requeridos al sitio de la obra',
           hours: 18,
+          contents: [
+            'Procesos de construcción de una vivienda',
+            'Traslado de materiales al sitio de la obra',
+          ],
           description:
             'Análisis de agregados y traslado de materiales requeridos al sitio de la obra.',
         },
@@ -287,6 +340,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-5.2-A3',
           name: 'Instala muebles y accesorios de acuerdo con lo especificado en el plano',
           hours: 18,
+          contents: ['Instalación de muebles y accesorios según plano'],
           description:
             'Instalación de muebles y accesorios de acuerdo con lo especificado en el plano.',
         },
@@ -317,6 +371,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-6.1-A1',
           name: 'Clasifica instalaciones sustentables de electricidad, hidrosanitarias y de gas',
           hours: 18,
+          contents: ['Instalaciones residenciales sustentables: hidrosanitaria, eléctrica y gas'],
           description:
             'Clasificación de instalaciones residenciales sustentables de electricidad, hidrosanitarias y de gas.',
         },
@@ -324,6 +379,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-6.1-A2',
           name: 'Verifica viabilidad del espacio para la instalación sustentable',
           hours: 18,
+          contents: [
+            'Viabilidad del espacio y criterios de sustentabilidad',
+            'Documentación técnica y especificaciones',
+          ],
           description:
             'Verificación de viabilidad del espacio para la instalación sustentable; recorrido y lista de cotejo.',
         },
@@ -331,6 +390,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-6.1-A3',
           name: 'Elabora croquis de la instalación residencial sustentable',
           hours: 18,
+          contents: [
+            'Croquis de la instalación residencial sustentable',
+            'Colocación de muebles, tuberías y conexiones',
+          ],
           description:
             'Elaboración de croquis de la instalación residencial sustentable con dimensiones y especificaciones.',
         },
@@ -361,6 +424,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-6.2-A1',
           name: 'Clasifica material sobrante durante la construcción o instalación residencial',
           hours: 18,
+          contents: [
+            'Clasificación de material sobrante de construcción e instalación',
+            'Economía circular en la construcción',
+          ],
           description:
             'Clasificación del material sobrante durante la construcción o instalación residencial; las tres R.',
         },
@@ -368,6 +435,7 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-6.2-A2',
           name: 'Registra material sobrante en una bitácora, acorde con especificaciones del especialista',
           hours: 18,
+          contents: ['Bitácora de material sobrante'],
           description:
             'Registro del material sobrante en bitácora conforme a las especificaciones del especialista.',
         },
@@ -375,6 +443,10 @@ export const INSTALACIONES_RESIDENCIALES_TRAJECTORY: CurriculumTrajectory = {
           id: 'IR-6.2-A3',
           name: 'Reutiliza material sobrante de manera sustentable',
           hours: 18,
+          contents: [
+            'Reutilización y reciclaje: las tres R',
+            'Disposición final de residuos',
+          ],
           description:
             'Reutilización del material sobrante de manera sustentable; diseño e innovación.',
         },

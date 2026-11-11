@@ -159,6 +159,13 @@ export function validateCurriculumTrajectory(
       if (!hasText(activity.description, 20)) {
         addWarning('activity_description', `Actividad ${activity.id} sin descripción suficiente.`, node.id);
       }
+      if (!Array.isArray(activity.contents) || activity.contents.length === 0) {
+        addError('activity_contents', `Actividad ${activity.id} sin contenidos formativos.`, node.id);
+      } else if (
+        activity.contents.some((content) => !hasText(content, 3) || PLACEHOLDER_RE.test(content))
+      ) {
+        addError('activity_contents_placeholder', `Actividad ${activity.id} con contenido vacío o placeholder.`, node.id);
+      }
     }
   }
 

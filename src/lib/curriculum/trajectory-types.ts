@@ -13,6 +13,8 @@ export interface TrajectoryActivity {
   id: string;
   name: string;
   hours: number;
+  /** Contenidos formativos oficiales que se trabajan en esta actividad clave. */
+  contents: string[];
   /** Descripción factual tomada del programa oficial. */
   description: string;
 }
