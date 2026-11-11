@@ -64,13 +64,31 @@ export const CURATED_RESOURCES: readonly CuratedResource[] = [
 const GENERIC_SEARCH_RE =
   /(?:google\.[a-z.]+\/search|youtube\.[a-z.]+\/results|bing\.[a-z.]+\/search|duckduckgo\.com\/\?q=|search\?q=)/i;
 
+const PLACEHOLDER_RESOURCE_RE =
+  /(?:scholar\.google|example\.com|tu-enlace|url-del-recurso|watch\?v=(?:123|abc|ejemplo)(?![a-z0-9])|(?:^|\/\/)(?:localhost|127\.0\.0\.1)|^#)/i;
+
 export function isGenericSearchUrl(url: string | null | undefined): boolean {
   return GENERIC_SEARCH_RE.test((url || '').trim());
 }
 
+/**
+ * Detecta URLs de ejemplo, comodín o no navegables que la IA suele alucinar.
+ * Es la única fuente de verdad para writer-contract y renderers PDF/DOCX.
+ */
+export function isPlaceholderResourceUrl(url: string | null | undefined): boolean {
+  const value = (url || '').trim();
+  if (!value) return true;
+  return PLACEHOLDER_RESOURCE_RE.test(value);
+}
+
+/** Una URL es inutilizable si es búsqueda genérica o placeholder. */
+export function isUnusableResourceUrl(url: string | null | undefined): boolean {
+  return isPlaceholderResourceUrl(url) || isGenericSearchUrl(url);
+}
+
 export function isCuratedUrl(url: string | null | undefined): boolean {
   const value = (url || '').trim();
-  if (!/^https?:\/\//i.test(value) || isGenericSearchUrl(value)) return false;
+  if (!/^https?:\/\//i.test(value) || isUnusableResourceUrl(value)) return false;
   return CURATED_RESOURCES.some((resource) => value.startsWith(resource.url));
 }
 

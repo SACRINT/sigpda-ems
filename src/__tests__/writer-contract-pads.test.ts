@@ -74,6 +74,23 @@ describe('sanitizeSessionPlans — sin relleno genérico', () => {
     expect(plans[0].recursos[0].url).toBe('https://www.youtube.com/watch?v=sinp');
   });
 
+  it('recursos placeholder (example.com / watch?v=123) → se sustituyen por curados', () => {
+    const plans = sanitize(
+      rawPlan({
+        recursos: [
+          { titulo: 'Video de ejemplo', url: 'https://www.youtube.com/watch?v=123', tipo: 'video' },
+          { titulo: 'Enlace de ejemplo', url: 'https://example.com/recurso', tipo: 'lectura' },
+        ],
+      }),
+    )!;
+    expect(plans[0].recursos).toHaveLength(2);
+    for (const recurso of plans[0].recursos) {
+      expect(recurso.url).toMatch(/^https:\/\//);
+      expect(recurso.url).not.toContain('example.com');
+      expect(recurso.url).not.toContain('watch?v=123');
+    }
+  });
+
   it('recurso con URL basura → se sustituye por un recurso curado y el plan se conserva', () => {
     const plans = sanitize(
       rawPlan({

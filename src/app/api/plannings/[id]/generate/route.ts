@@ -281,6 +281,7 @@ export async function POST(
               uacName: planning.uac_name || undefined,
               semester: planning.semester as number,
               component: planning.component as string,
+              subsystem: context.subsystem,
             });
             (parsedContent as unknown as Record<string, unknown>).anexo12Audit = anexo12Audit;
             if (anexo12Audit.ok) {

@@ -46,7 +46,7 @@ import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import { extractSvgDimensions } from '@/lib/visual-engine/svg-dimensions';
 import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
-import { isGenericSearchUrl, pickCuratedResourceForText } from '@/lib/resources/curated-resources';
+import { isUnusableResourceUrl, pickCuratedResourceForText } from '@/lib/resources/curated-resources';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import type {
@@ -2642,11 +2642,8 @@ function buildDocxCheckItem(text: string): Paragraph {
 function buildDocxResourceLine(titulo: string, url: string, tipo: string): Paragraph {
   const icono = tipo === 'video' ? '🎬' : tipo === 'lectura' ? '📄' : '🌐';
   const rawUrl = (url || '').trim();
-  const isPlaceholderUrl =
-    !rawUrl ||
-    /scholar\.google|example\.com|tu-enlace|url-del-recurso|watch\?v=(?:123|abc|ejemplo)/i.test(rawUrl);
   let safeUrl = rawUrl;
-  if (isPlaceholderUrl || isGenericSearchUrl(rawUrl)) {
+  if (isUnusableResourceUrl(rawUrl)) {
     const curated = pickCuratedResourceForText(
       `${titulo} ${tipo}`,
       tipo === 'video' ? 'video' : tipo === 'lectura' ? 'lectura' : 'web'

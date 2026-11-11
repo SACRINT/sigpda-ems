@@ -15,7 +15,7 @@ import { countSessionPlanWords } from '../content-budget';
 import { isMathUAC, validateSessionPlanContamination } from '../cross-contamination-guard';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import {
-  isGenericSearchUrl,
+  isUnusableResourceUrl,
   pickCuratedResourceForText,
 } from '@/lib/resources/curated-resources';
 import { hasGenericContent } from '../quality/no-generic-content';
@@ -240,7 +240,7 @@ export function ensureCuratedResourceList(
   };
 
   const mapped = recursos.map((recurso) =>
-    isGenericSearchUrl(recurso.url) ? buildCurated(recurso.tipo, recurso.titulo) : recurso
+    isUnusableResourceUrl(recurso.url) ? buildCurated(recurso.tipo, recurso.titulo) : recurso
   );
 
   return mapped.length > 0 ? mapped : [buildCurated('web')];

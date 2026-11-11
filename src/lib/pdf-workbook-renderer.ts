@@ -25,7 +25,7 @@ import type {
 } from '@/types/work-textbook';
 import type { Planning, ImageAsset, SecuenciaBloque } from '@/types/planning';
 import { loadAllLogos } from './pdf-logos';
-import { isGenericSearchUrl, pickCuratedResourceForText } from '@/lib/resources/curated-resources';
+import { isUnusableResourceUrl, pickCuratedResourceForText } from '@/lib/resources/curated-resources';
 import {
   resolveVisualForMission,
   resolveEquipmentVisualForMission,
@@ -2085,12 +2085,9 @@ function printPdfCheckItem(
 export function sanitizeEducationalResourceUrl(url: string, titulo: string, tipo: string): string {
   const cleanTitle = sanitizePdfText(stripMarkdown(titulo || 'Recurso educativo EMS')).trim();
   const rawUrl = (url || '').trim();
-  const isPlaceholderUrl =
-    !rawUrl ||
-    /scholar\.google|example\.com|tu-enlace|url-del-recurso|watch\?v=(?:123|abc|ejemplo)/i.test(rawUrl);
 
-  // P0: una búsqueda no es un recurso didáctico. Se sustituye por la biblioteca curada.
-  if (isPlaceholderUrl || isGenericSearchUrl(rawUrl)) {
+  // P0: una búsqueda o placeholder no es un recurso didáctico. Se sustituye por la biblioteca curada.
+  if (isUnusableResourceUrl(rawUrl)) {
     const curated = pickCuratedResourceForText(
       `${cleanTitle} ${tipo}`,
       tipo === 'video' ? 'video' : tipo === 'lectura' ? 'lectura' : 'web'

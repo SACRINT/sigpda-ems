@@ -81,6 +81,8 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
     context.weeklyHours ||
     (totalHours > 0 ? Math.round(totalHours / 18) : 0);
   const isLaboral = /laboral|formaci[oó]n para el trabajo|capacitaci[oó]n/i.test(component);
+  // BT opera por módulos de 80–160 h; BGE laboral opera con 3 bloques de 18 h (54 h).
+  const isBt = /tecnol[oó]gic|\bbt\b/i.test(subsystem) || /profesional|t[eé]cnic/i.test(component);
 
   // ── I. Datos generales ─────────────────────────────────────────────────────
   add('i_uac', 'UAC / asignatura identificada', hasText(uacName, 5), 'critical', uacName);
@@ -174,8 +176,13 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   );
 
   if (isLaboral) {
-    add('iv_laboral_3_actividades', 'Formación laboral: exactamente 3 Actividades Clave', secuencia.length === 3, 'critical', `${secuencia.length}`);
-    add('iv_laboral_54h', 'Formación laboral BGE: 54 h (3 × 18 h)', Math.abs(totalHours - 54) <= 1, 'warning', `${totalHours} h`);
+    if (isBt) {
+      add('iv_laboral_3_actividades', 'Formación laboral BT: al menos 3 Actividades Clave por módulo', secuencia.length >= 3, 'warning', `${secuencia.length}`);
+      add('iv_bt_carga_modular', 'Formación laboral BT: carga modular de 80 a 160 h', totalHours >= 80 && totalHours <= 160, 'warning', `${totalHours} h`);
+    } else {
+      add('iv_laboral_3_actividades', 'Formación laboral BGE: exactamente 3 Actividades Clave', secuencia.length === 3, 'critical', `${secuencia.length}`);
+      add('iv_laboral_54h', 'Formación laboral BGE: 54 h (3 × 18 h)', Math.abs(totalHours - 54) <= 1, 'warning', `${totalHours} h`);
+    }
   }
 
   // ── V. Evaluación ──────────────────────────────────────────────────────────
@@ -241,8 +248,8 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   );
   add(
     'x_carga_semanal',
-    'Carga semanal coherente (1 a 5 h para BGE)',
-    weeklyHours >= 1 && weeklyHours <= 5,
+    isBt ? 'Carga semanal declarada para módulo BT' : 'Carga semanal coherente (1 a 5 h para BGE)',
+    isBt ? weeklyHours > 0 : weeklyHours >= 1 && weeklyHours <= 5,
     'warning',
     `${weeklyHours} h/semana`
   );

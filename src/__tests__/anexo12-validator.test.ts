@@ -145,4 +145,48 @@ describe('validateAnexo12 — gate determinista USICAMM', () => {
     expect(report.checks.find((c) => c.id === 'x_placeholders')?.ok).toBe(false);
     expect(report.checks.find((c) => c.id === 'ii_proposito')?.ok).toBe(false);
   });
+
+  it('BT modular: 4 actividades y 120 h no generan falso crítico laboral', () => {
+    const planning = validPlanning() as ReturnType<typeof validPlanning>;
+    planning.sectionI.subsystem = 'Bachillerato Tecnológico (BT)';
+    planning.sectionI.totalHours = 120;
+    planning.sectionI.totalHoursWeekly = 6;
+    planning.sectionIV.activities = [1, 2, 3, 4].map((n) => ({
+      ...planning.sectionIV.activities[0],
+      name: `Actividad ${n}`,
+      hours: 30,
+    }));
+
+    const report = validateAnexo12(planning, {
+      component: 'laboral',
+      subsystem: 'Bachillerato Tecnológico (BT)',
+    });
+
+    const laboral = report.checks.find((c) => c.id === 'iv_laboral_3_actividades');
+    expect(laboral?.ok).toBe(true);
+    expect(laboral?.severity).toBe('warning');
+    expect(report.checks.find((c) => c.id === 'iv_bt_carga_modular')?.ok).toBe(true);
+    expect(report.checks.find((c) => c.id === 'iv_laboral_54h')).toBeUndefined();
+    expect(report.ok).toBe(true);
+  });
+
+  it('BT modular: 2 actividades son advertencia, no crítico laboral', () => {
+    const planning = validPlanning() as ReturnType<typeof validPlanning>;
+    planning.sectionI.subsystem = 'Bachillerato Tecnológico (BT)';
+    planning.sectionI.totalHours = 120;
+    planning.sectionI.totalHoursWeekly = 6;
+    planning.sectionIV.activities = planning.sectionIV.activities.slice(0, 2).map((a) => ({
+      ...a,
+      hours: 60,
+    }));
+
+    const report = validateAnexo12(planning, {
+      component: 'laboral',
+      subsystem: 'Bachillerato Tecnológico (BT)',
+    });
+
+    const laboral = report.checks.find((c) => c.id === 'iv_laboral_3_actividades');
+    expect(laboral?.ok).toBe(false);
+    expect(laboral?.severity).toBe('warning');
+  });
 });

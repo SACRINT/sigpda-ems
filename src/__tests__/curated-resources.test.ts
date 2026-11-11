@@ -3,6 +3,8 @@ import {
   CURATED_RESOURCES,
   formatCuratedResourcesForPrompt,
   isGenericSearchUrl,
+  isPlaceholderResourceUrl,
+  isUnusableResourceUrl,
   pickCuratedResourceForText,
 } from '@/lib/resources/curated-resources';
 import { ensureCuratedResourceList } from '@/lib/guide-engine/writers/writer-contract';
@@ -41,5 +43,21 @@ describe('biblioteca curada de recursos', () => {
     const resources = ensureCuratedResourceList([], { uacName: 'Pensamiento Matemático III' });
     expect(resources).toHaveLength(1);
     expect(resources[0].url).toMatch(/^https:\/\//);
+  });
+
+  it('detecta placeholders y búsquedas como URLs inutilizables', () => {
+    for (const url of [
+      '',
+      'https://example.com/recurso',
+      'https://www.youtube.com/watch?v=123',
+      'https://www.youtube.com/watch?v=abc',
+      'https://tu-enlace.com',
+      'https://www.google.com/search?q=pc',
+      'http://localhost:3000/recurso',
+    ]) {
+      expect(isUnusableResourceUrl(url)).toBe(true);
+    }
+    expect(isPlaceholderResourceUrl('https://www.youtube.com/watch?v=abc123')).toBe(false);
+    expect(isUnusableResourceUrl('https://www.youtube.com/watch?v=abc123')).toBe(false);
   });
 });
