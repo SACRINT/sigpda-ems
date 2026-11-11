@@ -23,7 +23,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 type Block =
-  | { type: 'heading'; level: 1 | 2 | 3; text: string }
+  | { type: 'heading'; level: 1 | 2 | 3 | 4; text: string }
   | { type: 'paragraph'; text: string }
   | { type: 'quote'; text: string }
   | { type: 'list'; ordered: boolean; items: string[] }
@@ -59,9 +59,41 @@ const PDF = {
   white: [255, 255, 255] as [number, number, number],
 } as const;
 
-const DOC_TITLE = 'Malla Curricular y Trayectoria de Instalaciones Residenciales 2024';
-const DOC_SUBTITLE = 'Formación Laboral Básico — Bachillerato General Estatal (BGE)';
-const DOC_META = 'Generación 2023–2026 · Acuerdo 09/08/23 · SEP Puebla · MCCEMS';
+type DocKey = 'malla' | 'guia';
+
+type DocConfig = {
+  baseName: string;
+  title: string;
+  subtitle: string;
+  meta: string;
+  summary: string;
+  note: string;
+  headerLabel: string;
+  pageBreakSections: RegExp;
+};
+
+const DOC_CONFIGS: Record<DocKey, DocConfig> = {
+  malla: {
+    baseName: 'MALLA_CURRICULAR_Y_TRAYECTORIA_INSTALACIONES_RESIDENCIALES_2024',
+    title: 'Malla Curricular y Trayectoria de Instalaciones Residenciales 2024',
+    subtitle: 'Formación Laboral Básico — Bachillerato General Estatal (BGE)',
+    meta: 'Generación 2023–2026 · Acuerdo 09/08/23 · SEP Puebla · MCCEMS',
+    summary: '8 UAC · 24 actividades clave · 432 horas · 4 hitos',
+    note: 'Documento de trabajo para revisión de la Academia Estatal de Formación Laboral y TIC',
+    headerLabel: 'SIGPDA-EMS · Instalaciones Residenciales 2024',
+    pageBreakSections: /^[68]\./,
+  },
+  guia: {
+    baseName: 'GUIA_DIDACTICA_DOCENTE_INSTALACIONES_RESIDENCIALES_2024',
+    title: 'Guía Didáctica de Oficio para el Docente — Instalaciones Residenciales 2024',
+    subtitle: 'Formación Laboral Básico — Bachillerato General Estatal (BGE)',
+    meta: 'Generación 2023–2026 · Acuerdo 09/08/23 · SEP Puebla · MCCEMS',
+    summary: '8 UAC · 24 actividades · 432 horas · 7 módulos + trazabilidad',
+    note: 'Documento de trabajo para revisión de la Academia Estatal de Formación Laboral y TIC',
+    headerLabel: 'SIGPDA-EMS · Guía Didáctica Docente 2024',
+    pageBreakSections: /^3\./,
+  },
+};
 
 function cleanInline(text: string): string {
   return text
@@ -122,11 +154,11 @@ function parseMarkdown(md: string): Block[] {
       continue;
     }
 
-    const heading = line.match(/^(#{1,3})\s+(.*)$/);
+    const heading = line.match(/^(#{1,4})\s+(.*)$/);
     if (heading) {
       blocks.push({
         type: 'heading',
-        level: heading[1].length as 1 | 2 | 3,
+        level: heading[1].length as 1 | 2 | 3 | 4,
         text: cleanInline(heading[2]),
       });
       i += 1;
@@ -283,6 +315,26 @@ function tableWidths(headers: string[], contentWidth = 10800): number[] {
     pct = [10, 21, 14, 25, 30];
   } else if (joined.includes('aporte') && headers.length === 3) {
     pct = [14, 46, 40];
+  } else if (joined.includes('sí/no') && headers.length === 3) {
+    pct = [42, 12, 46];
+  } else if (joined.includes('ponderación') && headers.length === 3) {
+    pct = [16, 68, 16];
+  } else if (joined.includes('destacado') && headers.length === 5) {
+    pct = [16, 21, 21, 21, 21];
+  } else if (joined.includes('acceso') && headers.length === 4) {
+    pct = [24, 14, 34, 28];
+  } else if (joined.includes('acceso') && headers.length === 3) {
+    pct = [22, 38, 40];
+  } else if (joined.includes('alternativa de bajo costo') && headers.length === 3) {
+    pct = [18, 38, 44];
+  } else if (joined.includes('evidencia integradora') && headers.length === 3) {
+    pct = [10, 38, 52];
+  } else if (joined.includes('aplicación en el taller') && headers.length === 3) {
+    pct = [18, 32, 50];
+  } else if (joined.includes('cuándo usarlo') && headers.length === 3) {
+    pct = [18, 37, 45];
+  } else if (joined.includes('costo relativo') && headers.length === 3) {
+    pct = [34, 46, 20];
   } else {
     pct = Array.from({ length: headers.length }, () => 100 / headers.length);
   }
@@ -359,7 +411,7 @@ function buildDocxCodeBlock(lines: string[]): Table {
   });
 }
 
-function buildDocxCover(): Array<Paragraph | Table> {
+function buildDocxCover(config: DocConfig): Array<Paragraph | Table> {
   const band = new Table({
     width: { size: 10800, type: WidthType.DXA },
     columnWidths: [10800],
@@ -417,7 +469,7 @@ function buildDocxCover(): Array<Paragraph | Table> {
       spacing: { after: 240 },
       children: [
         new TextRun({
-          text: DOC_TITLE,
+          text: config.title,
           bold: true,
           size: 44,
           color: C.navy,
@@ -430,7 +482,7 @@ function buildDocxCover(): Array<Paragraph | Table> {
       spacing: { after: 120 },
       children: [
         new TextRun({
-          text: DOC_SUBTITLE,
+          text: config.subtitle,
           size: 23,
           color: C.mid,
           font: 'Arial',
@@ -442,7 +494,7 @@ function buildDocxCover(): Array<Paragraph | Table> {
       spacing: { after: 320 },
       children: [
         new TextRun({
-          text: DOC_META,
+          text: config.meta,
           size: 18,
           color: C.textMuted,
           font: 'Arial',
@@ -462,7 +514,7 @@ function buildDocxCover(): Array<Paragraph | Table> {
       spacing: { before: 240, after: 100 },
       children: [
         new TextRun({
-          text: '8 UAC · 24 actividades clave · 432 horas · 4 hitos',
+          text: config.summary,
           bold: true,
           size: 21,
           color: C.textDark,
@@ -475,7 +527,7 @@ function buildDocxCover(): Array<Paragraph | Table> {
       spacing: { after: 0 },
       children: [
         new TextRun({
-          text: 'Documento de trabajo para revisión de la Academia Estatal de Formación Laboral y TIC',
+          text: config.note,
           italics: true,
           size: 17,
           color: C.textMuted,
@@ -487,7 +539,7 @@ function buildDocxCover(): Array<Paragraph | Table> {
   ];
 }
 
-function buildDocxBody(blocks: Block[]): Array<Paragraph | Table> {
+function buildDocxBody(blocks: Block[], config: DocConfig): Array<Paragraph | Table> {
   const out: Array<Paragraph | Table> = [];
   const firstH2 = blocks.findIndex((b) => b.type === 'heading' && b.level === 2);
   const body = firstH2 >= 0 ? blocks.slice(firstH2) : blocks;
@@ -533,7 +585,7 @@ function buildDocxBody(blocks: Block[]): Array<Paragraph | Table> {
     switch (block.type) {
       case 'heading': {
         if (block.level === 2) {
-          const pageBreakBefore = /^[68]\./.test(block.text);
+          const pageBreakBefore = config.pageBreakSections.test(block.text);
           out.push(
             new Paragraph({
               heading: HeadingLevel.HEADING_2,
@@ -554,7 +606,7 @@ function buildDocxBody(blocks: Block[]): Array<Paragraph | Table> {
               ],
             })
           );
-        } else {
+        } else if (block.level === 3) {
           out.push(
             new Paragraph({
               heading: HeadingLevel.HEADING_3,
@@ -566,6 +618,23 @@ function buildDocxBody(blocks: Block[]): Array<Paragraph | Table> {
                   bold: true,
                   size: 24,
                   color: C.mid,
+                  font: 'Arial',
+                }),
+              ],
+            })
+          );
+        } else {
+          out.push(
+            new Paragraph({
+              heading: HeadingLevel.HEADING_4,
+              keepNext: true,
+              spacing: { before: 180, after: 70 },
+              children: [
+                new TextRun({
+                  text: block.text,
+                  bold: true,
+                  size: 21,
+                  color: C.accent,
                   font: 'Arial',
                 }),
               ],
@@ -660,9 +729,9 @@ function buildDocxBody(blocks: Block[]): Array<Paragraph | Table> {
   return out;
 }
 
-function buildDocx(md: string): Document {
+function buildDocx(md: string, config: DocConfig): Document {
   const blocks = parseMarkdown(md);
-  const body = buildDocxBody(blocks);
+  const body = buildDocxBody(blocks, config);
   const header = new Header({
     children: [
       new Paragraph({
@@ -673,7 +742,7 @@ function buildDocx(md: string): Document {
         },
         children: [
           new TextRun({
-            text: 'SIGPDA-EMS · Instalaciones Residenciales 2024',
+            text: config.headerLabel,
             size: 15,
             color: C.textMuted,
             font: 'Arial',
@@ -727,7 +796,7 @@ function buildDocx(md: string): Document {
           first: new Footer({ children: [] }),
           default: footer,
         },
-        children: [...buildDocxCover(), ...body],
+        children: [...buildDocxCover(config), ...body],
       },
     ],
   });
@@ -747,7 +816,7 @@ function pdfColumnStyles(headers: string[], contentWidth: number): Record<number
   return styles;
 }
 
-function buildPdf(md: string): jsPDF {
+function buildPdf(md: string, config: DocConfig): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -889,31 +958,28 @@ function buildPdf(md: string): jsPDF {
     });
 
     setText(24, PDF.navy, 'bold');
-    const titleLines = doc.splitTextToSize(DOC_TITLE, contentWidth - 10) as string[];
+    const titleLines = doc.splitTextToSize(pdfSafe(config.title), contentWidth - 10) as string[];
     let ty = 62;
     titleLines.forEach((line) => {
       doc.text(line, pageW / 2, ty, { align: 'center', baseline: 'top' });
       ty += 10;
     });
     setText(11, PDF.mid);
-    doc.text(DOC_SUBTITLE, pageW / 2, ty + 6, { align: 'center', baseline: 'top' });
+    doc.text(pdfSafe(config.subtitle), pageW / 2, ty + 6, { align: 'center', baseline: 'top' });
     setText(8.5, PDF.muted);
-    doc.text(DOC_META, pageW / 2, ty + 16, { align: 'center', baseline: 'top' });
+    doc.text(pdfSafe(config.meta), pageW / 2, ty + 16, { align: 'center', baseline: 'top' });
 
     doc.setDrawColor(PDF.accent[0], PDF.accent[1], PDF.accent[2]);
     doc.setLineWidth(1.4);
     doc.line(marginX + 30, ty + 28, pageW - marginX - 30, ty + 28);
 
     setText(10.5, PDF.textDark, 'bold');
-    doc.text('8 UAC · 24 actividades clave · 432 horas · 4 hitos', pageW / 2, ty + 42, {
+    doc.text(pdfSafe(config.summary), pageW / 2, ty + 42, {
       align: 'center',
       baseline: 'top',
     });
     setText(8, PDF.muted);
-    const note = doc.splitTextToSize(
-      'Documento de trabajo para revisión de la Academia Estatal de Formación Laboral y TIC',
-      contentWidth - 20
-    ) as string[];
+    const note = doc.splitTextToSize(pdfSafe(config.note), contentWidth - 20) as string[];
     note.forEach((line, idx) => {
       doc.text(line, pageW / 2, ty + 54 + idx * 4, { align: 'center', baseline: 'top' });
     });
@@ -957,7 +1023,7 @@ function buildPdf(md: string): jsPDF {
     switch (block.type) {
       case 'heading': {
         if (block.level === 2) {
-          if (/^[68]\./.test(block.text)) {
+          if (config.pageBreakSections.test(block.text)) {
             doc.addPage();
             y = marginTop;
           }
@@ -972,7 +1038,7 @@ function buildPdf(md: string): jsPDF {
           y += 1.2;
           drawSectionRule(PDF.borderLight);
           y += 1.5;
-        } else {
+        } else if (block.level === 3) {
           ensureSpace(12);
           y += 1.5;
           setText(10.5, PDF.mid, 'bold');
@@ -982,6 +1048,16 @@ function buildPdf(md: string): jsPDF {
             y += 4.8;
           });
           y += 1.8;
+        } else {
+          ensureSpace(10);
+          y += 1.2;
+          setText(9.8, PDF.accent, 'bold');
+          const lines = doc.splitTextToSize(pdfSafe(block.text), contentWidth) as string[];
+          lines.forEach((line) => {
+            doc.text(line, marginX, y, { baseline: 'top' });
+            y += 4.4;
+          });
+          y += 1.4;
         }
         break;
       }
@@ -1047,7 +1123,7 @@ function buildPdf(md: string): jsPDF {
     doc.setLineWidth(0.2);
     doc.line(marginX, pageH - 13, pageW - marginX, pageH - 13);
     setText(7.2, PDF.muted);
-    doc.text('SIGPDA-EMS · Instalaciones Residenciales 2024', marginX, pageH - 10, {
+    doc.text(pdfSafe(config.headerLabel), marginX, pageH - 10, {
       baseline: 'top',
     });
     doc.text(`Página ${page} de ${total}`, pageW - marginX, pageH - 10, {
@@ -1059,30 +1135,43 @@ function buildPdf(md: string): jsPDF {
   return doc;
 }
 
+function resolveDocKey(): DocKey {
+  const eqArg = process.argv.find((arg) => arg.startsWith('--doc='));
+  const flagIndex = process.argv.indexOf('--doc');
+  const raw = eqArg
+    ? eqArg.slice('--doc='.length)
+    : flagIndex >= 0
+      ? process.argv[flagIndex + 1]
+      : 'malla';
+
+  if (raw !== 'malla' && raw !== 'guia') {
+    throw new Error(`Documento no reconocido: ${raw ?? '(vacío)'}. Use --doc=malla o --doc=guia.`);
+  }
+  return raw;
+}
+
 async function main(): Promise<void> {
   const root = process.cwd();
-  const sourcePath = path.join(
-    root,
-    'docs',
-    'MALLA_CURRICULAR_Y_TRAYECTORIA_INSTALACIONES_RESIDENCIALES_2024.md'
-  );
+  const key = resolveDocKey();
+  const config = DOC_CONFIGS[key];
+  const sourcePath = path.join(root, 'docs', `${config.baseName}.md`);
   if (!fs.existsSync(sourcePath)) {
     throw new Error(`No existe el documento fuente: ${sourcePath}`);
   }
 
   const md = fs.readFileSync(sourcePath, 'utf8');
-  const baseName = 'MALLA_CURRICULAR_Y_TRAYECTORIA_INSTALACIONES_RESIDENCIALES_2024';
-  const docxPath = path.join(root, 'docs', `${baseName}.docx`);
-  const pdfPath = path.join(root, 'docs', `${baseName}.pdf`);
+  const docxPath = path.join(root, 'docs', `${config.baseName}.docx`);
+  const pdfPath = path.join(root, 'docs', `${config.baseName}.pdf`);
 
-  const docx = buildDocx(md);
+  const docx = buildDocx(md, config);
   const docxBuffer = await Packer.toBuffer(docx);
   fs.writeFileSync(docxPath, docxBuffer);
 
-  const pdf = buildPdf(md);
+  const pdf = buildPdf(md, config);
   const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
   fs.writeFileSync(pdfPath, pdfBuffer);
 
+  console.log(`Documento: ${key} (${config.baseName})`);
   console.log(`DOCX generado: ${docxPath} (${(docxBuffer.length / 1024).toFixed(1)} KB)`);
   console.log(`PDF generado:  ${pdfPath} (${(pdfBuffer.length / 1024).toFixed(1)} KB)`);
 }
