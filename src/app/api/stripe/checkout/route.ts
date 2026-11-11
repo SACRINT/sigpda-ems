@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { getTeacherByEmail, sql } from '@/lib/db';
 import https from 'https';
 import { logger } from '@/lib/logger';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 const stripe = stripeSecretKey
@@ -16,6 +17,7 @@ const stripe = stripeSecretKey
 export async function POST(req: Request) {
   try {
     const session = await auth();
+    const platformName = await getPlatformName();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
@@ -75,7 +77,7 @@ export async function POST(req: Request) {
           price_data: {
             currency: 'mxn',
             product_data: {
-              name: `Suscripción DidácticaIA - Plan ${planName}`,
+              name: `Suscripción ${platformName} - Plan ${planName}`,
             },
             unit_amount: price * 100, // Stripe expects cents
             recurring: {

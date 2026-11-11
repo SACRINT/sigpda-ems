@@ -9,6 +9,7 @@
 import jsPDF from 'jspdf';
 import autoTable, { type RowInput } from 'jspdf-autotable';
 import { loadAllLogos } from './pdf-logos';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from './logger';
 import type { PipsPlantele, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
@@ -541,7 +542,7 @@ export async function generatePipsPDF(
       doc.setFontSize(7);
       doc.setTextColor(...TEXT_MUTED);
       doc.text(
-        `SIGPDA-EMS · Plan de Intervención y Acompañamiento Pedagógico de Supervisión (PIPS) — Página ${p} de ${totalPages}`,
+        `${getRuntimePlatformName()} · Plan de Intervención y Acompañamiento Pedagógico de Supervisión (PIPS) — Página ${p} de ${totalPages}`,
         pageWidth / 2,
         pageHeight - 7,
         { align: 'center' }

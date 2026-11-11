@@ -144,6 +144,54 @@ function makeMockWriterOutput(params: {
   return {
     type,
     section,
+    projectSection:
+      type === 'project'
+        ? {
+            artifactName: 'Producto integrador del bloque formativo',
+            communityUtility: `Solución concreta para ${pTheory1.slice(0, 80)}`,
+            phases: [
+              {
+                phaseNum: 1,
+                title: 'Fase 1: Diagnóstico y diseño',
+                allocatedHours: 2,
+                deliverables: ['Propuesta técnica'],
+                instructions: 'Delimitar el problema y los criterios de aceptación.',
+              },
+            ],
+            technicalSpecs: ['Evidencia verificable y trazable'],
+            acceptanceCriteria: ['El producto atiende el problema comunitario definido'],
+          }
+        : undefined,
+    evaluationSection:
+      type === 'evaluation'
+        ? {
+            source: 'generated_fresh',
+            rubric: [
+              {
+                criterion: 'Dominio conceptual y procedimental',
+                weightPercent: 100,
+                levels: [
+                  { levelName: 'Excelente', points: 10, descriptor: pTheory1 },
+                  { levelName: 'Bueno', points: 8, descriptor: pTheory2 },
+                  { levelName: 'Suficiente', points: 6, descriptor: 'Cumple los criterios mínimos del bloque.' },
+                  { levelName: 'Requiere Apoyo', points: 4, descriptor: 'No evidencia el proceso solicitado.' },
+                ],
+              },
+            ],
+            checklist: [{ item: 'Entrega la evidencia con criterios explícitos', category: 'Cumplimiento' }],
+            criticalThinkingQuiz: [
+              {
+                questionNumber: 1,
+                question: '¿Cómo se relaciona el procedimiento con el resultado obtenido?',
+                scenario: 'Resolución de un caso del entorno escolar.',
+                answerExplanation: 'Se espera justificar la relación causa-efecto.',
+              },
+            ],
+            metacognitiveReflection: {
+              prompts: ['¿Qué estrategia te permitió resolver el reto?'],
+            },
+          }
+        : undefined,
     wordCount: totalWords,
     tokensUsed: Math.round(totalWords * 1.3),
     qualityScore: 90,

@@ -2,11 +2,13 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail, getTeacherSchoolZone } from '@/lib/db';
 import ConfigurarPerfilClient from './ConfigurarPerfilClient';
+import { getPlatformName } from '@/lib/platform/platform-name';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'Configura tu perfil — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Configura tu perfil — ${platformName}` };
+}
 
 export default async function ConfigurarPerfilPage({
   params,
@@ -23,10 +25,12 @@ export default async function ConfigurarPerfilPage({
   // El perfil es editable en cualquier momento (multiplantel): solo se marca si
   // ya fue completado para mostrar el flujo de edición en vez del onboarding.
   const schoolZone = await getTeacherSchoolZone(teacher.id);
+  const platformName = await getPlatformName();
 
   return (
     <ConfigurarPerfilClient
       locale={locale}
+      platformName={platformName}
       teacherName={session.user.name || session.user.email}
       teacherEmail={session.user.email}
       editMode={Boolean(teacher.profile_completed)}

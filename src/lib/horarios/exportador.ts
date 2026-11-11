@@ -12,6 +12,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
+import { getRuntimePlatformName } from "@/lib/platform/platform-name-shared";
 import {
   Document,
   Packer,
@@ -336,7 +337,7 @@ export function exportarHorarioPDF(datos: DatosExportacionHorario) {
     doc.setFontSize(6.5);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `SIGPDA-EMS — Sistema Integral de Gestión de Planeación Didáctica Automatizada  |  Generado: ${new Date().toLocaleDateString("es-MX")}`,
+      `${getRuntimePlatformName()} — Sistema Integral de Gestión de Planeación Didáctica Automatizada  |  Generado: ${new Date().toLocaleDateString("es-MX")}`,
       14,
       pageHeight - 5.5
     );
@@ -673,7 +674,7 @@ export async function exportarHorarioDOCX(datos: DatosExportacionHorario) {
 // =========================================================================
 export async function exportarHorarioExcel(datos: DatosExportacionHorario) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "SIGPDA-EMS";
+  wb.creator = getRuntimePlatformName();
   wb.created = new Date();
   const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
@@ -911,7 +912,7 @@ export interface DatosLibroIntegralExcel {
 // 4. EXPORTACIÓN A LIBRO INTEGRAL MULTI-HOJA (.XLSX) CON TODAS LAS PESTAÑAS
 export async function exportarLibroIntegralExcel(datos: DatosLibroIntegralExcel) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "SIGPDA-EMS — Motor Institucional";
+  wb.creator = `${getRuntimePlatformName()} — Motor Institucional`;
   wb.created = new Date();
   const zonaTexto = datos.zonaEscolar ? (datos.zonaEscolar.toLowerCase().includes("zona") ? datos.zonaEscolar.toUpperCase() : `ZONA ${datos.zonaEscolar}`) : "ZONA NO REGISTRADA";
 
@@ -1509,7 +1510,7 @@ export async function exportarHorarioWhatsApp(
   ctx.textAlign = "left";
   ctx.fillStyle = "#64748B";
   ctx.font = `600 ${isStory ? "13px" : "11px"} system-ui, -apple-system, sans-serif`;
-  ctx.fillText(`⚡ SIGPDA-EMS — Sistema Integral de Planeación Didáctica Automatizada`, padX, footY);
+  ctx.fillText(`⚡ ${getRuntimePlatformName()} — Sistema Integral de Planeación Didáctica Automatizada`, padX, footY);
 
   // Badge Redes
   const badgeSocialW = isStory ? 210 : 180;

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
---  DidácticaIA — Módulo Horarios: Tablas complementarias
+--  SIGPDA-EMS — Módulo Horarios: Tablas complementarias
 --  Neon PostgreSQL · SEMS Puebla 2026-2027
 --  Ejecutar este script en el panel SQL de Neon (una sola vez).
 -- ═══════════════════════════════════════════════════════════════════

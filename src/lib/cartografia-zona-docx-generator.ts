@@ -8,6 +8,7 @@ import {
   convertMillimetersToTwip,
 } from 'docx';
 import type { CartografiaZonaProject, CartografiaPlantelItem, LineaAccionOficial, RecursoComunitario } from '@/types/cartografia';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 const NAVY  = '1F3864';
 const BLUE  = '2E74B5';
@@ -418,7 +419,7 @@ export async function generateCartografiaZonaDocx(project: CartografiaZonaProjec
   );
 
   const doc = new Document({
-    creator: 'SIGPDA-EMS · Cartografía de Zona',
+    creator: `${getRuntimePlatformName()} · Cartografía de Zona`,
     title: `Cartografía de la Zona Escolar ${zona} — Ciclo ${ciclo}`,
     description: 'Proyecto Integral de Cartografía de Zona Escolar (Estructura Oficial I-IV)',
     sections: [
@@ -497,7 +498,7 @@ export async function generateCartografiaZonaDocx(project: CartografiaZonaProjec
                         children: [
                           new Paragraph({
                             children: [
-                              italic('SIGPDA-EMS · Modelo Educativo 2025 · MCCEMS Puebla', 8),
+                              italic(`${getRuntimePlatformName()} · Modelo Educativo 2025 · MCCEMS Puebla`, 8),
                             ],
                           }),
                         ],
@@ -648,7 +649,7 @@ export async function generateResumenEjecutivoDocx(project: CartografiaZonaProje
   );
 
   const doc = new Document({
-    creator: 'SIGPDA-EMS · Resumen Ejecutivo Cartografía',
+    creator: `${getRuntimePlatformName()} · Resumen Ejecutivo Cartografía`,
     title: `Resumen Ejecutivo de la Cartografía — Zona ${zona}`,
     description: 'Resumen Ejecutivo de Zona Escolar (4 Secciones Módulo 4)',
     sections: [
@@ -726,7 +727,7 @@ export async function generateResumenEjecutivoDocx(project: CartografiaZonaProje
                         children: [
                           new Paragraph({
                             children: [
-                              italic('SIGPDA-EMS · Entregable Oficial Módulo 4 · Memoria Pedagógica', 7.5),
+                              italic(`${getRuntimePlatformName()} · Entregable Oficial Módulo 4 · Memoria Pedagógica`, 7.5),
                             ],
                           }),
                         ],

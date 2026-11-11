@@ -2,10 +2,13 @@ import { setRequestLocale } from 'next-intl/server';
 import { BibliotecaPersonalClient } from './BibliotecaPersonalClient';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { getPlatformName } from '@/lib/platform/platform-name';
+
 
 export async function generateMetadata() {
+  const platformName = await getPlatformName();
   return {
-    title: 'Biblioteca Personal | SIGPDA-EMS',
+    title: `Biblioteca Personal | ${platformName}`,
   };
 }
 
@@ -22,5 +25,6 @@ export default async function BibliotecaPersonalPage({
     redirect(`/${locale}/login`);
   }
 
-  return <BibliotecaPersonalClient />;
+  const platformName = await getPlatformName();
+  return <BibliotecaPersonalClient platformName={platformName} />;
 }

@@ -344,6 +344,31 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
 
   // ── 6. cascadeBlockMaterials: Fencing contra zombies ───────────────────────
   describe('P2.6: Fencing en cascadeBlockMaterials contra workers zombies', () => {
+    const realMission = {
+      missionIndex: 1,
+      title: 'Misión de prueba con contenido específico',
+      coveredSessions: [1, 2, 3],
+      sessionTopic: 'Fenómenos físicos del entorno escolar',
+      sessionFocus: 'Medición y análisis de datos',
+      phenomenonHook: {
+        story: 'El laboratorio mide la temperatura del agua en distintos horarios.',
+        detonatingQuestion: '¿Cómo cambia la temperatura a lo largo del día?',
+      },
+      conceptZero: {
+        physicalAnalogy: 'La temperatura del agua se comporta como una escala que sube y baja.',
+        coreExplanation: 'La medición sistemática permite describir variaciones y comparar datos.',
+      },
+      iDoSection: { stepByStepDemo: 'Registrar la temperatura inicial y final con el termómetro.' },
+      weDoSection: { guidedPractice: 'Medir en equipos y tabular los datos obtenidos.', workbookElements: [] },
+      youDoSection: { autonomousChallenge: 'Graficar los datos y explicar la variación observada.', workbookElements: [] },
+      troubleshooting: [],
+      formativeCheckpoint: {
+        question: '¿Qué variable explica el cambio de temperatura?',
+        reflectionPrompts: ['¿Qué medición fue más precisa?'],
+        criteriaChecklist: ['Registré los datos con unidades.'],
+      },
+      wordCount: 500,
+    };
     it('aborta y lanza WorkerLeaseLostError antes del DELETE si el lease expiró o fue revocado', async () => {
       // 1. SELECT id FROM generation_jobs WHERE id = $jobId AND lease_id = $leaseId AND status = 'running'
       // Retorna vacío porque otro worker tomó el lease
@@ -351,7 +376,7 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
 
       const mockWorkbook = {
         blockName: 'Bloque 1',
-        missions: [],
+        missions: [realMission],
       } as unknown as ActiveWorkTextbook;
 
       await expect(
@@ -380,7 +405,7 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
       const mockWorkbook = {
         blockName: 'Bloque 1',
         coverData: { subjectName: 'Física', semester: 1 },
-        missions: [],
+        missions: [realMission],
       } as unknown as ActiveWorkTextbook;
 
       await expect(
@@ -397,21 +422,23 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
     });
 
     it('continúa normalmente con la cascada si el lease está activo y verificado en todas las fases', async () => {
-      // 1. SELECT id FROM generation_jobs (inicio) -> lease válido
-      mockQueryFn.mockResolvedValueOnce([{ id: 'job-active-worker' }]);
-      // 2. SELECT sequence_json, content_json, extracted_data FROM plannings
-      mockQueryFn.mockResolvedValueOnce([
-        { sequence_json: null, content_json: null, extracted_data: null },
-      ]);
-      // 3. SELECT id FROM generation_jobs (antes de DELETE) -> lease válido
-      mockQueryFn.mockResolvedValueOnce([{ id: 'job-active-worker' }]);
-      // 4. DELETE FROM planning_extras
-      mockQueryFn.mockResolvedValueOnce([]);
+      mockQueryFn.mockImplementation((strings: TemplateStringsArray) => {
+        const query = String(strings[0] || '');
+        if (query.includes('generation_jobs')) {
+          return Promise.resolve([{ id: 'job-active-worker' }]);
+        }
+        if (query.includes('SELECT uac_name')) {
+          return Promise.resolve([
+            { sequence_json: null, content_json: null, extracted_data: null },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
 
       const mockWorkbook = {
         blockName: 'Bloque 1',
         coverData: { subjectName: 'Física', semester: 1 },
-        missions: [],
+        missions: [realMission],
       } as unknown as ActiveWorkTextbook;
 
       const result = await cascadeBlockMaterials('plan-1', 0, mockWorkbook, 'teacher-1', {

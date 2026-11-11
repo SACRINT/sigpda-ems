@@ -9,6 +9,8 @@ import HeartbeatSender from './HeartbeatSender';
 import NotificationBell from '../notifications/NotificationBell';
 
 import { getUserRole } from '@/lib/admin-unified';
+import { getPlatformName } from '@/lib/platform/platform-name';
+import { PlatformNameProvider } from '@/components/platform/PlatformNameProvider';
 
 type Props = {
   children: React.ReactNode;
@@ -44,9 +46,10 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
     ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
     : user.email?.[0].toUpperCase() || '?';
 
-  const [{ isAdmin, role }, maintenance] = await Promise.all([
+  const [{ isAdmin, role }, maintenance, platformName] = await Promise.all([
     user.email ? getUserRole(user.email) : Promise.resolve({ isAdmin: false, role: 'docente' }),
     getMaintenanceStatus(),
+    getPlatformName(),
   ]);
 
   // ── Maintenance gate — admins bypass it ────────────────────────────────────────────
@@ -79,7 +82,7 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
             borderRadius: 10, padding: '12px 20px',
             fontSize: 13, color: '#818cf8',
           }}>
-            📚 SIGPDA-EMS · Educación Media Superior
+            📚 {platformName} · Educación Media Superior
           </div>
           <form action={signOutPlain} style={{ marginTop: 24 }}>
             <button type="submit" style={{
@@ -102,7 +105,7 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
         <div className="header-logo">
           <span className="header-logo-icon">📚</span>
           <div>
-            <div className="header-logo-text">SIGPDA-EMS</div>
+            <div className="header-logo-text">{platformName}</div>
             <div className="header-logo-sub">Planeación & Horarios MCCEMS</div>
           </div>
         </div>
@@ -211,7 +214,7 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
       {/* Main */}
       <main className="app-main">
         <HeartbeatSender />
-        {children}
+        <PlatformNameProvider value={platformName}>{children}</PlatformNameProvider>
       </main>
     </div>
   );

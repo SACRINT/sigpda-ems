@@ -91,7 +91,7 @@ export async function POST(
       evaluation = '',
       phase = '',
     } = body as {
-      type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide';
+      type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'evaluation';
       title: string;
       keyIndex?: number | null;
       activityName?: string;

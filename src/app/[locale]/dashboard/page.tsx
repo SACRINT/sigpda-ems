@@ -8,10 +8,12 @@ import PlanningDeleteButton from '@/app/[locale]/planning-delete-button';
 import CustomKeyCard from '@/components/dashboard/CustomKeyCard';
 import SubscriptionBanner from '@/components/dashboard/SubscriptionBanner';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Mis planeaciones — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Mis planeaciones — ${platformName}` };
+}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',

@@ -245,7 +245,7 @@ export function renderExtraDocument(
   const typeLabel = branding.typeLabel;
   const hasTopSup = Boolean(branding.topSup);
 
-  const isRubric = extra.type === 'rubric';
+  const isRubric = extra.type === 'rubric' || (extra.type === 'evaluation' && /r[uú]brica|matriz|escala|gu[ií]a|bit[aá]cora/i.test(extra.title));
   // Ajuste inteligente de densidad: el plan de clase (29-30 renglones) debe caber en
   // una sola hoja sin sacrificar legibilidad; el resto de extras conserva su métrica normal.
   const density: ExtraDensity =
@@ -262,7 +262,7 @@ export function renderExtraDocument(
   const bottomReserve = isUltra ? 12 : compact ? 15 : 16;
   // Listas de cotejo y materiales son tablas largas: se densifican para que la
   // última fila no quede huérfana en una página casi vacía al final del documento.
-  const denseTable = extra.type === 'checklist' || extra.type === 'material';
+  const denseTable = extra.type === 'checklist' || extra.type === 'material' || extra.type === 'evaluation';
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -925,7 +925,7 @@ export function generateExtraPdfDocument(
   extra: ExtraInput,
   context?: BrandingContext
 ): jsPDF {
-  const isRubric = extra.type === 'rubric';
+  const isRubric = extra.type === 'rubric' || (extra.type === 'evaluation' && /r[uú]brica|matriz|escala|gu[ií]a|bit[aá]cora/i.test(extra.title));
   const orientation = isRubric ? 'landscape' : 'portrait';
   const doc = new jsPDF({
     orientation,

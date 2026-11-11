@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { nullableString, nullableStringOrArray } from './zod-helpers';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 /**
  * Specialized prompts and schemas for extracting structured PMC data from previous documents (PDF / Word DOCX).
@@ -192,7 +193,7 @@ export const PmcPreviousExtractSchema = z.object({
 export type PmcPreviousExtractDTO = z.infer<typeof PmcPreviousExtractSchema>;
 export type PmcPlanElement = NonNullable<PmcPreviousExtractDTO['elementos_plan']>[number];
 
-export const PMC_EXTRACTION_SYSTEM_PROMPT = `Eres el AUDITOR EDUCATIVO Y ESTRUCTURADOR FORENSE DE DATOS de la plataforma SIGPDA-EMS (MCCEMS / NEM / DGB).
+export const PMC_EXTRACTION_SYSTEM_PROMPT = `Eres el AUDITOR EDUCATIVO Y ESTRUCTURADOR FORENSE DE DATOS de la plataforma ${getRuntimePlatformName()} (MCCEMS / NEM / DGB).
 Tu objetivo es realizar la minería semántica y relacional completa de documentos del Programa de Mejora Continua (PMC) de planteles de bachillerato general.
 
 PRINCIPIOS NO NEGOCIABLES:

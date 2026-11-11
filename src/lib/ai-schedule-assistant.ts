@@ -12,6 +12,7 @@
 import { generateWithRotation } from "@/lib/ai-provider";
 import { logger } from "@/lib/logger";
 import { parseAIResponse } from "@/lib/ai-response-parser";
+import { getRuntimePlatformName } from "@/lib/platform/platform-name-shared";
 import { ScheduleAssistantResponseSchema } from "@/lib/ai-schemas";
 import type { z } from "zod";
 
@@ -145,7 +146,7 @@ export async function procesarComandoIA(
     };
   }
 
-  const systemInstruction = `Eres el Asistente Neuro-Simbólico de Horarios Escolares para SIGPDA-EMS.
+  const systemInstruction = `Eres el Asistente Neuro-Simbólico de Horarios Escolares para ${getRuntimePlatformName()}.
 Tu función es interpretar las solicitudes del Director de la escuela, traducir su lenguaje natural a restricciones formales JSON estructuradas y validar la factibilidad pedagógica.
 
 REGLA FUNDAMENTAL DE ARQUITECTURA:

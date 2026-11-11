@@ -9,6 +9,7 @@ import type { FechasCortes, GeneratedPlanningContent, Planning, SecuenciaBloque 
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { logger } from './logger';
 import { COLORS } from './visual-engine/design-tokens';
 import {
@@ -728,7 +729,7 @@ export async function generatePlanningPDF(
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `SIGPDA-EMS · ${rawUacName} (${semesterVal}° Semestre) — Página ${i} de ${totalPages}`,
+      `${getRuntimePlatformName()} · ${rawUacName} (${semesterVal}° Semestre) — Página ${i} de ${totalPages}`,
       pageWidth / 2,
       pageHeight - 6,
       { align: 'center' }
@@ -1219,7 +1220,7 @@ export async function generateSecuenciaPDF(
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `SIGPDA-EMS · Secuencia Didáctica Micro · ${rawUacName} (${semesterVal}° Semestre) — Página ${i} de ${totalPages}`,
+      `${getRuntimePlatformName()} · Secuencia Didáctica Micro · ${rawUacName} (${semesterVal}° Semestre) — Página ${i} de ${totalPages}`,
       pageWidth / 2,
       pageHeight - 6,
       { align: 'center' }

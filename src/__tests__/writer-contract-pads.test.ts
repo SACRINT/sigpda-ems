@@ -1,15 +1,13 @@
 /**
- * writer-contract-pads.test.ts — Mínimos editoriales del contrato de escritor
+ * writer-contract-pads.test.ts — Contrato de escritor SIN relleno genérico
  *
- * Los dos huecos que alimentaron el bug 54/72 en origen:
- *  - recursos descartaba URLs sin protocolo (www.…) hasta quedar []
- *  - autoevaluación solo se completaba con 0 ítems (1 ítem pasaba sin más)
- * más la pista de práctica de respaldo (FALLBACK_PISTA) y normalizeHttpUrl.
+ * Regresión del loophole que permitía publicar texto de contingencia:
+ *  - los campos teóricos faltantes ya NO se sustituyen con defaults;
+ *  - autoevaluación/pistas faltantes NO se rellenan con preguntas o pistas genéricas;
+ *  - el plan incompleto se descarta para forzar reintento del writer.
  */
 import { describe, it, expect } from 'vitest';
 import {
-  DEFAULT_AUTOEVALUACION,
-  FALLBACK_PISTA,
   normalizeHttpUrl,
   sanitizeSessionPlans,
 } from '@/lib/guide-engine/writers/writer-contract';
@@ -29,6 +27,7 @@ function rawPlan(overrides: Record<string, unknown> = {}): Record<string, unknow
     aplicacion: 'Aplica la variación porcentual al presupuesto de tu salón y justifica tu estrategia.',
     autoevaluacion: ['¿Puedes explicar la variación porcentual con tus palabras?'],
     recursos: [{ titulo: 'Video de variación', url: 'https://www.youtube.com/watch?v=v1', tipo: 'video' }],
+    productoIntegrador: 'Agregas una tabla de variación porcentual a tu proyecto comunitario.',
     ...overrides,
   };
 }
@@ -52,21 +51,20 @@ describe('normalizeHttpUrl', () => {
   });
 });
 
-describe('sanitizeSessionPlans — mínimos editoriales (anti 54/72)', () => {
-  it('autoevaluación con 1 ítem → se completa a 2 conservando el original', () => {
+describe('sanitizeSessionPlans — sin relleno genérico', () => {
+  it('autoevaluación con 1 ítem → se conserva tal cual (el reparador IA debe completarla)', () => {
     const plans = sanitize(rawPlan())!;
     expect(plans).toHaveLength(1);
-    expect(plans[0].autoevaluacion).toHaveLength(2);
+    expect(plans[0].autoevaluacion).toHaveLength(1);
     expect(plans[0].autoevaluacion[0]).toContain('¿Puedes explicar la variación porcentual');
-    expect(plans[0].autoevaluacion[1]).toBe(DEFAULT_AUTOEVALUACION[0]);
   });
 
-  it('autoevaluación ausente → los 2 defaults del contrato', () => {
+  it('autoevaluación ausente → queda vacía, NO se inyectan preguntas genéricas', () => {
     const plans = sanitize(rawPlan({ autoevaluacion: undefined }))!;
-    expect(plans[0].autoevaluacion).toEqual([...DEFAULT_AUTOEVALUACION]);
+    expect(plans[0].autoevaluacion).toEqual([]);
   });
 
-  it('recurso con URL sin protocolo (www.) → se normaliza a https en vez de descartarse', () => {
+  it('recurso con URL sin protocolo (www.) → se normaliza a https', () => {
     const plans = sanitize(
       rawPlan({
         recursos: [{ titulo: 'Video de apoyo', url: 'www.youtube.com/watch?v=sinp', tipo: 'video' }],
@@ -76,24 +74,23 @@ describe('sanitizeSessionPlans — mínimos editoriales (anti 54/72)', () => {
     expect(plans[0].recursos[0].url).toBe('https://www.youtube.com/watch?v=sinp');
   });
 
-  it('recurso con URL basura → se descarta (sin romper el resto del plan)', () => {
+  it('recurso con URL basura → se descarta y el plan se conserva', () => {
     const plans = sanitize(
       rawPlan({
         recursos: [{ titulo: 'Enlace roto', url: 'no-es-una-url-valida', tipo: 'video' }],
       }),
     )!;
     expect(plans[0].recursos).toHaveLength(0);
-    // El plan sigue siendo utilizable (los mínimos blandos los resuelve la capa editorial)
     expect(plans[0].sessionNumber).toBe(1);
   });
 
-  it('práctica heredada como string → pista estándar FALLBACK_PISTA', () => {
+  it('práctica heredada como string → pista vacía, sin FALLBACK_PISTA', () => {
     const plans = sanitize(rawPlan({ practica: ['Resuelve los ejercicios 1 al 5 del cuaderno con calma.'] }))!;
     expect(plans[0].practica).toHaveLength(1);
-    expect(plans[0].practica[0].pista).toBe(FALLBACK_PISTA);
+    expect(plans[0].practica[0].pista).toBe('');
   });
 
-  it('pista de objeto vacía o corta → FALLBACK_PISTA (≥5 caracteres siempre)', () => {
+  it('pista de objeto vacía o corta → se conserva vacía/corta, sin relleno', () => {
     const plans = sanitize(
       rawPlan({
         practica: [
@@ -102,9 +99,12 @@ describe('sanitizeSessionPlans — mínimos editoriales (anti 54/72)', () => {
         ],
       }),
     )!;
-    expect(plans[0].practica[0].pista).toBe(FALLBACK_PISTA);
-    expect(plans[0].practica[1].pista).toBe(FALLBACK_PISTA);
-    expect(plans[0].practica.every((p) => p.pista.length >= 5)).toBe(true);
+    expect(plans[0].practica[0].pista).toBe('');
+    expect(plans[0].practica[1].pista).toBe('');
+  });
+
+  it('campo teórico ausente (productoIntegrador) → descarta el plan para forzar reintento', () => {
+    expect(sanitize(rawPlan({ productoIntegrador: undefined }))).toBeUndefined();
   });
 
   it('plan con sessionNumber fuera de coveredSessions → se ignora', () => {

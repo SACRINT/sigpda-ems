@@ -1,5 +1,8 @@
 import * as XLSX from 'xlsx';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
+
+const DEFAULT_WEEKLY_HOURS = resolveWeeklyHours();
 
 export interface CargaImportada {
   semestre: number;
@@ -327,7 +330,9 @@ export async function parsearExcelMatriz(
             if (!textoDocente) continue;
 
             const uacFinalName = uacMatch ? uacMatch.uacName : textoMateria;
-            const horasSemanales = uacMatch ? Number(uacMatch.horasSemanales || 3) : 3;
+            const horasSemanales = uacMatch
+              ? Number(uacMatch.horasSemanales || DEFAULT_WEEKLY_HOURS)
+              : DEFAULT_WEEKLY_HOURS;
 
             const resultadoMatch = buscarDocenteCoincidente(textoDocente, personalDocente);
 
@@ -372,7 +377,9 @@ export async function parsearExcelMatriz(
       const uacMatch = uacsGrupo.find(u => coincideMateria(uacRaw, u.uacName, u.tipo));
 
       const uacFinalName = uacMatch ? uacMatch.uacName : uacRaw;
-      const horasSemanales = uacMatch ? Number(uacMatch.horasSemanales || 3) : 3;
+      const horasSemanales = uacMatch
+        ? Number(uacMatch.horasSemanales || DEFAULT_WEEKLY_HOURS)
+        : DEFAULT_WEEKLY_HOURS;
       const resultadoMatch = buscarDocenteCoincidente(docRaw, personalDocente);
 
       cargasResultado.push({
@@ -650,7 +657,10 @@ export function descargarPlantillaIntegralHorarios(
         nombreUacMostrar = `Formación Fundamental Extendida (Optativa FFE 4)`;
       }
 
-      const filaMateria: any[] = [nombreUacMostrar, `${uac.horasSemanales || 3}h`];
+      const filaMateria: any[] = [
+        nombreUacMostrar,
+        `${uac.horasSemanales || DEFAULT_WEEKLY_HOURS}h`,
+      ];
       gruposSem.forEach(() => {
         filaMateria.push('');
       });

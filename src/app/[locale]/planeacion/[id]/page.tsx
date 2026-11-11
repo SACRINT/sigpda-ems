@@ -15,10 +15,12 @@ import type {
   GeneratedPlanningContent,
   PlanningStatus,
 } from '@/types/planning';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Ver UAC y Recursos — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Ver UAC y Recursos — ${platformName}` };
+}
 
 export default async function PlanningDetailPage({
   params,

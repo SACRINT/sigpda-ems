@@ -112,8 +112,6 @@ const TIEMPOS: Record<SessionRole, { apertura: number; desarrollo: number; cierr
   completa: { apertura: 10, desarrollo: 30, cierre: 10 },
 };
 
-const GENERIC_SABERES = 'Conexión con conceptos fundamentales y experiencias previas.';
-
 /** Construye los momentos didácticos de una sesión a partir del contenido real de la misión. */
 export function buildSessionMoments(mission: MissionSection, sessionNum: number): SessionMoments {
   const role = resolveSessionRole(mission, sessionNum);
@@ -139,7 +137,9 @@ export function buildSessionMoments(mission: MissionSection, sessionNum: number)
   const topic = mission.sessionTopic || mission.title;
   const focus = mission.sessionFocus || mission.sessionTopic || mission.title;
 
-  const saberes = analogy ? `Analogía cotidiana: ${analogy}` : GENERIC_SABERES;
+  const saberes = analogy
+    ? `Analogía cotidiana: ${analogy}`
+    : `Activación de saberes previos sobre "${clipText(topic, 100)}" y su relación con "${clipText(focus, 100)}".`;
 
   if (role === 'introduccion') {
     return {

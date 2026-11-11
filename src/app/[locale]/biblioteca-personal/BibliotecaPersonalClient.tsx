@@ -13,7 +13,7 @@ interface Doc {
   created_at: string;
 }
 
-export function BibliotecaPersonalClient() {
+export function BibliotecaPersonalClient({ platformName }: { platformName: string }) {
   const t = useTranslations();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +106,7 @@ export function BibliotecaPersonalClient() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[var(--c-text)]">Biblioteca Documental Personal</h1>
         <p className="text-[var(--c-text-muted)] mt-2">
-          Sube tus diagnósticos de grupo, FODA, y lineamientos escolares. La Inteligencia Artificial de SIGPDA-EMS leerá estos documentos y los tomará en cuenta automáticamente al generar tus planeaciones, PAEC, y proyectos.
+          Sube tus diagnósticos de grupo, FODA, y lineamientos escolares. La Inteligencia Artificial de {platformName} leerá estos documentos y los tomará en cuenta automáticamente al generar tus planeaciones, PAEC, y proyectos.
         </p>
       </div>
 

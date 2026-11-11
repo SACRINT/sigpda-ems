@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
---  DidácticaIA — Database Schema
+--  SIGPDA-EMS — Database Schema
 --  Neon PostgreSQL · SEMS Puebla 2026-2027
 --  Run this script once in your Neon SQL editor to initialize the DB.
 -- ═══════════════════════════════════════════════════════════════════

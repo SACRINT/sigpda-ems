@@ -332,7 +332,7 @@ export interface CreatePlanningInput {
 export interface PlanningExtra {
   id: string;
   planningId: string;
-  type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'visual';
+  type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'visual' | 'evaluation';
   title: string;
   keyIndex: number | null;
   contentText: string;

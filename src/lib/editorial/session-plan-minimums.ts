@@ -4,23 +4,18 @@
  *
  * StudentSessionSchema exige, por sesión: ≥1 recurso de ampliación con URL http(s)
  * válida, ≥2 puntos de autoevaluación y pistas de práctica con ≥5 caracteres.
- * Estas son las ÚNICAS reglas "blandas" que la IA puede incumplir y que
- * históricamente hicieron que el compose descartara sesiones (libro 54/72).
+ * Estas son las reglas "blandas" que la IA puede incumplir; el reparador IA corre
+ * antes del compose y NO existe relleno textual de contingencia.
  *
  * Este módulo provee:
- *  - detectPlanRepairNeeds(): qué campos blandos faltan (lo consume el reparador IA).
- *  - enforceEditorialSoftMinimums(): red de seguridad determinista que repara los
- *    campos blandos SIN tocar el contenido teórico/práctico real (último recurso
- *    para que el libro NUNCA salga incompleto; el reparador IA corre antes).
+ *  - detectPlanRepairNeeds(): qué campos faltan (lo consume el reparador IA).
+ *  - enforceEditorialSoftMinimums(): repara SOLO recursos con entradas reales del
+ *    catálogo. Autoevaluación y pistas no se inventan: si faltan, el plan se rechaza.
  *  - catalogFallbackResource(): recurso real del catálogo oficial del proyecto
- *    (GeoGebra / Desmos / Polypad) elegido por tema — jamás inventa URLs.
+ *    (GeoGebra / Desmos) elegido por tema — jamás inventa URLs.
  */
 
 import { getMaterial } from '@/lib/materials/materials-catalog';
-import {
-  DEFAULT_AUTOEVALUACION,
-  FALLBACK_PISTA,
-} from '@/lib/guide-engine/writers/writer-contract';
 import type { RecursoItem, SessionPlan } from '@/types/work-textbook';
 
 /** Normaliza un recurso: valida URL http(s) real y tipo del enum permitido. */
@@ -68,11 +63,14 @@ export function catalogFallbackResource(plan: SessionPlan): RecursoItem | null {
   const geo = /geo|triáng|triang|políg|polig|ángul|angul|área|\barea\b|simetr|perímet|perimet|circun|hexágon|hexagon|trazado/.test(topic);
   const alg = /func|ecuac|sistem|paráb|parab|gráfic|graf|despej|polinom|íntegr|integr|línea|linea|variable|álge|alge|producto|factor/.test(topic);
 
+  // Nunca inyectar herramientas matemáticas en UACs de otras disciplinas.
+  // Si el tema no es claramente geométrico o algebraico, no se inventa recurso:
+  // el reparador IA debe generar uno específico o la sesión se rechaza.
+  if (!geo && !alg) return null;
+
   const ev = geo
     ? getMaterial('compas')?.equivalenteVirtual
-    : alg
-      ? getMaterial('regla-calculo')?.equivalenteVirtual
-      : getMaterial('geoplano')?.equivalenteVirtual;
+    : getMaterial('regla-calculo')?.equivalenteVirtual;
 
   if (!ev || typeof ev.url !== 'string' || !/^https?:\/\//i.test(ev.url)) return null;
   return {
@@ -83,33 +81,21 @@ export function catalogFallbackResource(plan: SessionPlan): RecursoItem | null {
 }
 
 /**
- * Repara en copia los campos blandos mínimos para que el plan pase el
- * StudentSessionSchema. NUNCA modifica contenido teórico, ejemplos ni enunciados
- * de práctica: filtra recursos con URL inválida, completa recursos/autoevaluación
- * faltantes y acorta pistas <5 caracteres al respaldo estándar.
- * Devuelve la MISMA referencia si no hubo cambios (permite detectar "reparado").
+ * Repara en copia SOLO el recurso de ampliación faltante, usando el catálogo real.
+ * NUNCA modifica contenido teórico, ejemplos, autoevaluación, pistas ni enunciados
+ * de práctica. Devuelve la MISMA referencia si no hubo cambios (permite detectar
+ * "reparado" para métricas de catálogo).
  */
 export function enforceEditorialSoftMinimums(plan: SessionPlan): SessionPlan {
   const valid = validRecursos(plan);
   const needsRecursos = valid.length === 0;
 
-  const existingAuto = (Array.isArray(plan.autoevaluacion) ? plan.autoevaluacion : []).filter(
-    (s): s is string => typeof s === 'string',
-  );
-  const needsAutoeval = existingAuto.length < 2;
-
-  const rawPractica = Array.isArray(plan.practica) ? plan.practica : [];
-  const practica = rawPractica.map((p) => ({
-    ...p,
-    pista: (p?.pista || '').length >= 5 ? p.pista : FALLBACK_PISTA,
-  }));
-
+  // Solo se repara el recurso de ampliación con una entrada REAL del catálogo.
+  // Autoevaluación y pistas NO se rellenan con texto genérico: si la IA no las
+  // entregó, el plan debe rechazarse o repararse con IA antes de exportar.
   const changed =
     needsRecursos ||
-    needsAutoeval ||
-    valid.length !== (Array.isArray(plan.recursos) ? plan.recursos.length : 0) ||
-    existingAuto.length !== (Array.isArray(plan.autoevaluacion) ? plan.autoevaluacion.length : 0) ||
-    practica.some((p, i) => p.pista !== rawPractica[i]?.pista);
+    valid.length !== (Array.isArray(plan.recursos) ? plan.recursos.length : 0);
 
   if (!changed) return plan;
 
@@ -119,14 +105,8 @@ export function enforceEditorialSoftMinimums(plan: SessionPlan): SessionPlan {
     recursosOut = fb ? [fb] : [];
   }
 
-  const autoevaluacionOut = needsAutoeval
-    ? [...existingAuto, ...DEFAULT_AUTOEVALUACION].slice(0, 2)
-    : existingAuto;
-
   return {
     ...plan,
     recursos: recursosOut,
-    autoevaluacion: autoevaluacionOut,
-    practica,
   };
 }

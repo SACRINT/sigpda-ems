@@ -9,10 +9,12 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import DeletePipsButton from './DeletePipsButton';
 import CartografiaDownloadButton from '@/components/cartografia/CartografiaDownloadButton';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Cartografía de Zona Escolar — Supervisión de Zona · SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Cartografía de Zona Escolar — Supervisión de Zona · ${platformName}` };
+}
 
 export default async function PipsDashboardPage({
   params,

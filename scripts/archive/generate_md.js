@@ -14,7 +14,7 @@ uacs.forEach(u => {
 });
 
 let markdown = '# Catálogo Completo de Asignaturas / UACs (MCCEMS Puebla 2026-2027)\n\n';
-markdown += 'Este documento contiene la lista **100% completa** de todas las asignaturas por semestre registradas en el catálogo del sistema DidácticaIA, organizadas por componente curricular (Fundamental, Ampliado Obligatorio, Ampliado Optativo, Formación Laboral / Capacitaciones, FFE y FFEO).\n\n';
+markdown += 'Este documento contiene la lista **100% completa** de todas las asignaturas por semestre registradas en el catálogo del sistema SIGPDA-EMS, organizadas por componente curricular (Fundamental, Ampliado Obligatorio, Ampliado Optativo, Formación Laboral / Capacitaciones, FFE y FFEO).\n\n';
 
 Object.keys(bySem).sort((a,b) => Number(a) - Number(b)).forEach(sem => {
   const list = bySem[sem];

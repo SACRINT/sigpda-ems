@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-//  DidácticaIA — Prompts for Planning Extras
+//  SIGPDA-EMS — Prompts for Planning Extras
 //  MCCEMS Puebla 2026-2027 · USICAMM & ANEXO 12 Compliant
 // ═══════════════════════════════════════════════════════════════════
 //

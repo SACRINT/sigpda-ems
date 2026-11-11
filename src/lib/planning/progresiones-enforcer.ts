@@ -4,6 +4,7 @@ import {
   cleanLearningOutcomeText,
   distributeProgressionHoursAndCorte,
 } from '@/lib/pdf-parser';
+import { resolveWeeklyHours, SEMESTER_WEEKS } from '@/lib/guide-engine/content-budget';
 
 export interface CanonicalProgressionItem {
   order: number;
@@ -36,7 +37,17 @@ export function buildCanonicalProgresionesList(
 
   if (rawActs.length === 0) return [];
 
-  const totalHours = officialProgram?.total_hours || extractedData?.totalHours || 54;
+  const declaredHours = rawActs.reduce<number>((sum, act) => {
+    const hours = Number(
+      (act && typeof act === 'object' ? (act as Record<string, unknown>) : {}).hours
+    );
+    return sum + (Number.isFinite(hours) && hours > 0 ? hours : 0);
+  }, 0);
+  const totalHours =
+    officialProgram?.total_hours ||
+    extractedData?.totalHours ||
+    declaredHours ||
+    resolveWeeklyHours() * SEMESTER_WEEKS;
   const totalN = rawActs.length;
 
   const rawContenidos: unknown[] = Array.isArray(officialProgram?.contenidos_formativos)
@@ -151,10 +162,16 @@ export function repairExtractedDataWithCatalog(
     ? cleanLearningOutcomeText(officialProgram.learning_outcome)
     : cleanLearningOutcomeText(extractedData.learningOutcome || '');
 
+  const canonicalHours = canonicalProgs.reduce((sum, p) => sum + (Number(p.hours) || 0), 0);
+
   return {
     ...extractedData,
     uacName: officialProgram.uac_name || extractedData.uacName,
-    totalHours: officialProgram.total_hours || extractedData.totalHours || 54,
+    totalHours:
+      officialProgram.total_hours ||
+      extractedData.totalHours ||
+      canonicalHours ||
+      resolveWeeklyHours() * SEMESTER_WEEKS,
     learningOutcome: cleanOutcome || extractedData.learningOutcome,
     activities: canonicalProgs.map(p => ({
       order: p.order,
@@ -220,7 +237,11 @@ export function enforceOfficialProgresiones(
     s2.learningOutcome = cleanLearningOutcomeText(s2.learningOutcome);
   }
 
-  s2.totalHours = officialProgram?.total_hours || extractedData?.totalHours || 54;
+  s2.totalHours =
+    officialProgram?.total_hours ||
+    extractedData?.totalHours ||
+    canonicalProgs.reduce((sum, p) => sum + (Number(p.hours) || 0), 0) ||
+    resolveWeeklyHours() * SEMESTER_WEEKS;
   s2.activities = canonicalProgs.map(p => ({
     order: p.order,
     name: p.name,

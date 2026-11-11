@@ -15,9 +15,6 @@ import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
 import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/content-budget';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
-import type { PlanningEvaluationResult } from '@/components/planeacion/tabs/PlanningTabEvaluador';
-import type { TeacherProgressSummary } from '@/lib/pedagogical-analytics';
-import type { AuditReport } from '@/lib/audit-engine';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
   FileText, Clock, Package, ShieldCheck,
@@ -181,75 +178,6 @@ function PlanningDetailModular({
     setCollapsedBlocks(next);
   };
 
-  // ── Audit state ─────────────────────────────────────────────────────────
-  const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState<string | null>(null);
-  const [auditLoaded, setAuditLoaded] = useState(false);
-  const [expandedDimension, setExpandedDimension] = useState<string | null>(null);
-
-  const handleRunAudit = async () => {
-    setAuditLoading(true);
-    setAuditError(null);
-    try {
-      // First try to load existing audit
-      const getRes = await fetch(`/api/audit/${planning.id}`);
-      if (getRes.ok) {
-        const getData = await getRes.json();
-        if (getData?.audit) {
-          setAuditReport(getData.audit);
-          setAuditLoaded(true);
-          setAuditLoading(false);
-          return;
-        }
-      }
-      // No existing audit — run a new one
-      const postRes = await fetch('/api/audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planningId: planning.id }),
-      });
-      const postData = await postRes.json();
-      if (!postRes.ok) throw new Error(postData.error || 'Error al ejecutar la auditoría.');
-      setAuditReport(postData.report);
-      setAuditLoaded(true);
-    } catch (err: unknown) {
-      setAuditError(err instanceof Error ? err.message : 'Error desconocido.');
-    } finally {
-      setAuditLoading(false);
-    }
-  };
-
-  const handleReAudit = async () => {
-    setAuditReport(null);
-    setAuditLoaded(false);
-    setAuditError(null);
-    setAuditLoading(true);
-    try {
-      const postRes = await fetch('/api/audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planningId: planning.id }),
-      });
-      const postData = await postRes.json();
-      if (!postRes.ok) throw new Error(postData.error || 'Error al re-auditar.');
-      setAuditReport(postData.report);
-      setAuditLoaded(true);
-    } catch (err: unknown) {
-      setAuditError(err instanceof Error ? err.message : 'Error desconocido.');
-    } finally {
-      setAuditLoading(false);
-    }
-  };
-
-  // Load audit when switching to audit tab for the first time
-  useEffect(() => {
-    if (activeTab === 'quality' && qualitySubTab === 'audit' && !auditLoaded && !auditLoading) {
-      handleRunAudit();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, qualitySubTab]);
-
   // Modal Checklist Supervisión
   const [showChecklistModal, setShowChecklistModal] = useState(false);
 
@@ -303,7 +231,7 @@ function PlanningDetailModular({
 
   // Generate extra handler
   async function handleGenerateExtra(
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'evaluation',
     title: string,
     keyIndex: number | null,
     extraData: {
@@ -828,61 +756,6 @@ function PlanningDetailModular({
     }
   };
 
-  // ── Evaluador state ─────────────────────────────────────────────────────
-  const [evalResult, setEvalResult]   = useState<PlanningEvaluationResult | null>((planning.evaluationJson as PlanningEvaluationResult) || null);
-  const [evalLoading, setEvalLoading] = useState(false);
-  const [evalError,   setEvalError]   = useState<string | null>(null);
-  const [, setEvalLoaded]             = useState(Boolean(planning.evaluationJson));
-
-  const handleRunEvaluacion = async (forceReeval = false) => {
-    setEvalLoading(true);
-    setEvalError(null);
-    try {
-      const res = await fetch('/api/planeaciones/evaluar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planningId: planning.id, forceReeval }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al evaluar la planeación.');
-      setEvalResult(data.resultado);
-      setEvalLoaded(true);
-    } catch (err: unknown) {
-      setEvalError(err instanceof Error ? err.message : 'Error desconocido.');
-    } finally {
-      setEvalLoading(false);
-    }
-  };
-
-  // ── Analytics state ──────────────────────────────────────────────────────
-  const [analyticsData, setAnalyticsData]   = useState<TeacherProgressSummary | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsError,   setAnalyticsError]   = useState<string | null>(null);
-  const [analyticsLoaded,  setAnalyticsLoaded]  = useState(false);
-
-  const handleLoadAnalytics = async () => {
-    setAnalyticsLoading(true);
-    setAnalyticsError(null);
-    try {
-      const res = await fetch('/api/pedagogical-analytics');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cargar analytics.');
-      setAnalyticsData(data);
-      setAnalyticsLoaded(true);
-    } catch (err: unknown) {
-      setAnalyticsError(err instanceof Error ? err.message : 'Error desconocido.');
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'quality' && qualitySubTab === 'analytics' && !analyticsLoaded && !analyticsLoading) {
-      handleLoadAnalytics();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, qualitySubTab]);
-
   // Classroom state
   const [publishingClassroom, setPublishingClassroom] = useState(false);
 
@@ -1045,7 +918,6 @@ function PlanningDetailModular({
           <PlanningTabDocumento
             planning={planning}
             editorialEngineEnabled={editorialEngineEnabled}
-            activeSubTab="planning"
             sequenceData={sequenceData}
             extras={extras}
             totalSessions={lessonSessions.length}
@@ -1155,30 +1027,13 @@ function PlanningDetailModular({
         aria-labelledby="tab-btn-quality"
         hidden={activeTab !== 'quality'}
       >
-        {activeTab === 'quality' && (
-          <PlanningTabCalidad
-            planning={planning}
-            activeSubTab={qualitySubTab}
-            onSubTabChange={setQualitySubTab}
-            auditReport={auditReport}
-            auditLoading={auditLoading}
-            auditError={auditError}
-            auditLoaded={auditLoaded}
-            expandedDimension={expandedDimension}
-            setExpandedDimension={setExpandedDimension}
-            handleRunAudit={handleRunAudit}
-            handleReAudit={handleReAudit}
-            evalResult={evalResult}
-            evalLoading={evalLoading}
-            evalError={evalError}
-            handleRunEvaluacion={handleRunEvaluacion}
-            analyticsData={analyticsData}
-            analyticsLoading={analyticsLoading}
-            analyticsError={analyticsError}
-            analyticsLoaded={analyticsLoaded}
-            handleLoadAnalytics={handleLoadAnalytics}
-          />
-        )}
+        <PlanningTabCalidad
+          key={planning.id}
+          planning={planning}
+          activeSubTab={qualitySubTab}
+          onSubTabChange={setQualitySubTab}
+          isActive={activeTab === 'quality'}
+        />
       </div>
 
       {/* Modal Vista Impresión Carta */}

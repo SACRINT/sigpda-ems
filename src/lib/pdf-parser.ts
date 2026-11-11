@@ -7,6 +7,14 @@ import { parseAIResponse } from '@/lib/ai-response-parser';
 import { PdfProgramExtractSchema } from '@/lib/ai-schemas';
 import { removeHyphens } from '@/lib/text-utils';
 import { getProgramByUacAndSemester } from '@/lib/db/programs-catalog';
+import {
+  resolveWeeklyHours,
+  SEMESTER_WEEKS,
+  WEEKS_PER_BLOCK,
+} from '@/lib/guide-engine/content-budget';
+
+const DEFAULT_SEMESTER_HOURS = resolveWeeklyHours() * SEMESTER_WEEKS;
+const DEFAULT_HOURS_PER_BLOCK = resolveWeeklyHours() * WEEKS_PER_BLOCK;
 
 /**
  * Distribución determinista de horas y cortes para N progresiones sumando 54h (18h por Corte).
@@ -14,9 +22,9 @@ import { getProgramByUacAndSemester } from '@/lib/db/programs-catalog';
 export function distributeProgressionHoursAndCorte(
   index: number,
   totalProgressions: number,
-  totalHours: number = 54
+  totalHours: number = DEFAULT_SEMESTER_HOURS
 ): { hours: number; corte: 'Corte 1' | 'Corte 2' | 'Corte 3' } {
-  if (totalProgressions === 8 && totalHours === 54) {
+  if (totalProgressions === 8 && totalHours === DEFAULT_SEMESTER_HOURS) {
     const hoursList = [6, 6, 6, 6, 6, 6, 9, 9];
     const cortesList: Array<'Corte 1' | 'Corte 2' | 'Corte 3'> = [
       'Corte 1', 'Corte 1', 'Corte 1',
@@ -28,7 +36,7 @@ export function distributeProgressionHoursAndCorte(
       corte: cortesList[index] ?? 'Corte 3',
     };
   }
-  if (totalProgressions === 7 && totalHours === 54) {
+  if (totalProgressions === 7 && totalHours === DEFAULT_SEMESTER_HOURS) {
     const hoursList = [9, 9, 6, 6, 6, 9, 9];
     const cortesList: Array<'Corte 1' | 'Corte 2' | 'Corte 3'> = [
       'Corte 1', 'Corte 1',
@@ -239,7 +247,7 @@ export function extractDeterministicMccemsProgram(
     uacName = removeHyphens(uacMatch[0]).replace(/\s+/g, ' ').trim();
   }
   const semester = targetSemester || (/\b(?:II|VI|Sexto\s+Semestre)\b/i.test(uacName || text.slice(0, 1500)) ? 6 : 5);
-  const totalHours = 54;
+  const totalHours = DEFAULT_SEMESTER_HOURS;
 
   const sortedOrders = Array.from(byOrder.keys()).sort((a, b) => a - b);
   const totalN = sortedOrders.length;
@@ -347,7 +355,11 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSe
               const fullProgName = /^Progresi[óo]n\s*\d+/i.test(String(a.name || ''))
                 ? String(a.name)
                 : `Progresión ${ord}: ${desc}`;
-              const { hours, corte } = distributeProgressionHoursAndCorte(idx, catActs.length, catProg.total_hours || 54);
+              const { hours, corte } = distributeProgressionHoursAndCorte(
+                idx,
+                catActs.length,
+                catProg.total_hours || DEFAULT_SEMESTER_HOURS
+              );
               return {
                 order: ord,
                 name: fullProgName,
@@ -373,7 +385,7 @@ export async function parsePdfBuffer(buffer: Buffer, filename?: string, targetSe
       data: {
         uacName: finalUacName,
         learningOutcome: finalLearningOutcome,
-        totalHours: deterministicMccems.totalHours || 54,
+        totalHours: deterministicMccems.totalHours || DEFAULT_SEMESTER_HOURS,
         activities: finalActivities,
         evidences: [],
         contenidosFormativos: finalContenidosFormativos,
@@ -470,7 +482,9 @@ ${rawText}`;
         .filter((a: { name?: string }) => a?.name)
         .map((a: { name: string; hours?: number; order?: number }, i: number) => ({
           name: removeHyphens(String(a.name).trim()),
-          hours: Number(a.hours) || Math.round((parsed.totalHours || 54) / 3),
+          hours:
+            Number(a.hours) ||
+            Math.round((parsed.totalHours || DEFAULT_SEMESTER_HOURS) / 3),
           order: Number(a.order) || i + 1,
         }))
     : [];
@@ -479,9 +493,9 @@ ${rawText}`;
     activities.length > 0
       ? activities
       : [
-          { name: '', hours: 18, order: 1 },
-          { name: '', hours: 18, order: 2 },
-          { name: '', hours: 18, order: 3 },
+          { name: '', hours: DEFAULT_HOURS_PER_BLOCK, order: 1 },
+          { name: '', hours: DEFAULT_HOURS_PER_BLOCK, order: 2 },
+          { name: '', hours: DEFAULT_HOURS_PER_BLOCK, order: 3 },
         ];
 
   const evidences = Array.isArray(parsed.evidences)
@@ -491,7 +505,7 @@ ${rawText}`;
   const data = {
     uacName: parsed.uacName ? removeHyphens(String(parsed.uacName).trim()) : '',
     learningOutcome: parsed.learningOutcome ? removeHyphens(String(parsed.learningOutcome).trim()) : '',
-    totalHours: Number(parsed.totalHours) || 54,
+    totalHours: Number(parsed.totalHours) || DEFAULT_SEMESTER_HOURS,
     activities: finalActivities,
     evidences: evidences.map((e: string) => removeHyphens(e)),
     contenidosFormativos: Array.isArray(parsed.contenidosFormativos) ? parsed.contenidosFormativos : undefined,
@@ -517,11 +531,11 @@ function buildEmptyData() {
   return {
     uacName: '',
     learningOutcome: '',
-    totalHours: 54,
+    totalHours: DEFAULT_SEMESTER_HOURS,
     activities: [
-      { name: '', hours: 18, order: 1 },
-      { name: '', hours: 18, order: 2 },
-      { name: '', hours: 18, order: 3 },
+      { name: '', hours: DEFAULT_HOURS_PER_BLOCK, order: 1 },
+      { name: '', hours: DEFAULT_HOURS_PER_BLOCK, order: 2 },
+      { name: '', hours: DEFAULT_HOURS_PER_BLOCK, order: 3 },
     ],
     evidences: [] as string[],
     parseConfidence: 'failed' as const,

@@ -28,7 +28,8 @@ export type PersistedExtraType =
   | 'checklist'
   | 'material'
   | 'practice_guide'
-  | 'teacher_guide';
+  | 'teacher_guide'
+  | 'evaluation';
 
 export interface PlannedInsert {
   extraType: PersistedExtraType;

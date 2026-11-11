@@ -2,12 +2,14 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
+import { getPlatformName } from '@/lib/platform/platform-name';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-export const metadata: Metadata = {
-  title: '¡Suscripción activada! — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `¡Suscripción activada! — ${platformName}` };
+}
 
 export default async function SuscripcionExitoPage({
   params,
@@ -27,6 +29,7 @@ export default async function SuscripcionExitoPage({
   );
 
   const planName = subscriptionStatus.subscription?.planName || 'nuevo';
+  const platformName = await getPlatformName();
 
   return (
     <div style={{
@@ -109,7 +112,7 @@ export default async function SuscripcionExitoPage({
           marginTop: 24, fontSize: 12,
           color: 'rgba(240,244,255,0.2)',
         }}>
-          DidácticaIA · MCCEMS Puebla 2026-2027
+          {platformName} · MCCEMS Puebla 2026-2027
         </p>
       </div>
     </div>

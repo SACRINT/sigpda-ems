@@ -10,6 +10,7 @@
  */
 
 import { SCHOOL_YEAR } from '@/lib/config';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { CCT_NO_REGISTRADO, PLANTEL_NO_REGISTRADO } from '@/lib/school-identity';
 import type { RGB } from '@/lib/visual-engine/design-tokens';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
@@ -104,6 +105,14 @@ export const DOC_TYPE_CONFIG: Record<string, DocTypeMetadata> = {
     icon: '🎨',
     description: 'Diagramas, infografías y artefactos visuales de apoyo curricular.',
   },
+  evaluation: {
+    label: 'INSTRUMENTO OFICIAL DE EVALUACIÓN',
+    shortLabel: 'EVALUACIÓN',
+    color: [15, 52, 96],
+    hex: '0F3460',
+    icon: '🎯',
+    description: 'Instrumento especializado de evaluación formativa y sumativa MCCEMS.',
+  },
 };
 
 export interface HeaderBranding {
@@ -178,8 +187,8 @@ export function resolveFooterBranding(
   const blockNum = resolveBlockNumber(blockIndex);
   const blockSuffix = blockNum != null ? ` · Bloque ${blockNum}` : '';
   const leftText = docType === 'lesson_plan'
-    ? `SIGPDA-EMS · ${meta.shortLabel}${blockSuffix}`
-    : `SIGPDA-EMS · ${meta.shortLabel} · ${(title || '').substring(0, 50)}`;
+    ? `${getRuntimePlatformName()} · ${meta.shortLabel}${blockSuffix}`
+    : `${getRuntimePlatformName()} · ${meta.shortLabel} · ${(title || '').substring(0, 50)}`;
   const rightText = `Página ${page} de ${totalPages}`;
 
   return {

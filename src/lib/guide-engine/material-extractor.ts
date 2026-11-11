@@ -1,6 +1,7 @@
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
 import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { buildSessionMoments } from './pedagogical-moments';
 import { auditPlanWorkbookCoherence, type CoherenceReport } from './plan-workbook-coherence';
 import {
@@ -60,6 +61,16 @@ export interface PlanDeClaseDerivado {
     tiempoMinutos: number;
   };
   instrumentoEvaluacion: string;
+}
+
+export class MissingWorkbookMissionsError extends Error {
+  constructor(blockName?: string) {
+    super(
+      `[material-extractor] El bloque "${blockName || 'sin nombre'}" no tiene misiones reales. ` +
+        'No se puede derivar un plan de clase sin contenido; regenere el bloque antes de extraer materiales.'
+    );
+    this.name = 'MissingWorkbookMissionsError';
+  }
 }
 
 export interface ExtractedBlockMaterials {
@@ -125,6 +136,7 @@ export function resolveTargetSessionsForWorkbook(
       }
     }
   }
+  // Fallback histórico para workbooks legacy sin sessionsPerBlock ni secuencia.
   return 24;
 }
 
@@ -145,6 +157,9 @@ export function extractMaterialsFromWorkbook(
   const startTime = performance.now();
 
   const missions = workbook.missions || [];
+  if (missions.length === 0) {
+    throw new MissingWorkbookMissionsError(workbook.blockName);
+  }
   const planesDeClase: PlanDeClaseDerivado[] = [];
 
   // 1. Extraer o mapear las sesiones oficiales de clase a partir de las misiones y secuencia
@@ -166,47 +181,13 @@ export function extractMaterialsFromWorkbook(
     }
   }
 
-  // Si no se alcanzaron 24 sesiones (ej. menos de 8 misiones), completar hasta 24 proporcionalmente
+  // Si la cobertura de misiones es menor al total del bloque, se completan las
+  // sesiones reutilizando misiones REALES de forma proporcional. Nunca se inventa
+  // una misión de contingencia con texto genérico.
   const currentCount = planesDeClase.length;
   if (currentCount < TARGET_SESSIONS) {
-    const fallbackMission: MissionSection = missions[0] || {
-      missionIndex: 1,
-      title: workbook.blockName || 'Bloque Formativo',
-      coveredSessions: [1],
-      sessionTopic: workbook.coverData?.subjectName || 'Formación Disciplinar',
-      sessionFocus: 'Desarrollo de competencias y aprendizajes clave',
-      phenomenonHook: {
-        story: 'Desafío práctico situado en el entorno regional.',
-        detonatingQuestion: '¿Cómo aplicamos los conceptos en la resolución de problemas cotidianos?',
-      },
-      conceptZero: {
-        physicalAnalogy: 'Analogía práctica del contexto escolar.',
-        coreExplanation: 'Fundamentación conceptual aplicada.',
-      },
-      iDoSection: {
-        stepByStepDemo: 'Explicación demostrativa y modelado guiado por el docente.',
-      },
-      weDoSection: {
-        guidedPractice: 'Actividad colaborativa en equipos de trabajo.',
-        workbookElements: [],
-      },
-      youDoSection: {
-        autonomousChallenge: 'Reto autónomo de consolidación práctica.',
-        workbookElements: [],
-      },
-      troubleshooting: [],
-      formativeCheckpoint: {
-        question: 'Verificación de aprendizaje esperado.',
-        reflectionPrompts: ['¿Qué dificultades enfrentaste?'],
-        criteriaChecklist: ['Comprensión', 'Aplicación'],
-      },
-      wordCount: 500,
-    };
-
     for (let i = currentCount + 1; i <= TARGET_SESSIONS; i++) {
-      const parentMission = missions.length > 0
-        ? missions[(i - 1) % missions.length]
-        : fallbackMission;
+      const parentMission = missions[(i - 1) % missions.length];
       planesDeClase.push(buildPlanDeClase(workbook, parentMission, i, blockSequence, curricularAnchor));
     }
   }
@@ -277,7 +258,7 @@ function buildPlanDeClase(
 ): PlanDeClaseDerivado {
   const paecText = workbook.coverData?.paecProjectName
     ? `Vinculación PAEC: ${workbook.coverData.paecProjectName}. Impacto escolar y comunitario.`
-    : 'Transversalidad comunitaria y socioemocional alineada al MCCEMS.';
+    : `Transversalidad comunitaria vinculada a "${mission.sessionTopic || mission.title}".`;
 
   // Buscar si la sesión específica está modelada en la secuencia didáctica guardada (SecuenciaBloque)
   const sessionFromSeq = blockSequence?.sessions?.find((s) => s.sessionNum === sessionNum);
@@ -392,18 +373,25 @@ function buildPlanDeClase(
 
   const metodologiaActiva = sessionFromSeq?.procesoPensamiento
     ? `Aprendizaje Activo focalizado en ${sessionFromSeq.procesoPensamiento} y Modelado Cognitivo (I Do - We Do - You Do)`
-    : 'Aprendizaje Basado en Retos y Modelado Cognitivo (I Do - We Do - You Do)';
+    : `Modelado Cognitivo (I Do - We Do - You Do) aplicado a "${mission.sessionTopic || mission.title}"`;
 
   const recursosDidacticos = sessionFromSeq?.garantiaDualOffline
     ? `Cuaderno de Trabajo Activo, bitácora de trabajo. Estrategia dual sin conectividad: ${autoTokenizeMaterials(sessionFromSeq.garantiaDualOffline)}`
-    : autoTokenizeMaterials('Cuaderno de Trabajo Activo del estudiante, bitácora de taller/laboratorio, instrumental didáctico.');
+    : autoTokenizeMaterials(
+        `Cuaderno de Trabajo Activo y bitácora para "${mission.sessionTopic || mission.title}".`
+      );
 
   const productoEsperado = sessionFromSeq?.evidence
     ? sessionFromSeq.evidence
     : `Evidencia práctica documentada de la Misión ${mission.missionIndex} (Sesión ${sessionNum})`;
 
-  const evaluacionFormativa = sessionFromSeq?.evaluation || mission.formativeCheckpoint?.question || 'Checkpoint de comprensión y resolución de problema aplicado';
-  const metacognicion = mission.formativeCheckpoint?.reflectionPrompts?.join(' ') || 'Identificación de fortalezas y áreas de mejora en el proceso de aprendizaje.';
+  const evaluacionFormativa =
+    sessionFromSeq?.evaluation ||
+    mission.formativeCheckpoint?.question ||
+    `Checkpoint de comprensión sobre "${mission.sessionTopic || mission.title}"`;
+  const metacognicion =
+    mission.formativeCheckpoint?.reflectionPrompts?.join(' ') ||
+    `Reflexión sobre el proceso de aprendizaje de "${mission.sessionTopic || mission.title}".`;
 
   return {
     numeroSesion: sessionNum,
@@ -437,7 +425,7 @@ function buildPlanDeClase(
     },
     instrumentoEvaluacion: sessionFromSeq?.evaluation
       ? `${sessionFromSeq.evaluation} · Sesión ${sessionNum}`
-      : `Rúbrica de Desempeño y Lista de Cotejo · Misión ${mission.missionIndex}`,
+      : `Rúbrica de Desempeño y Lista de Cotejo · ${mission.title} · Sesión ${sessionNum}`,
   };
 }
 
@@ -735,7 +723,7 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
     }
   }
 
-  parts.push('*SIGPDA-EMS · Solucionario y Guía Pedagógica Oficial del Docente (MCCEMS 2026-2027)*\n');
+  parts.push(`*${getRuntimePlatformName()} · Solucionario y Guía Pedagógica Oficial del Docente (MCCEMS 2026-2027)*\n`);
   return parts.join('\n');
 }
 

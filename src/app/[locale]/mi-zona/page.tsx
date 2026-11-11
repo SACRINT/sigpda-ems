@@ -5,11 +5,15 @@ import { isAdmin } from '@/lib/admin-unified';
 import AppLayout from '@/components/layout/AppLayout';
 import MiZonaClient from './MiZonaClient';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Mi Zona de Supervisión · SIGPDA-EMS',
-  description: 'Gestión de los planteles de tu zona de supervisión.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return {
+    title: `Mi Zona de Supervisión · ${platformName}`,
+    description: 'Gestión de los planteles de tu zona de supervisión.',
+  };
+}
 
 export default async function MiZonaPage({
   params,

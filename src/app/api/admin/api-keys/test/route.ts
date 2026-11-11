@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createDecipheriv } from 'crypto';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { API_CONFIG } from '@/lib/config';
+import { getPlatformName } from '@/lib/platform/platform-name';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 function getDb() { return sql(); }
 
@@ -86,7 +88,7 @@ async function pingProvider(provider: string, model: string, apiKey: string): Pr
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'HTTP-Referer': 'https://sigpda-ems.vercel.app',
-          'X-Title': 'SIGPDA-EMS',
+          'X-Title': getRuntimePlatformName(),
         },
         signal: AbortSignal.timeout(12000),
       });
@@ -146,6 +148,7 @@ async function pingProvider(provider: string, model: string, apiKey: string): Pr
 export async function POST(req: NextRequest) {
   try {
     await requireAdmin();
+    await getPlatformName();
     const body = await req.json();
     const sql = getDb();
 

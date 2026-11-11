@@ -26,6 +26,7 @@ import type {
   TrainingCycleDiagramSpec,
 } from './spec';
 import { diagramFooterLabel, diagramModelLabel } from './diagrams';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { fitText } from './text-layout';
 
 const W = 10;
@@ -1473,8 +1474,8 @@ export async function generateSacrintPptx(deck: SacrintDeckSpec): Promise<Buffer
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = deck.meta.missionTitle;
   pptx.subject = deck.meta.subjectName;
-  pptx.company = deck.meta.schoolName || 'SIGPDA-EMS';
-  pptx.author = deck.meta.teacherName || 'SIGPDA-EMS';
+  pptx.company = deck.meta.schoolName || getRuntimePlatformName();
+  pptx.author = deck.meta.teacherName || getRuntimePlatformName();
 
   renderDeckIntoPptx(pptx, deck);
 
@@ -1490,9 +1491,9 @@ export async function generateCombinedSacrintPptx(
   pptx.layout = 'LAYOUT_16x9';
   const first = decks[0];
   pptx.title = meta?.title || first?.meta.subjectName || 'Presentación SACRINT';
-  pptx.subject = meta?.subjectName || first?.meta.subjectName || 'SIGPDA-EMS';
-  pptx.company = meta?.schoolName || first?.meta.schoolName || 'SIGPDA-EMS';
-  pptx.author = meta?.teacherName || first?.meta.teacherName || 'SIGPDA-EMS';
+  pptx.subject = meta?.subjectName || first?.meta.subjectName || getRuntimePlatformName();
+  pptx.company = meta?.schoolName || first?.meta.schoolName || getRuntimePlatformName();
+  pptx.author = meta?.teacherName || first?.meta.teacherName || getRuntimePlatformName();
 
   for (const deck of decks) {
     renderDeckIntoPptx(pptx, deck);

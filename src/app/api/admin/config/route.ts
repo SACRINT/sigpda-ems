@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
+import { invalidatePlatformNameCache } from '@/lib/platform/platform-name';
 
 function getDb() { return sql(); }
 
@@ -33,6 +34,10 @@ export async function PUT(req: NextRequest) {
         VALUES (${key}, ${value}, NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
       `;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'platform_name')) {
+      invalidatePlatformNameCache();
     }
 
     return NextResponse.json({ success: true });

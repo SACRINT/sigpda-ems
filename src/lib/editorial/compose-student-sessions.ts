@@ -8,12 +8,11 @@
  * con numeración desplazada respecto del compendio.
  *
  * Contrato actual:
- *  1. Nunca descarta una sesión por campos blandos: enforceEditorialSoftMinimums
- *     los repara como red de seguridad determinista (el reparador IA corre antes,
- *     en la ruta, para que el contenido venga de IA siempre que sea posible).
- *  2. Si un plan aun así falla por contenido teórico/práctico duro (datos
- *     corruptos), se registra en `dropped` y la ruta aborta con 422 explícito —
- *     jamás se publica un libro parcial en silencio.
+ *  1. Los recursos faltantes solo se completan con entradas REALES del catálogo.
+ *     Autoevaluación, pistas y campos teóricos NO se rellenan con texto genérico.
+ *  2. Si un plan falla por contenido genérico, teórico o práctico duro, se registra
+ *     en `dropped` y la ruta aborta con 422 explícito — jamás se publica un libro
+ *     parcial ni con relleno sintético en silencio.
  *  3. Numeración global 1..N con remapeo de referencias (offset = global − local).
  */
 
@@ -24,6 +23,7 @@ import {
   remapSessionReferencesDeep,
 } from './student-content-model';
 import { enforceEditorialSoftMinimums } from './session-plan-minimums';
+import { findGenericContent } from '@/lib/guide-engine/quality/no-generic-content';
 import type { StudentSession } from './student-content-model';
 import type { SessionPlan } from '@/types/work-textbook';
 
@@ -40,7 +40,7 @@ export interface ComposedStudentSessions {
   dropped: DroppedSession[];
   /** Total de planes leídos en workbooks_json. */
   totalPlans: number;
-  /** Cuántos planes requirieron la red de seguridad determinista de campos blandos. */
+  /** Cuántos planes recibieron un recurso REAL del catálogo (sin relleno textual). */
   padded: number;
 }
 
@@ -85,9 +85,21 @@ export function composeStudentSessionsFromWorkbooks(rawPlanning: {
   let padded = 0;
 
   for (const { blockKey, plan } of plans) {
-    // Red de seguridad determinista de campos blandos (recursos/autoeval/pistas).
+    // Red de seguridad de recursos: SOLO catálogo real, nunca texto genérico.
     const prepared = enforceEditorialSoftMinimums(plan);
     if (prepared !== plan) padded++;
+
+    // Gate anti-genérico: un plan con relleno sintético es inválido DURO.
+    // No se publica un libro con contenido de contingencia aunque el schema pase.
+    const genericIssues = findGenericContent(prepared, `session_${plan?.sessionNumber ?? '?'}`);
+    if (genericIssues.length > 0) {
+      dropped.push({
+        blockKey,
+        sessionNumber: plan?.sessionNumber ?? -1,
+        issues: genericIssues.map((issue) => `${issue.path}: ${issue.label}`),
+      });
+      continue;
+    }
 
     try {
       const parsed = StudentSessionSchema.safeParse(adaptSessionPlanToStudentSession(prepared));

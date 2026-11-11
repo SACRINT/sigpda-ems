@@ -1,5 +1,5 @@
 -- ================================================================
--- Migración: Sistema de Suscripciones — DidácticaIA
+-- Migración: Sistema de Suscripciones — SIGPDA-EMS
 -- Fecha: 2026-08-03
 -- Ejecutar en Neon (Panel SQL o psql)
 -- ================================================================

@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
-import DocumentA4Viewer from '@/components/common/DocumentA4Viewer';
 import { useEditorialBook } from '@/hooks/useEditorialBook';
 import EditorialSubscriptionModal from '@/components/ui/EditorialSubscriptionModal';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
@@ -28,7 +27,6 @@ export interface BlockWorkbookItem {
 
 export interface PlanningTabDocumentoProps {
   planning: Planning;
-  activeSubTab?: 'planning' | 'a4print';
   sequenceData?: Record<number, SecuenciaBloque>;
   extras?: PlanningExtra[];
   totalSessions?: number;
@@ -72,7 +70,6 @@ export interface PlanningTabDocumentoProps {
 
 export default function PlanningTabDocumento({
   planning,
-  activeSubTab = 'planning',
   sequenceData = {},
   extras = [],
   totalSessions,
@@ -186,17 +183,6 @@ export default function PlanningTabDocumento({
       toast.dismiss('editorial-toast');
     }
   };
-
-  if (activeSubTab === 'a4print') {
-    return (
-        <DocumentA4Viewer
-          planning={{ ...planning, sequenceJson: sequenceData }}
-          onDownloadDocx={() => {
-            window.location.href = `/api/docx/${planning?.id}`;
-          }}
-        />
-    );
-  }
 
   return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

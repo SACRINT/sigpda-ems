@@ -4,10 +4,12 @@ import { getTeacherByEmail } from '@/lib/db';
 import { sql } from '@/lib/db/client';
 import PmcWizardClient from './PmcWizardClient';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Nuevo PMC — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Nuevo PMC — ${platformName}` };
+}
 
 export default async function PmcNuevoPage({
   params,

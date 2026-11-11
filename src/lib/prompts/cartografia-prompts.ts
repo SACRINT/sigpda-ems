@@ -465,7 +465,7 @@ Genera un objeto JSON estrictamente con la siguiente estructura:
         "Muestra Zonal de Proyectos Comunitarios PAEC con participación de actores locales",
         "Monitoreo nominal de estudiantes en riesgo de deserción en los tres momentos del ciclo"
       ],
-      "recursos": ["Sistema de alerta temprana SIGPDA-EMS", "Redes de apoyo comunitario", "Formatos PAEC"],
+      "recursos": ["Sistema de alerta temprana institucional", "Redes de apoyo comunitario", "Formatos PAEC"],
       "responsables": "Supervisión Escolar, Tutores Escolares y Comités de Vinculación",
       "entregables": "Madrina/Padrino de trayectoria para alumnos en riesgo y catálogo de proyectos comunitarios",
       "estrategiaSeguimiento": "Cortes nominales de permanencia en cada evaluación parcial",

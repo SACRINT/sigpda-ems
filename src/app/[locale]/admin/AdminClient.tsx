@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { normalizeContenidos } from '@/lib/text-utils';
+import { FALLBACK_PLATFORM_NAME } from '@/lib/platform/platform-name-shared';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,6 +212,7 @@ function relativeTime(dateStr?: string | null): string {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function AdminClient({ locale, adminEmail }: { locale: string; adminEmail: string }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'keys' | 'config' | 'users' | 'stats' | 'prompts' | 'docs' | 'activity' | 'normativa' | 'curricula' | 'audits' | 'schedules'>('stats');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -694,8 +697,11 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
     setSaving(true);
     const r = await fetch('/api/admin/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
     setSaving(false);
-    if (r.ok) { setConfig(c => ({ ...c, ...updates })); showMsg('Configuración guardada ✓'); }
-    else showMsg('Error al guardar', false);
+    if (r.ok) {
+      setConfig(c => ({ ...c, ...updates }));
+      showMsg('Configuración guardada ✓');
+      router.refresh();
+    } else showMsg('Error al guardar', false);
   }
 
   async function toggleUserPremium(teacherId: string, isPremium: boolean) {
@@ -2676,6 +2682,16 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
           <>
             <h1>⚙️ Configuración de la Plataforma</h1>
             <div style={{ display: 'grid', gap: 20, maxWidth: 560 }}>
+              <div className="form-group">
+                <label>Nombre de la plataforma</label>
+                <input value={config['platform_name'] || FALLBACK_PLATFORM_NAME}
+                  onChange={e => setConfig(c => ({ ...c, platform_name: e.target.value }))}
+                  onBlur={() => saveConfig({ platform_name: config['platform_name'] || FALLBACK_PLATFORM_NAME })}
+                  placeholder={FALLBACK_PLATFORM_NAME} />
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                  Se usa en la interfaz, documentos y prompts. Cambiarlo aquí no requiere rebuild.
+                </p>
+              </div>
               <div className="form-group">
                 <label>Ciclo Escolar Activo</label>
                 <input value={config['school_year'] || ''} onChange={e => setConfig(c => ({ ...c, school_year: e.target.value }))}

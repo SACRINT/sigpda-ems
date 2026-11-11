@@ -7,10 +7,12 @@ import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import DeletePaecButton from './DeletePaecButton';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Proyectos PAEC-PEC — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Proyectos PAEC-PEC — ${platformName}` };
+}
 
 const CYCLE_LABELS: Record<string, string> = {
   A: 'Semestre A (1°, 3° y 5°)',

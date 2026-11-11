@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Sparkles, X, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { usePlatformName } from '@/components/platform/PlatformNameProvider';
 
 export interface EditorialSubscriptionModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ export interface EditorialSubscriptionModalProps {
 
 /**
  * EditorialSubscriptionModal — Modal de Suscripción al Motor Editorial Premium
- * SIGPDA-EMS · Motor Editorial de Alta Gama (Fase 3)
+ * Motor Editorial de Alta Gama (Fase 3)
  *
  * Se presenta exclusivamente cuando el Route Handler devuelve HTTP 403 con code: PREMIUM_REQUIRED.
  * Ofrece acceso a los planes de suscripción para habilitar la compilación con Typst en imprenta.
@@ -20,6 +21,7 @@ export default function EditorialSubscriptionModal({
   isOpen,
   onClose,
 }: EditorialSubscriptionModalProps) {
+  const platformName = usePlatformName();
   const router = useRouter();
   const modalRef = useRef<HTMLDivElement>(null);
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
@@ -205,7 +207,7 @@ export default function EditorialSubscriptionModal({
             }}
           >
             La generación de libros de texto para estudiantes con el estándar tipográfico de imprenta
-            oficial es una característica exclusiva para suscriptores Premium de SIGPDA-EMS.
+            oficial es una característica exclusiva para suscriptores Premium de {platformName}.
           </p>
 
           <div

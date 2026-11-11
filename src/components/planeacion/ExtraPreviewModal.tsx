@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { usePlatformName } from '@/components/platform/PlatformNameProvider';
 
 // Fase 11 — Mermaid support para guías de práctica
 const MarkdownWithMermaid = dynamic(
@@ -46,6 +47,7 @@ export function ExtraPreviewModal({
   contentText,
   type,
 }: ExtraPreviewModalProps) {
+  const platformName = usePlatformName();
   const [copied, setCopied] = useState(false);
 
   const detectedMaterials = parseMaterialTokensWithFallback(contentText || '');
@@ -766,7 +768,7 @@ export function ExtraPreviewModal({
                     🔬 Catálogo de Materiales y Herramientas ({uniqueMaterials.length})
                   </span>
                   <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Repositorio Offline SIGPDA-EMS
+                    Repositorio Offline {platformName}
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>

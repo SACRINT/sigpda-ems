@@ -77,4 +77,5 @@ export interface PlatformConfig {
   maintenance_message: string;
   max_daily_plannings: string;
   welcome_message: string;
+  platform_name: string;
 }

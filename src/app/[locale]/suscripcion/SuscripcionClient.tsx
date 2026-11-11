@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 interface Props {
   locale: string;
+  platformName: string;
   userRole: string;
   activePlanName: string | null;
   activePlanSubjects: number | null;
@@ -13,6 +14,7 @@ interface Props {
 
 export default function SuscripcionClient({
   locale,
+  platformName,
   userRole,
   activePlanName,
   activePlanSubjects,
@@ -287,7 +289,7 @@ export default function SuscripcionClient({
               WebkitTextFillColor: 'transparent',
             }}
           >
-            Planes y Suscripciones SIGPDA-EMS
+            Planes y Suscripciones {platformName}
           </h1>
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.65)', maxWidth: '650px', margin: '0 auto' }}>
             Selecciona el plan diseñado a la medida de tu labor educativa. Cada usuario genera sus propios instrumentos pedagógicos de forma ágil, auténtica y normativa.

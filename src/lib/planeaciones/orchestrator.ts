@@ -10,6 +10,7 @@
 
 import type { IProgramSystem, HealthCheckResult, ProgramId } from '@/lib/platform/interfaces';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
+import { BLOCKS_PER_SEMESTER } from '@/lib/guide-engine/content-budget';
 import {
   evaluarPlaneacion,
   type InputEvaluacion,
@@ -338,7 +339,7 @@ export class PlaneacionOrchestrator implements IPlaneacionOrchestrator {
     logger.info(`[planeaciones-orchestrator] Generating planning for UAC: ${input.asignatura}, semester: ${input.semestre}`);
 
     const component = input.component || (input.semestre >= 5 ? 'fundamental_5_6' : 'fundamental_1_4');
-    const totalBlocks = input.bloques || 3;
+    const totalBlocks = input.bloques || BLOCKS_PER_SEMESTER;
     const weeklyHours = input.horasSemanales || (component === 'laboral' ? 18 : 4);
 
     return {

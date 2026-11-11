@@ -165,12 +165,31 @@ describe('Paridad 1:1 libro del estudiante ↔ solucionario docente', () => {
   });
 });
 
+function fullPlan(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    sessionNumber: 1,
+    objetivo: 'Calcular el área de una figura compuesta con medidas reales del plantel.',
+    motivacion: 'El área del patio escolar necesita recalcularse para instalar jardineras nuevas.',
+    saberesPrevios: 'Ya calculas áreas de rectángulos y descompones figuras en partes simples.',
+    contenido: 'El área de una figura compuesta se obtiene sumando las áreas de sus partes rectangulares.',
+    ejemploResuelto: 'Una forma en L de 6 m × 4 m con un hueco de 2 m × 2 m tiene área 24 − 4 = 20 m².',
+    aplicacion: 'Aplica el cálculo de áreas para planear la jardinería del patio escolar.',
+    productoIntegrador: 'Incluye el plano con áreas calculadas en tu proyecto comunitario.',
+    ...overrides,
+  };
+}
+
 describe('Sanitizador de sessionPlans: conserva la parte docente (solucion)', () => {
   const covered = [1];
 
   it('conserva los pasos de solución válidos', () => {
     const plans = sanitizeSessionPlans(
-      [{ sessionNumber: 1, enunciadoIgnored: true, practica: [{ enunciado: EX1, pista: EX1_PISTA, solucion: EX1_SOL }] }],
+      [
+        fullPlan({
+          enunciadoIgnored: true,
+          practica: [{ enunciado: EX1, pista: EX1_PISTA, solucion: EX1_SOL }],
+        }),
+      ],
       covered
     );
     expect(plans).toHaveLength(1);
@@ -181,8 +200,7 @@ describe('Sanitizador de sessionPlans: conserva la parte docente (solucion)', ()
     const longSteps = Array.from({ length: 9 }, (_, i) => `Paso ${i + 1}: detalle numérico del cálculo.`);
     const plans = sanitizeSessionPlans(
       [
-        {
-          sessionNumber: 1,
+        fullPlan({
           practica: [
             {
               enunciado: 'Resuelve el ejercicio de verificación de áreas del cuaderno activo.',
@@ -190,7 +208,7 @@ describe('Sanitizador de sessionPlans: conserva la parte docente (solucion)', ()
               solucion: ['Docente: guiar al grupo', 'x', ...longSteps],
             },
           ],
-        },
+        }),
       ],
       covered
     );
@@ -202,7 +220,11 @@ describe('Sanitizador de sessionPlans: conserva la parte docente (solucion)', ()
 
   it('omite el campo cuando no hay solución utilizable (queda opcional)', () => {
     const plans = sanitizeSessionPlans(
-      [{ sessionNumber: 1, practica: [{ enunciado: EX1, pista: EX1_PISTA, solucion: ['a', ''] }] }],
+      [
+        fullPlan({
+          practica: [{ enunciado: EX1, pista: EX1_PISTA, solucion: ['a', ''] }],
+        }),
+      ],
       covered
     );
     expect(plans![0].practica[0].solucion).toBeUndefined();
@@ -401,7 +423,12 @@ describe('Garantía de no-filtración: el libro del estudiante nunca lee .soluci
 
   it('el sanitizador no filtra soluciones hacia campos de estudiante fuera de practica', () => {
     const plans = sanitizeSessionPlans(
-      [{ sessionNumber: 1, practica: [{ enunciado: EX1, pista: EX1_PISTA, solucion: EX1_SOL }], contenido: EX1_SOL[0] }],
+      [
+        fullPlan({
+          practica: [{ enunciado: EX1, pista: EX1_PISTA, solucion: EX1_SOL }],
+          contenido: EX1_SOL[0],
+        }),
+      ],
       [1]
     );
     // `contenido` (teoría impresa al estudiante) NO hereda la solución

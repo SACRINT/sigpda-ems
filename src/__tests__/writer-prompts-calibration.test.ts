@@ -46,6 +46,15 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
       return JSON.stringify({
         coreExplanation: 'Explicación formal extensa '.repeat(30),
         physicalAnalogy: 'Analogía física clara',
+        phenomenonStory:
+          'El consumo de agua del plantel cambia a lo largo de la semana y los estudiantes registran las lecturas del medidor.',
+        detonatingQuestion:
+          '¿Cómo podemos describir con precisión el cambio de consumo de agua entre dos semanas?',
+        formativeCheckpoint: {
+          question: '¿Qué estrategia usaste para calcular la razón de cambio?',
+          reflectionPrompts: ['Explica cómo verificaste tu resultado con los datos del medidor.'],
+          criteriaChecklist: ['Registré los valores inicial y final con sus unidades.'],
+        },
         iDoDemo: 'Modelado docente paso a paso',
         weDoPractice: 'Práctica guiada en equipo',
         youDoChallenge: 'Paso 1: Medir. Paso 2: Calcular. Paso 3: Probar. Paso 4: Ajustar. Paso 5: Concluir.',
@@ -68,8 +77,30 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
         metacognitiveReflection: { prompts: [] },
         sessionPlans: plannedSessions.map((sessionNumber) => ({
           sessionNumber,
-          objetivo: `Obj ${sessionNumber}`,
-          contenido: `Contenido ${sessionNumber}`,
+          objetivo: `Analizar variables y razones de cambio en la sesión ${sessionNumber}.`,
+          motivacion: `El consumo de agua del plantel cambia cada semana y podemos medirlo en la sesión ${sessionNumber}.`,
+          saberesPrevios: 'Ya interpretas tablas de datos y calculas diferencias entre valores.',
+          contenido: `La razón de cambio compara dos variables y permite modelar el fenómeno de la sesión ${sessionNumber}.`,
+          ejemploResuelto: 'Si el consumo pasa de 20 a 25 litros, la razón de cambio es 5 litros por periodo.',
+          practica: [
+            {
+              enunciado: `Calcula la razón de cambio con los datos del plantel en la sesión ${sessionNumber}.`,
+              pista: 'Resta el valor final menos el inicial y divide entre el intervalo.',
+            },
+          ],
+          aplicacion: 'Aplica la razón de cambio para interpretar el consumo de agua de tu comunidad.',
+          autoevaluacion: [
+            '¿Puedo explicar la razón de cambio con un ejemplo propio?',
+            '¿Identifiqué correctamente los valores inicial y final?',
+          ],
+          recursos: [
+            {
+              titulo: 'Video sobre razones de cambio',
+              url: 'https://www.youtube.com/watch?v=razon-cambio',
+              tipo: 'video',
+            },
+          ],
+          productoIntegrador: `Agrega el modelo de la sesión ${sessionNumber} a tu reporte de sostenibilidad.`,
         })),
       });
     });

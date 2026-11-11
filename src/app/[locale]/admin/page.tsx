@@ -4,10 +4,12 @@ import AppLayout from '@/components/layout/AppLayout';
 import AdminClient from './AdminClient';
 import { isAdmin } from '@/lib/admin-unified';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Panel de Administrador — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Panel de Administrador — ${platformName}` };
+}
 
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

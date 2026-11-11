@@ -5,10 +5,12 @@ import { isAdmin } from '@/lib/admin-unified';
 import AppLayout from '@/components/layout/AppLayout';
 import HorariosDashboardClient from './HorariosDashboardClient';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Generador de Horarios Escolares IA (Directores) · SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Generador de Horarios Escolares IA (Directores) · ${platformName}` };
+}
 
 export default async function HorariosDashboardPage({
   params,

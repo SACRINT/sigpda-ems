@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePlatformName } from '@/components/platform/PlatformNameProvider';
 import {
   Sparkles,
   Send,
@@ -82,6 +83,7 @@ export default function EditorHorarios({
   onGuardarHorario,
   esAdmin = false
 }: Props) {
+  const platformName = usePlatformName();
   const [horario, setHorario] = useState<any>(horarioInicial);
   const [hayCambiosSinGuardar, setHayCambiosSinGuardar] = useState<boolean>(false);
   const [guardandoCambios, setGuardandoCambios] = useState<boolean>(false);
@@ -1694,7 +1696,7 @@ export default function EditorHorarios({
                 <div>
                   <h3 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "white", margin: 0 }}>Asistente IA de Horarios</h3>
                   {esAdmin && (
-                    <p style={{ fontSize: "0.65rem", color: "#94a3b8", margin: 0 }}>Gemini 3.5 Flash Lite | SIGPDA-EMS Pool</p>
+                    <p style={{ fontSize: "0.65rem", color: "#94a3b8", margin: 0 }}>Gemini 3.5 Flash Lite | {platformName} Pool</p>
                   )}
                 </div>
               </div>

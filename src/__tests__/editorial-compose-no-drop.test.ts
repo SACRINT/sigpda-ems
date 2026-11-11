@@ -1,11 +1,11 @@
 /**
- * editorial-compose-no-drop.test.ts — Garantía 72/72 del compose editorial
+ * editorial-compose-no-drop.test.ts — Compose editorial sin relleno genérico
  *
- * Regresión directa del bug 54/72: los 18 planes con violaciones blandas
- * (12 sin recursos de ampliación, 6 con 1 sola autoevaluación) deben ser
- * REPARADOS por enforceEditorialSoftMinimums y compuestos, jamás descartados.
- * El descarte (dropped) queda SOLO para contenido duramente corrupto y la ruta
- * lo convierte en 422 explícito (nunca libro parcial en silencio).
+ * Contrato nuevo:
+ *  - Los recursos faltantes SOLO se reparan con entradas reales del catálogo.
+ *  - Autoevaluación/pistas faltantes NO se rellenan con texto genérico.
+ *  - Un plan con relleno sintético o campos duros inválidos se marca como dropped
+ *    para que la ruta aborte con 422 y se regenere, nunca se publique parcial.
  */
 import { describe, it, expect } from 'vitest';
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
@@ -42,12 +42,10 @@ function makeValidPlan(sessionNumber: number, tag: string): SessionPlan {
   };
 }
 
-/** Violación blanda histórica: sin recursos de ampliación. */
 function planSinRecursos(sessionNumber: number): SessionPlan {
   return { ...makeValidPlan(sessionNumber, `ses${sessionNumber}`), recursos: [] };
 }
 
-/** Violación blanda histórica: 1 sola pregunta de autoevaluación. */
 function planConAutoevalDe1(sessionNumber: number): SessionPlan {
   const p = makeValidPlan(sessionNumber, `ses${sessionNumber}`);
   return { ...p, autoevaluacion: [p.autoevaluacion[0]] };
@@ -57,29 +55,19 @@ function workbookOf(plans: SessionPlan[]) {
   return { current: { missions: [{ title: 'Misión 1', sessionPlans: plans }] } };
 }
 
-describe('composeStudentSessionsFromWorkbooks — nunca descarta por campos blandos', () => {
-  it('72 planes blandos (12 sin recursos + 6 con 1 autoeval, réplica del bug) → 72/72 sesiones válidas', () => {
-    // Réplica de las DOS violaciones blandas históricas distribuidas por los
-    // 3 bloques (recursos vacíos y autoevaluación de 1 solo ítem).
+describe('composeStudentSessionsFromWorkbooks — sin relleno genérico', () => {
+  it('72 planes completos y específicos → 72/72 sesiones sin descartes', () => {
     const workbooks: Record<string, ReturnType<typeof workbookOf>> = {};
     for (let b = 0; b < 3; b++) {
       const plans: SessionPlan[] = [];
       for (let s = 1; s <= 24; s++) {
-        const globalIndex = b * 24 + s; // 1..72 para localizar los defectos
-        if (globalIndex % 6 === 0 && globalIndex % 18 !== 0) {
-          plans.push(planConAutoevalDe1(s)); // autoevaluación de 1 solo ítem
-        } else if (globalIndex % 15 === 0) {
-          plans.push(planSinRecursos(s)); // recursos de ampliación vacíos
-        } else {
-          plans.push(makeValidPlan(s, `bloque${b + 1} ses${s}`));
-        }
+        plans.push(makeValidPlan(s, `bloque${b + 1} ses${s}`));
       }
       workbooks[`block_${b}`] = workbookOf(plans);
     }
 
     const res = composeStudentSessionsFromWorkbooks({ workbooks_json: workbooks });
 
-    // La garantía central: CERO descartes, CERO numeración huecos
     expect(res.dropped).toHaveLength(0);
     expect(res.totalPlans).toBe(72);
     expect(res.sessions).toHaveLength(72);
@@ -87,20 +75,37 @@ describe('composeStudentSessionsFromWorkbooks — nunca descarta por campos blan
       Array.from({ length: 72 }, (_, i) => i + 1),
     );
     expect(res.blocksPresent).toEqual([0, 1, 2]);
-    expect(res.padded).toBeGreaterThan(0); // la red de seguridad sí hizo su trabajo
-
-    // Todas las sesiones cumplen los mínimos históricamente incumplidos
-    for (const s of res.sessions) {
-      expect(s.recursos.length).toBeGreaterThanOrEqual(1);
-      expect(s.recursos[0].url).toMatch(/^https:\/\//);
-      expect(s.autoevaluacion.length).toBeGreaterThanOrEqual(2);
-      expect(s.autoevaluacion.every((a) => a.length >= 10)).toBe(true);
-    }
+    expect(res.padded).toBe(0);
   });
 
-  it('repara en línea: plan sin recursos obtiene recurso real del catálogo con URL https', () => {
+  it('plan sin recursos → dropped; no se inventa ni se publica sin recurso', () => {
     const res = composeStudentSessionsFromWorkbooks({
       workbooks_json: { block_0: workbookOf([planSinRecursos(1)]) },
+    });
+
+    expect(res.sessions).toHaveLength(0);
+    expect(res.dropped).toHaveLength(1);
+    expect(res.dropped[0].issues.join(' ')).toContain('recursos');
+  });
+
+  it('plan con 1 autoevaluación → dropped; no se completa con pregunta genérica', () => {
+    const res = composeStudentSessionsFromWorkbooks({
+      workbooks_json: { block_0: workbookOf([planConAutoevalDe1(1)]) },
+    });
+
+    expect(res.sessions).toHaveLength(0);
+    expect(res.dropped).toHaveLength(1);
+    expect(res.dropped[0].issues.join(' ')).toContain('autoevaluacion');
+  });
+
+  it('plan de geometría sin recursos → recurso REAL del catálogo con URL https', () => {
+    const geo = {
+      ...planSinRecursos(1),
+      objetivo: 'Vas a calcular el área de un triángulo con medidas reales del plantel.',
+      contenido: 'Parrafo: El área del triángulo se obtiene con base por altura entre dos.',
+    };
+    const res = composeStudentSessionsFromWorkbooks({
+      workbooks_json: { block_0: workbookOf([geo]) },
     });
 
     expect(res.dropped).toHaveLength(0);
@@ -110,15 +115,21 @@ describe('composeStudentSessionsFromWorkbooks — nunca descarta por campos blan
     expect(res.sessions[0].recursos[0].titulo.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('repara en línea: plan con 1 autoeval queda con 2 (se conserva la original)', () => {
-    const original = planConAutoevalDe1(1);
+  it('plan con pista genérica de fallback → dropped por contenido genérico', () => {
+    const generic = makeValidPlan(1, 'genérica');
+    generic.practica = [
+      {
+        enunciado: 'Resuelve los ejercicios prácticos de la sesión 1 aplicando el modelo.',
+        pista: 'Observa el ejemplo resuelto paso a paso y aplica el mismo procedimiento con los datos del ejercicio.',
+      },
+    ];
     const res = composeStudentSessionsFromWorkbooks({
-      workbooks_json: { block_0: workbookOf([original]) },
+      workbooks_json: { block_0: workbookOf([generic]) },
     });
 
-    expect(res.dropped).toHaveLength(0);
-    expect(res.sessions[0].autoevaluacion).toHaveLength(2);
-    expect(res.sessions[0].autoevaluacion[0]).toBe(original.autoevaluacion[0]);
+    expect(res.sessions).toHaveLength(0);
+    expect(res.dropped).toHaveLength(1);
+    expect(res.dropped[0].issues.join(' ')).toContain('Pista genérica');
   });
 
   it('contenido duramente corrupto (práctica vacía) → dropped con detalle; el resto se compone', () => {
@@ -134,7 +145,6 @@ describe('composeStudentSessionsFromWorkbooks — nunca descarta por campos blan
     expect(res.dropped[0].blockKey).toBe('block_0');
     expect(res.dropped[0].sessionNumber).toBe(2);
     expect(res.dropped[0].issues.join(' ')).toContain('practica');
-    // Numeración global continúa 1..2 sin huecos
     expect(res.sessions.map((s) => s.numero)).toEqual([1, 2]);
   });
 

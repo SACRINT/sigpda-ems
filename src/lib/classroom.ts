@@ -8,6 +8,7 @@ import { getPlanningById } from '@/lib/db';
 import type { GeneratedPlanningContent } from '@/types/planning';
 import { logger } from '@/lib/logger';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 export interface ClassroomConfigStatus {
   configured: boolean;
@@ -125,7 +126,7 @@ export async function publishPlanningToGoogleClassroom(planningId: string, teach
       name: `${planning.uacName} - ${planning.semester}° Semestre`,
       section: `Grupo / Ciclo Escolar ${planning.schoolYear || '2025-2026'}`,
       descriptionHeading: `UAC: ${planning.uacName} (${planning.component === 'laboral' ? 'Formación Laboral' : 'Tronco Común'})`,
-      description: `Planeación Didáctica generada con SIGPDA-EMS.\nHoras totales: ${planning.hoursTotal || 64}h.\nPlantel / CCT: ${planning.schoolName || 'Plantel EMS'}.`,
+      description: `Planeación Didáctica generada con ${getRuntimePlatformName()}.\nHoras totales: ${planning.hoursTotal || 64}h.\nPlantel / CCT: ${planning.schoolName || 'Plantel EMS'}.`,
       room: `Semestre ${planning.semester}`,
       ownerId: 'me',
       courseState: 'ACTIVE',

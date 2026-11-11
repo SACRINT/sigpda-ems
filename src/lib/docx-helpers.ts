@@ -36,6 +36,7 @@ import {
   resolveLevel4TextHex,
 } from '@/lib/visual-engine/design-tokens';
 import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
 
@@ -745,7 +746,7 @@ export async function buildExtraDocx(
                   new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
                   new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
                   new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-                  new TextRun({ text: ' | SIGPDA-EMS MCCEMS', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ` | ${getRuntimePlatformName()} MCCEMS`, size: 14, color: '777777', font: 'Arial' }),
                 ],
               }),
             ],
@@ -922,7 +923,7 @@ export async function buildCombinedExtraDocx(
                   new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '777777', font: 'Arial' }),
                   new TextRun({ text: ' de ', size: 14, color: '777777', font: 'Arial' }),
                   new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '777777', font: 'Arial' }),
-                  new TextRun({ text: ' | SIGPDA-EMS MCCEMS', size: 14, color: '777777', font: 'Arial' }),
+                  new TextRun({ text: ` | ${getRuntimePlatformName()} MCCEMS`, size: 14, color: '777777', font: 'Arial' }),
                 ],
               }),
             ],

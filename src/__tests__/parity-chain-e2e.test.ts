@@ -29,6 +29,12 @@ const RAW_PLANS = [
   {
     sessionNumber: 1,
     objetivo: 'Objetivo de aprendizaje de la sesión 1',
+    motivacion: 'El taller necesita mezclar soluciones para una reacción controlada en el plantel.',
+    saberesPrevios: 'Ya resuelves ecuaciones lineales de una variable y graficas rectas.',
+    contenido: 'Un sistema 2x2 busca la pareja (x, y) que satisface ambas ecuaciones lineales.',
+    ejemploResuelto: 'Para 2x + y = 7 y x − y = 2, al sumar se obtiene 3x = 9, por lo que x = 3.',
+    aplicacion: 'Aplica sistemas de ecuaciones para calcular mezclas en el taller de ciencias.',
+    productoIntegrador: 'Agrega la solución del sistema a tu bitácora de laboratorio.',
     practica: [
       {
         enunciado: ENUNCIADO_1,
@@ -53,6 +59,12 @@ const RAW_PLANS = [
   {
     sessionNumber: 2,
     objetivo: 'Objetivo de aprendizaje de la sesión 2',
+    motivacion: 'Verificar la solución evita errores al preparar mezclas en el laboratorio escolar.',
+    saberesPrevios: 'Ya sabes sustituir valores numéricos en una ecuación lineal.',
+    contenido: 'La verificación consiste en sustituir la pareja solución en ambas ecuaciones del sistema.',
+    ejemploResuelto: 'Si x = 3 e y = 1, entonces 2(3) + 1 = 7 y 3 − 1 = 2; ambas igualdades se cumplen.',
+    aplicacion: 'Comprueba tus resultados antes de entregar el reporte de la práctica de laboratorio.',
+    productoIntegrador: 'Incluye la verificación del sistema en tu reporte de práctica.',
     practica: [
       {
         enunciado: ENUNCIADO_2,

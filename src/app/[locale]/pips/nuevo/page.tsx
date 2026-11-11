@@ -5,10 +5,12 @@ import AppLayout from '@/components/layout/AppLayout';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import PipsWizard from './PipsWizard';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Nueva Cartografía de Zona Escolar — Supervisión · SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Nueva Cartografía de Zona Escolar — Supervisión · ${platformName}` };
+}
 
 export default async function NuevoPipsPage({
   params,

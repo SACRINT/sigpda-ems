@@ -5,10 +5,12 @@ import { isAdmin } from '@/lib/admin-unified';
 import AppLayout from '@/components/layout/AppLayout';
 import PaecWizardClient from './PaecWizardClient';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Asistente PAEC-PEC — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Asistente PAEC-PEC — ${platformName}` };
+}
 
 interface PageProps {
   params: Promise<{ locale: string }>;

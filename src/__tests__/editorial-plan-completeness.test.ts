@@ -47,6 +47,15 @@ function makePlan(overrides: Partial<SessionPlan> = {}): SessionPlan {
 function makeBrokenPlan(sessionNumber: number): SessionPlan {
   return makePlan({
     sessionNumber,
+    objetivo: 'Vas a calcular el área de un triángulo con medidas reales del patio escolar.',
+    contenido:
+      'Parrafo: El área del triángulo se obtiene multiplicando la base por la altura y dividiendo entre dos.\n\nDefinicion: Superficie plana delimitada por tres lados.',
+    practica: [
+      {
+        enunciado: 'Calcula el área de un triángulo de 6 cm de base y 4 cm de altura.',
+        pista: 'Multiplica base por altura y divide entre dos.',
+      },
+    ],
     recursos: [],
     autoevaluacion: ['¿Puedes explicar qué aprendiste hoy con un ejemplo?'],
   });
@@ -193,12 +202,12 @@ describe('ensureEditorialPlanCompleteness — capas 1 (IA) y 2 (red determinista
     expect(res.aiRepaired).toBe(0);
     expect(res.fallbackPads).toBe(1);
     expect(res.mode).toBe('fallback');
-    expect(res.unresolved).toBe(0);
+    expect(res.unresolved).toBe(1); // autoevaluación sigue incompleta: no hay relleno genérico
     expect(res.persisted).toBe(true);
 
     const repaired = res.workbooksJson.block_0!.current!.missions![0].sessionPlans![0];
     expect(repaired.recursos[0].url).toMatch(/^https:\/\//); // catálogo oficial
-    expect(repaired.autoevaluacion).toHaveLength(2);
+    expect(repaired.autoevaluacion).toHaveLength(1); // NO se inventó la segunda pregunta
   });
 
   it('la IA lanza excepción (caída de proveedor) → sin reintentos ciegos, red determinista completa todo', async () => {
@@ -212,8 +221,8 @@ describe('ensureEditorialPlanCompleteness — capas 1 (IA) y 2 (red determinista
     );
 
     expect(res.aiCalls).toBe(1); // corta en el primer error
-    expect(res.fallbackPads).toBe(2);
-    expect(res.unresolved).toBe(0);
+    expect(res.fallbackPads).toBe(2); // ambos recursos desde catálogo real
+    expect(res.unresolved).toBe(2); // ambas autoevaluaciones siguen incompletas
     expect(res.mode).toBe('fallback');
     expect(saveFn).toHaveBeenCalledTimes(1); // un solo bloque tocado
   });
@@ -231,7 +240,7 @@ describe('ensureEditorialPlanCompleteness — capas 1 (IA) y 2 (red determinista
     expect(generateFn).not.toHaveBeenCalled();
     expect(res.aiCalls).toBe(0);
     expect(res.fallbackPads).toBe(1);
-    expect(res.unresolved).toBe(0);
+    expect(res.unresolved).toBe(1); // autoevaluación sin relleno genérico
     expect(res.persisted).toBe(true);
   });
 
@@ -248,10 +257,10 @@ describe('ensureEditorialPlanCompleteness — capas 1 (IA) y 2 (red determinista
     expect(res.aiCalls).toBe(2);
     expect(res.aiRepaired).toBe(0);
     expect(res.fallbackPads).toBe(1);
-    expect(res.unresolved).toBe(0);
+    expect(res.unresolved).toBe(1); // la autoevaluación no se rellena con texto genérico
 
     const repaired = res.workbooksJson.block_0!.current!.missions![0].sessionPlans![0];
-    expect(repaired.autoevaluacion.length).toBeGreaterThanOrEqual(2);
+    expect(repaired.autoevaluacion).toHaveLength(1);
     expect(repaired.recursos.length).toBeGreaterThanOrEqual(1);
   });
 

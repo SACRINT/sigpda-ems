@@ -564,8 +564,28 @@ def extract_laboral_capacitaciones():
             sem_uacs = by_sem[sem]
             sem_names = matched_info.get(f"sem{sem}", [])
             
+            # Emparejamiento determinista por verbo o afinidad léxica entre el nombre oficial y el learning outcome
+            available_names = list(sem_names)
             for idx, u_data in enumerate(sem_uacs):
-                name = sem_names[idx] if idx < len(sem_names) else f"Capacitación {cap_name} UAC {idx+1} Sem {sem}"
+                raw_outcome = u_data.get('learning_outcome') or ''
+                outcome_clean = clean(raw_outcome).lower()
+                
+                # Buscar el nombre cuyo verbo inicial o raíz coincida con el outcome
+                matched_name = None
+                for candidate in available_names:
+                    cand_verb = candidate.strip().split()[0].lower().rstrip('ar').rstrip('er').rstrip('ir').rstrip('a').rstrip('e')
+                    out_verb = outcome_clean.strip().split()[0].lower().rstrip('ar').rstrip('er').rstrip('ir').rstrip('a').rstrip('e') if outcome_clean else ''
+                    if cand_verb and out_verb and (cand_verb in out_verb or out_verb in cand_verb):
+                        matched_name = candidate
+                        break
+                
+                if matched_name:
+                    name = matched_name
+                    available_names.remove(matched_name)
+                elif available_names:
+                    name = available_names.pop(0)
+                else:
+                    name = f"Capacitación {cap_name} UAC {idx+1} Sem {sem}"
                 
                 activities = []
                 for act in u_data.get('activities', []):

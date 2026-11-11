@@ -7,6 +7,7 @@ import {
   convertMillimetersToTwip,
 } from 'docx';
 import type { PipsPlantele, PipsObjetivo, PipsCronogramaActividad } from '@/types/pips';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 const NAVY  = '1F3864';
 const BLUE  = '2E74B5';
@@ -161,7 +162,7 @@ export async function generatePipsDocx(row: Record<string, unknown>): Promise<Bu
   const totalM = planteles.reduce((s, pl) => s + (pl.mujeres || 0), 0);
 
   const doc = new Document({
-    creator: 'SIGPDA-EMS',
+    creator: getRuntimePlatformName(),
     title: `Cartografía de Zona Escolar ${p_.zona_nombre} ${p_.ciclo_escolar}`,
     sections: [
       {

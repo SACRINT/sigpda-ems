@@ -75,6 +75,7 @@ const SUBSYSTEMS = [
 
 interface Props {
   locale: string;
+  platformName: string;
   teacherName: string;
   teacherEmail: string;
   currentData: {
@@ -88,7 +89,7 @@ interface Props {
   editMode?: boolean;
 }
 
-export default function ConfigurarPerfilClient({ locale, teacherName, teacherEmail, currentData, editMode = false }: Props) {
+export default function ConfigurarPerfilClient({ locale, platformName, teacherName, teacherEmail, currentData, editMode = false }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(editMode ? 2 : 1);
   const [selectedRole, setSelectedRole] = useState('');
@@ -179,7 +180,7 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
           </div>
           <div style={{ fontSize: 48, marginBottom: 10 }}>📚</div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.5px', marginBottom: 6 }}>
-            {step === 1 ? 'Bienvenido a DidácticaIA' : 'Datos de tu Plantel'}
+            {step === 1 ? `Bienvenido a ${platformName}` : 'Datos de tu Plantel'}
           </h1>
           <p style={{ fontSize: 13, color: 'rgba(240,244,255,0.55)', lineHeight: 1.6, maxWidth: 500, margin: '0 auto' }}>
             {step === 1
@@ -537,7 +538,7 @@ export default function ConfigurarPerfilClient({ locale, teacherName, teacherEma
         )}
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'rgba(240,244,255,0.2)' }}>
-          DidácticaIA · MCCEMS Puebla 2026-2027
+          {platformName} · MCCEMS Puebla 2026-2027
         </p>
       </div>
     </div>

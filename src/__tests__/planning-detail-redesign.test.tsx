@@ -641,21 +641,18 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
   });
 
   describe('Fase H-05 — Nombre de plataforma dinámico en ChecklistSupervisionModal', () => {
-    it('getPlatformName devuelve SIGPDA-EMS por defecto y respeta variables de entorno dinámicas', async () => {
-      const { getPlatformName } = await import('@/lib/config');
-      expect(getPlatformName()).toBe('SIGPDA-EMS');
+    it('getRuntimePlatformName usa SIGPDA-EMS por defecto y acepta el nombre resuelto', async () => {
+      const {
+        getRuntimePlatformName,
+        setRuntimePlatformName,
+        FALLBACK_PLATFORM_NAME,
+      } = await import('@/lib/platform/platform-name-shared');
 
-      const originalEnv = process.env.NEXT_PUBLIC_PLATFORM_NAME;
-      try {
-        process.env.NEXT_PUBLIC_PLATFORM_NAME = 'SEMS-Puebla IA';
-        expect(getPlatformName()).toBe('SEMS-Puebla IA');
-      } finally {
-        if (originalEnv !== undefined) {
-          process.env.NEXT_PUBLIC_PLATFORM_NAME = originalEnv;
-        } else {
-          delete process.env.NEXT_PUBLIC_PLATFORM_NAME;
-        }
-      }
+      expect(FALLBACK_PLATFORM_NAME).toBe('SIGPDA-EMS');
+      setRuntimePlatformName('SEMS-Puebla IA');
+      expect(getRuntimePlatformName()).toBe('SEMS-Puebla IA');
+      setRuntimePlatformName(null);
+      expect(getRuntimePlatformName()).toBe('SIGPDA-EMS');
     });
 
     it('ChecklistSupervisionModal renderiza el nombre dinámico de la plataforma sin hardcode DidácticaIA', async () => {

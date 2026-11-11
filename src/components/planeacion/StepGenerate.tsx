@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
-import { getPlatformName } from '@/lib/config';
+import { usePlatformName } from '@/components/platform/PlatformNameProvider';
 
 interface Props {
   planningId: string | null;
@@ -62,6 +62,7 @@ async function fetchPlanningIfComplete(planningId: string, attemptStartedAt: num
 export default function StepGenerate({
   planningId, extractedData, context, onDone, onBack,
 }: Props) {
+  const platformName = usePlatformName();
   const [currentStep, setCurrentStep] = useState<GenStep>('preparing');
   const [error, setError] = useState<string | null>(null);
   const inFlightRef = useRef<boolean>(false);
@@ -218,7 +219,7 @@ export default function StepGenerate({
         <p className="generation-subtitle">
           {currentStep === 'done'
             ? 'Tu planeación didáctica está lista para descargar en formato DOCX editable.'
-            : `La plataforma ${getPlatformName()} está construyendo las 7 secciones del formato oficial MCCEMS 2026-2027.`}
+            : `La plataforma ${platformName} está construyendo las 7 secciones del formato oficial MCCEMS 2026-2027.`}
         </p>
 
         <div className="generation-steps">

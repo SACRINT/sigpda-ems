@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
---  DidácticaIA — Analytics Schema (Módulo 4)
+--  SIGPDA-EMS — Analytics Schema (Módulo 4)
 --  Run via: node scripts/apply-analytics-schema.js
 -- ═══════════════════════════════════════════════════════════════════
 

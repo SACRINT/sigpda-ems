@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import Link from 'next/link';
 import SuscripcionClient from './SuscripcionClient';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
 export default async function SuscripcionPage({
   params,
@@ -10,6 +11,7 @@ export default async function SuscripcionPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const platformName = await getPlatformName();
   const session = await auth();
   if (!session?.user?.email) {
     redirect(`/${locale}/login`);
@@ -66,7 +68,7 @@ export default async function SuscripcionPage({
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>👑</div>
           <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '16px' }}>Acceso Administrativo</h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '32px', lineHeight: '1.6' }}>
-            Tu cuenta tiene rol de administrador del sistema SIGPDA-EMS. Tienes acceso completo e ilimitado a todas las herramientas sin costo.
+            Tu cuenta tiene rol de administrador del sistema {platformName}. Tienes acceso completo e ilimitado a todas las herramientas sin costo.
           </p>
           <Link href={`/${locale}/dashboard`} style={{
             display: 'inline-block',
@@ -87,6 +89,7 @@ export default async function SuscripcionPage({
   return (
     <SuscripcionClient
       locale={locale}
+      platformName={platformName}
       userRole={teacher.role || 'docente'}
       activePlanName={activeSub?.plan_name || null}
       activePlanSubjects={activeSub?.plan_subjects || null}

@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import type { Planning, GeneratedPlanningContent, SecuenciaBloque } from '@/types/planning';
 import { generatePlanningPDF } from '@/lib/planning-pdf-renderer';
 import { exportPlanningPdfWithFallback } from '@/lib/planeaciones/strangler-client';
+import { usePlatformName } from '@/components/platform/PlatformNameProvider';
 import { enrichWithExplicitSaberes } from '@/lib/planning-integrity-system';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
@@ -20,6 +22,7 @@ export default function DocumentA4Viewer({
   planning,
   onDownloadDocx,
 }: DocumentA4ViewerProps) {
+  const platformName = usePlatformName();
   const [zoom, setZoom] = useState<number>(100);
   const [downloadingPdf, setDownloadingPdf] = useState<boolean>(false);
 
@@ -49,11 +52,11 @@ export default function DocumentA4Viewer({
         },
       });
       if (result.error) {
-        alert(result.error);
+        toast.error(result.error);
       }
     } catch (e) {
       console.error('Error generating PDF:', e);
-      alert('Hubo un error al generar el archivo PDF.');
+      toast.error('Hubo un error al generar el archivo PDF.');
     } finally {
       setDownloadingPdf(false);
     }
@@ -193,7 +196,7 @@ export default function DocumentA4Viewer({
             {planning.uacName} ({planning.semester}° Semestre)
           </span>
           <span style={{ fontSize: '11px', background: '#10b981', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-            {s4?.activities?.length || 3} Bloques Formativos · {s1?.totalHours || 54}h
+            {s4?.activities?.length ?? 0} Bloques Formativos · {s1?.totalHours ?? '—'}h
           </span>
         </div>
 
@@ -449,7 +452,7 @@ export default function DocumentA4Viewer({
 
             {/* Footer */}
             <div className="footer-page">
-              <span>SIGPDA-EMS · Sistema Integral de Gestión Pedagógica y Didáctica</span>
+              <span>{platformName} · Sistema Integral de Gestión Pedagógica y Didáctica</span>
               <span>Página 1 de 3</span>
             </div>
           </div>
@@ -597,7 +600,7 @@ export default function DocumentA4Viewer({
 
             {/* Footer */}
             <div className="footer-page">
-              <span>SIGPDA-EMS · Sistema Integral de Gestión Pedagógica y Didáctica</span>
+              <span>{platformName} · Sistema Integral de Gestión Pedagógica y Didáctica</span>
               <span>Página 2 de 3</span>
             </div>
           </div>
@@ -716,7 +719,7 @@ export default function DocumentA4Viewer({
 
             {/* Footer */}
             <div className="footer-page">
-              <span>SIGPDA-EMS · Sistema Integral de Gestión Pedagógica y Didáctica</span>
+              <span>{platformName} · Sistema Integral de Gestión Pedagógica y Didáctica</span>
               <span>Página 3 de 3</span>
             </div>
           </div>

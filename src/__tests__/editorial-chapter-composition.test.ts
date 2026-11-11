@@ -344,6 +344,12 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
   // 3. URL inválida → REPARACIÓN (red determinista) + 3/3 sesiones
   // ==========================================================================
   it('repara la sesión con URL de recurso inválida (IA caída → catálogo) y compone 3/3 con continuidad 1..N', async () => {
+    const badUrlPlan = makePlan(2, { badUrl: true });
+    badUrlPlan.objetivo =
+      'Vas a calcular el área de un triángulo con medidas reales de la unidad 2 del patio escolar.';
+    badUrlPlan.contenido =
+      'Parrafo: El área del triángulo se obtiene multiplicando la base por la altura y dividiendo entre dos.\n\nDefinicion: Superficie plana delimitada por tres lados.';
+
     vi.mocked(getPlanningById).mockResolvedValue({
       ...basePlanning,
       workbooks_json: {
@@ -352,7 +358,7 @@ describe('Motor Editorial — Composición de capítulo desde plannings.workbook
             title: 'Misión 1',
             sessionPlans: [
               makePlan(1),
-              makePlan(2, { badUrl: true }),
+              badUrlPlan,
               makePlan(3),
             ],
           },

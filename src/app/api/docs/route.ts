@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
 export const runtime = 'nodejs';
 
 export const OPENAPI_SPEC = {
   openapi: '3.1.0',
   info: {
-    title: 'SIGPDA-EMS API Documentation',
+    title: 'API Documentation',
     version: '2026-2027',
     description: 'Especificación Oficial OpenAPI 3.1 para el Sistema de Información y Gestión Pedagógica de Media Superior (SEMS Puebla). Incluye ciclo de vida micro de secuencias didácticas, calidad pedagógica y catálogos MCCEMS.',
   },
   servers: [
     {
       url: '/',
-      description: 'Servidor Actual (SIGPDA-EMS)',
+      description: 'Servidor Actual',
     },
   ],
   tags: [
@@ -187,6 +188,7 @@ export const OPENAPI_SPEC = {
 };
 
 export async function GET(request: NextRequest) {
+  const platformName = await getPlatformName();
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format');
   const acceptHeader = request.headers.get('accept') || '';
@@ -203,7 +205,7 @@ export async function GET(request: NextRequest) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SIGPDA-EMS — Documentación OpenAPI 3.1 (Scalar UI)</title>
+    <title>${platformName} — Documentación OpenAPI 3.1 (Scalar UI)</title>
     <link rel="icon" href="/favicon.ico" />
     <style>
       body { margin: 0; padding: 0; }

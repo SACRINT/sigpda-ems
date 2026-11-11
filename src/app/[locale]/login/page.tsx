@@ -2,12 +2,14 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import AuthCard from '@/components/auth/AuthCard';
+import { getPlatformName } from '@/lib/platform/platform-name';
 import type { Metadata } from 'next';
 
 export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
   return {
-    title: 'Acceso a la Plataforma — SIGPDA-EMS',
-    description: 'Accede o crea tu cuenta en SIGPDA-EMS para generar planeaciones, horarios y proyectos oficiales.',
+    title: `Acceso a la Plataforma — ${platformName}`,
+    description: `Accede o crea tu cuenta en ${platformName} para generar planeaciones, horarios y proyectos oficiales.`,
   };
 }
 
@@ -24,6 +26,7 @@ export default async function LoginPage({
   }
 
   const t = await getTranslations('auth');
+  const platformName = await getPlatformName();
 
   return (
     <main className="login-page">
@@ -32,7 +35,7 @@ export default async function LoginPage({
         <div className="login-header">
           <div className="login-logo">
             <span className="logo-icon">📚</span>
-            <h1 className="logo-text">SIGPDA-EMS</h1>
+            <h1 className="logo-text">{platformName}</h1>
           </div>
           <div className="mccems-badge">Educación Media Superior · MCCEMS</div>
         </div>

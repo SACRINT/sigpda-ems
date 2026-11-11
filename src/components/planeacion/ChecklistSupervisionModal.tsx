@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { getPlatformName } from '@/lib/config';
+import { usePlatformName } from '@/components/platform/PlatformNameProvider';
 
 export interface ChecklistSupervisionModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export default function ChecklistSupervisionModal({
   isOpen,
   onClose,
 }: ChecklistSupervisionModalProps) {
+  const platformName = usePlatformName();
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
@@ -210,7 +211,7 @@ export default function ChecklistSupervisionModal({
           }}
         >
           <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>
-            ✓ Cumplimiento del 100% verificado por {getPlatformName()}
+            ✓ Cumplimiento del 100% verificado por {platformName}
           </span>
           <button
             type="button"

@@ -5,11 +5,15 @@ import { isAdmin } from '@/lib/admin-unified';
 import AppLayout from '@/components/layout/AppLayout';
 import MiEscuelaClient from './MiEscuelaClient';
 import type { Metadata } from 'next';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Mi Plantel · SIGPDA-EMS',
-  description: 'Gestión del personal docente y administrativo de tu plantel.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return {
+    title: `Mi Plantel · ${platformName}`,
+    description: 'Gestión del personal docente y administrativo de tu plantel.',
+  };
+}
 
 export default async function MiEscuelaPage({
   params,

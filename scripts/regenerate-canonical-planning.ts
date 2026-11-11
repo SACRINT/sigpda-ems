@@ -46,6 +46,7 @@ interface RawPlanningRow {
   content_json: GeneratedPlanningContent | null;
   sequence_json: Record<number, SecuenciaBloque> | null;
   metodologia_activa: string | null;
+  teacher_id: string;
 }
 
 function getArg(name: string): string | undefined {
@@ -56,7 +57,7 @@ function getArg(name: string): string | undefined {
 async function loadPlanning(id: string): Promise<RawPlanningRow> {
   const client = sql();
   const rows = (await client`
-    SELECT id, uac_name, semester, component, paec_context, content_json, sequence_json, metodologia_activa
+    SELECT id, uac_name, semester, component, paec_context, content_json, sequence_json, metodologia_activa, teacher_id
     FROM plannings
     WHERE id = ${id}::uuid
     LIMIT 1
@@ -190,6 +191,38 @@ async function main(): Promise<void> {
   console.log(`  palabras: ${workbook.totalWords ?? '?'} | paginas: ${workbook.totalPages ?? '?'}`);
   console.log(`  qualityWarning: ${workbook.qualityWarning}`);
   console.log(`  alineacion: ${workbook.planningAlignment?.pass ? 'PASS' : 'FAIL'} (${workbook.planningAlignment?.score ?? '?'})`);
+
+  console.log('[CASCADE] Generando materiales derivados (planes de clase, rúbrica, lista, guías)...');
+  const { cascadeBlockMaterials } = await import('../src/lib/guide-engine/cascade-block-materials');
+  const cascadeRes = await cascadeBlockMaterials(
+    planning.id,
+    blockIndex,
+    workbook,
+    planning.teacher_id,
+    {
+      uacName: planning.uac_name,
+      component: planning.component,
+      failOnAnyError: true,
+    }
+  );
+
+  if (!cascadeRes.success) {
+    throw new Error(
+      `[CASCADE] Falló la generación de materiales derivados del bloque ${blockIndex}: ${
+        cascadeRes.error || 'sin detalle'
+      }. Omitidos: ${(cascadeRes.omitted || []).join(', ') || 'ninguno'}.`
+    );
+  }
+  if ((cascadeRes.omitted || []).length > 0) {
+    throw new Error(
+      `[CASCADE] El bloque ${blockIndex} quedó incompleto: omitidos [${(cascadeRes.omitted || []).join(', ')}]. ` +
+        'No se considera una regeneración exitosa.'
+    );
+  }
+
+  console.log(
+    `[CASCADE] OK — success: ${cascadeRes.success}, extras: ${cascadeRes.extrasInserted}, planes: ${cascadeRes.planesCount}`
+  );
 }
 
 main().catch((error) => {

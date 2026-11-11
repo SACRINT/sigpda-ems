@@ -162,6 +162,7 @@ export function mapExtraTypeToMaterialType(
     case 'study_guide':
     case 'student_guide':
       return 'student_guide';
+    case 'evaluation':
     case 'material':
     default:
       return 'didactic_material';
@@ -888,6 +889,11 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
             message: `No se pudo resolver el número de sesión de "${extra.title || 'lesson_plan'}" para comparación fresca S7; se aplicó únicamente el piso mínimo de caracteres.`,
           });
         }
+        continue;
+      }
+
+      // Los instrumentos especializados del catálogo son independientes de la extracción singleton
+      if (extra.type === 'evaluation') {
         continue;
       }
 

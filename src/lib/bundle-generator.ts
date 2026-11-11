@@ -4,6 +4,7 @@
  */
 import { generateWithRotation } from '@/lib/ai-provider';
 import type { GeneratedPlanningContent } from '@/types/planning';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 export interface BundleResult {
   guiaEstudiante: string;
@@ -167,7 +168,7 @@ export function bundleMarkdownToHtml(markdown: string, title: string): string {
     <small>${title}</small>
   </div>
   <p>${html}</p>
-  <div class="footer">Documento generado por SIGPDA-EMS — ${new Date().toLocaleDateString('es-MX')}</div>
+  <div class="footer">Documento generado por ${getRuntimePlatformName()} — ${new Date().toLocaleDateString('es-MX')}</div>
 </body>
 </html>`;
 }

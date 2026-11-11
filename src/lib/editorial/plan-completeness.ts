@@ -11,9 +11,10 @@
  *     sesiones faltantes), reintentos SOLO sobre las que sigan fallando, dentro de
  *     un presupuesto de tiempo (deadline). La IA genera recursos reales (con URLs
  *     https verificables o búsqueda de YouTube del tema) y preguntas de autoevaluación.
- *  2. Red de seguridad determinista: lo que la IA no logre dentro del deadline se
- *     completa con recursos del catálogo oficial (GeoGebra/Desmos/Polypad) y
- *     preguntas estándar — sin esto el libro podría salir incompleto otra vez.
+ *  2. Red de seguridad de recursos: lo que la IA no logre dentro del deadline se
+ *     completa SOLO con recursos reales del catálogo oficial (GeoGebra/Desmos).
+ *     La autoevaluación NO se rellena con preguntas genéricas: si la IA no la
+ *     entrega, la sesión queda unresolved y la exportación se aborta (422).
  *  3. Persistencia en workbooks_json (saveBlockWorkbook) para que la reparación sea
  *     durable: la siguiente exportación no vuelve a pagar el costo.
  *
@@ -60,7 +61,7 @@ export interface CompletenessRepairResult {
   aiCalls: number;
   /** Sesiones cuyos campos faltantes completó la IA. */
   aiRepaired: number;
-  /** Sesiones completadas con la red determinista tras agotar IA/deadline. */
+  /** Sesiones que recibieron un recurso REAL del catálogo tras agotar IA/deadline. */
   fallbackPads: number;
   /** Sesiones que siguen inválidas (catálogo roto u otro fallo extremo). */
   unresolved: number;
@@ -318,7 +319,7 @@ export async function ensureEditorialPlanCompleteness(
     issues = collectIssues(clone);
   }
 
-  // ── Capa 2: red de seguridad determinista (catálogo + defaults) ──
+  // ── Capa 2: red de seguridad SOLO con recursos reales del catálogo ──
   let fallbackPads = 0;
   issues = collectIssues(clone);
   for (const issue of issues) {

@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { getPlatformName } from '@/lib/platform/platform-name';
 import { sql } from '@/lib/db';
 import { planeacionesOrchestrator } from '@/lib/planeaciones/orchestrator';
 import { paecOrchestrator } from '@/lib/paec/orchestrator';
@@ -40,6 +41,7 @@ export interface PlatformHealthResponse {
 }
 
 export async function GET(): Promise<NextResponse> {
+  const platformName = await getPlatformName();
   let dbConnected = false;
   let dbLatencyMs = -1;
   let dbError: string | undefined;
@@ -96,7 +98,7 @@ export async function GET(): Promise<NextResponse> {
   const payload: PlatformHealthResponse = {
     status,
     timestamp: new Date().toISOString(),
-    platform: 'SIGPDA-EMS',
+    platform: platformName,
     version: '2.0.0',
     database: {
       connected: dbConnected,

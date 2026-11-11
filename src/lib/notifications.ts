@@ -1,6 +1,7 @@
 import { createNotification, NotificationItem } from '@/lib/db';
 import { evaluateAutomationRules } from '@/lib/automation-engine';
 import { logger } from '@/lib/logger';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 export interface SendNotificationOptions {
   userId: string;
@@ -79,7 +80,7 @@ async function sendEmailNotification(data: { to?: string; subject: string; body:
           'Authorization': `Bearer ${resendKey}`,
         },
         body: JSON.stringify({
-          from: 'SIGPDA-EMS <notificaciones@sigpda-ems.sep.gob.mx>',
+          from: `${getRuntimePlatformName()} <notificaciones@sigpda-ems.sep.gob.mx>`,
           to: data.to,
           subject: data.subject,
           html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
@@ -87,7 +88,7 @@ async function sendEmailNotification(data: { to?: string; subject: string; body:
             <p>${data.body}</p>
             ${data.link ? `<p><a href="${data.link}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">Ver en la Plataforma</a></p>` : ''}
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;" />
-            <p style="font-size: 11px; color: #64748b;">Sistema Integral de Gestión Pedagógica y Docente (SIGPDA-EMS) · SEP Puebla</p>
+            <p style="font-size: 11px; color: #64748b;">Sistema Integral de Gestión Pedagógica y Docente (${getRuntimePlatformName()}) · SEP Puebla</p>
           </div>`,
         }),
       });

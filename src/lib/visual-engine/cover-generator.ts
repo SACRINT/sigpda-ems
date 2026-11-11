@@ -18,6 +18,7 @@
 import './svg-font-bootstrap';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import crypto from 'crypto';
 import { logger } from '@/lib/logger';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -500,7 +501,7 @@ function buildDeterministicCoverSvg(opts: BookCoverOptions): string {
   <!-- ── 5. PIE DE PORTADA ── -->
   <rect x="0" y="1532" width="1200" height="68" fill="#040810" />
   <text x="600" y="1572" text-anchor="middle" font-family="'Lato', sans-serif" font-size="13" font-weight="bold" fill="#64748B" letter-spacing="2">
-    PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}
+    PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA ${getRuntimePlatformName()} MCCEMS ${SCHOOL_YEAR}
   </text>
 </svg>`;
 }
@@ -685,7 +686,7 @@ function buildGenerativeTypographyOverlaySvg(opts: BookCoverOptions): string {
   <!-- ── 5. PIE ── -->
   <rect x="0" y="1532" width="1200" height="68" fill="#040810" />
   <text x="600" y="1572" text-anchor="middle" font-family="'Lato', sans-serif" font-size="13" font-weight="bold" fill="#64748B" letter-spacing="2">
-    PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}
+    PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA ${getRuntimePlatformName()} MCCEMS ${SCHOOL_YEAR}
   </text>
 </svg>`;
 }

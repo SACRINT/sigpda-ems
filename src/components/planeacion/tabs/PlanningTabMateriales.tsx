@@ -43,7 +43,7 @@ export interface PlanningTabMaterialesProps {
   syncingSuite: number | null;
   blockWorkbooks: Record<number, MaterialBlockWorkbookItem>;
   handleGenerateExtra: (
-    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide',
+    type: 'rubric' | 'checklist' | 'material' | 'lesson_plan' | 'practice_guide' | 'teacher_guide' | 'evaluation',
     title: string,
     keyIndex: number | null,
     extraData: {

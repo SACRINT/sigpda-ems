@@ -6,11 +6,15 @@ import { getTeacherByEmail } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import AppLayout from '@/components/layout/AppLayout';
 import SupervisorDashboard from '@/components/admin/SupervisorDashboard';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Analítica Avanzada y Supervisión Zonal — SIGPDA-EMS',
-  description: 'Centro de mando, semaforización de planteles y alertas pedagógicas MCCEMS Puebla.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return {
+    title: `Analítica Avanzada y Supervisión Zonal — ${platformName}`,
+    description: 'Centro de mando, semaforización de planteles y alertas pedagógicas MCCEMS Puebla.',
+  };
+}
 
 export default async function AdminAnalyticsPage({
   params,

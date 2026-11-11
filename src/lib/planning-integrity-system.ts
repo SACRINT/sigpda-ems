@@ -292,7 +292,7 @@ export function getSafeEvaluationContext(
   lines.push(`SEMESTRE: ${planning.semester}° Semestre | COMPONENTE: ${component.toUpperCase()}`);
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
   lines.push(`DOCENTE: ${s1?.teacherName || 'Docente Responsable'} | PLANTEL: ${identidad.schoolName} (CCT: ${identidad.cct})`);
-  lines.push(`HORAS TOTALES: ${s1?.totalHours || 54}h | CICLO: ${s1?.schoolYear || SCHOOL_YEAR}`);
+  lines.push(`HORAS TOTALES: ${s1?.totalHours ?? 'No especificado'}h | CICLO: ${s1?.schoolYear || SCHOOL_YEAR}`);
   lines.push('================================================================================\n');
 
   lines.push('I. DATOS DE IDENTIFICACIÓN INSTITUCIONAL Y CURRICULAR:');

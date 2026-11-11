@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Planning } from '@/types/planning';
 import type { AuditReport } from '@/lib/audit-engine';
 import PlanningTabAuditoria from './PlanningTabAuditoria';
@@ -15,52 +15,147 @@ export interface PlanningTabCalidadProps {
   planning: Planning;
   activeSubTab?: QualitySubTab;
   onSubTabChange?: (tab: QualitySubTab) => void;
-  // Auditoría props
-  auditReport: AuditReport | null;
-  auditLoading: boolean;
-  auditError: string | null;
-  auditLoaded: boolean;
-  expandedDimension: string | null;
-  setExpandedDimension: React.Dispatch<React.SetStateAction<string | null>>;
-  handleRunAudit: () => Promise<void> | void;
-  handleReAudit: () => Promise<void> | void;
-  // Evaluador props
-  evalResult: PlanningEvaluationResult | null;
-  evalLoading: boolean;
-  evalError: string | null;
-  handleRunEvaluacion: (forceReeval?: boolean) => Promise<void> | void;
-  // Analytics props
-  analyticsData: TeacherProgressSummary | null;
-  analyticsLoading: boolean;
-  analyticsError: string | null;
-  analyticsLoaded: boolean;
-  handleLoadAnalytics: () => Promise<void> | void;
+  /** Evita cargar datos pesados mientras el eje Calidad está oculto. */
+  isActive?: boolean;
 }
 
 export default function PlanningTabCalidad({
   planning,
   activeSubTab = 'audit',
   onSubTabChange,
-  auditReport,
-  auditLoading,
-  auditError,
-  auditLoaded,
-  expandedDimension,
-  setExpandedDimension,
-  handleRunAudit,
-  handleReAudit,
-  evalResult,
-  evalLoading,
-  evalError,
-  handleRunEvaluacion,
-  analyticsData,
-  analyticsLoading,
-  analyticsError,
-  analyticsLoaded,
-  handleLoadAnalytics,
+  isActive = true,
 }: PlanningTabCalidadProps) {
   const [internalSubTab, setInternalSubTab] = useState<QualitySubTab>('audit');
   const currentSubTab = onSubTabChange ? (activeSubTab || 'audit') : internalSubTab;
+
+  // ── Audit state ─────────────────────────────────────────────────────────
+  const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditLoaded, setAuditLoaded] = useState(false);
+  const [expandedDimension, setExpandedDimension] = useState<string | null>(null);
+  const auditRequestedRef = useRef(false);
+
+  // ── Evaluador state ─────────────────────────────────────────────────────
+  const [evalResult, setEvalResult] = useState<PlanningEvaluationResult | null>(
+    (planning.evaluationJson as PlanningEvaluationResult) || null
+  );
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [evalError, setEvalError] = useState<string | null>(null);
+
+  // ── Analytics state ──────────────────────────────────────────────────────
+  const [analyticsData, setAnalyticsData] = useState<TeacherProgressSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
+  const analyticsRequestedRef = useRef(false);
+
+  const handleRunAudit = useCallback(async () => {
+    setAuditLoading(true);
+    setAuditError(null);
+    try {
+      const getRes = await fetch(`/api/audit/${planning.id}`);
+      if (getRes.ok) {
+        const getData = await getRes.json();
+        if (getData?.audit) {
+          setAuditReport(getData.audit);
+          setAuditLoaded(true);
+          return;
+        }
+      }
+
+      const postRes = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planningId: planning.id }),
+      });
+      const postData = await postRes.json();
+      if (!postRes.ok) throw new Error(postData.error || 'Error al ejecutar la auditoría.');
+      setAuditReport(postData.report);
+      setAuditLoaded(true);
+    } catch (err: unknown) {
+      setAuditError(err instanceof Error ? err.message : 'Error desconocido.');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [planning.id]);
+
+  const handleReAudit = useCallback(async () => {
+    setAuditReport(null);
+    setAuditLoaded(false);
+    setAuditError(null);
+    setAuditLoading(true);
+    try {
+      const postRes = await fetch('/api/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planningId: planning.id }),
+      });
+      const postData = await postRes.json();
+      if (!postRes.ok) throw new Error(postData.error || 'Error al re-auditar.');
+      setAuditReport(postData.report);
+      setAuditLoaded(true);
+    } catch (err: unknown) {
+      setAuditError(err instanceof Error ? err.message : 'Error desconocido.');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [planning.id]);
+
+  const handleRunEvaluacion = useCallback(
+    async (forceReeval = false) => {
+      setEvalLoading(true);
+      setEvalError(null);
+      try {
+        const res = await fetch('/api/planeaciones/evaluar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planningId: planning.id, forceReeval }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al evaluar la planeación.');
+        setEvalResult(data.resultado);
+      } catch (err: unknown) {
+        setEvalError(err instanceof Error ? err.message : 'Error desconocido.');
+      } finally {
+        setEvalLoading(false);
+      }
+    },
+    [planning.id]
+  );
+
+  const handleLoadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    try {
+      const res = await fetch('/api/pedagogical-analytics');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar analytics.');
+      setAnalyticsData(data);
+      setAnalyticsLoaded(true);
+    } catch (err: unknown) {
+      setAnalyticsError(err instanceof Error ? err.message : 'Error desconocido.');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
+  // Lazy-load each heavy sub-tab only once, on first visit while the axis is visible.
+  useEffect(() => {
+    if (!isActive) return;
+    if (currentSubTab === 'audit' && !auditRequestedRef.current) {
+      auditRequestedRef.current = true;
+      void handleRunAudit();
+    }
+  }, [isActive, currentSubTab, handleRunAudit]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    if (currentSubTab === 'analytics' && !analyticsRequestedRef.current) {
+      analyticsRequestedRef.current = true;
+      void handleLoadAnalytics();
+    }
+  }, [isActive, currentSubTab, handleLoadAnalytics]);
 
   const handleSubTabSwitch = (next: QualitySubTab) => {
     if (onSubTabChange) {
@@ -145,4 +240,3 @@ export default function PlanningTabCalidad({
     </div>
   );
 }
-

@@ -10,6 +10,7 @@
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { runPedagogicalAudit } from '@/lib/guide-engine/pedagogical-quality-gate';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { SCHOOL_YEAR } from '@/lib/config';
 
 export interface SacrintManifestModule {
@@ -169,7 +170,7 @@ export function exportSacrintCourseManifest(
 
   return {
     manifestVersion: '2026.1',
-    generator: 'SIGPDA-EMS Deep Editorial Engine (Puebla MCCEMS)',
+    generator: `${getRuntimePlatformName()} Deep Editorial Engine (Puebla MCCEMS)`,
     exportedAt: new Date().toISOString(),
     course: {
       planningId: planning.id,

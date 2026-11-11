@@ -47,6 +47,7 @@ import { extractSvgDimensions } from '@/lib/visual-engine/svg-dimensions';
 import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import type {
   ActiveWorkTextbook,
   MissionSection,
@@ -888,7 +889,7 @@ function buildDocxCreditsSection(
         spacing: { after: 140 },
         children: [
           new TextRun({
-            text: 'Iconografía Vectorial Pedagógica: Todos los organizadores gráficos, diagramas de flujo y esquemas visuales integrados en este cuaderno didáctico fueron modelados y renderizados directamente por el motor didáctico SIGPDA-EMS bajo el Marco Curricular Común de la EMS.',
+            text: `Iconografía Vectorial Pedagógica: Todos los organizadores gráficos, diagramas de flujo y esquemas visuales integrados en este cuaderno didáctico fueron modelados y renderizados directamente por el motor didáctico ${getRuntimePlatformName()} bajo el Marco Curricular Común de la EMS.`,
             italics: true,
             size: 18,
             color: C.mutedText,
@@ -919,7 +920,7 @@ function buildDocxCreditsSection(
     ['Dirección General:', 'Secretaría de Educación Pública del Estado de Puebla'],
     ['Subsecretaría:', 'Subsecretaría de Educación Media Superior'],
     ['Dirección de Área:', 'Dirección de Educación Media Superior'],
-    ['Plataforma:', 'Sistema Integral de Gestión Pedagógica y Docente Activa (SIGPDA-EMS)'],
+    ['Plataforma:', `Sistema Integral de Gestión Pedagógica y Docente Activa (${getRuntimePlatformName()})`],
     ['Plantel Educativo:', `${coverOpts.plantelNombre} (CCT: ${coverOpts.cct})`],
     ['Unidad de Aprendizaje:', `${coverOpts.uacName} · Bloque ${coverOpts.blockIndex ?? 1}`],
     ['Docente Titular:', coverOpts.docente || 'Academia Docente'],
@@ -988,7 +989,7 @@ function buildDocxContraportada(data: ContraportadaData): (Paragraph | Table)[] 
       spacing: { before: 240, after: 80 },
       children: [
         new TextRun({
-          text: 'SISTEMA INTEGRAL DE GESTIÓN Y PLANEACIÓN DIDÁCTICA AUTÓNOMA (SIGPDA-EMS)',
+          text: `SISTEMA INTEGRAL DE GESTIÓN Y PLANEACIÓN DIDÁCTICA AUTÓNOMA (${getRuntimePlatformName()})`,
           bold: true,
           size: 20,
           color: C.navy,

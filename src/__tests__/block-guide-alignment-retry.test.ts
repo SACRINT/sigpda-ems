@@ -170,6 +170,54 @@ function makeOutput(type: WriterOutput['type'], content: string, sessions?: numb
   return {
     type,
     section: makeSection(content, assignedSessions, 1800),
+    projectSection:
+      type === 'project'
+        ? {
+            artifactName: 'Prototipo de interferómetro comunitario',
+            communityUtility: 'Medición de patrones ópticos para el laboratorio escolar.',
+            phases: [
+              {
+                phaseNum: 1,
+                title: 'Fase 1: Diseño del prototipo',
+                allocatedHours: 2,
+                deliverables: ['Boceto técnico'],
+                instructions: 'Definir componentes y criterios de seguridad.',
+              },
+            ],
+            technicalSpecs: ['Alineación láser con precisión milimétrica'],
+            acceptanceCriteria: ['El prototipo mide un patrón de interferencia reproducible'],
+          }
+        : undefined,
+    evaluationSection:
+      type === 'evaluation'
+        ? {
+            source: 'generated_fresh',
+            rubric: [
+              {
+                criterion: 'Precisión del montaje óptico',
+                weightPercent: 100,
+                levels: [
+                  { levelName: 'Excelente', points: 10, descriptor: 'Alineación exacta y medición reproducible.' },
+                  { levelName: 'Bueno', points: 8, descriptor: 'Alineación correcta con ajustes menores.' },
+                  { levelName: 'Suficiente', points: 6, descriptor: 'Montaje funcional con imprecisiones.' },
+                  { levelName: 'Requiere Apoyo', points: 4, descriptor: 'Montaje inestable o inseguro.' },
+                ],
+              },
+            ],
+            checklist: [{ item: 'Uso de gafas de seguridad durante la práctica', category: 'Seguridad' }],
+            criticalThinkingQuiz: [
+              {
+                questionNumber: 1,
+                question: '¿Cómo afecta la alineación del láser al patrón observado?',
+                scenario: 'Ajuste del interferómetro en el taller.',
+                answerExplanation: 'La desalineación cambia la diferencia de camino óptico.',
+              },
+            ],
+            metacognitiveReflection: {
+              prompts: ['¿Qué ajuste mejoró la precisión de tu medición?'],
+            },
+          }
+        : undefined,
     wordCount: 1800,
     tokensUsed: 0,
     qualityScore: 85,

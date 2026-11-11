@@ -35,6 +35,7 @@ import { isStemSubject, dispatchVisual } from '@/lib/visual-engine/visual-dispat
 import { downloadAndProcessImage } from '@/lib/visual-engine/image-downloader';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 import { SCHOOL_YEAR } from '@/lib/config';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { logger } from '@/lib/logger';
 import {
   resolveMaterialString,
@@ -877,7 +878,7 @@ function drawCoverPage(
   setFontBody(doc, 'bold');
   doc.setFontSize(6.5);
   doc.setTextColor(203, 213, 225);
-  doc.text(`PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA SIGPDA-EMS MCCEMS ${SCHOOL_YEAR}`, pageWidth / 2, 274, { align: 'center' });
+  doc.text(`PUEBLA, MÉXICO · SECRETARÍA DE EDUCACIÓN PÚBLICA · SISTEMA ${getRuntimePlatformName()} MCCEMS ${SCHOOL_YEAR}`, pageWidth / 2, 274, { align: 'center' });
 }
 
 /**
@@ -975,7 +976,7 @@ function drawCreditsPage(
     doc.setFontSize(7);
     doc.setTextColor(...DARK_TEXT);
     const noPhotoLines = doc.splitTextToSize(
-      'Iconografía Vectorial Pedagógica: Todos los organizadores gráficos, diagramas de flujo y esquemas visuales integrados en este cuaderno didáctico fueron modelados y renderizados directamente por el motor didáctico SIGPDA-EMS bajo el Marco Curricular Común de la EMS.',
+      `Iconografía Vectorial Pedagógica: Todos los organizadores gráficos, diagramas de flujo y esquemas visuales integrados en este cuaderno didáctico fueron modelados y renderizados directamente por el motor didáctico ${getRuntimePlatformName()} bajo el Marco Curricular Común de la EMS.`,
       contentWidth - 6
     );
     doc.text(noPhotoLines, margin + 3, y + 5);
@@ -998,7 +999,7 @@ function drawCreditsPage(
     ['Dirección General:', 'Secretaría de Educación Pública del Estado de Puebla'],
     ['Subsecretaría:', 'Subsecretaría de Educación Media Superior'],
     ['Dirección de Área:', 'Dirección de Educación Media Superior'],
-    ['Plataforma:', 'Sistema Integral de Gestión Pedagógica y Docente Activa (SIGPDA-EMS)'],
+    ['Plataforma:', `Sistema Integral de Gestión Pedagógica y Docente Activa (${getRuntimePlatformName()})`],
     ['Plantel Educativo:', `${plantelName} (CCT: ${cct})`],
     ['Unidad de Aprendizaje:', `${uac} · ${workbook.blockName}`],
     ['Docente Titular:', docente],
@@ -1061,7 +1062,7 @@ function drawContraportadaPage(
   doc.setFontSize(9.5);
   doc.setTextColor(255, 255, 255);
   doc.text(
-    'SISTEMA INTEGRAL DE GESTIÓN Y PLANEACIÓN DIDÁCTICA AUTÓNOMA (SIGPDA-EMS)',
+    `SISTEMA INTEGRAL DE GESTIÓN Y PLANEACIÓN DIDÁCTICA AUTÓNOMA (${getRuntimePlatformName()})`,
     pageWidth / 2,
     17,
     { align: 'center' }

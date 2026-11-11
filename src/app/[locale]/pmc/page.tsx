@@ -7,10 +7,12 @@ import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import DeletePmcButton from './DeletePmcButton';
+import { getPlatformName } from '@/lib/platform/platform-name';
 
-export const metadata: Metadata = {
-  title: 'Plan de Mejora Continua — SIGPDA-EMS',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const platformName = await getPlatformName();
+  return { title: `Plan de Mejora Continua — ${platformName}` };
+}
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   draft: { label: 'En elaboración', color: '#ffc107' },

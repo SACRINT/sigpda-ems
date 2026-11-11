@@ -17,6 +17,7 @@ import {
 } from '@/lib/planning-evaluator';
 import { CATALOGO_METODOLOGIAS_ACTIVAS } from '@/lib/catalogo-metodologias';
 import { CCT_NO_REGISTRADO } from '@/lib/school-identity';
+import { resolveWeeklyHours, SEMESTER_WEEKS } from '@/lib/guide-engine/content-budget';
 import type {
   Planning,
   RetoSituado,
@@ -577,7 +578,10 @@ export interface PlanningQualityReport {
 export function evaluatePlanningQuality(planning: Partial<Planning>): PlanningQualityReport {
   const content = planning.contentJson;
   const uac = planning.uacName || content?.sectionI?.uacName || 'UAC Sin Nombre';
-  const totalHoras = content?.sectionI?.totalHours || planning.extractedData?.totalHours || 54;
+  const totalHoras =
+    content?.sectionI?.totalHours ||
+    planning.extractedData?.totalHours ||
+    resolveWeeklyHours(planning) * SEMESTER_WEEKS;
   const metodologia = planning.metodologiaActiva || content?.sectionI?.metodologiaActiva;
   const reto = content?.sectionII?.retoSituado;
   const sequences = planning.sequenceJson;

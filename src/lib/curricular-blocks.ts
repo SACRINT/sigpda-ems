@@ -18,6 +18,11 @@
  */
 
 import type { KeyActivityPlan, GeneratedPlanningContent } from '@/types/planning';
+import {
+  BLOCKS_PER_SEMESTER,
+  resolveWeeklyHours,
+  SEMESTER_WEEKS,
+} from '@/lib/guide-engine/content-budget';
 
 export interface CurricularBlock {
   /** Índice 0-based del bloque: estrictamente 0, 1 o 2 */
@@ -79,7 +84,10 @@ export function resolveBlockNumber(
       if (num <= 5) return 2;
       return 3;
     }
-    const corteCalculado = Math.min(3, Math.floor((num * 3) / totalActivities) + 1);
+    const corteCalculado = Math.min(
+      BLOCKS_PER_SEMESTER,
+      Math.floor((num * BLOCKS_PER_SEMESTER) / totalActivities) + 1
+    );
     return corteCalculado as 1 | 2 | 3;
   }
 
@@ -128,7 +136,10 @@ export function mapActivityIndexToBlockIndex(
   }
 
   // Regla general de partición uniforme
-  const corteNum = Math.min(3, Math.floor((activityIndex * 3) / Math.max(1, totalActivities)) + 1);
+  const corteNum = Math.min(
+    BLOCKS_PER_SEMESTER,
+    Math.floor((activityIndex * BLOCKS_PER_SEMESTER) / Math.max(1, totalActivities)) + 1
+  );
   return corteNum - 1;
 }
 
@@ -142,15 +153,17 @@ export function resolveCurricularBlocks(
   const activities = contentJson?.sectionIV?.activities || [];
   const s1 = contentJson?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
-  const totalSemesterHours = s1?.totalHours || s1?.totalHoursSemester || 54;
-  const defaultHoursPerBlock = Math.round(totalSemesterHours / 3);
+  const totalSemesterHours =
+    s1?.totalHours ||
+    s1?.totalHoursSemester ||
+    resolveWeeklyHours({ contentJson }) * SEMESTER_WEEKS;
+  const defaultHoursPerBlock = Math.round(totalSemesterHours / BLOCKS_PER_SEMESTER);
 
-  // 3 cubetas fijas: 0 (Corte 1), 1 (Corte 2), 2 (Corte 3)
-  const buckets: { acts: KeyActivityPlan[]; indices: number[] }[] = [
-    { acts: [], indices: [] },
-    { acts: [], indices: [] },
-    { acts: [], indices: [] },
-  ];
+  // Cubetas oficiales: una por corte del semestre (3 en MCCEMS).
+  const buckets: { acts: KeyActivityPlan[]; indices: number[] }[] = Array.from(
+    { length: BLOCKS_PER_SEMESTER },
+    () => ({ acts: [], indices: [] })
+  );
 
   activities.forEach((act, idx) => {
     const bIdx = mapActivityIndexToBlockIndex(idx, activities.length, act.corte);
@@ -158,7 +171,7 @@ export function resolveCurricularBlocks(
     buckets[bIdx].indices.push(idx);
   });
 
-  return [0, 1, 2].map((bIdx) => {
+  return Array.from({ length: BLOCKS_PER_SEMESTER }, (_, bIdx) => bIdx).map((bIdx) => {
     const corteNumber = (bIdx + 1) as 1 | 2 | 3;
     const corteLabel = `Corte ${corteNumber}`;
     const acts = buckets[bIdx].acts;

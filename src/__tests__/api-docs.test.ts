@@ -9,7 +9,7 @@ import { GET, OPENAPI_SPEC } from '@/app/api/docs/route';
 describe('GET /api/docs — OpenAPI 3.1 Documentation & Scalar UI', () => {
   it('OPENAPI_SPEC contiene metadata válida de OpenAPI 3.1', () => {
     expect(OPENAPI_SPEC.openapi).toBe('3.1.0');
-    expect(OPENAPI_SPEC.info.title).toContain('SIGPDA-EMS');
+    expect(OPENAPI_SPEC.info.title).toBe('API Documentation');
     expect(OPENAPI_SPEC.paths['/api/planeaciones/{id}/secuencia']).toBeDefined();
     expect(OPENAPI_SPEC.paths['/api/planeaciones/{id}/secuencia'].get).toBeDefined();
     expect(OPENAPI_SPEC.paths['/api/planeaciones/{id}/secuencia'].post).toBeDefined();

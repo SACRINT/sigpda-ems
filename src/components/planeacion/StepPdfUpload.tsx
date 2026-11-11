@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import toast from 'react-hot-toast';
 import type { ExtractedPdfData, KeyActivity } from '@/types/planning';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { removeHyphens, normalizeContenidos } from '@/lib/text-utils';
@@ -147,11 +148,11 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
   const handleFile = async (f: File) => {
     const lower = f.name.toLowerCase();
     if (!lower.endsWith('.pdf') && !lower.endsWith('.docx') && !lower.endsWith('.txt')) {
-      alert('Solo se aceptan archivos PDF, Word (.docx) o texto (.txt).');
+      toast.error('Solo se aceptan archivos PDF, Word (.docx) o texto (.txt).');
       return;
     }
     if (f.size > 20 * 1024 * 1024) {
-      alert('El archivo no puede superar 20 MB.');
+      toast.error('El archivo no puede superar 20 MB.');
       return;
     }
     setFile(f);

@@ -4,6 +4,7 @@
  */
 
 import { getAppBaseUrl } from '@/lib/config';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 export interface SignatureData {
   hash: string;
@@ -146,7 +147,7 @@ export function buildVerificationPageHtml(signature: SignatureData, valid: boole
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verificación de Documento — SIGPDA-EMS</title>
+  <title>Verificación de Documento — ${getRuntimePlatformName()}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -201,7 +202,7 @@ export function buildVerificationPageHtml(signature: SignatureData, valid: boole
       </div>
     </div>
     <div class="footer">
-      Verificado por SIGPDA-EMS · Sistema Integral de Gestión Pedagógica y Docente<br>
+      Verificado por ${getRuntimePlatformName()} · Sistema Integral de Gestión Pedagógica y Docente<br>
       Estado de Puebla · Ciclo Escolar ${new Date().getFullYear()}-${new Date().getFullYear() + 1}
     </div>
   </div>

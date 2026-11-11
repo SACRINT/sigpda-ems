@@ -8,6 +8,7 @@
 
 import PptxGenJS from 'pptxgenjs';
 import type { Slide, SlideDeck } from './slide-model';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 
 const FONT_TITLE = 'Calibri';
 const FONT_BODY = 'Calibri';
@@ -124,8 +125,8 @@ export async function generatePptxBuffer(deck: SlideDeck): Promise<Buffer> {
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = deck.meta.title;
   pptx.subject = deck.meta.subjectName;
-  pptx.company = deck.meta.schoolName || 'SIGPDA-EMS';
-  pptx.author = deck.meta.teacherName || 'SIGPDA-EMS';
+  pptx.company = deck.meta.schoolName || getRuntimePlatformName();
+  pptx.author = deck.meta.teacherName || getRuntimePlatformName();
 
   const total = deck.slides.length;
   deck.slides.forEach((slide, i) => {
