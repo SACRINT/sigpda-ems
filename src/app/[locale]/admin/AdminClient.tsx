@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { normalizeContenidos } from '@/lib/text-utils';
 import { FALLBACK_PLATFORM_NAME } from '@/lib/platform/platform-name-shared';
+import TrajectoryDag from '@/components/curriculum/TrajectoryDag';
+import { CURRICULUM_TRAJECTORIES } from '@/lib/curriculum/trajectories';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -248,7 +250,7 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
   // ── Curricula & Programs states ──
   const [curriculaPrograms, setCurriculaPrograms] = useState<ProgramItem[]>([]);
   const [curriculaLoading, setCurriculaLoading] = useState(false);
-  const [curriculaViewMode, setCurriculaViewMode] = useState<'malla' | 'tabla'>('malla');
+  const [curriculaViewMode, setCurriculaViewMode] = useState<'malla' | 'tabla' | 'dag'>('malla');
   const [curriculaSubsystem, setCurriculaSubsystem] = useState('todos');
   const [curriculaSemester, setCurriculaSemester] = useState('todos');
   const [curriculaComponent, setCurriculaComponent] = useState('todos');
@@ -1075,6 +1077,8 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  const primaryTrajectory = CURRICULUM_TRAJECTORIES[0];
 
   const tabs: { id: typeof activeTab; label: string; icon: string }[] = [
     { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
@@ -3247,6 +3251,26 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                   </button>
                   <button
                     type="button"
+                    onClick={() => setCurriculaViewMode('dag')}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      border: 'none',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: curriculaViewMode === 'dag' ? 'linear-gradient(135deg, #4f46e5, #6366f1)' : 'transparent',
+                      color: curriculaViewMode === 'dag' ? '#ffffff' : 'rgba(255,255,255,0.6)',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8
+                    }}
+                  >
+                    <span>⌁</span> Trayectoria DAG
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setCurriculaViewMode('tabla')}
                     style={{
                       padding: '8px 16px',
@@ -3594,6 +3618,21 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                     );
                   })}
               </div>
+            ) : curriculaViewMode === 'dag' ? (
+              primaryTrajectory ? (
+                <TrajectoryDag
+                  trajectory={primaryTrajectory}
+                  programs={curriculaPrograms}
+                  onOpenProgram={(programId) => {
+                    const program = curriculaPrograms.find((item) => item.id === programId);
+                    if (program) setSelectedProgramDetail(program);
+                  }}
+                />
+              ) : (
+                <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                  No hay una trayectoria DAG registrada.
+                </div>
+              )
             ) : (
               /* ── VISTA 2: TABLA Y LISTADO DETALLADO ── */
               <div style={{ overflowX: 'auto', background: 'rgba(15,23,42,0.6)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.08)' }}>
