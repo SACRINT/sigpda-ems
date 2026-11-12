@@ -53,6 +53,7 @@ describe('H-143 — Guard determinista contra términos prohibidos en generate-s
     id: 'teacher-uuid-1',
     email: 'director@puebla.gob.mx',
     name: 'Prof. Alejandro Escamilla',
+    role: 'director',
   };
 
   const mockProject = {

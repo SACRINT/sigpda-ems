@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import { sql } from '@/lib/db';
+import { DIRECTIVO_ROLES, guardRole } from '@/lib/rbac';
 import { assertNoForbiddenTerms } from '@/lib/pmc-quality-gate';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
+import { logger } from '@/lib/logger';
 import type { PmcIndicadoresAcademicos, PmcMetaInstitucional } from '@/types/pmc';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -11,15 +11,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const { id } = await params;
     const db = sql();
@@ -44,15 +38,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
 export async function PUT(request: NextRequest, { params }: RouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const { id } = await params;
     const db = sql();
@@ -141,15 +129,9 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const { id } = await params;
     const db = sql();

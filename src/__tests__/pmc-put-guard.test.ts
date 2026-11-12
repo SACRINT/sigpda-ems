@@ -16,8 +16,13 @@ vi.mock('@/lib/db', () => ({
   sql: vi.fn(),
 }));
 
+vi.mock('@/lib/admin-unified', () => ({
+  isAdmin: vi.fn(),
+}));
+
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, sql } from '@/lib/db';
+import { isAdmin } from '@/lib/admin-unified';
 import { PUT } from '@/app/api/pmc/[id]/route';
 import { POST } from '@/app/api/pmc/route';
 
@@ -26,6 +31,7 @@ describe('H-144 — Guard contra términos prohibidos en actualización PUT de P
     id: 'teacher-uuid-1',
     email: 'director@puebla.gob.mx',
     name: 'Prof. Alejandro Escamilla',
+    role: 'director',
   };
 
   const projectId = '00000000-0000-0000-0000-000000000001';
@@ -34,6 +40,7 @@ describe('H-144 — Guard contra términos prohibidos en actualización PUT de P
     vi.clearAllMocks();
     vi.mocked(auth).mockResolvedValue({ user: { email: mockTeacher.email } } as never);
     vi.mocked(getTeacherByEmail).mockResolvedValue(mockTeacher as never);
+    vi.mocked(isAdmin).mockResolvedValue(false as never);
   });
 
   it('1. Actualización limpia con PUT: retorna status 200 y persiste en BD', async () => {
@@ -226,5 +233,28 @@ describe('H-144 — Guard contra términos prohibidos en actualización PUT de P
     expect(res.status).toBe(201);
     expect(data.success).toBe(true);
     expect(mockDb).toHaveBeenCalledTimes(1); // 1 INSERT
+  });
+
+  it('9. Rechaza la creación de PMC por un docente sin rol directivo', async () => {
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'docente@escuela.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({
+      id: 'teacher-docente',
+      email: 'docente@escuela.mx',
+      role: 'docente',
+    } as never);
+
+    const req = new NextRequest('http://localhost:3000/api/pmc', {
+      method: 'POST',
+      body: JSON.stringify({
+        school_name: 'Bachillerato General Oficial CuauhtǸmoc',
+        school_cct: '21EBH0465E',
+      }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data.code).toBe('FORBIDDEN');
   });
 });

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
+import { DIRECTIVO_ROLES, guardRole } from '@/lib/rbac';
 import { generateWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
@@ -27,15 +26,9 @@ export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher, email } = guard.context;
 
     const formData = await request.formData();
     const file = (formData.get('file') as File) || (formData.get('pdf') as File);
@@ -69,7 +62,7 @@ export async function POST(request: NextRequest) {
               mimeType: file.type,
               enableOcr: false,
               teacherId: teacher.id,
-              teacherEmail: session.user.email,
+              teacherEmail: email,
             });
             const text = (lightIngest?.markdown || lightIngest?.fullText || '');
             if (!enrichedCct) {
@@ -133,7 +126,7 @@ export async function POST(request: NextRequest) {
         if (typeof logActivity === 'function') {
           try {
             await logActivity({
-              teacherEmail: session.user.email,
+              teacherEmail: email,
               action: 'ingest_document',
               entityType: 'f11',
               entityId: file.name,
@@ -187,7 +180,7 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           enableOcr: true,
           teacherId: teacher.id,
-          teacherEmail: session.user.email,
+          teacherEmail: email,
         }),
         Math.max(1, deadline - Date.now())
       );
@@ -306,7 +299,7 @@ export async function POST(request: NextRequest) {
       try {
         const approxTokens = Math.round((systemPrompt.length + userPrompt.length + aiRaw.length) / 4);
         await logActivity({
-          teacherEmail: session.user.email,
+          teacherEmail: email,
           action: 'ingest_document',
           entityType: 'f11',
           entityId: file.name,

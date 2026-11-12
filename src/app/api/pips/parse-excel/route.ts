@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { SUPERVISION_ROLES, guardRole } from '@/lib/rbac';
 import { parseCartografiaMatriz } from '@/lib/cartografia-parser';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import {
@@ -13,10 +13,8 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const guard = await guardRole(SUPERVISION_ROLES);
+    if (!guard.ok) return guard.response;
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

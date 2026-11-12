@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { sql, getTeacherByEmail } from "@/lib/db";
+import { sql } from "@/lib/db";
+import { DIRECTIVO_ROLES, guardRole } from "@/lib/rbac";
 
 import { logger } from '@/lib/logger';
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: "Docente no encontrado" }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     // Devuelve el personal registrado por este Director
     let rows: any[] = [];
@@ -47,15 +41,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: "Docente no encontrado" }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const body = await req.json();
     const { accion, nombre, apellidoPaterno, apellidoMaterno, email: emailDocente, cargo, horasBase } = body;

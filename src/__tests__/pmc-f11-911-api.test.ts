@@ -44,7 +44,8 @@ import { POST as handle911Post } from '@/app/api/pmc/estadistica-911/route';
 const mockTeacher = {
   id: 'teacher-uuid-123',
   email: 'docente@bachillerato.edu.mx',
-  name: 'Prof. Juan Pérez',
+  name: 'Prof. Juan PǸrez',
+  role: 'director',
 };
 
 describe('API Route: /api/pmc/f11', () => {

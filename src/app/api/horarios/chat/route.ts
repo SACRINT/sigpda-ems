@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { sql, getTeacherByEmail } from "@/lib/db";
+import { sql } from "@/lib/db";
+import { DIRECTIVO_ROLES, guardRole } from "@/lib/rbac";
 import { procesarComandoIA, RespuestaIAHorario } from "@/lib/horarios/ai-assistant";
 import { resolverHorario } from "@/lib/horarios/solver";
 import { moverCelda, intercambiarCeldas, bloquearLibre } from "@/lib/horarios/mutations";
@@ -9,15 +9,9 @@ import { buscarCadenaSwap, normalizarId } from "@/lib/horarios/chain-swap";
 import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: "Docente no encontrado" }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const body = await req.json();
     const mensaje = body.mensaje || body.mensajeUsuario;
@@ -397,10 +391,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
 
     return NextResponse.json({
       success: true,

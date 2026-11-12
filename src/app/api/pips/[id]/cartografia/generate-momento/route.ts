@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { SUPERVISION_ROLES, guardRole } from '@/lib/rbac';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { generateWithRotation, logActivity } from '@/lib/ai-provider';
 import { getUserLibraryContext } from '@/lib/context-extractor';
@@ -33,15 +33,9 @@ type RouteCtx = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(SUPERVISION_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     // 1. Subscription Gate
     const subStatus = await getSubscriptionStatus(teacher.id, teacher.email);

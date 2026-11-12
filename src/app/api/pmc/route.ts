@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { DIRECTIVO_ROLES, guardRole } from '@/lib/rbac';
 import { logger } from '@/lib/logger';
 import { assertNoForbiddenTerms } from '@/lib/pmc-quality-gate';
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const db = sql();
     const projects = await db`
@@ -48,15 +42,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const body = (await request.json()) as Record<string, unknown>;
 

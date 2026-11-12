@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { SUPERVISION_ROLES, guardRole } from '@/lib/rbac';
 import { generateWithRotation, logActivity } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import {
@@ -24,15 +24,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(SUPERVISION_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher, email } = guard.context;
 
     const { id } = await params;
 
@@ -219,7 +213,7 @@ async function generateChunkWithRetry(
 
     // Registrar actividad en la plataforma
     await logActivity({
-      teacherEmail: session.user.email,
+      teacherEmail: email,
       action: 'generate_pips',
       entityType: 'pips',
       entityId: id,

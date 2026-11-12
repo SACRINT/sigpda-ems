@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
+import { DIRECTIVO_ROLES, guardRole } from '@/lib/rbac';
 import { resolveUserIsPremium } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { ingestDocument } from '@/lib/document-ingestion';
@@ -35,15 +34,9 @@ export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher, email } = guard.context;
 
     const formData = await request.formData();
     const file = (formData.get('file') as File) || (formData.get('pdf') as File);
@@ -93,7 +86,7 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           enableOcr: true,
           teacherId: teacher.id,
-          teacherEmail: session.user.email,
+          teacherEmail: email,
           bypassCache,
         }),
         Math.max(1, deadline - Date.now())

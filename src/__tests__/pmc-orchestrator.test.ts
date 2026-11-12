@@ -61,6 +61,7 @@ const mockTeacher = {
   id: 'teacher-uuid-456',
   email: 'docente.pmc@bachillerato.edu.mx',
   name: 'Mtra. Elena Garro',
+  role: 'director',
 };
 
 describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
@@ -420,7 +421,7 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     setFeatureFlag('PMC_ORCHESTRATOR_V2', true);
 
     vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'director@bachillerato.edu.mx' } } as never);
-    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx' } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx', role: 'director' } as never);
     vi.mocked(ingestDocument).mockResolvedValueOnce({
       markdown: '# Actas F11\nDatos completos con más de cuarenta caracteres...',
       fullText: 'Actas F11 Datos completos con más de cuarenta caracteres...',
@@ -481,7 +482,7 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     resetFeatureFlags(); // Asegurar flag OFF (camino legacy por defecto)
 
     vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'director@bachillerato.edu.mx' } } as never);
-    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx' } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx', role: 'director' } as never);
     vi.mocked(ingestDocument).mockResolvedValueOnce({
       markdown: '# Actas F11\nDatos completos con más de cuarenta caracteres...',
       fullText: 'Actas F11 Datos completos con más de cuarenta caracteres...',
@@ -526,7 +527,7 @@ describe('PmcOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     setFeatureFlag('PMC_ORCHESTRATOR_V2', true);
 
     vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'director@bachillerato.edu.mx' } } as never);
-    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx' } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 'teacher-director-1', email: 'director@bachillerato.edu.mx', role: 'director' } as never);
     vi.mocked(ingestDocument).mockResolvedValueOnce({
       markdown: '# Documento F11 con suficiente texto para superar cuarenta caracteres institucionales...',
       fullText: 'Documento F11 con suficiente texto para superar cuarenta caracteres institucionales...',

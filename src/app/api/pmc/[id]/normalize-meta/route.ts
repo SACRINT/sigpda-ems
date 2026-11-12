@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { DIRECTIVO_ROLES, guardRole } from '@/lib/rbac';
 import { generateWithRotation, resolveUserIsPremium, logActivity } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { parseAIResponse } from '@/lib/ai-response-parser';
@@ -24,15 +24,9 @@ const NormalizeMetaInputSchema = z.object({
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher, email } = guard.context;
 
     const { id } = await params;
     const db = sql();
@@ -208,7 +202,7 @@ Por favor normaliza este contenido bajo los más altos estándares técnicos del
 
     // Log de actividad para auditoría
     await logActivity({
-      teacherEmail: session.user.email,
+      teacherEmail: email,
       action: 'pmc_surgical_meta_normalization',
       entityType: 'pmc_projects',
       entityId: id,

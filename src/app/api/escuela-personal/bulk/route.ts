@@ -9,7 +9,7 @@ async function getDirectorId(email: string) {
   const teacher = await getTeacherByEmail(email);
   if (!teacher) return null;
   const isUserAdmin = await isAdmin(email, teacher.role);
-  if (teacher.role !== 'director' && teacher.role !== 'supervisor' && !isUserAdmin) return null;
+  if (teacher.role !== 'director' && !isUserAdmin) return null;
   return teacher.id as string;
 }
 

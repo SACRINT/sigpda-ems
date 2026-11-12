@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { SUPERVISION_ROLES, guardRole } from '@/lib/rbac';
 import { logger } from '@/lib/logger';
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -9,13 +9,9 @@ type RouteCtx = { params: Promise<{ id: string }> };
 export async function GET(_req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.email)
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher)
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
+    const guard = await guardRole(SUPERVISION_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const db = sql();
     const [project] = await db`
@@ -37,13 +33,9 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
 export async function PUT(req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.email)
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher)
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
+    const guard = await guardRole(SUPERVISION_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const body = await req.json();
     const db = sql();
@@ -98,13 +90,9 @@ export async function PUT(req: NextRequest, { params }: RouteCtx) {
 export async function DELETE(_req: NextRequest, { params }: RouteCtx) {
   try {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.email)
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher)
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
+    const guard = await guardRole(SUPERVISION_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const db = sql();
     const [deleted] = await db`

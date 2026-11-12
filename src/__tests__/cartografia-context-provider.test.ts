@@ -18,6 +18,7 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/db', () => ({
   sql: vi.fn(),
+  getTeacherByEmail: vi.fn(),
 }));
 
 vi.mock('@/lib/cartografia-parser', () => ({
@@ -33,6 +34,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { auth } from '@/lib/auth';
+import { getTeacherByEmail } from '@/lib/db';
 import { parseCartografiaMatriz } from '@/lib/cartografia-parser';
 import { POST as handlePipsParseExcelPost } from '@/app/api/pips/parse-excel/route';
 import {
@@ -96,6 +98,11 @@ describe('CartografiaContextProvider (Fase E — Piloto Nivel 1 & Strangler Fig)
     resetFeatureFlags();
     vi.mocked(auth).mockResolvedValue({
       user: { email: 'supervisor.zona004@bachillerato.pue.gob.mx' },
+    } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValue({
+      id: 'supervisor-zona004-uuid',
+      email: 'supervisor.zona004@bachillerato.pue.gob.mx',
+      role: 'supervisor',
     } as never);
   });
 

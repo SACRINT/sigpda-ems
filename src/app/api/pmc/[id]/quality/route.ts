@@ -1,7 +1,7 @@
 // src/app/api/pmc/[id]/quality/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getTeacherByEmail, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { DIRECTIVO_ROLES, guardRole } from '@/lib/rbac';
 import { calculateGlobalPmcScore, formatPmcAuditReport } from '@/lib/pmc-quality-gate';
 import { computeCoverage } from '@/lib/coverage-core';
 import type { PmcProject, PmcPlanAccion, PmcStaffMember } from '@/types/pmc';
@@ -14,15 +14,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
-    }
+    const guard = await guardRole(DIRECTIVO_ROLES);
+    if (!guard.ok) return guard.response;
+    const { teacher } = guard.context;
 
     const { id } = await params;
     const db = sql();
