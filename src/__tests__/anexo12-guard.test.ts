@@ -5,6 +5,14 @@ vi.mock('@/lib/db', () => ({
   updatePlanningContent: vi.fn(),
 }));
 
+vi.mock('@/lib/planning/planning-versions', () => ({
+  recordPlanningVersion: vi.fn().mockResolvedValue({
+    id: 'mock-version-1',
+    version_number: 1,
+    sha256_hash: 'mockhash123',
+  }),
+}));
+
 import { updatePlanningContent } from '@/lib/db';
 
 function createValidPlanningFixture() {

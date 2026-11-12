@@ -237,7 +237,7 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   add(
     'x_placeholders',
     'Sin placeholders ([completar], [insertar], [pendiente], TODO)',
-    !/\[(completar|insertar|pendiente|texto)\]|\bTODO\b/i.test(serialized),
+    !/\[(completar|insertar|pendiente|texto)\]/i.test(serialized) && !/\bTODO\b/.test(serialized),
     'critical'
   );
   add(

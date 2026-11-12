@@ -59,7 +59,7 @@ const PDF = {
   white: [255, 255, 255] as [number, number, number],
 } as const;
 
-type DocKey = 'malla' | 'guia';
+type DocKey = 'malla' | 'guia' | 'computacion-malla' | 'computacion-guia';
 
 type DocConfig = {
   baseName: string;
@@ -91,6 +91,26 @@ const DOC_CONFIGS: Record<DocKey, DocConfig> = {
     summary: '8 UAC · 24 actividades · 432 horas · 7 módulos + trazabilidad',
     note: 'Documento de trabajo para revisión de la Academia Estatal de Formación Laboral y TIC',
     headerLabel: 'SIGPDA-EMS · Guía Didáctica Docente 2024',
+    pageBreakSections: /^3\./,
+  },
+  'computacion-malla': {
+    baseName: 'MALLA_CURRICULAR_Y_TRAYECTORIA_COMPUTACION_REDES_2024',
+    title: 'Malla Curricular y Trayectoria de Computación y Redes 2024',
+    subtitle: 'Formación Laboral Básico — Bachillerato General Estatal (BGE)',
+    meta: 'Generación 2023–2026 · Acuerdo 09/08/23 · SEP Puebla · MCCEMS',
+    summary: '8 UAC · 24 actividades clave · 432 horas · 4 hitos',
+    note: 'Documento técnico oficial validado con DAG acíclico y catálogo SEP Puebla',
+    headerLabel: 'SIGPDA-EMS · Computación y Redes 2024',
+    pageBreakSections: /^[56]\./,
+  },
+  'computacion-guia': {
+    baseName: 'GUIA_DIDACTICA_DOCENTE_COMPUTACION_REDES_2024',
+    title: 'Guía Didáctica de Oficio para el Docente — Computación y Redes 2024',
+    subtitle: 'Formación Laboral Básico — Bachillerato General Estatal (BGE)',
+    meta: 'Generación 2023–2026 · Acuerdo 09/08/23 · SEP Puebla · MCCEMS',
+    summary: '8 UAC · 24 actividades · 432 horas · 3 momentos didácticos',
+    note: 'Documento técnico oficial para docentes de laboratorio de cómputo y redes',
+    headerLabel: 'SIGPDA-EMS · Guía Didáctica Docente Computación y Redes 2024',
     pageBreakSections: /^3\./,
   },
 };
@@ -1144,10 +1164,10 @@ function resolveDocKey(): DocKey {
       ? process.argv[flagIndex + 1]
       : 'malla';
 
-  if (raw !== 'malla' && raw !== 'guia') {
-    throw new Error(`Documento no reconocido: ${raw ?? '(vacío)'}. Use --doc=malla o --doc=guia.`);
+  if (raw !== 'malla' && raw !== 'guia' && raw !== 'computacion-malla' && raw !== 'computacion-guia') {
+    throw new Error(`Documento no reconocido: ${raw ?? '(vacío)'}. Use --doc=malla, --doc=guia, --doc=computacion-malla o --doc=computacion-guia.`);
   }
-  return raw;
+  return raw as DocKey;
 }
 
 async function main(): Promise<void> {

@@ -27,6 +27,10 @@ import {
   evaluateDBEPA,
   type DBEPAAudit,
 } from '@/lib/planning/dbepa-quality-gate';
+import {
+  recordPlanningVersion,
+  type PlanningVersionRecord,
+} from '@/lib/planning/planning-versions';
 
 export interface PersistPlanningOptions {
   /**
@@ -35,11 +39,14 @@ export interface PersistPlanningOptions {
    */
   isNewOrStrictMode?: boolean;
   context?: Anexo12Context;
+  changeSummary?: string;
+  createVersionSnapshot?: boolean;
 }
 
 export interface PersistPlanningResult {
   success: boolean;
   planning?: unknown;
+  versionRecord?: PlanningVersionRecord | null;
   anexo12Report: Anexo12Report;
   dbepaReport: DBEPAAudit;
   error?: string;
@@ -99,9 +106,33 @@ export async function validateAndPersistPlanningContent(
   // 5. Persistencia atómica en Neon PostgreSQL
   try {
     const updated = await updatePlanningContent(planningId, teacherId, content);
+
+    // 6. Registro de Control Documental Inmutable (ISO 21001:2018)
+    let versionRecord: PlanningVersionRecord | null = null;
+    if (options.createVersionSnapshot !== false) {
+      try {
+        versionRecord = await recordPlanningVersion({
+          planningId,
+          teacherId,
+          contentJson: content,
+          anexo12Score: anexo12Report.score,
+          dbepaScore: dbepaReport.score,
+          changeSummary:
+            options.changeSummary ??
+            'Actualización con validación pedagógica dual (Anexo 12 + DBEPA)',
+        });
+      } catch (vErr) {
+        logger.warn(
+          `[validateAndPersistPlanningContent] Advertencia: no se pudo registrar la versión histórica para planeación ${planningId}:`,
+          vErr
+        );
+      }
+    }
+
     return {
       success: true,
       planning: updated,
+      versionRecord,
       anexo12Report,
       dbepaReport,
     };

@@ -7,12 +7,14 @@
  */
 
 import { INSTALACIONES_RESIDENCIALES_TRAJECTORY } from './instalaciones-residenciales';
+import { COMPUTACION_REDES_TRAJECTORY } from './computacion-redes';
 import type { CurriculumTrajectory, TrajectoryNode } from '../trajectory-types';
 
-export { INSTALACIONES_RESIDENCIALES_TRAJECTORY };
+export { INSTALACIONES_RESIDENCIALES_TRAJECTORY, COMPUTACION_REDES_TRAJECTORY };
 
 export const CURRICULUM_TRAJECTORIES: readonly CurriculumTrajectory[] = [
   INSTALACIONES_RESIDENCIALES_TRAJECTORY,
+  COMPUTACION_REDES_TRAJECTORY,
 ];
 
 const normalize = (value: string): string =>
