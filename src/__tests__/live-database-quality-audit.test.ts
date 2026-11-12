@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
@@ -20,6 +21,18 @@ const dbUrl = (() => {
   }
   return undefined;
 })();
+
+function parseJson<T>(value: unknown, fallback: T): T {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  }
+  return value as T;
+}
 
 describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB)', () => {
   let sql: NeonQueryFunction<false, false>;
@@ -336,6 +349,226 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
           expect(text.includes(genericCierre)).toBe(false);
         }
       }
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 6. Integridad global del catálogo
+  // --------------------------------------------------------------------------
+  describe('6. Integridad global del catálogo: 498 UACs y saberes completos', () => {
+    it('El catálogo contiene exactamente 498 UACs y ninguna actividad vacía', async () => {
+      const rows = await sql`
+        SELECT id, uac_name, activities
+        FROM programs_catalog
+      `;
+      expect(rows.length).toBe(498);
+
+      const emptyActivities = rows.filter((row: any) => {
+        const acts = parseJson<any[]>(row.activities, []);
+        return !Array.isArray(acts) || acts.length === 0;
+      });
+
+      expect(emptyActivities.map((r: any) => r.uac_name)).toEqual([]);
+    });
+
+    it('Todas las actividades tienen saberes completos como objeto { saber, saberHacer, saberSer }', async () => {
+      const rows = await sql`
+        SELECT id, uac_name, activities
+        FROM programs_catalog
+      `;
+
+      const invalid: string[] = [];
+      for (const row of rows as any[]) {
+        const acts = parseJson<any[]>(row.activities, []);
+        for (const activity of acts) {
+          const saberes = activity?.saberes;
+          const valid =
+            saberes &&
+            !Array.isArray(saberes) &&
+            typeof saberes === 'object' &&
+            ['saber', 'saberHacer', 'saberSer'].every(
+              (key) => typeof saberes[key] === 'string' && saberes[key].trim().length > 20,
+            );
+          if (!valid) invalid.push(`${row.uac_name} :: ${activity?.name || 'actividad sin nombre'}`);
+        }
+      }
+
+      expect(invalid).toEqual([]);
+    });
+
+    it('Todos los contenidos formativos no vacíos tienen saberes completos', async () => {
+      const rows = await sql`
+        SELECT id, uac_name, contenidos_formativos
+        FROM programs_catalog
+      `;
+
+      const invalid: string[] = [];
+      for (const row of rows as any[]) {
+        const cfs = parseJson<any[]>(row.contenidos_formativos, []);
+        for (const cf of cfs) {
+          const saberes = cf?.saberes;
+          const valid =
+            saberes &&
+            !Array.isArray(saberes) &&
+            typeof saberes === 'object' &&
+            ['saber', 'saberHacer', 'saberSer'].every(
+              (key) => typeof saberes[key] === 'string' && saberes[key].trim().length > 20,
+            );
+          if (!valid) invalid.push(`${row.uac_name} :: contenido formativo sin saberes`);
+        }
+      }
+
+      expect(invalid).toEqual([]);
+    });
+
+    it('No hay caracteres de reemplazo ni plantillas genéricas en el catálogo', async () => {
+      const rows = await sql`
+        SELECT id, uac_name, contenidos_formativos::text AS cf_text, activities::text AS activities_text
+        FROM programs_catalog
+      `;
+
+      const genericMarkers = [
+        'Fundamentos técnicos y normativos de',
+        'Prácticas estándar de aplicación para',
+        'Fundamentos epistemológicos y conceptuales de',
+        'Contenido pendiente',
+        'Lorem ipsum',
+      ];
+
+      const contaminated = (rows as any[]).filter((row) => {
+        const text = `${row.cf_text || ''}\n${row.activities_text || ''}`;
+        return text.includes('\uFFFD') || genericMarkers.some((marker) => text.includes(marker));
+      });
+
+      expect(contaminated.map((r: any) => r.uac_name)).toEqual([]);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 7. Muestras canónicas: contenido único por sesión
+  // --------------------------------------------------------------------------
+  describe('7. Muestras canónicas: 270 sesiones y 270 planes únicos', () => {
+    const samples = [
+      { id: '18016fa8-7a96-4d89-b693-47788285560e', name: 'Lenguaje y Comunicación I', hours: 54 },
+      { id: 'cc626dd9-9a8a-442a-ab25-532d485d6b36', name: 'Ciencias Naturales I', hours: 72 },
+      { id: '57484f68-811a-485e-817e-f68ff0c92fe8', name: 'Ciencias sociales I', hours: 36 },
+      { id: '7a1e4e19-efa3-40eb-b819-dd604d742cbf', name: 'Inglés I', hours: 54 },
+      { id: 'd944cd30-7fb6-4e3d-a7a6-db48caa78973', name: 'Actualiza equipos de cómputo', hours: 54 },
+    ];
+
+    it('Cada sesión tiene título y actividades docentes/didácticas/evaluativas únicas', async () => {
+      let totalSessions = 0;
+
+      for (const sample of samples) {
+        const rows = await sql`
+          SELECT sequence_json, workbooks_json
+          FROM plannings
+          WHERE id = ${sample.id}
+        `;
+        expect(rows.length).toBe(1);
+
+        const seq = parseJson<Record<string, any>>(rows[0].sequence_json, {});
+        const sessions = Object.values(seq).flatMap((block: any) => block.sessions || []);
+        expect(sessions.length).toBe(sample.hours);
+        totalSessions += sessions.length;
+
+        expect(new Set(sessions.map((s: any) => s.title)).size).toBe(sample.hours);
+        for (const key of ['teachingActivity', 'learningActivity', 'evaluation']) {
+          expect(new Set(sessions.map((s: any) => s[key])).size).toBe(sample.hours);
+        }
+
+        const wb = parseJson<Record<string, any>>(rows[0].workbooks_json, {});
+        const wbSessions: any[] = [];
+        let emptyIDo = 0;
+        for (const block of Object.values(wb)) {
+          for (const mission of (block as any)?.current?.missions || []) {
+            const demo = mission?.iDoSection?.stepByStepDemo;
+            if (typeof demo !== 'string' || demo.trim().length < 40) emptyIDo++;
+            wbSessions.push(...(mission?.sessionPlans || []));
+          }
+        }
+
+        expect(emptyIDo).toBe(0);
+        expect(wbSessions.length).toBe(sample.hours);
+        expect(new Set(wbSessions.map((s: any) => s.objetivo)).size).toBe(sample.hours);
+      }
+
+      expect(totalSessions).toBe(270);
+    });
+
+    it('Los 270 planes de planning_extras son únicos e incluyen el título de su sesión', async () => {
+      let totalPlans = 0;
+
+      for (const sample of samples) {
+        const pRows = await sql`
+          SELECT sequence_json
+          FROM plannings
+          WHERE id = ${sample.id}
+        `;
+        const seq = parseJson<Record<string, any>>(pRows[0].sequence_json, {});
+        const titles = Object.values(seq)
+          .flatMap((block: any) => block.sessions || [])
+          .map((session: any) => String(session.title || '').trim());
+
+        const extras = await sql`
+          SELECT content_text
+          FROM planning_extras
+          WHERE planning_id = ${sample.id} AND type = 'lesson_plan'
+        `;
+
+        expect(extras.length).toBe(sample.hours);
+        expect(new Set(extras.map((e: any) => e.content_text)).size).toBe(sample.hours);
+        totalPlans += extras.length;
+
+        for (const extra of extras as any[]) {
+          const text = String(extra.content_text || '');
+          const match = text.match(/\*\*Tema específico:\*\*\s*(.+)/);
+          expect(match).not.toBeNull();
+          expect(titles).toContain(match![1].trim());
+          expect(text.includes('\uFFFD')).toBe(false);
+        }
+      }
+
+      expect(totalPlans).toBe(270);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 8. Trazabilidad e inmutabilidad
+  // --------------------------------------------------------------------------
+  describe('8. Trazabilidad de versiones y trigger de inmutabilidad', () => {
+    const sampleIds = [
+      '18016fa8-7a96-4d89-b693-47788285560e',
+      'cc626dd9-9a8a-442a-ab25-532d485d6b36',
+      '57484f68-811a-485e-817e-f68ff0c92fe8',
+      '7a1e4e19-efa3-40eb-b819-dd604d742cbf',
+      'd944cd30-7fb6-4e3d-a7a6-db48caa78973',
+    ];
+
+    it('Cada muestra tiene una versión con SHA-256 de 64 caracteres y Anexo 12 = 100', async () => {
+      for (const id of sampleIds) {
+        const rows = await sql`
+          SELECT version_number, sha256_hash, anexo12_score
+          FROM planning_versions
+          WHERE planning_id = ${id}
+          ORDER BY version_number DESC
+          LIMIT 1
+        `;
+
+        expect(rows.length).toBe(1);
+        expect(Number(rows[0].version_number)).toBeGreaterThanOrEqual(1);
+        expect(rows[0].sha256_hash).toMatch(/^[a-f0-9]{64}$/);
+        expect(Number(rows[0].anexo12_score)).toBe(100);
+      }
+    });
+
+    it('El trigger que impide mutar versiones de planeación existe', async () => {
+      const rows = await sql`
+        SELECT tgname
+        FROM pg_trigger
+        WHERE tgname = 'trg_prevent_planning_version_mutation'
+      `;
+      expect(rows.length).toBe(1);
     });
   });
 });

@@ -72,6 +72,13 @@ interface SampleConfig {
 }
 
 // Generador de los 5 programas curriculares canónicos con 100% de sesiones desglosadas
+function withTitle(st: { title?: unknown } | null | undefined, text: string): string {
+  if (!st || !text) return text;
+  const title = String(st.title || '').trim();
+  if (!title || text.startsWith(title + ':')) return text;
+  return `${title}: ${text}`;
+}
+
 const SAMPLES_CONFIG: SampleConfig[] = [
   // 1. Lenguaje y Comunicación I (54h = 54 sesiones: 18 + 18 + 18)
   {
@@ -1120,10 +1127,10 @@ function buildSecuenciaBloque(sample: SampleConfig, blockIndex: number): Secuenc
       totalSessions: sample.totalHours,
       phase,
       title: st.title,
-      teachingActivity: `Mediación docente experta: ${st.apertura}`,
-      learningActivity: `Construcción estudiantil situada: ${st.desarrollo}`,
-      evidence: `Producto de sesión: ${st.practicaEnunciado.substring(0, 70)}... con ticket de salida formativo.`,
-      evaluation: `Lista de cotejo procesual y rúbrica formativa: ${st.cierre}`,
+      teachingActivity: `Mediación docente experta: ${withTitle(st, st.apertura)}`,
+      learningActivity: `Construcción estudiantil situada: ${withTitle(st, st.desarrollo)}`,
+      evidence: `Producto de sesión: ${withTitle(st, st.practicaEnunciado).substring(0, 70)}... con ticket de salida formativo.`,
+      evaluation: `Lista de cotejo procesual y rúbrica formativa: ${withTitle(st, st.cierre)}`,
       procesoPensamiento: proceso,
       utilidadReal: `Impacto observable en ${sample.retoSituado.contextoLocal}: aplicación para ${sample.retoSituado.problematicaReal}.`,
       garantiaDualOffline: `Garantía dual análoga: bitácora física de trabajo, ejercicios en papel bond y herramientas manuales de taller sin dependencia de conectividad.`
@@ -1150,15 +1157,15 @@ function buildActiveWorkbook(planningId: string, sample: SampleConfig, blockInde
     const globalSession = blockIndex * sessionsCount + idx + 1;
     return {
       sessionNumber: globalSession,
-      objetivo: st.objetivo,
-      motivacion: st.apertura,
+      objetivo: withTitle(st, st.objetivo),
+      motivacion: withTitle(st, st.apertura),
       saberesPrevios: `Conocimientos construidos en la sesión previa de ${sample.uacName} y experiencias empíricas del entorno de ${sample.retoSituado.contextoLocal}.`,
-      contenido: `Desarrollo conceptual exhaustivo de la sesión ${globalSession}: ${st.desarrollo}. Este contenido formativo sienta las bases metodológicas y normativas exigidas por el MCCEMS y las normas oficiales aplicables.`,
-      ejemploResuelto: st.ejemplo,
+      contenido: `${st.title}: ${st.desarrollo}. Este contenido formativo sienta las bases metodológicas y normativas exigidas por el MCCEMS y las normas oficiales aplicables.`,
+      ejemploResuelto: withTitle(st, st.ejemplo),
       practica: [
         {
-          enunciado: st.practicaEnunciado,
-          pista: st.practicaPista,
+          enunciado: withTitle(st, st.practicaEnunciado),
+          pista: withTitle(st, st.practicaPista),
           solucion: [
             'Fase 1: Identificación de variables y parámetros de entrada.',
             'Fase 2: Ejecución del procedimiento técnico o analítico.',
@@ -1515,7 +1522,7 @@ async function insertCanonicalExtras(db: ReturnType<typeof sql>, planningId: str
           'lesson_plan',
           ${`Plan de Clase: Sesión ${globalSession} · ${st.title.substring(0, 60)}`},
           ${b},
-          ${`# PLAN DE CLASE DIARIO: SESIÓN ${globalSession} DE ${sample.totalHours}\n**UAC:** ${sample.uacName} | **Semestre:** ${sample.semester}° | **Bloque:** Bloque ${blockNum}\n**Tema específico:** ${st.title}\n\n## PROPÓSITO FORMATIVO DE LA SESIÓN\n${st.objetivo}\n\n## SECUENCIA DIDÁCTICA SITUADA (50 MINUTOS)\n### 1. Apertura (10 minutos)\n${st.apertura}\n\n### 2. Desarrollo (30 minutos)\n${st.desarrollo}\n\n### 3. Cierre Metacognitivo (10 minutos)\n${st.cierre}\n\n## CASO PRÁCTICO Y MODELADO\n${st.ejemplo}\n\n## TAREA / PRODUCTO FORMATIVO\n- **Consigna:** ${st.practicaEnunciado}\n- **Pista de resolución:** ${st.practicaPista}\n- **Evidencia en portafolio:** Ficha técnica de la sesión ${globalSession} verificada en bitácora.`}
+          ${`# PLAN DE CLASE DIARIO: SESIÓN ${globalSession} DE ${sample.totalHours}\n**UAC:** ${sample.uacName} | **Semestre:** ${sample.semester}° | **Bloque:** Bloque ${blockNum}\n**Tema específico:** ${st.title}\n\n## PROPÓSITO FORMATIVO DE LA SESIÓN\n${withTitle(st, st.objetivo)}\n\n## SECUENCIA DIDÁCTICA SITUADA (50 MINUTOS)\n### 1. Apertura (10 minutos)\n${withTitle(st, st.apertura)}\n\n### 2. Desarrollo (30 minutos)\n${withTitle(st, st.desarrollo)}\n\n### 3. Cierre Metacognitivo (10 minutos)\n${withTitle(st, st.cierre)}\n\n## CASO PRÁCTICO Y MODELADO\n${withTitle(st, st.ejemplo)}\n\n## TAREA / PRODUCTO FORMATIVO\n- **Consigna:** ${withTitle(st, st.practicaEnunciado)}\n- **Pista de resolución:** ${withTitle(st, st.practicaPista)}\n- **Evidencia en portafolio:** Ficha técnica de la sesión ${globalSession} verificada en bitácora.`}
         )
       `;
     }
@@ -1686,17 +1693,17 @@ async function main() {
             saberSer: `Ética profesional, seguridad laboral y trabajo colaborativo.`
           },
           apertura: {
-            activities: bt.sessionTopics[0]?.apertura || 'Activación diagnóstica situada.',
+            activities: withTitle(bt.sessionTopics[0], bt.sessionTopics[0]?.apertura) || 'Activación diagnóstica situada.',
             processes: 'asombro y cuestionamiento inicial',
             materials: 'Material de lectura inicial, fichas diagnósticas y proyector digital'
           },
           ejecucion: {
-            activities: bt.sessionTopics[1]?.desarrollo || 'Ejecución procedimental guiada.',
+            activities: withTitle(bt.sessionTopics[1], bt.sessionTopics[1]?.desarrollo) || 'Ejecución procedimental guiada.',
             processes: 'indagación activa y construcción colaborativa',
             materials: 'Guías de trabajo práctico, instrumental técnico, bibliografía y cuadernos'
           },
           conclusion: {
-            activities: bt.sessionTopics[bt.sessionsCount - 1]?.cierre || 'Síntesis metacognitiva.',
+            activities: withTitle(bt.sessionTopics[bt.sessionsCount - 1], bt.sessionTopics[bt.sessionsCount - 1]?.cierre) || 'Síntesis metacognitiva.',
             processes: 'transferencia contextual y metacognición formativa',
             materials: 'Instrumentos de evaluación formativa, rúbricas y bitácoras'
           }

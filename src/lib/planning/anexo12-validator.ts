@@ -233,7 +233,10 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   add('vii_firmas', 'Sección de firmas / validación institucional', 'sectionVII' in root, 'warning');
 
   // ── Integridad transversal ─────────────────────────────────────────────────
-  const serialized = JSON.stringify(content ?? {});
+  const integrityContent = { ...asRec(content) };
+  delete integrityContent.anexo12Audit;
+  delete integrityContent.dbepaAudit;
+  const serialized = JSON.stringify(integrityContent);
   add(
     'x_placeholders',
     'Sin placeholders ([completar], [insertar], [pendiente], TODO)',
