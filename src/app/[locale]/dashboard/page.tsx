@@ -9,6 +9,7 @@ import CustomKeyCard from '@/components/dashboard/CustomKeyCard';
 import SubscriptionBanner from '@/components/dashboard/SubscriptionBanner';
 import type { Metadata } from 'next';
 import { getPlatformName } from '@/lib/platform/platform-name';
+import { WELCOME_PLAN_NAME } from '@/lib/subscription-plans';
 
 export async function generateMetadata(): Promise<Metadata> {
   const platformName = await getPlatformName();
@@ -64,6 +65,7 @@ export default async function DashboardPage({
           usedSubjectsCount={subStatus.usedSubjectsCount}
           availableSlots={subStatus.availableSlots}
           isAdmin={subStatus.isAdmin}
+          isWelcomePlan={subStatus.subscription?.planName === WELCOME_PLAN_NAME}
         />
       )}
 

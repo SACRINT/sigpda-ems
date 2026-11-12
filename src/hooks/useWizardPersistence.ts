@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * A generic hook that persists wizard form state to localStorage.
@@ -17,29 +17,51 @@ export function useWizardPersistence<T>(storageKey: string, initialState: T) {
   const [state, setStateInternal] = useState<T>(initialState);
   const [isHydrated, setIsHydrated] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+  const initialStateRef = useRef(initialState);
 
   // Restore state from localStorage ONLY after mounting on the client
   useEffect(() => {
+    let cancelled = false;
+
+    const finishHydration = (draft?: T) => {
+      if (cancelled) return;
+      if (draft) {
+        setStateInternal(draft);
+        setHasDraft(true);
+        setRestoredFromStorage(true);
+      }
+      setIsHydrated(true);
+    };
+
     try {
       const saved = window.localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved) as T;
-        setStateInternal(parsed);
-        setHasDraft(true);
+        queueMicrotask(() => finishHydration(parsed));
+      } else {
+        queueMicrotask(() => finishHydration());
       }
     } catch (e) {
       console.warn(`[useWizardPersistence] Failed to restore draft for key "${storageKey}":`, e);
-    } finally {
-      setIsHydrated(true);
+      queueMicrotask(() => finishHydration());
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [storageKey]);
 
   // Save state to localStorage whenever it changes, but ONLY after initial hydration
   useEffect(() => {
     if (!isHydrated) return;
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(state));
-      setHasDraft(true);
+      const serialized = JSON.stringify(state);
+      if (serialized === JSON.stringify(initialStateRef.current)) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+      window.localStorage.setItem(storageKey, serialized);
     } catch (e) {
       console.warn(`[useWizardPersistence] Failed to save draft for key "${storageKey}":`, e);
     }
@@ -47,18 +69,20 @@ export function useWizardPersistence<T>(storageKey: string, initialState: T) {
 
   const setState = useCallback((update: T | ((prev: T) => T)) => {
     setStateInternal(update);
+    setHasDraft(true);
   }, []);
 
   const clearDraft = useCallback(() => {
     try {
       window.localStorage.removeItem(storageKey);
       setHasDraft(false);
+      setRestoredFromStorage(false);
     } catch (e) {
       console.warn(`[useWizardPersistence] Failed to clear draft for key "${storageKey}":`, e);
     }
   }, [storageKey]);
 
-  return { state, setState, hasDraft, clearDraft, isHydrated };
+  return { state, setState, hasDraft, clearDraft, isHydrated, restoredFromStorage };
 }
 
 /**
@@ -73,6 +97,12 @@ export function clearAllWizardDrafts() {
   ];
   try {
     DRAFT_KEYS.forEach(key => window.localStorage.removeItem(key));
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith('didactica_editor_draft_')) {
+        window.localStorage.removeItem(key);
+      }
+    }
   } catch (e) {
     console.warn('[clearAllWizardDrafts] Failed to clear drafts:', e);
   }

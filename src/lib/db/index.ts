@@ -5,6 +5,7 @@
 
 export * from './client';
 export * from './teachers';
+export * from './subscriptions';
 export * from './plannings';
 export * from './programs-catalog';
 export * from './planning-extras';

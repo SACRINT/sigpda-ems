@@ -6,6 +6,7 @@
 
 import { sql } from './db';
 import { logger } from './logger';
+import { WELCOME_PLAN_NAME, WELCOME_PLANNING_LIMIT } from './subscription-plans';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
@@ -166,6 +167,23 @@ export async function canCreatePlanningForSubject(
       reason: 'no_subscription',
       message: 'Necesitas una suscripción activa para crear planeaciones.',
     };
+  }
+
+  if (status.subscription?.planName === WELCOME_PLAN_NAME) {
+    const planningRows = await sql()`
+      SELECT COUNT(*)::int AS count
+      FROM plannings
+      WHERE teacher_id = ${teacherId}::uuid
+    `;
+    const usedPlannings = Number(planningRows[0]?.count || 0);
+
+    if (usedPlannings >= WELCOME_PLANNING_LIMIT) {
+      return {
+        allowed: false,
+        reason: 'slots_exhausted',
+        message: 'Ya usaste tu planeación de cortesía. Elige un plan para seguir creando planeaciones.',
+      };
+    }
   }
 
   // Verificar si la materia ya está registrada en el plan

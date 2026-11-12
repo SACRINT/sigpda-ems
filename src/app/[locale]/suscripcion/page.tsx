@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import Link from 'next/link';
 import SuscripcionClient from './SuscripcionClient';
 import { getPlatformName } from '@/lib/platform/platform-name';
+import { WELCOME_PLAN_NAME } from '@/lib/subscription-plans';
 
 export default async function SuscripcionPage({
   params,
@@ -40,8 +41,9 @@ export default async function SuscripcionPage({
     LIMIT 1
   `;
 
-  const activeSub = subRows.length > 0 && subRows[0].status === 'active' ? subRows[0] : null;
+  const activeSub = subRows.length > 0 && (subRows[0].status === 'active' || subRows[0].status === 'trialing') ? subRows[0] : null;
   const hasStripeCustomer = subRows.length > 0 && !!subRows[0].stripe_customer_id;
+  const isWelcomePlan = activeSub?.plan_name === WELCOME_PLAN_NAME;
 
   // Si es administrador
   if (teacher.role === 'administrador') {
@@ -94,6 +96,8 @@ export default async function SuscripcionPage({
       activePlanName={activeSub?.plan_name || null}
       activePlanSubjects={activeSub?.plan_subjects || null}
       hasStripeCustomer={hasStripeCustomer}
+      isWelcomePlan={isWelcomePlan}
+      canActivateWelcome={subRows.length === 0}
     />
   );
 }

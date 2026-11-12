@@ -48,7 +48,7 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
   const router = useRouter();
 
   // All wizard state is persisted in localStorage automatically
-  const { state: draft, setState: setDraft, clearDraft, isHydrated } = useWizardPersistence<WizardDraft>(
+  const { state: draft, setState: setDraft, clearDraft, isHydrated, hasDraft, restoredFromStorage } = useWizardPersistence<WizardDraft>(
     STORAGE_KEY,
     INITIAL_DRAFT
   );
@@ -131,9 +131,14 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
   };
 
   const handleDone = (id: string) => {
-    // Clear the draft when the wizard is completed successfully
     clearDraft();
     router.push(`/${locale}/planeacion/${id}`);
+  };
+
+  const handleDiscardDraft = () => {
+    if (!window.confirm('¿Descartar el borrador guardado en este dispositivo?')) return;
+    clearDraft();
+    window.location.reload();
   };
 
   return (
@@ -145,6 +150,49 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
       </div>
 
       <div style={{ maxWidth: '820px' }}>
+        {isHydrated && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+              padding: '10px 14px',
+              marginBottom: '16px',
+              borderRadius: '10px',
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.2)',
+              color: 'var(--c-text-muted)',
+              fontSize: '12px',
+            }}
+          >
+            <span>
+              💾 Guardado automático local activo
+              {restoredFromStorage && (
+                <strong style={{ color: '#34d399', marginLeft: '6px' }}>· Borrador restaurado</strong>
+              )}
+            </span>
+            {hasDraft && (
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(239,68,68,0.35)',
+                  color: '#f87171',
+                  borderRadius: '7px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                }}
+              >
+                Descartar borrador
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Step progress indicator */}
         <div className="step-wizard">
           {STEPS.map((s) => (

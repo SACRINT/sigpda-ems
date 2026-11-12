@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getTeacherByEmail, createTeacherWithPassword } from '@/lib/db';
+import { getTeacherByEmail, createTeacherWithPassword, ensureWelcomeSubscription } from '@/lib/db';
 
 import { logger } from '@/lib/logger';
 export async function POST(req: NextRequest) {
@@ -54,9 +54,18 @@ export async function POST(req: NextRequest) {
       role: 'docente',
     });
 
+    let welcomeTier = false;
+    try {
+      const welcome = await ensureWelcomeSubscription(newTeacher.id as string);
+      welcomeTier = welcome.subscription?.status === 'active';
+    } catch (welcomeError) {
+      logger.error('Error activando cortesía de bienvenida:', welcomeError);
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Cuenta creada exitosamente. Ya puedes iniciar sesión.',
+      message: 'Cuenta creada exitosamente. Incluye 1 planeación de cortesía sin tarjeta.',
+      welcomeTier,
       user: {
         id: newTeacher.id,
         name: newTeacher.name,

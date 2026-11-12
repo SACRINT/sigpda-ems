@@ -10,7 +10,7 @@ import { Table as TableExt } from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { EditorToolbar } from './editor-toolbar';
 import { BloqueApertura, BloqueDesarrollo, BloqueCierre, BloqueRubrica, BloqueProposito, BloqueActividad, BloqueSeccion } from './editor-extensions';
 import type { GeneratedPlanningContent, ActivityPhase } from '@/types/planning';
@@ -22,6 +22,13 @@ interface PlanningEditorProps {
   content: GeneratedPlanningContent;
   onSave?: (content: GeneratedPlanningContent) => void;
 }
+
+interface LocalEditorDraft {
+  html: string;
+  savedAt: string;
+}
+
+const LOCAL_DRAFT_PREFIX = 'didactica_editor_draft_';
 
 function contentToHTML(content: GeneratedPlanningContent): string {
   const s = content;
@@ -198,6 +205,10 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
   const [saved, setSaved] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiStatus, setAiStatus] = useState('');
+  const [localDraftAt, setLocalDraftAt] = useState<string | null>(null);
+  const [pendingLocalDraft, setPendingLocalDraft] = useState<LocalEditorDraft | null>(null);
+  const localDraftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localDraftKey = `${LOCAL_DRAFT_PREFIX}${planningId}`;
 
   const initialHTML = contentToHTML(content);
 
@@ -241,6 +252,13 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
         body: JSON.stringify({ content_json: updatedContent }),
       });
       if (!res.ok) throw new Error('Error al guardar');
+      try {
+        window.localStorage.removeItem(localDraftKey);
+      } catch (err) {
+        console.warn('[PlanningEditor] No se pudo limpiar el borrador local:', err);
+      }
+      setLocalDraftAt(null);
+      setPendingLocalDraft(null);
       setSaved(true);
       onSave?.(updatedContent);
       setTimeout(() => setSaved(false), 2000);
@@ -249,7 +267,7 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
     } finally {
       setIsSaving(false);
     }
-  }, [editor, planningId, content, onSave]);
+  }, [editor, planningId, content, onSave, localDraftKey]);
 
   const handleAICommand = useCallback(async (command: string, selectedText: string) => {
     if (!editor) return;
@@ -288,6 +306,58 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
     window.open(`/api/docx/${planningId}`, '_blank');
   }, [planningId]);
 
+  const handleRestoreLocalDraft = useCallback(() => {
+    if (!editor || !pendingLocalDraft) return;
+    editor.commands.setContent(pendingLocalDraft.html);
+    setLocalDraftAt(pendingLocalDraft.savedAt);
+    setPendingLocalDraft(null);
+  }, [editor, pendingLocalDraft]);
+
+  const handleDiscardLocalDraft = useCallback(() => {
+    try {
+      window.localStorage.removeItem(localDraftKey);
+    } catch (err) {
+      console.warn('[PlanningEditor] No se pudo limpiar el borrador local:', err);
+    }
+    setLocalDraftAt(null);
+    setPendingLocalDraft(null);
+  }, [localDraftKey]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    try {
+      const raw = window.localStorage.getItem(localDraftKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as LocalEditorDraft;
+        if (parsed.html && parsed.html !== editor.getHTML()) {
+          queueMicrotask(() => setPendingLocalDraft(parsed));
+        }
+      }
+    } catch (err) {
+      console.warn('[PlanningEditor] No se pudo leer el borrador local:', err);
+    }
+
+    const handleUpdate = () => {
+      if (localDraftTimer.current) clearTimeout(localDraftTimer.current);
+      localDraftTimer.current = setTimeout(() => {
+        try {
+          const savedAt = new Date().toISOString();
+          window.localStorage.setItem(localDraftKey, JSON.stringify({ html: editor.getHTML(), savedAt }));
+          setLocalDraftAt(savedAt);
+        } catch (err) {
+          console.warn('[PlanningEditor] No se pudo guardar el borrador local:', err);
+        }
+      }, 1200);
+    };
+
+    editor.on('update', handleUpdate);
+    return () => {
+      if (localDraftTimer.current) clearTimeout(localDraftTimer.current);
+      editor.off('update', handleUpdate);
+    };
+  }, [editor, localDraftKey]);
+
   useEffect(() => {
     return () => editor?.destroy();
   }, [editor]);
@@ -325,6 +395,36 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
           </button>
         </div>
       </div>
+
+      {pendingLocalDraft && (
+        <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-2 bg-emerald-500/10 border-b border-emerald-500/25 text-xs text-emerald-300">
+          <span>
+            Borrador local encontrado · {new Date(pendingLocalDraft.savedAt).toLocaleString('es-MX')}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRestoreLocalDraft}
+              className="px-3 py-1 rounded-md bg-emerald-500 text-white font-semibold"
+            >
+              Restaurar
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardLocalDraft}
+              className="px-3 py-1 rounded-md border border-emerald-500/30 text-emerald-200"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {localDraftAt && !pendingLocalDraft && (
+        <div className="px-4 py-1.5 bg-emerald-500/5 border-b border-emerald-500/15 text-[11px] text-emerald-300">
+          Borrador local guardado · {new Date(localDraftAt).toLocaleTimeString('es-MX')}
+        </div>
+      )}
 
       {/* Toolbar */}
       <EditorToolbar editor={editor} onAICommand={handleAICommand} />

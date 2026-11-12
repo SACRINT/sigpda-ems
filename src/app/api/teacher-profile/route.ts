@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
 import { getTeacherSchoolZone } from '@/lib/db/teachers';
+import { ensureWelcomeSubscription } from '@/lib/db/subscriptions';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 
@@ -68,6 +69,12 @@ export async function POST(req: Request) {
             updated_at = now()
         WHERE email = ${session.user.email}
       `;
+    }
+
+    try {
+      await ensureWelcomeSubscription(existing[0].id as string);
+    } catch (welcomeError) {
+      logger.warn('[teacher-profile] No se pudo activar la cortesía de bienvenida:', welcomeError);
     }
 
     return NextResponse.json({ success: true });

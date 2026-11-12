@@ -36,6 +36,7 @@ import {
   getSubscriptionStatus,
   canCreatePlanningForSubject,
 } from '@/lib/subscription-gate';
+import { WELCOME_PLAN_NAME } from '@/lib/subscription-plans';
 
 // ── Helper: push sequential DB results ───────────────────────────────────────
 
@@ -144,6 +145,40 @@ describe('subscription-gate.ts — Access Control', () => {
     );
     expect(result.allowed).toBe(true);
     expect(result.reason).toBe('active_subscription');
+  });
+
+  it('canCreatePlanningForSubject — bienvenida sin planeaciones: allowed=true', async () => {
+    enqueue([{ role: 'docente' }]);
+    enqueue([{
+      id: 'sub-welcome', plan_name: WELCOME_PLAN_NAME, plan_subjects: 1,
+      status: 'active', current_period_end: null,
+      cancel_at_period_end: false, stripe_customer_id: null,
+    }]);
+    enqueue([]);
+    enqueue([{ count: 0 }]);
+
+    const result = await canCreatePlanningForSubject(
+      'uuid-docente', 'doc@plantel.mx', 'Física', 2, 'Fundamental',
+    );
+    expect(result.allowed).toBe(true);
+  });
+
+  it('canCreatePlanningForSubject — bienvenida con 1 planeación: allowed=false, reason=slots_exhausted', async () => {
+    enqueue([{ role: 'docente' }]);
+    enqueue([{
+      id: 'sub-welcome', plan_name: WELCOME_PLAN_NAME, plan_subjects: 1,
+      status: 'active', current_period_end: null,
+      cancel_at_period_end: false, stripe_customer_id: null,
+    }]);
+    enqueue([{ id: 'ss-001', uac_name: 'Física', semester: 2, component: 'Fundamental' }]);
+    enqueue([{ count: 1 }]);
+
+    const result = await canCreatePlanningForSubject(
+      'uuid-docente', 'doc@plantel.mx', 'Física', 2, 'Fundamental',
+    );
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe('slots_exhausted');
+    expect(result.message).toContain('cortesía');
   });
 
   it('canCreatePlanningForSubject — slots agotados: allowed=false, reason=slots_exhausted', async () => {

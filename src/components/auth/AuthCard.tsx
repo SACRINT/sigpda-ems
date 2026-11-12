@@ -123,7 +123,8 @@ export default function AuthCard({ locale }: Props) {
         setMessage({ type: 'error', text: data.error || 'Error al crear la cuenta.' });
         setLoading(false);
       } else {
-        setMessage({ type: 'success', text: '¡Cuenta creada con éxito! Iniciando sesión...' });
+        const welcomeText = data.welcomeTier ? ' Incluye 1 planeación de cortesía sin tarjeta.' : '';
+        setMessage({ type: 'success', text: `¡Cuenta creada!${welcomeText} Iniciando sesión...` });
         // Iniciar sesión automáticamente
         const loginRes = await signIn('credentials', {
           email: regEmail,
@@ -443,6 +444,18 @@ export default function AuthCard({ locale }: Props) {
       {/* ── TAB 2: CREAR CUENTA ── */}
       {tab === 'REGISTER' && (
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: '10px',
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            color: '#34d399',
+            fontSize: '12px',
+            lineHeight: 1.5,
+          }}>
+            🎁 Incluye <strong>1 planeación de cortesía</strong> sin tarjeta para que empieces sin costo.
+          </div>
+
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '4px', fontWeight: 500 }}>
               Nombre Completo *

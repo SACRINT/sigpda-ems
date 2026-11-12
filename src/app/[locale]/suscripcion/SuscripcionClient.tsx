@@ -10,6 +10,8 @@ interface Props {
   activePlanName: string | null;
   activePlanSubjects: number | null;
   hasStripeCustomer: boolean;
+  isWelcomePlan: boolean;
+  canActivateWelcome: boolean;
 }
 
 export default function SuscripcionClient({
@@ -19,8 +21,11 @@ export default function SuscripcionClient({
   activePlanName,
   activePlanSubjects,
   hasStripeCustomer,
+  isWelcomePlan,
+  canActivateWelcome,
 }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [activatingWelcome, setActivatingWelcome] = useState(false);
   const [activeTab, setActiveTab] = useState<'docente' | 'director' | 'supervisor' | 'institucional'>(
     userRole === 'director' ? 'director' : userRole === 'supervisor' ? 'supervisor' : 'docente'
   );
@@ -187,6 +192,20 @@ export default function SuscripcionClient({
     }
   };
 
+  const handleActivateWelcome = async () => {
+    try {
+      setActivatingWelcome(true);
+      const res = await fetch('/api/subscription/welcome', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo activar la cortesía.');
+      window.location.href = `/${locale}/dashboard`;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al activar la cortesía.');
+    } finally {
+      setActivatingWelcome(false);
+    }
+  };
+
   const handleOpenPortal = async () => {
     try {
       setLoading('portal');
@@ -309,10 +328,17 @@ export default function SuscripcionClient({
                 border: '1px solid rgba(34,197,94,0.3)',
                 color: '#22c55e',
                 fontSize: 14,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
               }}
             >
-              <span>✅ <strong>Plan Actual Activo:</strong> {activePlanName} ({activePlanSubjects} asignaturas)</span>
-              {hasStripeCustomer && (
+              <span>
+                ✅ <strong>{isWelcomePlan ? 'Plan de Bienvenida Activo:' : 'Plan Actual Activo:'}</strong>{' '}
+                {isWelcomePlan
+                  ? '1 planeación de cortesía sin tarjeta'
+                  : `${activePlanName} (${activePlanSubjects} asignaturas)`}
+              </span>
+              {!isWelcomePlan && hasStripeCustomer && (
                 <button
                   onClick={handleOpenPortal}
                   disabled={loading === 'portal'}
@@ -330,6 +356,44 @@ export default function SuscripcionClient({
                   {loading === 'portal' ? 'Abriendo…' : '⚙️ Administrar Pagos'}
                 </button>
               )}
+            </div>
+          )}
+
+          {canActivateWelcome && !activePlanName && (
+            <div
+              style={{
+                marginTop: 20,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 20px',
+                borderRadius: 12,
+                background: 'rgba(16,185,129,0.12)',
+                border: '1px solid rgba(16,185,129,0.3)',
+                color: '#34d399',
+                fontSize: 14,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+              }}
+            >
+              <span>🎁 <strong>1 planeación de cortesía</strong> sin tarjeta para empezar.</span>
+              <button
+                onClick={handleActivateWelcome}
+                disabled={activatingWelcome}
+                style={{
+                  background: '#10b981',
+                  border: 'none',
+                  color: '#fff',
+                  borderRadius: 8,
+                  padding: '7px 14px',
+                  fontSize: 12,
+                  cursor: activatingWelcome ? 'not-allowed' : 'pointer',
+                  fontWeight: 700,
+                  opacity: activatingWelcome ? 0.6 : 1,
+                }}
+              >
+                {activatingWelcome ? 'Activando…' : 'Activar cortesía'}
+              </button>
             </div>
           )}
         </div>
