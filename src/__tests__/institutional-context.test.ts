@@ -186,6 +186,7 @@ describe('institutional-context · fachada de contexto', () => {
     await getInstitutionalContext('planeacion', {
       uacName: 'Lengua y Comunicación I',
       semester: 1,
+      contextId: 'planning-123',
     });
 
     expect(infoSpy).toHaveBeenCalledWith(
@@ -196,6 +197,7 @@ describe('institutional-context · fachada de contexto', () => {
         sources: expect.any(Array),
         sourceCount: 1,
         latencyMs: expect.any(Number),
+        contextId: 'planning-123',
       })
     );
     infoSpy.mockRestore();

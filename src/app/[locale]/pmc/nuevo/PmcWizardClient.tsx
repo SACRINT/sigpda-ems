@@ -44,6 +44,7 @@ import type {
   PmcMetaAsignaturaDTO,
 } from '@/types/pmc';
 import { PmcMetasComplementarias } from './PmcMetasComplementarias';
+import { useLocalDraft } from '@/hooks/useLocalDraft';
 
 export type DirectorSource = 'manual' | 'bd' | 'f11' | '911' | 'paec' | 'pmc_anterior' | 'draft' | 'none';
 
@@ -850,6 +851,53 @@ interface EditablePlanElement {
   }>({});
 
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
+  const pmcLocalDraft = {
+    schoolName,
+    schoolCct,
+    municipality,
+    locality,
+    schoolZone,
+    directorName,
+    supervisorName,
+    cicloEscolar,
+    subsystem,
+    totalStaff,
+    staffData,
+    diagnosticoComunidad,
+    indicadores,
+    foda,
+    categoriasPriorizadas,
+  };
+  useLocalDraft('pmc-nuevo', pmcLocalDraft, {
+    enabled: !existingProject,
+    onRestore: (draft) => {
+      setSchoolName((prev) => prev || draft.schoolName || '');
+      setSchoolCct((prev) => prev || draft.schoolCct || '');
+      setMunicipality((prev) => prev || draft.municipality || '');
+      setLocality((prev) => prev || draft.locality || '');
+      setSchoolZone((prev) => prev || draft.schoolZone || '');
+      setDirectorName((prev) => prev || draft.directorName || '');
+      setSupervisorName((prev) => prev || draft.supervisorName || '');
+      setCicloEscolar((prev) => prev || draft.cicloEscolar || '');
+      setSubsystem((prev) => prev || draft.subsystem || '');
+      setTotalStaff((prev) => (prev > 1 ? prev : draft.totalStaff || prev));
+      setStaffData((prev) =>
+        prev.length > 1 || !draft.staffData?.length ? prev : draft.staffData
+      );
+      setDiagnosticoComunidad((prev) => prev || draft.diagnosticoComunidad || '');
+      setIndicadores((prev) => (Object.keys(prev).length > 0 ? prev : draft.indicadores));
+      setFoda((prev) =>
+        prev.fortalezas || prev.oportunidades || prev.debilidades || prev.amenazas
+          ? prev
+          : draft.foda
+      );
+      setCategoriasPriorizadas((prev) =>
+        prev.length > 0 || !draft.categoriasPriorizadas?.length ? prev : draft.categoriasPriorizadas
+      );
+      setSuccessBanner('Borrador local recuperado. Recuperamos los avances que ya hab?as capturado en el PMC.');
+    },
+  });
 
   const triggerUpload911 = (momento: 'inicio_anterior' | 'fin_anterior' | 'inicio_actual') => {
     uploadMomentoRef.current = momento;

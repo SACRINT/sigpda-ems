@@ -136,7 +136,7 @@ async function generateChunkWithRetry(
 
     // PARTE 1: Presentación + Fundamentación Normativa + Diagnóstico
     const normativaContext = await getNormativaForGenerator('pips');
-    const knowledgeContext = await getInstitutionalContext('pips');
+    const knowledgeContext = await getInstitutionalContext('pips', { contextId: `pips:${id}` });
     const prompt1 = getChunk1Prompt(row, plantelesData, totalAlumnos, totalPersonal);
 
     let prompt1WithCtx = prompt1;

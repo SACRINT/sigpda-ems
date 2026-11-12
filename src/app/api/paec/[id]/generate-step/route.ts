@@ -129,7 +129,7 @@ export async function POST(
 
     // Inyectar contexto regulatorio oficial (H-311) evaluado una sola vez por llamada POST
     const regulatoryContext = getPaecRegulatoryContext(step);
-    const knowledgeContext = await getInstitutionalContext('paec');
+    const knowledgeContext = await getInstitutionalContext('paec', { contextId: `paec:${id}` });
     const stepSystemPrompt = [PAEC_SYSTEM_PROMPT, regulatoryContext, knowledgeContext.block]
       .filter(Boolean)
       .join('\n\n');

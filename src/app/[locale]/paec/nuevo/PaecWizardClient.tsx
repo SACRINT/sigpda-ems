@@ -49,6 +49,7 @@ import {
   PaecStep9GobernanzaSupervision,
 } from './steps';
 import { PaecStepQualityAuditBadge } from '@/components/paec/PaecStepQualityAuditBadge';
+import { useLocalDraft } from '@/hooks/useLocalDraft';
 import PaecWizardLegacy from './legacy/PaecWizardLegacy';
 import { useAssistant } from '@/components/assistant';
 import {
@@ -675,6 +676,47 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
   const [showPaecReviewModal, setShowPaecReviewModal] = useState(false);
   const [paecSuccessBanner, setPaecSuccessBanner] = useState<string | null>(null);
   const [paecWarnings, setPaecWarnings] = useState<string[]>([]);
+
+  const paecLocalDraft = {
+    projectName,
+    problemStatement,
+    cycleType,
+    community,
+    school,
+    selectedFundamental,
+    selectedLaboralCustom,
+    selectedFfeCustom,
+    groupsCount,
+    groupsConfig,
+    schoolType,
+    selectedBtCarreras,
+    semestersConfig,
+    groupAssignments,
+  };
+  useLocalDraft('paec-nuevo', paecLocalDraft, {
+    enabled: !initialId,
+    onRestore: (draft) => {
+      setProjectName((prev) => prev || draft.projectName || '');
+      setProblemStatement((prev) => prev || draft.problemStatement || '');
+      setCycleType((prev) => (draft.cycleType ? draft.cycleType : prev));
+      setCommunity((prev) =>
+        Object.values(prev).some(Boolean) ? prev : draft.community
+      );
+      setSchool((prev) => (Object.values(prev).some(Boolean) ? prev : draft.school));
+      setSelectedFundamental((prev) => (prev.length ? prev : draft.selectedFundamental));
+      setSelectedLaboralCustom((prev) => (prev.length ? prev : draft.selectedLaboralCustom));
+      setSelectedFfeCustom((prev) => (prev.length ? prev : draft.selectedFfeCustom));
+      setGroupsCount((prev) => prev || draft.groupsCount || '1');
+      setGroupsConfig((prev) => prev || draft.groupsConfig || '');
+      setSchoolType((prev) => (draft.schoolType ? draft.schoolType : prev));
+      setSelectedBtCarreras((prev) => (prev.length ? prev : draft.selectedBtCarreras));
+      setSemestersConfig((prev) =>
+        Object.keys(prev).length ? prev : draft.semestersConfig
+      );
+      setGroupAssignments((prev) => (prev.length ? prev : draft.groupAssignments));
+      setPaecSuccessBanner('Borrador local recuperado. Recuperamos los avances que ya hab?as capturado en el PAEC.');
+    },
+  });
 
   const handleUploadPreviousPaec = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -370,7 +370,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         libraryContext,
         normativaDocs
       );
-      const knowledgeContext = await getInstitutionalContext('pmc');
+      const knowledgeContext = await getInstitutionalContext('pmc', { contextId: `pmc:${id}` });
       const prompt = [basePrompt, knowledgeContext.block, ragBlock].filter(Boolean).join('\n\n');
 
       const isPremium = await resolveUserIsPremium(teacher.id);
@@ -578,7 +578,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         libraryContext,
         normativaDocs
       );
-      const knowledgeContext = await getInstitutionalContext('pmc');
+      const knowledgeContext = await getInstitutionalContext('pmc', { contextId: `pmc:${id}` });
       const prompt = [basePrompt, knowledgeContext.block, ragBlock].filter(Boolean).join('\n\n');
 
       const isPremium = await resolveUserIsPremium(teacher.id);

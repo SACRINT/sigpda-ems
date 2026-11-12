@@ -379,7 +379,7 @@ export async function generateBlockWorkTextbook(
 
   // Capa de Conocimiento SEP (editorial): solo metodológico/curricular, con
   // presupuesto reducido porque el bloque se inyecta en cada paquete de sesiones.
-  const editorialKnowledge = await getInstitutionalContext('editorial', { maxTokens: 600 });
+  const editorialKnowledge = await getInstitutionalContext('editorial', { maxTokens: 600, contextId: `editorial:${String((planning as { id?: string }).id ?? 'default-context')}:${blockIndex}` });
 
   const baseWriterInput: WriterInput = {
     planning,
