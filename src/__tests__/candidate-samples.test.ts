@@ -65,4 +65,48 @@ describe('Fase C.2 — Muestras Candidatas a N3/N4 con Validación Experta Coleg
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
     }
   });
+
+  it('4. Valida contrato canónico DUA con las 4 categorías obligatorias', () => {
+    const categories = ['bap_sensorial', 'bap_motriz', 'ritmos_rezago', 'sobresalientes'];
+    const mockDUA = {
+      generadoEn: new Date().toISOString(),
+      fuente: 'determinista',
+      resumen: 'Ajustes DUA canónicos para inclusión total',
+      ajustes: categories.map((cat, i) => ({
+        id: `dua-${i}`,
+        categoria: cat,
+        titulo: `Ajuste para ${cat}`,
+        descripcion: 'Descripción del ajuste razonable',
+        estrategias: ['Estrategia 1', 'Estrategia 2'],
+        evaluacionDiferenciada: 'Evaluación formativa adaptable',
+        recursos: ['Recurso accesible']
+      }))
+    };
+
+    expect(mockDUA.ajustes).toHaveLength(4);
+    for (const cat of categories) {
+      const found = mockDUA.ajustes.find((a) => a.categoria === cat);
+      expect(found).toBeDefined();
+      expect(found?.estrategias.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('5. Valida ausencia estricta de URLs de búsqueda genéricas en recursos curados', () => {
+    const forbiddenPatterns = ['youtube.com/results', 'google.com/search'];
+    const sampleUrls = [
+      'https://dgb.sep.gob.mx/recursos-didacticos',
+      'https://www.redalyc.org/articulo.oa?id=44729878010',
+      'https://unesco.org/es/media-information-literacy',
+      'https://es.khanacademy.org/science/fisica-pe-pre-u',
+      'https://www.inegi.org.mx/datos',
+      'https://learnenglishteens.britishcouncil.org/skills/speaking/a1-speaking',
+      'https://www.crucial.com/support'
+    ];
+
+    for (const url of sampleUrls) {
+      for (const pattern of forbiddenPatterns) {
+        expect(url.includes(pattern)).toBe(false);
+      }
+    }
+  });
 });

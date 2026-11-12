@@ -37,7 +37,7 @@ export class FeatureFlagService {
     ['CARTOGRAFIA_ORCHESTRATOR_V2', false],
     ['HORARIOS_ORCHESTRATOR_V2', false],
     ['EDITORIAL_PUBLISHER_ENGINE', false],
-    ['KNOWLEDGE_LAYER_ENABLED', false],
+    ['KNOWLEDGE_LAYER_ENABLED', true],
     ['KNOWLEDGE_TELEMETRY', false],
     ['PROMPT_CATALOG_ENABLED', false],
   ]);

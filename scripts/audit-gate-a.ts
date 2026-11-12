@@ -46,9 +46,9 @@ async function verify() {
   `;
   const dbepaCount = Number((q3[0] as any)?.with_dbepa || 0);
 
-  // 4. Conteo de planeaciones totales con workbooks
-  const q4 = await sql`SELECT COUNT(*) as total FROM plannings WHERE workbooks_json IS NOT NULL`;
-  const totalWorkbooks = Number((q4[0] as any)?.total || 0);
+  // 4. Conteo de planeaciones totales
+  const q4 = await sql`SELECT COUNT(*) as total FROM plannings`;
+  const totalPlannings = Number((q4[0] as any)?.total || 0);
 
   // Si la tabla anterior tenía 0 filas debido a IF NOT EXISTS preexistente, recrear respaldo limpio
   const verifiedBackup = `plannings_workbooks_backup_${Date.now()}`;
@@ -65,9 +65,9 @@ async function verify() {
   const backups = q5.map((b: any) => b.table_name);
 
   console.log(`1. URLs de búsqueda residuales en workbooks_json: ${searchUrls} ${searchUrls === 0 ? '✓ (100% LIMPIO)' : '❌ ERROR'}`);
-  console.log(`2. Planeaciones con workbooks_json:              ${totalWorkbooks}`);
-  console.log(`3. Planeaciones con anexo12Audit persistido:     ${anexo12Count}/9 ${anexo12Count === 9 ? '✓ (100% PERSISTIDO)' : '❌ INCOMPLETO'}`);
-  console.log(`4. Planeaciones con dbepaAudit persistido:       ${dbepaCount}/9 ${dbepaCount === 9 ? '✓ (100% PERSISTIDO)' : '❌ INCOMPLETO'}`);
+  console.log(`2. Total de planeaciones en base de datos:       ${totalPlannings}`);
+  console.log(`3. Planeaciones con anexo12Audit persistido:     ${anexo12Count}/${totalPlannings} ${anexo12Count >= 9 && anexo12Count === totalPlannings ? '✓ (100% PERSISTIDO)' : '❌ INCOMPLETO'}`);
+  console.log(`4. Planeaciones con dbepaAudit persistido:       ${dbepaCount}/${totalPlannings} ${dbepaCount >= 9 && dbepaCount === totalPlannings ? '✓ (100% PERSISTIDO)' : '❌ INCOMPLETO'}`);
   console.log(`5. Tablas de respaldo verificadas en Neon DB:    ${backups.length} encontradas:`);
   for (const b of backups) {
     const rowCheck = await sql.query(`SELECT COUNT(*) as c FROM ${b}`);
@@ -75,7 +75,7 @@ async function verify() {
   }
 
   console.log('\n=================================================================');
-  if (searchUrls === 0 && anexo12Count === 9 && dbepaCount === 9 && backups.length > 0) {
+  if (searchUrls === 0 && anexo12Count >= 9 && anexo12Count === totalPlannings && dbepaCount === totalPlannings && backups.length > 0) {
     console.log('   ✓ DICTAMEN GATE A: APROBADO CON EXCELENCIA (PASS)');
     console.log('   La base de datos cumple 100% de los requisitos para Fase B.');
   } else {
