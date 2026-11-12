@@ -215,7 +215,7 @@ function relativeTime(dateStr?: string | null): string {
 
 export default function AdminClient({ locale, adminEmail }: { locale: string; adminEmail: string }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'keys' | 'config' | 'users' | 'stats' | 'prompts' | 'docs' | 'activity' | 'normativa' | 'curricula' | 'audits' | 'schedules'>('stats');
+  const [activeTab, setActiveTab] = useState<'keys' | 'config' | 'users' | 'stats' | 'prompts' | 'docs' | 'activity' | 'normativa' | 'curricula' | 'audits' | 'schedules' | 'entrega'>('stats');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -529,6 +529,7 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
     if (activeTab === 'normativa') loadNormativa();
     if (activeTab === 'curricula') loadCurricula();
     if (activeTab === 'audits') loadAudits();
+    if (activeTab === 'entrega') loadAudits();
     if (activeTab === 'schedules') loadSchedules();
   }, [activeTab, loadCurricula, loadAudits, loadSchedules]);
 
@@ -1082,6 +1083,7 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
 
   const tabs: { id: typeof activeTab; label: string; icon: string }[] = [
     { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
+    { id: 'entrega',  label: 'Estatus de Entrega', icon: '📦' },
     { id: 'audits',   label: 'Auditoría Pedagógica', icon: '🛡️' },
     { id: 'schedules',label: 'Horarios Escolares', icon: '📅' },
     { id: 'curricula',label: 'Malla y Programas', icon: '📚' },
@@ -1233,6 +1235,103 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
             ) : <div className="empty-state">Cargando estadísticas...</div>}
           </>
         )}
+
+        {/* ── ESTATUS ADMINISTRATIVO DE ENTREGA (FASE 4) ── */}
+        {activeTab === 'entrega' && (() => {
+          const rows = auditPlannings;
+          const total = rows.length;
+          const generadas = rows.filter((p) => p.planning_status === 'generated' || p.planning_status === 'downloaded').length;
+          const pendientes = rows.filter((p) => !p.planning_status || p.planning_status === 'draft').length;
+          const descargadas = rows.filter((p) => p.planning_status === 'downloaded').length;
+          const auditadas = rows.filter((p) => Boolean(p.audit_id)).length;
+          const statusLabel = (status: string) =>
+            status === 'downloaded' ? 'Descargada' : status === 'generated' ? 'Generada' : 'Pendiente';
+          const statusClass = (status: string) =>
+            status === 'downloaded' ? 'badge-green' : status === 'generated' ? 'badge-blue' : 'badge-yellow';
+
+          return (
+            <>
+              <div className="section-header">
+                <div>
+                  <h1 style={{ margin: 0, paddingBottom: 4 }}>📦 Estatus Administrativo de Entrega</h1>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: '6px 0 0 0' }}>
+                    Consulta únicamente el estado de entrega por planeación. Este tablero no expone contenido pedagógico ni fiscaliza el trabajo docente.
+                  </p>
+                </div>
+                <button
+                  className="btn-sm btn-ghost"
+                  onClick={loadAudits}
+                  disabled={auditLoading}
+                  style={{ border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  🔄 {auditLoading ? 'Actualizando...' : 'Refrescar'}
+                </button>
+              </div>
+
+              <div className="admin-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+                <div className="stat-card">
+                  <div className="num">{total}</div>
+                  <div className="lbl">Planeaciones registradas</div>
+                </div>
+                <div className="stat-card">
+                  <div className="num" style={{ color: '#34d399' }}>{generadas}</div>
+                  <div className="lbl">Generadas</div>
+                </div>
+                <div className="stat-card">
+                  <div className="num" style={{ color: '#fbbf24' }}>{pendientes}</div>
+                  <div className="lbl">Pendientes</div>
+                </div>
+                <div className="stat-card">
+                  <div className="num" style={{ color: '#60a5fa' }}>{descargadas}</div>
+                  <div className="lbl">Descargadas</div>
+                </div>
+                <div className="stat-card">
+                  <div className="num" style={{ color: '#c084fc' }}>{auditadas}</div>
+                  <div className="lbl">Auditadas</div>
+                </div>
+              </div>
+
+              {auditLoading && rows.length === 0 ? (
+                <div className="empty-state">Cargando estatus de entrega...</div>
+              ) : rows.length === 0 ? (
+                <div className="empty-state">No hay planeaciones registradas todavía.</div>
+              ) : (
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>UAC / Asignatura</th>
+                      <th>Docente</th>
+                      <th>Plantel</th>
+                      <th style={{ textAlign: 'center' }}>Semestre</th>
+                      <th>Estado de entrega</th>
+                      <th>Registro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((planning) => (
+                      <tr key={planning.planning_id}>
+                        <td style={{ fontWeight: 600, color: '#f0f4ff' }}>{planning.uac_name}</td>
+                        <td>{planning.teacher_name || planning.teacher_email || 'Sin docente'}</td>
+                        <td>{planning.school_name || 'Sin plantel'}</td>
+                        <td style={{ textAlign: 'center' }}>{planning.semester}°</td>
+                        <td>
+                          <span className={`badge ${statusClass(planning.planning_status)}`}>
+                            {statusLabel(planning.planning_status)}
+                          </span>
+                        </td>
+                        <td style={{ color: 'rgba(240,244,255,0.55)', fontSize: 12 }}>
+                          {planning.planning_created_at
+                            ? new Date(planning.planning_created_at).toLocaleDateString('es-MX')
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          );
+        })()}
 
         {/* ── AUDITORÍA PEDAGÓGICA (FASE 2) ── */}
         {activeTab === 'audits' && (

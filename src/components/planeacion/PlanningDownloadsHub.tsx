@@ -124,7 +124,28 @@ export default function PlanningDownloadsHub({
           >
             Todos los entregables en un solo paquete:
           </span>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <a
+              href={`/api/planeaciones/${planning.id}/paquete-aula`}
+              className="btn btn-primary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                padding: '6px 12px',
+                borderRadius: '7px',
+                textDecoration: 'none',
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,0.95))',
+                border: '1px solid rgba(52,211,153,0.75)',
+                color: '#ffffff',
+                fontWeight: 800,
+                boxShadow: '0 2px 10px rgba(16,185,129,0.25)',
+              }}
+              title="📦 Descargar Paquete Integral de Aula (ZIP): planeación, secuencias, rúbricas, fichas, PPTX y tickets de salida"
+            >
+              <Archive size={14} /> Paquete Integral de Aula (ZIP)
+            </a>
             <a
               href={`/api/docx/extra/bulk?planningId=${planning.id}`}
               className="btn btn-secondary btn-sm"
