@@ -43,6 +43,10 @@ next-env.d.ts
 
 # testing and artifacts
 scripts/output/
+
+# pilotos y entregables binarios locales
+docs/piloto-p15/**/*.pdf
+docs/piloto-p15/**/*.docx
 scripts/*.ps1
 scripts/test_*.ts
 __pycache__/
