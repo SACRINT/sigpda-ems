@@ -97,17 +97,19 @@ async function applyItem(
   }
   const sourceIds = await upsertSources(sql, item.frontmatter);
   const applicable = item.frontmatter.applicable_a;
+  const uacSlugs = item.frontmatter.uac_slugs ?? [];
 
   await sql`
     INSERT INTO knowledge_pages (
       slug, dominio, titulo, contenido, applicable_a, source_ids,
-      sha256, token_count, publicado, compilado_con, prompt_version, updated_at
+      sha256, token_count, publicado, compilado_con, prompt_version, uac_slugs, updated_at
     )
     VALUES (
       ${item.frontmatter.slug}, ${item.frontmatter.dominio}, ${item.frontmatter.titulo},
       ${item.contenido}, ${applicable}::text[], ${sourceIds}::integer[],
       ${item.sha256}, ${item.tokenCount}, ${item.publicado},
-      ${item.frontmatter.model ?? null}, ${item.frontmatter.prompt_version ?? null}, NOW()
+      ${item.frontmatter.model ?? null}, ${item.frontmatter.prompt_version ?? null},
+      ${uacSlugs}::text[], NOW()
     )
     ON CONFLICT (slug) DO UPDATE SET
       dominio = EXCLUDED.dominio,
@@ -120,6 +122,7 @@ async function applyItem(
       publicado = EXCLUDED.publicado,
       compilado_con = EXCLUDED.compilado_con,
       prompt_version = EXCLUDED.prompt_version,
+      uac_slugs = EXCLUDED.uac_slugs,
       updated_at = NOW()
   `;
 
@@ -130,6 +133,7 @@ async function applyItem(
       ${JSON.stringify({
         dominio: item.frontmatter.dominio,
         applicable_a: applicable,
+        uac_slugs: uacSlugs,
         token_count: item.tokenCount,
         publicado: item.publicado,
       })}::jsonb

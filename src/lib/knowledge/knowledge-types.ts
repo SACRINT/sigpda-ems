@@ -46,6 +46,7 @@ export const KnowledgeFrontmatterSchema = z
     applicable_a: z.array(z.enum(KNOWLEDGE_APPLICABLE)).min(1),
     fuentes_referencia: z.array(KnowledgeSourceRefSchema).min(1),
     status: z.enum(['draft', 'reviewed']).default('draft'),
+    uac_slugs: z.array(z.string()).default([]),
     model: z.string().min(1).optional(),
     prompt_version: z.string().min(1).optional(),
   })
@@ -75,6 +76,7 @@ export interface KnowledgePage {
   sha256: string;
   tokenCount: number;
   publicado: boolean;
+  uac_slugs?: string[];
   compiladoCon?: string | null;
   promptVersion?: string | null;
 }

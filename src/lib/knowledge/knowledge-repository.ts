@@ -17,6 +17,7 @@ export interface KnowledgePageRow {
   token_count: number;
   compilado_con: string | null;
   prompt_version: string | null;
+  uac_slugs?: string[];
   updated_at: string;
 }
 
@@ -37,7 +38,7 @@ export async function getPublishedKnowledgePages(): Promise<KnowledgePageRow[]> 
   const client = sql();
   const rows = (await client`
     SELECT slug, dominio, titulo, contenido, applicable_a, token_count,
-           compilado_con, prompt_version, updated_at
+           compilado_con, prompt_version, COALESCE(uac_slugs, '{}') as uac_slugs, updated_at
     FROM knowledge_pages
     WHERE publicado = TRUE
     ORDER BY dominio ASC, slug ASC

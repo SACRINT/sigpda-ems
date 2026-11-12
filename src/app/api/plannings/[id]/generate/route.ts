@@ -163,7 +163,18 @@ export async function POST(
     // NOTA: La normativa oficial NO se inyecta en planeaciones didácticas de aula.
     // Decisión de diseño institucional: solo PMC y PIPS llevan fundamentación jurídica.
     // La Capa de Conocimiento SEP aporta únicamente dominios metodológico/curricular.
-    const knowledgeContext = await getInstitutionalContext('planeacion');
+    const rawUacName = planning.uac_name || extractedData.uacName || '';
+    const uacSlug = rawUacName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const knowledgeContext = await getInstitutionalContext('planeacion', {
+      maxTokens: 800,
+      uacSlug,
+    });
 
     let fullUserPrompt = userPrompt;
     if (knowledgeContext.block) {

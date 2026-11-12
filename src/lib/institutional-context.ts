@@ -69,7 +69,7 @@ export function isKnowledgeTelemetryEnabled(): boolean {
  */
 export async function getInstitutionalContext(
   generator: ContextGenerator,
-  options: { maxTokens?: number } = {}
+  options: { maxTokens?: number; uacSlug?: string } = {}
 ): Promise<InstitutionalContextResult> {
   if (!isKnowledgeLayerEnabled()) return EMPTY_CONTEXT;
 
@@ -79,9 +79,29 @@ export async function getInstitutionalContext(
   try {
     const pages = await getPublishedKnowledgePages();
     const domains = DOMAIN_ROUTING[generator];
+    const normalizedUacSlug = options.uacSlug ? options.uacSlug.toLowerCase().trim() : undefined;
+
     const eligible = pages
       .filter((page) => domains.includes(page.dominio))
       .filter((page) => isApplicableTo(page.dominio, page.applicable_a, generator))
+      .filter((page) => {
+        // Didáctica general / DUA / evaluación formativa se inyectan universalmente a toda planeación
+        if (page.dominio === 'metodologico') return true;
+
+        // Si es dominio curricular y se especificó uacSlug, filtrar estrictamente
+        if (page.dominio === 'curricular') {
+          if (!normalizedUacSlug) return true;
+          const matchesUacSlugs =
+            Array.isArray(page.uac_slugs) &&
+            page.uac_slugs.some((s) => s.toLowerCase().trim() === normalizedUacSlug);
+          const matchesSlugPrefix =
+            page.slug.toLowerCase().startsWith(`curriculo/${normalizedUacSlug}`) ||
+            page.slug.toLowerCase() === normalizedUacSlug;
+          return matchesUacSlugs || matchesSlugPrefix;
+        }
+
+        return true;
+      })
       .sort((a, b) => {
         const domainDelta = domains.indexOf(a.dominio) - domains.indexOf(b.dominio);
         return domainDelta !== 0 ? domainDelta : a.slug.localeCompare(b.slug);

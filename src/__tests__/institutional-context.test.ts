@@ -28,6 +28,7 @@ function page(overrides: Partial<KnowledgePageRow> & Pick<KnowledgePageRow, 'slu
     token_count: 10,
     compilado_con: null,
     prompt_version: null,
+    uac_slugs: overrides.uac_slugs ?? [],
     updated_at: new Date().toISOString(),
     ...overrides,
   };
