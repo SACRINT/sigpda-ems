@@ -4,6 +4,7 @@ import type {
   GenerationProgressState,
 } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
+import { sanitizeWorkbookResourceUrls } from '@/lib/resources/workbook-sanitizer';
 import { sql } from './client';
 import { WorkerLeaseLostError } from './generation-jobs';
 
@@ -218,6 +219,13 @@ export async function saveBlockWorkbook(
     return { version: 0, success: false, error: 'blockIndex inválido (NaN o negativo)' };
   }
 
+  // Write-gate editorial (P0 / Fase A.1): sanitizar URLs de búsqueda antes de persistir
+  const { sanitized: cleanWorkbook, replacedCount } = sanitizeWorkbookResourceUrls(workbook);
+  if (replacedCount > 0) {
+    logger.warn(`[saveBlockWorkbook] Write-gate sanea ${replacedCount} URLs de búsqueda genérica en workbook ${planningId} b${blockIndex}`);
+  }
+  const targetWorkbook = cleanWorkbook;
+
   const client = sql();
 
   // Fencing de persistencia: si corre bajo un worker con lease, certificar que no fue revocado o venció
@@ -268,6 +276,7 @@ export async function saveBlockWorkbook(
     const expectedVersion = existingBlockData.version || 0;
     const newVersion = expectedVersion + 1;
     workbook.version = newVersion;
+    targetWorkbook.version = newVersion;
 
     const historyItem = existingBlockData.current
       ? {
@@ -289,7 +298,7 @@ export async function saveBlockWorkbook(
     const blockEntry = {
       version: newVersion,
       lastJobId: jobId || null,
-      current: workbook,
+      current: targetWorkbook,
       history: updatedHistory,
     };
 

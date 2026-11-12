@@ -28,6 +28,7 @@ import {
   WorkerLeaseLostError,
 } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { sanitizeWorkbookResourceUrls } from '@/lib/resources/workbook-sanitizer';
 import { resolveSchoolIdentity } from '@/lib/school-identity';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { extractCurriculumContext } from './curriculum-context-agent';
@@ -934,6 +935,16 @@ export async function generateBlockWorkTextbook(
     summary: alignmentReport.summary,
   };
 
+  // Write-gate editorial (P0 / Fase A.1): sanitizar URLs de búsqueda antes de persistir o emitir
+  const { sanitized: sanitizedWorkbook, replacedCount: sanitizedUrlsCount } =
+    sanitizeWorkbookResourceUrls(activeWorkTextbook);
+  if (sanitizedUrlsCount > 0) {
+    logger.info(
+      `[Orchestrator] Se sanearon ${sanitizedUrlsCount} URLs de búsqueda genérica en el workbook b${blockIndex}`
+    );
+  }
+  const finalizedWorkbook = sanitizedWorkbook;
+
   // ── Fase 10: Persistencia en DB con Versionamiento ─────────────────────
   // Si persistWorkbook es false (ej. ejecutado por el worker con persistencia única), el worker guardará al completar.
   const shouldPersist = options.persistWorkbook ?? (!options.jobId);
@@ -942,19 +953,19 @@ export async function generateBlockWorkTextbook(
       logger.warn(
         `[Orchestrator] Block ${blockIndex} NOT accepted: qualityScore=${validation.qualityScore}, words=${validation.totalWordCount}. Guardando con advertencia activa.`
       );
-      activeWorkTextbook.qualityWarning = true;
+      finalizedWorkbook.qualityWarning = true;
     }
     if (jobId) {
-      await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook, jobId, leaseId);
+      await saveBlockWorkbook(planningId, blockIndex, finalizedWorkbook, jobId, leaseId);
     } else {
-      await saveBlockWorkbook(planningId, blockIndex, activeWorkTextbook);
+      await saveBlockWorkbook(planningId, blockIndex, finalizedWorkbook);
     }
   } else {
     if (!validation.accepted) {
       logger.warn(
         `[Orchestrator] Block ${blockIndex} NOT accepted: qualityScore=${validation.qualityScore}, words=${validation.totalWordCount}. Marcando advertencia activa.`
       );
-      activeWorkTextbook.qualityWarning = true;
+      finalizedWorkbook.qualityWarning = true;
     }
   }
 
@@ -994,7 +1005,7 @@ export async function generateBlockWorkTextbook(
     totalWords: validation.totalWordCount,
   });
 
-  return activeWorkTextbook;
+  return finalizedWorkbook;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, getPlanningById, deletePlanning, updatePlanningContent } from '@/lib/db';
+import { getTeacherByEmail, getPlanningById, deletePlanning } from '@/lib/db';
+import { validateAndPersistPlanningContent } from '@/lib/planning/planning-persistence';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 
 export async function GET(
@@ -74,8 +75,23 @@ export async function PUT(
       return NextResponse.json({ error: 'content_json requerido' }, { status: 400 });
     }
 
-    const updated = await updatePlanningContent(id, teacher.id, content_json);
-    return NextResponse.json({ success: true, planning: updated });
+    const result = await validateAndPersistPlanningContent(id, teacher.id, content_json, {
+      isNewOrStrictMode: Boolean(body.strict),
+    });
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: result.error,
+          criticalFailures: result.criticalFailures,
+          anexo12Report: result.anexo12Report,
+          dbepaReport: result.dbepaReport,
+        },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json({ success: true, planning: result.planning });
   } catch (error) {
     return NextResponse.json({ error: 'Error al guardar' }, { status: 500 });
   }

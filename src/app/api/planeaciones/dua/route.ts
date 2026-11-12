@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPlanningById, getTeacherByEmail, updatePlanningContent } from '@/lib/db';
+import { getPlanningById, getTeacherByEmail } from '@/lib/db';
+import { validateAndPersistPlanningContent } from '@/lib/planning/planning-persistence';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { logger } from '@/lib/logger';
 import { DUA_CATEGORIAS, generateDUAWithAI } from '@/lib/planning/dua-generator';
@@ -77,12 +78,26 @@ export async function POST(request: NextRequest) {
     });
 
     const updatedContent: GeneratedPlanningContent = { ...content, ajustesDUA };
-    await updatePlanningContent(planningId, teacher.id, updatedContent);
+    const persistResult = await validateAndPersistPlanningContent(
+      planningId,
+      teacher.id,
+      updatedContent,
+      {
+        isNewOrStrictMode: false, // Modo permisivo para DUA (no bloquea al docente)
+        context: {
+          uacName: planning.uac_name || undefined,
+          semester: planning.semester as number,
+          component: planning.component as string,
+        },
+      }
+    );
 
     return NextResponse.json({
-      success: true,
+      success: persistResult.success,
       ajustesDUA,
       contentJson: updatedContent,
+      anexo12Audit: persistResult.anexo12Report,
+      dbepaAudit: persistResult.dbepaReport,
       ...(warning ? { warning } : {}),
     });
   } catch (error) {

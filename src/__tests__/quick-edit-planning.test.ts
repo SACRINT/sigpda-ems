@@ -112,7 +112,11 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
 
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(updatePlanningContent).toHaveBeenCalledWith(planningId, teacherId, updatedContent);
+    expect(updatePlanningContent).toHaveBeenCalledWith(
+      planningId,
+      teacherId,
+      expect.objectContaining(updatedContent)
+    );
   });
 
   it('4. Debe autorizar y actualizar si el usuario tiene Suscripción Premium Activa', async () => {
@@ -151,7 +155,11 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
 
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(updatePlanningContent).toHaveBeenCalledWith(planningId, teacherId, updatedContent);
+    expect(updatePlanningContent).toHaveBeenCalledWith(
+      planningId,
+      teacherId,
+      expect.objectContaining(updatedContent)
+    );
   });
 });
 

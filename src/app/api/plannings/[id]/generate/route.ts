@@ -19,7 +19,7 @@ import { getInstitutionalContext } from '@/lib/institutional-context';
 import { searchCurriculum } from '@/lib/rag-curricular';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import { evaluatePlanningQuality } from '@/lib/planning/quality-pipeline';
-import { validateAnexo12 } from '@/lib/planning/anexo12-validator';
+import { validateAndPersistPlanningContent } from '@/lib/planning/planning-persistence';
 import {
   repairExtractedDataWithCatalog,
   enforceOfficialProgresiones,
@@ -276,25 +276,31 @@ export async function POST(
               );
             }
 
-            // Gate determinista de conformidad con el Anexo 12 USICAMM.
-            const anexo12Audit = validateAnexo12(parsedContent, {
-              uacName: planning.uac_name || undefined,
-              semester: planning.semester as number,
-              component: planning.component as string,
-              subsystem: context.subsystem,
-            });
-            (parsedContent as unknown as Record<string, unknown>).anexo12Audit = anexo12Audit;
-            if (anexo12Audit.ok) {
+            // Gate Pedagógico Dual determinista (Anexo 12 USICAMM + DBEPA Quality Gate)
+            const persistResult = await validateAndPersistPlanningContent(
+              id,
+              teacher.id,
+              parsedContent as unknown as GeneratedPlanningContent,
+              {
+                isNewOrStrictMode: true,
+                context: {
+                  uacName: planning.uac_name || undefined,
+                  semester: planning.semester as number,
+                  component: planning.component as string,
+                  subsystem: context.subsystem,
+                },
+              }
+            );
+
+            if (persistResult.anexo12Report.ok) {
               logger.info(
-                `[Anexo12] Planeación ${id} conforme — score ${anexo12Audit.score}/100 (${anexo12Audit.passed}/${anexo12Audit.total}).`
+                `[Anexo12] Planeación ${id} conforme — score ${persistResult.anexo12Report.score}/100 (${persistResult.anexo12Report.passed}/${persistResult.anexo12Report.total}).`
               );
             } else {
               logger.warn(
-                `[Anexo12] Planeación ${id} NO CONFORME — ${anexo12Audit.criticalFailures} fallo(s) crítico(s), score ${anexo12Audit.score}/100.`
+                `[Anexo12] Planeación ${id} advertencias — ${persistResult.anexo12Report.criticalFailures} fallo(s) crítico(s), score ${persistResult.anexo12Report.score}/100.`
               );
             }
-
-            await updatePlanningContent(id, teacher.id, parsedContent);
 
             // Evaluación automática mediante el pipeline determinista de calidad MCCEMS
             try {
