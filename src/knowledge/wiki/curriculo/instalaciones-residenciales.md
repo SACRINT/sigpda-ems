@@ -3,7 +3,7 @@ slug: curriculo/instalaciones-residenciales
 titulo: Capacitación Laboral en Instalaciones Residenciales BGE Puebla 2024
 dominio: curricular
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: [mantenimiento-de-sistemas-electricos-residenciales, diseno-e-instalacion-de-circuitos-electricos-residenciales, automatizacion-y-seguridad-en-instalaciones-electricas-residenciales, proyectos-de-instalaciones-electricas-residenciales-sustentables, instalaciones-residenciales]
 model: gemini-3.5-flash-lite
 prompt_version: v1

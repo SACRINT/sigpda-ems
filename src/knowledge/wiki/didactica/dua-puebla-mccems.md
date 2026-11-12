@@ -3,7 +3,7 @@ slug: didactica/dua-puebla-mccems
 titulo: Diseño Universal para el Aprendizaje en el MCCEMS Puebla
 dominio: metodologico
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: []
 model: gemini-3.5-flash-lite
 prompt_version: v1

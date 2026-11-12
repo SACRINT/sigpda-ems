@@ -11,7 +11,7 @@
 2. **Git es la fuente de verdad.** La tabla `knowledge_pages` es una *vista materializada* de
    solo lectura que se actualiza con `scripts/sync-knowledge.ts`. Nunca se edita la BD a mano.
 3. **Nada se publica sin revisión humana.** `status: draft` → `publicado=false`. Solo
-   `status: reviewed` puede publicarse (`sync-knowledge.ts --publish`).
+   `status: reviewed` o `status: published` puede publicarse (`sync-knowledge.ts --publish`).
 4. **Cero contenido genérico.** El sync ejecuta `findGenericContent()` y **aborta**
    (fail-closed) si una página contiene clichés, placeholders o relleno de plantilla.
 5. **Cero leyes en Planeación ni Editorial.** El dominio `normativo` solo es aplicable a
@@ -39,7 +39,7 @@ slug: didactica/anexo-12-cortes
 titulo: Criterios de evaluación por corte (Anexo 12 CC)
 dominio: metodologico          # normativo | metodologico | curricular
 applicable_a: [planeacion, editorial]   # pmc | pips | paec | planeacion | editorial
-status: draft                  # draft | reviewed
+status: draft                  # draft | reviewed | published
 model: gemini-3.5-flash-lite   # opcional (compilación con IA)
 prompt_version: v1             # opcional (versión del prompt de compilación)
 fuentes_referencia:
@@ -99,7 +99,7 @@ npx tsx scripts/sync-knowledge.ts
 # 3) Escribir como borrador (publicado=false)
 npx tsx scripts/sync-knowledge.ts --apply
 
-# 4) Publicar (exige status: reviewed)
+# 4) Publicar (exige status: reviewed | published)
 npx tsx scripts/sync-knowledge.ts --publish
 ```
 

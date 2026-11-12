@@ -15,6 +15,7 @@ export interface KnowledgePageRow {
   contenido: string;
   applicable_a: KnowledgeApplicable[];
   token_count: number;
+  priority?: number;
   compilado_con: string | null;
   prompt_version: string | null;
   uac_slugs?: string[];
@@ -38,10 +39,11 @@ export async function getPublishedKnowledgePages(): Promise<KnowledgePageRow[]> 
   const client = sql();
   const rows = (await client`
     SELECT slug, dominio, titulo, contenido, applicable_a, token_count,
-           compilado_con, prompt_version, COALESCE(uac_slugs, '{}') as uac_slugs, updated_at
+           COALESCE(priority, 0) as priority, compilado_con, prompt_version,
+           COALESCE(uac_slugs, '{}') as uac_slugs, updated_at
     FROM knowledge_pages
     WHERE publicado = TRUE
-    ORDER BY dominio ASC, slug ASC
+    ORDER BY dominio ASC, priority DESC, slug ASC
   `) as unknown as KnowledgePageRow[];
 
   knowledgeCache = { data: rows, timestamp: now };

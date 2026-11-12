@@ -122,7 +122,7 @@ export function planKnowledgeSync(params: PlanKnowledgeSyncParams): SyncPlanItem
         continue;
       }
 
-      if (publish && data.status !== 'reviewed') {
+      if (publish && data.status !== 'reviewed' && data.status !== 'published') {
         rejected.push({
           archivo: file.archivo,
           slug: data.slug,
@@ -136,7 +136,7 @@ export function planKnowledgeSync(params: PlanKnowledgeSyncParams): SyncPlanItem
       }
 
       const sha256 = sha256Hex(contenido);
-      const targetPublicado = publish && data.status === 'reviewed';
+      const targetPublicado = data.status === 'published' || (publish && data.status === 'reviewed');
       const previous = existingBySlug.get(data.slug);
 
       let accion: SyncAction;

@@ -3,7 +3,7 @@ slug: curriculo/pensamiento-matematico
 titulo: Pensamiento Matemático en el MCCEMS — Progresiones y Metas Oficiales
 dominio: curricular
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: [pensamiento-matematico-i, pensamiento-matematico-ii, pensamiento-matematico-iii, pensamiento-matematico-iv, pensamiento-matematico]
 model: gemini-3.5-flash-lite
 prompt_version: v1

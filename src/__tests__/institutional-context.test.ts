@@ -123,6 +123,42 @@ describe('institutional-context · fachada de contexto', () => {
     expect(result.block).not.toContain('curriculo/otra-uac');
   });
 
+  it('balancea presupuesto curricular y metodológico sin excluir la UAC', async () => {
+    mockedPages.mockResolvedValue([
+      page({
+        slug: 'didactica/dua',
+        dominio: 'metodologico',
+        contenido: `# DUA\n\n${'metodologia '.repeat(1000)}`,
+      }),
+      page({
+        slug: 'curriculo/lengua-y-comunicacion',
+        dominio: 'curricular',
+        uac_slugs: ['lengua-y-comunicacion-i'],
+        contenido: `# Lengua\n\n${'curricular '.repeat(1000)}`,
+      }),
+    ]);
+
+    const result = await getInstitutionalContext('planeacion', {
+      maxTokens: 850,
+      domainBudgets: { metodologico: 350, curricular: 450 },
+      uacName: 'Lengua y Comunicación I',
+    });
+
+    expect(result.tokens).toBeLessThanOrEqual(870);
+    expect(result.sources.map((source) => source.dominio)).toContain('metodologico');
+    expect(result.sources.map((source) => source.dominio)).toContain('curricular');
+  });
+
+  it('prioriza páginas con priority alta dentro del mismo dominio', async () => {
+    mockedPages.mockResolvedValue([
+      page({ slug: 'normativa/z-prioridad-baja', dominio: 'normativo', priority: 0 }),
+      page({ slug: 'normativa/z-compendio', dominio: 'normativo', priority: 100 }),
+    ]);
+
+    const result = await getInstitutionalContext('pmc');
+    expect(result.sources[0]?.slug).toBe('normativa/z-compendio');
+  });
+
   it('fail-open: si el repositorio falla, devuelve vacío sin lanzar', async () => {
     mockedPages.mockRejectedValue(new Error('BD caída'));
     const result = await getInstitutionalContext('pmc');

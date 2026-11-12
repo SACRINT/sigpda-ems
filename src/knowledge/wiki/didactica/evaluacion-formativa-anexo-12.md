@@ -3,7 +3,7 @@ slug: didactica/evaluacion-formativa-anexo-12
 titulo: Evaluación Formativa y Criterios del Anexo 12 USICAMM MCCEMS
 dominio: metodologico
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: []
 model: gemini-3.5-flash-lite
 prompt_version: v1

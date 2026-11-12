@@ -3,7 +3,7 @@ slug: curriculo/ingles
 titulo: Lengua Extranjera Inglés en el MCCEMS — Marco Común Europeo y Comunicación Global
 dominio: curricular
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: [ingles-i, ingles-ii, ingles-iii, ingles-iv, lengua-extranjera-ingles-i, lengua-extranjera-ingles-ii, ingles]
 model: gemini-3.5-flash-lite
 prompt_version: v1

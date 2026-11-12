@@ -12,7 +12,7 @@
  *   de consultas reales con `typst query` dentro del worker.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -142,6 +142,7 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
     const prevNodeEnv = process.env.NODE_ENV;
     const prevSecret = process.env.EDITORIAL_WORKER_SECRET;
     const envMutable = process.env as Record<string, string | undefined>;
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     try {
       envMutable['NODE_ENV'] = 'production';
       delete process.env.EDITORIAL_WORKER_SECRET;
@@ -156,6 +157,7 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
       const data = await res.json();
       expect(data.error).toContain('EDITORIAL_WORKER_SECRET es obligatorio');
     } finally {
+      stderrSpy.mockRestore();
       envMutable['NODE_ENV'] = prevNodeEnv;
       process.env.EDITORIAL_WORKER_SECRET = prevSecret;
     }
@@ -202,6 +204,9 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
 
     const prevPublicDir = process.env.PUBLIC_DIR;
     process.env.PUBLIC_DIR = emptyPublicDir;
+    // El fallo de imagen es el comportamiento esperado de esta prueba negativa.
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     try {
       const res = await fetch(`${workerBaseUrl}/compile`, {
@@ -218,6 +223,8 @@ describe('Worker Container Typst — Integración Real sobre HTTP (P1-2)', () =>
       expect(data.success).toBe(false);
       expect(data.error).toContain('file not found');
     } finally {
+      consoleErrorSpy.mockRestore();
+      stderrSpy.mockRestore();
       if (prevPublicDir !== undefined) {
         process.env.PUBLIC_DIR = prevPublicDir;
       } else {

@@ -45,7 +45,7 @@ export const KnowledgeFrontmatterSchema = z
     dominio: z.enum(KNOWLEDGE_DOMAINS),
     applicable_a: z.array(z.enum(KNOWLEDGE_APPLICABLE)).min(1),
     fuentes_referencia: z.array(KnowledgeSourceRefSchema).min(1),
-    status: z.enum(['draft', 'reviewed']).default('draft'),
+    status: z.enum(['draft', 'reviewed', 'published']).default('draft'),
     uac_slugs: z.array(z.string()).default([]),
     model: z.string().min(1).optional(),
     prompt_version: z.string().min(1).optional(),

@@ -84,7 +84,12 @@ export function resolveEditorialTemplateVersion(): string {
     return cachedTemplateVersion;
   }
   try {
-    const templatePath = path.join(process.cwd(), 'templates', 'editorial', 'workbook-template.typ');
+    const templatePath = path.join(
+      /*turbopackIgnore: true*/ process.cwd(),
+      'templates',
+      'editorial',
+      'workbook-template.typ'
+    );
     const sha = crypto.createHash('sha256').update(fs.readFileSync(templatePath)).digest('hex');
     cachedTemplateVersion = `tpl:${sha.slice(0, 16)}`;
   } catch {

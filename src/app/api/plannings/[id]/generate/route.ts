@@ -171,7 +171,8 @@ export async function POST(
       .replace(/^-+|-+$/g, '');
 
     const knowledgeContext = await getInstitutionalContext('planeacion', {
-      maxTokens: 600,
+      maxTokens: 850,
+      domainBudgets: { metodologico: 350, curricular: 450 },
       uacSlug,
       uacName: rawUacName,
       semester: planning.semester as number,

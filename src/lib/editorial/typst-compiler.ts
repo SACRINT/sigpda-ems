@@ -283,9 +283,9 @@ export async function compileStudentChapter(
 ): Promise<TypstCompileResult> {
   assertValidStudentChapter(chapter);
 
-  const repoRoot = options.rootDir || process.cwd();
+  const repoRoot = options.rootDir || /*turbopackIgnore: true*/ process.cwd();
   const templatePath =
-    options.templatePath || path.join(repoRoot, 'templates', 'editorial', 'workbook-template.typ');
+    options.templatePath || path.join(/*turbopackIgnore: true*/ repoRoot, 'templates', 'editorial', 'workbook-template.typ');
 
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Plantilla de Typst no encontrada en '${templatePath}'`);
@@ -305,7 +305,7 @@ export async function compileStudentChapter(
   // Rutas relativas a effectiveRootDir requeridas por Typst con bandera --root
   const rootRelativeTemplate = '/' + path.relative(effectiveRootDir, templatePath).replace(/\\/g, '/');
   const rootRelativeJson = '/' + path.relative(effectiveRootDir, jsonPath).replace(/\\/g, '/');
-  const assetsRoot = '/' + path.relative(effectiveRootDir, path.join(repoRoot, 'public')).replace(/\\/g, '/');
+  const assetsRoot = '/' + path.relative(effectiveRootDir, path.join(/*turbopackIgnore: true*/ repoRoot, 'public')).replace(/\\/g, '/');
 
   // Serialización normalizada y determinista del JSON
   const jsonContent = JSON.stringify({ ...chapter, assetsRoot }, null, 2);

@@ -60,12 +60,13 @@ export interface PaecCatalogItem {
   subsystem?: string | null;
   model_type?: string | null;
   contenidos_formativos?: Array<{
-    numero: number;
+    numero?: number;
+    orden?: number;
     proposito?: string | null;
     progresion?: string | null;
     contenidos?: string[];
     actividad?: string;
-    saberes?: string[];
+    saberes?: string[] | { saber?: string; saberHacer?: string; saberSer?: string };
   }> | null;
 }
 

@@ -3,7 +3,7 @@ slug: didactica/metodologias-activas-mccems
 titulo: Metodologías Activas y Situadas en la Nueva Escuela Mexicana EMS
 dominio: metodologico
 applicable_a: [planeacion, editorial, paec]
-status: reviewed
+status: published
 uac_slugs: []
 model: gemini-3.5-flash-lite
 prompt_version: v1

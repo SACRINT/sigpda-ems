@@ -135,6 +135,23 @@ describe('knowledge-sync · planificador determinista', () => {
     expect(plan[0].errores.join(' ')).toMatch(/draft/i);
   });
 
+  it('preserva publicado=true cuando el frontmatter ya está en published', () => {
+    const first = planKnowledgeSync({
+      files: [file(md({ status: 'published' }))],
+      existing: [],
+      publish: false,
+    })[0];
+    expect(first.publicado).toBe(true);
+
+    const second = planKnowledgeSync({
+      files: [file(md({ status: 'published' }))],
+      existing: [{ slug: first.slug!, sha256: first.sha256!, publicado: true }],
+      publish: false,
+    })[0];
+    expect(second.accion).toBe('unchanged');
+    expect(second.publicado).toBe(true);
+  });
+
   it('publica páginas revisadas', () => {
     const plan = planKnowledgeSync({
       files: [file(md({ status: 'reviewed' }))],

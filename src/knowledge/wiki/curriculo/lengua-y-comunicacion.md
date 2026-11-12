@@ -3,7 +3,7 @@ slug: curriculo/lengua-y-comunicacion
 titulo: Lengua y Comunicación en el MCCEMS — Progresiones y Enfoque Comunicativo
 dominio: curricular
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: [lengua-y-comunicacion-i, lengua-y-comunicacion-ii, lengua-y-comunicacion-iii, lengua-y-comunicacion-iv, lengua-y-comunicacion]
 model: gemini-3.5-flash-lite
 prompt_version: v1

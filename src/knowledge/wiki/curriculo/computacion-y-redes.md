@@ -3,7 +3,7 @@ slug: curriculo/computacion-y-redes
 titulo: Capacitación Laboral en Computación y Redes BGE Puebla 2024
 dominio: curricular
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: [actualiza-equipos-de-computo-de-acuerdo-con-especificaciones-del-fabricante, usa-tecnicas-y-estrategias-de-mantenimiento-del-equipo-de-computo, establece-seguridad-informatica-en-equipos-de-computo, planea-infraestructura-de-red-internet-e-intranet-en-un-entorno-con-supervision-del-experto, administra-redes-de-acuerdo-con-las-condiciones-y-requerimientos-de-una-organizacion, brinda-soporte-en-software-de-aplicacion-y-hardware-segun-los-requerimientos-del-usuario, asesora-sobre-directrices-de-seguridad-en-redes-y-equipos-de-computo-a-usuarios, ofrece-soporte-en-software-de-aplicacion-y-hardware-segun-los-requerimientos-del-usuario, computacion-y-redes, mantenimiento-de-computo-y-redes]
 model: gemini-3.5-flash-lite
 prompt_version: v1

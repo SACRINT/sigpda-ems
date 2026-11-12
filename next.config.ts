@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/pdf/libro-editorial/\\[id\\]': ['./templates/editorial/*.typ'],
   },
+
+  // El compilador Typst usa fs/path dinámicos en runtime. El archivo de
+  // configuración no debe formar parte del trace de la función serverless.
+  outputFileTracingExcludes: {
+    '/*': ['./next.config.ts'],
+  },
 };
 
 export default withNextIntl(nextConfig);

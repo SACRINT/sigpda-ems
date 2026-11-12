@@ -53,14 +53,22 @@ export function formatUacCurricularContent(uac: PaecCatalogItem): string {
     lines.push(`- ${uac.uac_name} (Semestre ${uac.semester}, Formación Laboral — Actividades Clave):`);
     for (const item of cf) {
       const act = item.actividad || item.proposito || item.progresion || 'Actividad no especificada';
-      const saberes = item.saberes && item.saberes.length > 0 ? ` (Saberes: ${item.saberes.join('; ')})` : '';
-      lines.push(`  * Actividad Clave ${item.numero}: ${act}${saberes}`);
+      const rawSaberes = item.saberes;
+      const saberesList = Array.isArray(rawSaberes)
+        ? rawSaberes
+        : rawSaberes && typeof rawSaberes === 'object'
+          ? [rawSaberes.saber, rawSaberes.saberHacer, rawSaberes.saberSer].filter(
+              (value): value is string => typeof value === 'string' && value.trim().length > 0
+            )
+          : [];
+      const saberes = saberesList.length > 0 ? ` (Saberes: ${saberesList.join('; ')})` : '';
+      lines.push(`  * Actividad Clave ${item.numero ?? item.orden ?? 0}: ${act}${saberes}`);
     }
   } else if (isProgresiones) {
     lines.push(`- ${uac.uac_name} (Semestre ${uac.semester}, Progresiones de Aprendizaje):`);
     for (const item of cf) {
       const prog = item.progresion || item.proposito || 'Progresión no especificada';
-      lines.push(`  * Progresión ${item.numero}: ${prog}`);
+      lines.push(`  * Progresión ${item.numero ?? item.orden ?? 0}: ${prog}`);
     }
   } else {
     lines.push(`- ${uac.uac_name} (Semestre ${uac.semester}, Propósitos Formativos):`);
@@ -68,7 +76,7 @@ export function formatUacCurricularContent(uac: PaecCatalogItem): string {
       const prop = item.proposito || item.progresion || 'Propósito no especificado';
       const contList = normalizeContenidos(item.contenidos);
       const cont = contList.length > 0 ? ` [Contenidos: ${contList.join(', ')}]` : '';
-      lines.push(`  * Propósito ${item.numero}: ${prop}${cont}`);
+      lines.push(`  * Propósito ${item.numero ?? item.orden ?? 0}: ${prop}${cont}`);
     }
   }
 

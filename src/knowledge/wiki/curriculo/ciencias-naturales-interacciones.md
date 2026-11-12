@@ -3,7 +3,7 @@ slug: curriculo/ciencias-naturales-interacciones
 titulo: Ciencias Naturales, Experimentales y Tecnología — La Materia y sus Interacciones
 dominio: curricular
 applicable_a: [planeacion, editorial]
-status: reviewed
+status: published
 uac_slugs: [la-materia-y-sus-interacciones, conservacion-de-la-energia-y-sus-interacciones-con-la-materia, ecosistemas-interacciones-energia-y-dinamica, ciencias-naturales]
 model: gemini-3.5-flash-lite
 prompt_version: v1
