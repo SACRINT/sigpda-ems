@@ -12,6 +12,7 @@
  * devuelve un bloque vacío.
  */
 
+import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { getNormativaForGenerator, type GeneratorType } from '@/lib/normativa-context';
@@ -75,9 +76,21 @@ export async function getInstitutionalContext(
     uacName?: string;
     semester?: number;
     domainBudgets?: Partial<Record<KnowledgeDomain, number>>;
+    contextId?: string;
+    rolloutPercentage?: number;
   } = {}
 ): Promise<InstitutionalContextResult> {
   if (!isKnowledgeLayerEnabled()) return EMPTY_CONTEXT;
+
+  const startedAt = Date.now();
+  const rolloutPercentage =
+    options.rolloutPercentage ?? Number(process.env.KNOWLEDGE_ROLLOUT_PERCENTAGE ?? 100);
+  if (
+    options.contextId &&
+    !isKnowledgeLayerActiveForContext(options.contextId, rolloutPercentage)
+  ) {
+    return EMPTY_CONTEXT;
+  }
 
   const isPlaneacion = generator === 'planeacion';
   const maxTokens = options.maxTokens ?? (isPlaneacion ? 850 : DEFAULT_KNOWLEDGE_MAX_TOKENS);
@@ -213,9 +226,14 @@ export async function getInstitutionalContext(
     if (isKnowledgeTelemetryEnabled()) {
       logger.info('[InstitutionalContext] contexto inyectado', {
         generator,
-        tokens: result.tokens,
-        maxTokens,
+        tokensRequested: maxTokens,
+        tokensInjected: result.tokens,
         sources: sources.map((source) => `${source.slug}(${source.tokens}t)`),
+        sourceCount: sources.length,
+        latencyMs: Date.now() - startedAt,
+        domainBudgets: domainBudgets ?? null,
+        uacSlug: normalizedUacSlug ?? null,
+        contextId: options.contextId ?? null,
       });
     }
 
@@ -224,6 +242,22 @@ export async function getInstitutionalContext(
     logger.error('[InstitutionalContext] Error leyendo la capa de conocimiento (fail-open):', error);
     return EMPTY_CONTEXT;
   }
+}
+
+
+/**
+ * Rollout determinista por contexto: el mismo contextId cae siempre en el
+ * mismo bucket, evitando que un docente vea la capa activada/desactivada
+ * de forma aleatoria entre requests.
+ */
+export function isKnowledgeLayerActiveForContext(
+  contextId: string,
+  rolloutPercentage = 100
+): boolean {
+  if (rolloutPercentage <= 0) return false;
+  if (rolloutPercentage >= 100) return true;
+  const bucket = createHash('sha256').update(contextId).digest().readUInt32BE(0) % 100;
+  return bucket < rolloutPercentage;
 }
 
 /**

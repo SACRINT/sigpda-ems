@@ -185,7 +185,8 @@ async function main(): Promise<void> {
     // En dry-run también se lee (solo SELECT) para reportar `unchanged` con precisión.
     sqlClient = neon(process.env.DATABASE_URL);
     existing = (await sqlClient`
-      SELECT slug, sha256, publicado FROM knowledge_pages
+      SELECT slug, sha256, publicado, applicable_a, COALESCE(uac_slugs, '{}'::text[]) AS uac_slugs
+      FROM knowledge_pages
     `) as ExistingKnowledgePage[];
   } else if (options.mode !== 'dry-run') {
     console.error('❌ DATABASE_URL no está definido (revisa .env.local).');

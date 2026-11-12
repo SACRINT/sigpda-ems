@@ -4,7 +4,7 @@ titulo: Lengua Extranjera Inglés en el MCCEMS — Marco Común Europeo y Comuni
 dominio: curricular
 applicable_a: [planeacion, editorial]
 status: published
-uac_slugs: [ingles-i, ingles-ii, ingles-iii, ingles-iv, lengua-extranjera-ingles-i, lengua-extranjera-ingles-ii, ingles]
+uac_slugs: [ingles-i-to-be-or-not-to-be-that-is-the-question, ingles-ii-these-are-a-few-of-my-favorite-things, ingles-iii-what-we-were-we-share, ingles-iv-should-i-stay-or-should-i-go, ingles-v, ingles-vi]
 model: gemini-3.5-flash-lite
 prompt_version: v1
 fuentes_referencia:

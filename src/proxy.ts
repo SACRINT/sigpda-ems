@@ -35,7 +35,8 @@ async function getTeacherStatus(email: string) {
     const db = sql();
     const rows = await db`
       SELECT t.id, t.profile_completed, t.school_locked, t.role,
-             s.status as sub_status
+             s.status as sub_status,
+             (SELECT count(*)::int FROM plannings p WHERE p.teacher_id = t.id) AS planning_count
       FROM teachers t
       LEFT JOIN subscriptions s ON s.teacher_id = t.id
         AND s.status IN ('active', 'trialing')
@@ -85,8 +86,28 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL(`/${locale}/configurar-perfil`, request.url));
       }
 
-      // 4. Sin suscripción activa → página de suscripción
+      // 4. Sin suscripción activa: Welcome Tier de 1 planeación de cortesía.
+      // El docente puede conocer el dashboard y crear su primera planeación.
+      // La segunda planeación y el resto de rutas protegidas exigen suscripción.
       if (!teacher.sub_status) {
+        const planningCount = Number(teacher.planning_count ?? 0);
+        const isDashboard = pathWithoutLocale === '/dashboard' || pathWithoutLocale.startsWith('/dashboard/');
+        const isNewPlanning =
+          pathWithoutLocale === '/nueva-planeacion' ||
+          pathWithoutLocale.startsWith('/nueva-planeacion/');
+        const isPlanningDetail =
+          pathWithoutLocale === '/planeacion' || pathWithoutLocale.startsWith('/planeacion/');
+
+        if (isDashboard) {
+          return intlMiddleware(request);
+        }
+        if (planningCount === 0 && isNewPlanning) {
+          return intlMiddleware(request);
+        }
+        if (planningCount === 1 && isPlanningDetail) {
+          return intlMiddleware(request);
+        }
+
         return NextResponse.redirect(new URL(`/${locale}/suscripcion`, request.url));
       }
     }

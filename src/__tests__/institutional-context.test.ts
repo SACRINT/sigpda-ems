@@ -6,7 +6,9 @@ import {
   KNOWLEDGE_BLOCK_END,
   KNOWLEDGE_BLOCK_START,
   getInstitutionalContext,
+  isKnowledgeLayerActiveForContext,
 } from '@/lib/institutional-context';
+import { logger } from '@/lib/logger';
 import type { KnowledgePageRow } from '@/lib/knowledge/knowledge-repository';
 
 vi.mock('@/lib/knowledge/knowledge-repository', () => ({
@@ -163,6 +165,49 @@ describe('institutional-context · fachada de contexto', () => {
     const result = await getInstitutionalContext('pmc');
     expect(result.block).toBe('');
     expect(result.tokens).toBe(0);
+  });
+
+  it('calcula un rollout determinista por contextId', () => {
+    const contexts = Array.from({ length: 25 }, (_, index) => `contexto-${index}`);
+    const first = contexts.map((contextId) => isKnowledgeLayerActiveForContext(contextId, 50));
+    const second = contexts.map((contextId) => isKnowledgeLayerActiveForContext(contextId, 50));
+    expect(second).toEqual(first);
+    expect(isKnowledgeLayerActiveForContext('cualquiera', 0)).toBe(false);
+    expect(isKnowledgeLayerActiveForContext('cualquiera', 100)).toBe(true);
+  });
+
+  it('emite telemetría estructurada de tokens, fuentes y latencia', async () => {
+    mockedFlags.mockImplementation(
+      (flag: string) => flag === 'KNOWLEDGE_LAYER_ENABLED' || flag === 'KNOWLEDGE_TELEMETRY'
+    );
+    mockedPages.mockResolvedValue([page({ slug: 'didactica/dua', dominio: 'metodologico' })]);
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+
+    await getInstitutionalContext('planeacion', {
+      uacName: 'Lengua y Comunicación I',
+      semester: 1,
+    });
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      '[InstitutionalContext] contexto inyectado',
+      expect.objectContaining({
+        tokensRequested: 850,
+        tokensInjected: expect.any(Number),
+        sources: expect.any(Array),
+        sourceCount: 1,
+        latencyMs: expect.any(Number),
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
+  it('rollout 0% no consulta el repositorio', async () => {
+    const result = await getInstitutionalContext('pmc', {
+      contextId: 'contexto-bloqueado',
+      rolloutPercentage: 0,
+    });
+    expect(result).toEqual({ block: '', tokens: 0, sources: [] });
+    expect(mockedPages).not.toHaveBeenCalled();
   });
 
   it('el enrutamiento de dominios es coherente con la matriz aprobada', () => {

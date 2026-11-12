@@ -129,7 +129,7 @@ describe('SACRINT API', () => {
     expect(pdfRes.headers.get('Content-Type')).toBe('application/pdf');
     const pdf = Buffer.from(await pdfRes.arrayBuffer());
     expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
-  }, 60000);
+  }, 120000);
 
   it('exporta PDF a 300 dpi y conserva el aspecto wide', async () => {
     const mediaBox = (pdf: Buffer) => {

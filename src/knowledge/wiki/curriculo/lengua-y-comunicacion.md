@@ -4,7 +4,7 @@ titulo: Lengua y Comunicación en el MCCEMS — Progresiones y Enfoque Comunicat
 dominio: curricular
 applicable_a: [planeacion, editorial]
 status: published
-uac_slugs: [lengua-y-comunicacion-i, lengua-y-comunicacion-ii, lengua-y-comunicacion-iii, lengua-y-comunicacion-iv, lengua-y-comunicacion]
+uac_slugs: [lengua-y-comunicacion-ii-libertad-para-imaginar-poder-para-comunicar, lengua-y-comunicacion-iii-descubrir-culturas-apropiarse-de-las-palabras, lenguaje-y-comunicacion-i-leer-y-escribir-para-pensar-juntos]
 model: gemini-3.5-flash-lite
 prompt_version: v1
 fuentes_referencia:

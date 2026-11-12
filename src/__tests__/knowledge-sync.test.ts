@@ -120,6 +120,29 @@ describe('knowledge-sync · planificador determinista', () => {
     expect(second.accion).toBe('unchanged');
   });
 
+  it('actualiza metadatos uac_slugs aunque el hash del cuerpo no cambie', () => {
+    const first = planKnowledgeSync({
+      files: [file(md({ extraFrontmatter: 'uac_slugs: [uac-a]' }))],
+      existing: [],
+      publish: false,
+    })[0];
+
+    const second = planKnowledgeSync({
+      files: [file(md({ extraFrontmatter: 'uac_slugs: [uac-a, uac-b]' }))],
+      existing: [
+        {
+          slug: first.slug!,
+          sha256: first.sha256!,
+          publicado: false,
+          uac_slugs: ['uac-a'],
+        },
+      ],
+      publish: false,
+    })[0];
+
+    expect(second.accion).toBe('updated');
+  });
+
   it('actualiza cuando el contenido cambia', () => {
     const plan = planKnowledgeSync({
       files: [file(md({ body: '# Nuevo\n\nContenido distinto y específico de la sesión.' }))],

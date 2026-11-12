@@ -13,6 +13,7 @@ import {
   getActividadesClaveBGE,
   getResultadoAprendizajeBGE,
 } from '@/lib/bge-actividades-clave-catalog';
+import { useLocalDraft } from '@/hooks/useLocalDraft';
 
 export interface UACSelection {
   uacName: string;
@@ -62,6 +63,20 @@ export default function StepUAC_BGE({
       : ''
   );
   const restoredInitialRef = useRef(!initialSelection?.uacName);
+
+  const restoredDraftRef = useRef<UACSelection | null>(null);
+  const { restored: localDraftRestored, dismissRestore } = useLocalDraft<UACSelection>(
+    `planeacion-uac-bge-${selectedSubsystem || 'bge'}`,
+    form,
+    {
+      onRestore: (draft) => {
+        restoredDraftRef.current = draft;
+        setForm((prev) => ({ ...prev, ...draft }));
+        if (draft.curriculumName) setSelectedSpecialty(draft.curriculumName);
+        setIsManualInput(Boolean(draft.uacName));
+      },
+    }
+  );
 
   const isLaboralDisabled = SEMESTERS_WITHOUT_COMPONENT.bge.includes(form.semester);
   const isFfeDisabled = form.semester < 5;
@@ -147,6 +162,17 @@ export default function StepUAC_BGE({
             )
           );
 
+          const pickSelection = (candidates: any[]) => {
+            const draft = restoredDraftRef.current;
+            if (draft?.uacName) {
+              const draftMatch = candidates.find(
+                (program) => normalizeKey(program.uac_name || '') === normalizeKey(draft.uacName)
+              );
+              if (draftMatch) return draftMatch;
+            }
+            return restoringInitial ? candidates.find(matchesInitialSelection) : candidates[0];
+          };
+
           if (form.component === 'laboral') {
             let currentSpec = selectedSpecialty;
             const validSpecialty = Boolean(
@@ -199,9 +225,7 @@ export default function StepUAC_BGE({
               }
 
               if (matches.length > 0) {
-                const selected = restoringInitial
-                  ? matches.find(matchesInitialSelection)
-                  : matches[0];
+                const selected = pickSelection(matches);
 
                 if (selected) {
                   setSelectedCatalogUac(selected);
@@ -219,9 +243,7 @@ export default function StepUAC_BGE({
           } else {
             // Para otros componentes (fundamental, ampliado, etc.)
             if (filtered.length > 0) {
-              const selected = restoringInitial
-                ? filtered.find(matchesInitialSelection)
-                : filtered[0];
+              const selected = pickSelection(filtered);
 
               if (selected) {
                 setSelectedCatalogUac(selected);
@@ -458,6 +480,28 @@ export default function StepUAC_BGE({
 
   return (
     <div className="card">
+      {localDraftRestored && (
+        <div
+          role="status"
+          style={{
+            background: '#ecfdf5',
+            border: '1px solid #10b981',
+            borderRadius: 8,
+            color: '#065f46',
+            marginBottom: 16,
+            padding: '10px 14px',
+          }}
+        >
+          <strong>Borrador local recuperado.</strong> Recuperamos la UAC y el semestre que ya habías seleccionado.
+          <button
+            type="button"
+            onClick={dismissRestore}
+            style={{ background: 'transparent', border: 0, color: '#047857', cursor: 'pointer', marginLeft: 8, textDecoration: 'underline' }}
+          >
+            Ocultar aviso
+          </button>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h2 className="card-title">Paso 1: Datos de la UAC — Bachillerato General Estatal (BGE)</h2>

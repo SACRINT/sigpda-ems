@@ -4,7 +4,7 @@ titulo: Pensamiento Matemático en el MCCEMS — Progresiones y Metas Oficiales
 dominio: curricular
 applicable_a: [planeacion, editorial]
 status: published
-uac_slugs: [pensamiento-matematico-i, pensamiento-matematico-ii, pensamiento-matematico-iii, pensamiento-matematico-iv, pensamiento-matematico]
+uac_slugs: [pensamiento-matematico-aplicado-a-las-finanzas-i, pensamiento-matematico-aplicado-a-las-finanzas-ii, pensamiento-matematico-i-pensamiento-aritmetico, pensamiento-matematico-ii-introduccion-al-algebra, pensamiento-matematico-iii-pensamientos-algebraico-e-introduccion-a-geometria-plana, pensamiento-matematico-iv-trigonometria-y-geometria-analitica, pensamiento-matematico-v, pensamiento-matematico-vi, taller-de-pensamiento-variacional-i, taller-de-pensamiento-variacional-ii, taller-de-probabilidad-y-estadistica-i, taller-de-probabilidad-y-estadistica-ii, temas-selectos-de-matematicas-i, temas-selectos-de-matematicas-ii]
 model: gemini-3.5-flash-lite
 prompt_version: v1
 fuentes_referencia:

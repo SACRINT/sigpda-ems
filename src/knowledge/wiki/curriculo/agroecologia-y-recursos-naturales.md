@@ -1,0 +1,28 @@
+---
+slug: curriculo/agroecologia-y-recursos-naturales
+titulo: "Agroecología y Recursos Naturales — Producción Sustentable y Territorio"
+dominio: curricular
+applicable_a: [planeacion, editorial, paec]
+status: published
+uac_slugs: [aplica-manejo-agroecologico-en-el-sistema-en-el-huerto-de-traspatio, aplica-tecnicas-agroecologicas-de-conservacion-de-suelo-y-agua-y-de-control-de-plagas-y-enfermedades, aplica-tecnicas-de-muestreo-de-agua-dulce-indicadas-por-el-especialista, aplica-tecnicas-de-muestreo-indicadas-por-el-especialista, aplica-tecnicas-para-el-aprovechamiento-del-agua, aplica-tecnicas-para-la-siembra-de-diversas-semillas-forestales-bajo-supervision, construye-huerto-para-la-produccion-agricola-sostenible-de-traspatio, distingue-tecnicas-agroecologicas-de-conservacion-de-suelo-y-agua-y-de-control-de-plagas-y-enfermedades, elabora-informe-final-de-resultados-de-las-pruebas-bajo-supervision-del-especialista, elabora-presentacion-de-resultados-para-su-difusion-bajo-supervision-del-especialista, identifica-manejo-de-la-biodiversidad-y-su-contribucion-a-la-soberania-alimentaria-y-el-desarrollo-sostenible, planea-huerto-para-la-produccion-agricola-sostenible-de-traspatio, promueve-practicas-agroecologicas-redes-alimentarias-y-economicas-alternativas-para-contribuir-a-la-soberania-alimentaria-y-el-desarrollo-sostenible, realiza-pruebas-de-suelos-y-fertilizantes-para-el-mantenimiento-del-ecosistema-forestal, reconoce-sistemas-de-produccion-y-manejo-agroecologico-en-el-huerto-de-traspatio, recopila-muestras-para-las-pruebas-de-niveles-de-contaminantes-con-guia-del-especialista, submodulo-1-analiza-datos-hidrologicos-con-software, submodulo-1-analiza-la-estructura-hidrografica-de-los-ecosistemas, submodulo-1-analiza-muestras-organicas-con-tecnicas-microbiologicas, submodulo-1-aplica-procesos-de-fermentacion-para-obtener-productos, submodulo-1-aplica-tratamiento-biotecnologico-a-residuos-solidos, submodulo-1-asiste-en-el-tratamiento-de-agua-potable, submodulo-1-auxilia-en-el-analisis-de-acidos-nucleicos-con-herramientas-de-biologia-molecular, submodulo-1-comprueba-la-inocuidad-de-los-productos-agricolas, submodulo-1-disena-plan-de-negocios-de-productos-o-servicios-agropecuarios, submodulo-1-inspecciona-sistemas-de-distribucion-de-aguas, submodulo-1-maneja-especies-monogastricas-para-la-produccion, submodulo-1-obtiene-plantas-in-vitro, submodulo-1-procesa-productos-hortofruticolas, submodulo-1-produce-cultivos-agricolas-a-cielo-abierto, submodulo-1-realiza-analisis-fisico-quimicos-de-recursos-hidricos, submodulo-2-aclimata-plantas-in-vitro-bajo-condiciones-controladas, submodulo-2-analiza-muestras-organicas-con-tecnicas-fisicoquimicas, submodulo-2-aplica-tratamiento-biotecnologico-a-residuos-liquidos, submodulo-2-asiste-en-el-tratamiento-de-agua-residual, submodulo-2-auxilia-en-el-analisis-de-proteinas-utilizando-herramientas-de-biologia-molecular, submodulo-2-comprueba-la-inocuidad-de-los-productos-pecuarios, submodulo-2-disena-plan-de-comercializacion-de-productos-o-servicios-agropecuarios, submodulo-2-implementa-soluciones-tecnicas-y-participativas-para-la-conservacion-del-agua, submodulo-2-maneja-especies-poligastricas-para-la-produccion, submodulo-2-monitorea-la-dinamica-de-cuerpos-de-agua-superficial-y-subterranea, submodulo-2-opera-estructuras-de-control-de-aguas, submodulo-2-procesa-productos-lacteos, submodulo-2-produce-cultivos-en-agricultura-protegida, submodulo-2-realiza-analisis-microbiologicos-de-recursos-hidricos, submodulo-2-verifica-las-caracteristicas-fisicoquimicas-microbiologicas-y-organolepticas-del-producto-fermentado, submodulo-3-comprueba-la-inocuidad-de-los-productos-agroindustriales, submodulo-3-maneja-aves-y-especies-alternas-para-la-produccion, submodulo-3-procesa-productos-carnicos, submodulo-3-produce-insumos-organicos-para-la-agricultura]
+model: deterministic-curriculum-v1
+prompt_version: curriculo-v1
+fuentes_referencia:
+  - ruta: "db:programs_catalog?familia=agroecologia-y-recursos-naturales"
+---
+
+# Agroecología y Recursos Naturales — Producción Sustentable y Territorio
+
+> Fuente: db:programs_catalog?familia=agroecologia-y-recursos-naturales. Cobertura: 50 UAC del mapa curricular oficial.
+
+## Enfoque de la familia
+Agroecología y Recursos Naturales integra Agropecuario, Agricultura Sostenible de Traspatio, Recursos Hídricos, Servicios Ecosistémicos y Biotecnología. Forma para producir y conservar el territorio con base científica, saberes locales y criterios de sostenibilidad, biodiversidad y soberanía alimentaria.
+
+## Saberes y progresiones
+Los saberes conceptuales incluyen suelo, agua, clima, ciclos biogeoquímicos, biodiversidad, agroecología, biotecnología, riego y manejo de residuos. El saber hacer comprende diagnóstico de suelo y agua, compostaje, propagación, manejo integrado de plagas, captación de agua y monitoreo de ecosistemas. El saber ser promueve respeto a la naturaleza, responsabilidad intergeneracional, trabajo comunitario y valoración de los saberes campesinos.
+
+## Implicaciones para la planeación
+La planeación debe combinar salidas de campo, laboratorio, vivero, parcelas escolares y análisis de datos locales. Son pertinentes proyectos de compostaje, captación de agua, huertos, restauración de áreas verdes y estudios de biodiversidad. La evaluación debe valorar observación, registro, pertinencia técnica y sostenibilidad de las prácticas.
+
+## Vinculación comunitaria y PAEC
+El PAEC puede articular huertos comunitarios, recuperación de suelos, cuidado del agua, reforestación y ferias de productos locales. La escuela se convierte en un laboratorio vivo de sostenibilidad y en un puente entre ciencia, territorio y saberes comunitarios.

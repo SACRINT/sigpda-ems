@@ -27,6 +27,8 @@ export interface ExistingKnowledgePage {
   slug: string;
   sha256: string;
   publicado: boolean;
+  applicable_a?: string[];
+  uac_slugs?: string[];
 }
 
 export type SyncAction = 'created' | 'updated' | 'unchanged' | 'rejected';
@@ -138,11 +140,23 @@ export function planKnowledgeSync(params: PlanKnowledgeSyncParams): SyncPlanItem
       const sha256 = sha256Hex(contenido);
       const targetPublicado = data.status === 'published' || (publish && data.status === 'reviewed');
       const previous = existingBySlug.get(data.slug);
+      const previousApplicable = [...(previous?.applicable_a ?? [])].sort().join('|');
+      const nextApplicable = [...data.applicable_a].sort().join('|');
+      const previousUacSlugs = [...(previous?.uac_slugs ?? [])].sort().join('|');
+      const nextUacSlugs = [...(data.uac_slugs ?? [])].sort().join('|');
+      const metadataChanged =
+        !!previous &&
+        ((previous.applicable_a !== undefined && previousApplicable !== nextApplicable) ||
+          (previous.uac_slugs !== undefined && previousUacSlugs !== nextUacSlugs));
 
       let accion: SyncAction;
       if (!previous) {
         accion = 'created';
-      } else if (previous.sha256 === sha256 && previous.publicado === targetPublicado) {
+      } else if (
+        previous.sha256 === sha256 &&
+        previous.publicado === targetPublicado &&
+        !metadataChanged
+      ) {
         accion = 'unchanged';
       } else {
         accion = 'updated';

@@ -4,7 +4,7 @@ titulo: Ciencias Naturales, Experimentales y Tecnología — La Materia y sus In
 dominio: curricular
 applicable_a: [planeacion, editorial]
 status: published
-uac_slugs: [la-materia-y-sus-interacciones, conservacion-de-la-energia-y-sus-interacciones-con-la-materia, ecosistemas-interacciones-energia-y-dinamica, ciencias-naturales]
+uac_slugs: [analisis-de-fenomenos-fisicos-i, analisis-de-fenomenos-fisicos-ii, analisis-de-fenomenos-y-procesos-biologicos, ciencias-naturales-experimentales-y-tecnologia-i-invitacion-a-la-ciencia-naturaleza-de-la-materia, ciencias-naturales-experimentales-y-tecnologia-ii-el-poder-de-la-energia, ciencias-naturales-experimentales-y-tecnologia-iii-nuestro-hogar-el-sistema-terrestre, ciencias-naturales-experimentales-y-tecnologia-iv-el-poder-de-la-quimica, ciencias-naturales-experimentales-y-tecnologia-v, ciencias-naturales-experimentales-y-tecnologia-vi, laboratorio-de-investigacion, organizacion-del-flujo-de-materia-y-energia-en-los-organismos-i, organizacion-del-flujo-de-materia-y-energia-en-los-organismos-ii, taller-de-ciencias-i, taller-de-ciencias-ii, temas-selectos-de-biologia]
 model: gemini-3.5-flash-lite
 prompt_version: v1
 fuentes_referencia:

@@ -4,7 +4,7 @@ titulo: Ciencias Sociales en el MCCEMS — Historicidad, Ciudadanía y Transform
 dominio: curricular
 applicable_a: [planeacion, editorial]
 status: published
-uac_slugs: [ciencias-sociales-i, ciencias-sociales-ii, ciencias-sociales-iii, ciencias-sociales]
+uac_slugs: [ciencias-sociales-i-estado-ciudadania-y-relaciones-de-poder, ciencias-sociales-ii-organizacion-relaciones-sociales-y-economicas, espacio-y-sociedad, temas-selectos-de-ciencias-sociales-i, temas-selectos-de-ciencias-sociales-ii]
 model: gemini-3.5-flash-lite
 prompt_version: v1
 fuentes_referencia:

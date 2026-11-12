@@ -176,6 +176,7 @@ export async function POST(
       uacSlug,
       uacName: rawUacName,
       semester: planning.semester as number,
+      contextId: String(planning.id),
     });
 
     let fullUserPrompt = userPrompt;

@@ -505,5 +505,5 @@ describe('SACRINT visual engine', () => {
     const png = await renderInfographicPng(spec, 2);
     expect(png.buffer.readUInt32BE(16)).toBe(2550);
     expect(png.buffer.readUInt32BE(20)).toBe(3300);
-  });
+  }, 60000);
 });

@@ -119,6 +119,75 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
     expect(location).toBe('http://localhost:3000/es/suscripcion');
   });
 
+  it('5b. Welcome Tier: dashboard con 0 planeaciones y sin suscripción → acceso permitido', async () => {
+    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockDbRows = [{
+      id: 'teacher-welcome-1',
+      profile_completed: true,
+      role: 'docente',
+      sub_status: null,
+      planning_count: 0,
+    }];
+
+    const request = new NextRequest('http://localhost:3000/es/dashboard');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-middleware-pass')).toBe('true');
+  });
+
+  it('5c. Welcome Tier: primera planeación con 0 planeaciones y sin suscripción → acceso permitido', async () => {
+    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockDbRows = [{
+      id: 'teacher-welcome-2',
+      profile_completed: true,
+      role: 'docente',
+      sub_status: null,
+      planning_count: 0,
+    }];
+
+    const request = new NextRequest('http://localhost:3000/es/nueva-planeacion');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-middleware-pass')).toBe('true');
+  });
+
+  it('5d. Segunda planeación sin suscripción → gate a /suscripcion', async () => {
+    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockDbRows = [{
+      id: 'teacher-welcome-3',
+      profile_completed: true,
+      role: 'docente',
+      sub_status: null,
+      planning_count: 1,
+    }];
+
+    const request = new NextRequest('http://localhost:3000/es/nueva-planeacion');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toBe('http://localhost:3000/es/suscripcion');
+  });
+
+  it('5e. Primera planeación de cortesía con 1 planeación → detalle permitido', async () => {
+    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockDbRows = [{
+      id: 'teacher-welcome-4',
+      profile_completed: true,
+      role: 'docente',
+      sub_status: null,
+      planning_count: 1,
+    }];
+
+    const request = new NextRequest('http://localhost:3000/es/planeacion/abc-123');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-middleware-pass')).toBe('true');
+  });
+
   it('6. Docente regular con perfil completo y suscripción activa → acceso concedido', async () => {
     mockAuth.mockResolvedValue({ user: { email: 'docente_activo@bge.edu.mx' } });
     mockDbRows = [{

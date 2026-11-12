@@ -8,6 +8,7 @@ import { recomendarMetodologiaConDetalle } from '@/lib/recomendador-metodologia'
 import { selectPaecOperationalActivity } from '@/lib/paec-subject-matching';
 import { logger } from '@/lib/logger';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
+import { useLocalDraft } from '@/hooks/useLocalDraft';
 import {
   componerProductoIntegrador,
   type EvidenciaDisciplinar,
@@ -70,6 +71,16 @@ export default function StepContext({
     studentContext: initialContext?.studentContext || '',
     metodologiaActiva: initialContext?.metodologiaActiva,
   }));
+
+  const draftKey = `planeacion-context-${(extractedData.uacName || 'sin-uac')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')}-${(extractedData as { semester?: number }).semester ?? 'sin-semestre'}`;
+  const { restored: localDraftRestored, dismissRestore } = useLocalDraft<TeacherContext>(draftKey, form, {
+    onRestore: (draft) => setForm((prev) => ({ ...prev, ...draft })),
+  });
 
   const [paecLoading, setPaecLoading] = useState(false);
   const [paecSuccess, setPaecSuccess] = useState<boolean>(() => Boolean(initialContext?.paecProblem || initialContext?.paecProjectName));
@@ -314,6 +325,28 @@ export default function StepContext({
 
   return (
     <form onSubmit={handleSubmit} autoComplete="off">
+      {localDraftRestored && (
+        <div
+          role="status"
+          style={{
+            background: '#ecfdf5',
+            border: '1px solid #10b981',
+            borderRadius: 8,
+            color: '#065f46',
+            marginBottom: 16,
+            padding: '10px 14px',
+          }}
+        >
+          <strong>Borrador local recuperado.</strong> Recuperamos los datos que ya habías capturado.
+          <button
+            type="button"
+            onClick={dismissRestore}
+            style={{ background: 'transparent', border: 0, color: '#047857', cursor: 'pointer', marginLeft: 8, textDecoration: 'underline' }}
+          >
+            Ocultar aviso
+          </button>
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         {/* ── SECCIÓN 1: Datos del plantel ─────────────────────────── */}
