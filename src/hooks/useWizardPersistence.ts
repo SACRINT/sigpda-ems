@@ -85,6 +85,19 @@ export function useWizardPersistence<T>(storageKey: string, initialState: T) {
   return { state, setState, hasDraft, clearDraft, isHydrated, restoredFromStorage };
 }
 
+export function clearLocalDraftsByPrefix(prefix: string) {
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(prefix)) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    console.warn(`[clearLocalDraftsByPrefix] Failed to clear drafts for "${prefix}":`, e);
+  }
+}
+
 /**
  * Clears all Didáctica-IA wizard drafts from localStorage.
  * Call this on sign-out.
@@ -97,12 +110,8 @@ export function clearAllWizardDrafts() {
   ];
   try {
     DRAFT_KEYS.forEach(key => window.localStorage.removeItem(key));
-    for (let i = window.localStorage.length - 1; i >= 0; i--) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith('didactica_editor_draft_')) {
-        window.localStorage.removeItem(key);
-      }
-    }
+    clearLocalDraftsByPrefix('didactica_editor_draft_');
+    clearLocalDraftsByPrefix('sigpda_draft_');
   } catch (e) {
     console.warn('[clearAllWizardDrafts] Failed to clear drafts:', e);
   }

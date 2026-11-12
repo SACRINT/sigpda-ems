@@ -314,8 +314,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "aplicacion": "Aplicación a la vida real del estudiante...",
       "autoevaluacion": ["¿Pregunta 1?", "¿Pregunta 2?"],
       "recursos": [
-        { "titulo": "Video educativo sobre el tema", "url": "https://www.youtube.com/results?search_query=tema+educacion+media+superior", "tipo": "video" },
-        { "titulo": "Consulta temática de ampliación", "url": "https://www.google.com/search?q=tema+bachillerato", "tipo": "web" }
+        { "titulo": "Khan Academy — Recurso de apoyo del tema", "url": "https://www.khanacademy.org/", "tipo": "video" },
+        { "titulo": "MEJOREDU — Material educativo de consulta", "url": "https://www.gob.mx/mejoredu", "tipo": "web" }
       ],
       "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
     }

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sanitizeWorkbookResourceUrls } from '@/lib/resources/workbook-sanitizer';
+import { enforceEditorialSoftMinimums } from '@/lib/editorial/session-plan-minimums';
 import { validateAndPersistPlanningContent } from '@/lib/planning/planning-persistence';
-import type { ActiveWorkTextbook } from '@/types/work-textbook';
+import type { ActiveWorkTextbook, SessionPlan } from '@/types/work-textbook';
 
 vi.mock('@/lib/db', () => ({
   updatePlanningContent: vi.fn(),
@@ -154,5 +155,34 @@ describe('Runtime anti-genérico: sanitizer + persistencia', () => {
     );
     expect(result.error).toMatch(/inconsistencias críticas/i);
     expect(updatePlanningContent).not.toHaveBeenCalled();
+  });
+
+  it('enforceEditorialSoftMinimums expulsa URLs de búsqueda abierta antes de componer el PDF editorial', () => {
+    const planWithSearch: SessionPlan = {
+      sessionNumber: 1,
+      objetivo: 'Modelar ecuaciones lineales con datos de consumo eléctrico.',
+      motivacion: 'Factura del plantel escolar.',
+      saberesPrevios: 'Despejes básicos.',
+      contenido: 'Una ecuación lineal modela razón de cambio constante en el tiempo.',
+      ejemploResuelto: 'Costo = 2.5x + 40.',
+      practica: [{ enunciado: 'Calcula el gasto para 20 kWh.', pista: 'Sustituye x = 20.' }],
+      aplicacion: 'Estima el ahorro en tu hogar.',
+      autoevaluacion: ['¿Qué representa la pendiente?', '¿Cuál es el cargo fijo?'],
+      recursos: [
+        {
+          titulo: 'Búsqueda en YouTube',
+          url: 'https://www.youtube.com/results?search_query=ecuaciones+lineales',
+          tipo: 'video',
+        },
+      ],
+      productoIntegrador: 'Tabla comparativa de consumo.',
+    };
+
+    const enforced = enforceEditorialSoftMinimums(planWithSearch);
+    const serialized = JSON.stringify(enforced);
+
+    expect(serialized).not.toContain('youtube.com/results');
+    expect(enforced.recursos.length).toBeGreaterThanOrEqual(1);
+    expect(enforced.recursos[0].url).toMatch(/^https:\/\//);
   });
 });

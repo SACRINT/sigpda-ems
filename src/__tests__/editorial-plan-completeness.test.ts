@@ -281,4 +281,54 @@ describe('ensureEditorialPlanCompleteness — capas 1 (IA) y 2 (red determinista
     const repaired = res.workbooksJson.block_0!.current!.missions![0].sessionPlans![0];
     expect(repaired.autoevaluacion).toHaveLength(2);
   });
+
+  it('rechaza URLs de búsqueda abierta (youtube.com/results, google.com/search) tanto previas como generadas por IA', async () => {
+    const dirtyPlan = makePlan({
+      sessionNumber: 1,
+      objetivo: 'Vas a calcular el área de un triángulo en el huerto escolar.',
+      contenido:
+        'Parrafo: El área del triángulo se calcula con base por altura entre dos.\n\nDefinicion: Medida de superficie.',
+      recursos: [
+        {
+          titulo: 'Búsqueda en YouTube',
+          url: 'https://www.youtube.com/results?search_query=area+triangulo',
+          tipo: 'video',
+        },
+      ],
+    });
+    const source = workbooksWith([dirtyPlan]);
+    const aiSearchPayload = [
+      {
+        blockIndex: 0,
+        sessionNumber: 1,
+        recursos: [
+          {
+            titulo: 'Búsqueda en Google',
+            url: 'https://www.google.com/search?q=area+triangulo',
+            tipo: 'web',
+          },
+        ],
+      },
+    ];
+    const generateFn = vi.fn().mockResolvedValue(JSON.stringify(aiSearchPayload));
+    const saveFn = vi.fn().mockResolvedValue({ version: 4, success: true });
+
+    const res = await ensureEditorialPlanCompleteness(
+      { workbooksJson: source, planningId: 'p-anti-search' },
+      { generateFn, saveFn },
+    );
+
+    const [, userPrompt] = generateFn.mock.calls[0];
+    expect(userPrompt).toContain('PROHIBIDO usar URLs de búsqueda abierta');
+    expect(res.issuesFound).toBe(1);
+    expect(res.aiRepaired).toBe(0);
+    expect(res.fallbackPads).toBe(1);
+    expect(res.unresolved).toBe(0);
+
+    const repaired = res.workbooksJson.block_0!.current!.missions![0].sessionPlans![0];
+    expect(repaired.recursos).toHaveLength(1);
+    expect(repaired.recursos[0].url).not.toContain('youtube.com/results');
+    expect(repaired.recursos[0].url).not.toContain('google.com/search');
+    expect(repaired.recursos[0].url).toMatch(/^https:\/\//);
+  });
 });

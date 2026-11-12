@@ -63,13 +63,21 @@ export function useLocalDraft<T>(
     };
   }, [storageKey]);
 
+  const serializedValue = (() => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return null;
+    }
+  })();
+
   useEffect(() => {
-    if (!isHydrated || !enabled) return;
+    if (!isHydrated || !enabled || serializedValue === null) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       try {
-        window.localStorage.setItem(storageKey, JSON.stringify(value));
+        window.localStorage.setItem(storageKey, serializedValue);
       } catch {
         // Sin persistencia local si el navegador bloquea el almacenamiento.
       }
@@ -78,11 +86,15 @@ export function useLocalDraft<T>(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [storageKey, value, isHydrated, enabled, debounceMs]);
+  }, [storageKey, serializedValue, isHydrated, enabled, debounceMs]);
 
   const dismissRestore = useCallback(() => setRestored(false), []);
 
   const clearDraft = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     try {
       window.localStorage.removeItem(storageKey);
     } catch {

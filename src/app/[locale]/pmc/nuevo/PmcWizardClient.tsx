@@ -869,8 +869,8 @@ interface EditablePlanElement {
     foda,
     categoriasPriorizadas,
   };
-  useLocalDraft('pmc-nuevo', pmcLocalDraft, {
-    enabled: !existingProject,
+  const { clearDraft: clearPmcLocalDraft } = useLocalDraft('pmc-nuevo', pmcLocalDraft, {
+    enabled: !existingProject && !projectId,
     onRestore: (draft) => {
       setSchoolName((prev) => prev || draft.schoolName || '');
       setSchoolCct((prev) => prev || draft.schoolCct || '');
@@ -895,7 +895,7 @@ interface EditablePlanElement {
       setCategoriasPriorizadas((prev) =>
         prev.length > 0 || !draft.categoriasPriorizadas?.length ? prev : draft.categoriasPriorizadas
       );
-      setSuccessBanner('Borrador local recuperado. Recuperamos los avances que ya hab?as capturado en el PMC.');
+      setSuccessBanner('Borrador local recuperado. Recuperamos los avances que ya habías capturado en el PMC.');
     },
   });
 
@@ -1806,6 +1806,7 @@ interface EditablePlanElement {
         );
         if (!res.ok) throw new Error(created.error || 'Error al guardar');
         clearPmcDraft(); // Draft saved to DB — clear localStorage
+        clearPmcLocalDraft();
         const newId = created.project?.id || created.id;
         if (newId) {
           setProjectId(newId);

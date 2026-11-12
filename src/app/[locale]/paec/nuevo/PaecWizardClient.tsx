@@ -693,8 +693,8 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
     semestersConfig,
     groupAssignments,
   };
-  useLocalDraft('paec-nuevo', paecLocalDraft, {
-    enabled: !initialId,
+  const { clearDraft: clearPaecLocalDraft } = useLocalDraft('paec-nuevo', paecLocalDraft, {
+    enabled: !initialId && !projectId,
     onRestore: (draft) => {
       setProjectName((prev) => prev || draft.projectName || '');
       setProblemStatement((prev) => prev || draft.problemStatement || '');
@@ -714,7 +714,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
         Object.keys(prev).length ? prev : draft.semestersConfig
       );
       setGroupAssignments((prev) => (prev.length ? prev : draft.groupAssignments));
-      setPaecSuccessBanner('Borrador local recuperado. Recuperamos los avances que ya hab?as capturado en el PAEC.');
+      setPaecSuccessBanner('Borrador local recuperado. Recuperamos los avances que ya habías capturado en el PAEC.');
     },
   });
 
@@ -1250,6 +1250,7 @@ function PaecWizardModularClient({ locale, initialId }: Props) {
 
       const data = await res.json();
       clearPaecDraft(); // Draft saved to DB — clear localStorage
+      clearPaecLocalDraft();
       setProjectId(data.project.id);
       router.push(`/${locale}/paec/nuevo?id=${data.project.id}`);
     } catch (err) {

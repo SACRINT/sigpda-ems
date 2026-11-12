@@ -16,14 +16,15 @@
  */
 
 import { getMaterial } from '@/lib/materials/materials-catalog';
+import { isUnusableResourceUrl } from '@/lib/resources/curated-resources';
 import type { RecursoItem, SessionPlan } from '@/types/work-textbook';
 
-/** Normaliza un recurso: valida URL http(s) real y tipo del enum permitido. */
+/** Normaliza un recurso: valida URL http(s) real, no genérica y tipo del enum permitido. */
 function normalizeRecurso(r: Partial<RecursoItem> | null | undefined): RecursoItem | null {
   if (!r || typeof r !== 'object') return null;
   const url = typeof r.url === 'string' ? r.url.trim() : '';
   const titulo = typeof r.titulo === 'string' ? r.titulo.trim() : '';
-  if (!/^https?:\/\/\S+$/i.test(url) || titulo.length < 4) return null;
+  if (!/^https?:\/\/\S+$/i.test(url) || titulo.length < 4 || isUnusableResourceUrl(url)) return null;
   const tipo = r.tipo === 'video' || r.tipo === 'lectura' ? r.tipo : 'web';
   return { titulo, url, tipo };
 }

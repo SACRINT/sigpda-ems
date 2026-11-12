@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useLocalDraft } from '@/hooks/useLocalDraft';
+import { clearAllWizardDrafts, clearLocalDraftsByPrefix } from '@/hooks/useWizardPersistence';
 
 describe('useLocalDraft — resiliencia offline', () => {
   beforeEach(() => {
@@ -55,14 +56,35 @@ describe('useLocalDraft — resiliencia offline', () => {
     });
   });
 
-  it('clearDraft elimina el borrador y el aviso', () => {
+  it('clearDraft elimina el borrador y el aviso sin reescribir tras el debounce', () => {
     window.localStorage.setItem('sigpda_draft_wizard-context', '{"docente":"Ana"}');
     const { result } = renderHook(() => useLocalDraft('wizard-context', { docente: '' }));
 
     expect(result.current.restored).toBe(true);
     act(() => result.current.clearDraft());
+    act(() => {
+      vi.advanceTimersByTime(3500);
+    });
 
     expect(window.localStorage.getItem('sigpda_draft_wizard-context')).toBeNull();
     expect(result.current.restored).toBe(false);
+  });
+
+  it('clearAllWizardDrafts y clearLocalDraftsByPrefix limpian sigpda_draft_* al salir o descartar', () => {
+    window.localStorage.setItem('sigpda_draft_paec-nuevo', '{"projectName":"PAEC"}');
+    window.localStorage.setItem('sigpda_draft_pmc-nuevo', '{"schoolName":"BGE"}');
+    window.localStorage.setItem('sigpda_draft_planeacion-context-len-1', '{"cct":"21EBH"}');
+    window.localStorage.setItem('didactica_pmc_draft', '{"legacy":true}');
+    window.localStorage.setItem('other_app_key', 'keep');
+
+    clearLocalDraftsByPrefix('sigpda_draft_planeacion-');
+    expect(window.localStorage.getItem('sigpda_draft_planeacion-context-len-1')).toBeNull();
+    expect(window.localStorage.getItem('sigpda_draft_paec-nuevo')).not.toBeNull();
+
+    clearAllWizardDrafts();
+    expect(window.localStorage.getItem('sigpda_draft_paec-nuevo')).toBeNull();
+    expect(window.localStorage.getItem('sigpda_draft_pmc-nuevo')).toBeNull();
+    expect(window.localStorage.getItem('didactica_pmc_draft')).toBeNull();
+    expect(window.localStorage.getItem('other_app_key')).toBe('keep');
   });
 });

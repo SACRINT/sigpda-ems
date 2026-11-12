@@ -10,7 +10,7 @@
  *  1. Reparación dirigida con IA: UNA sola llamada por intento (lote de todas las
  *     sesiones faltantes), reintentos SOLO sobre las que sigan fallando, dentro de
  *     un presupuesto de tiempo (deadline). La IA genera recursos reales (con URLs
- *     https verificables o búsqueda de YouTube del tema) y preguntas de autoevaluación.
+ *     https directas de fuentes educativas/institucionales) y preguntas de autoevaluación.
  *  2. Red de seguridad de recursos: lo que la IA no logre dentro del deadline se
  *     completa SOLO con recursos reales del catálogo oficial (GeoGebra/Desmos).
  *     La autoevaluación NO se rellena con preguntas genéricas: si la IA no la
@@ -25,6 +25,7 @@
 import { logger } from '@/lib/logger';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { saveBlockWorkbook } from '@/lib/db/workbooks';
+import { isUnusableResourceUrl } from '@/lib/resources/curated-resources';
 import {
   detectPlanRepairNeeds,
   enforceEditorialSoftMinimums,
@@ -151,8 +152,8 @@ function buildUserPrompt(issues: IssueRef[], uacName: string | null | undefined)
     `Libro de texto: ${uacName || 'Pensamiento Matemático'}.`,
     '',
     'Completa SOLO los campos indicados ("falta") de cada sesión:',
-    '- recursos: 1-2 objetos {"titulo", "url", "tipo"} con URLs REALES https:// que conozcas (video de YouTube o página web educativa).',
-    '  Si no recuerdas un enlace exacto, usa la búsqueda de YouTube del tema: https://www.youtube.com/results?search_query=<temas en minúsculas y guiones>. NUNCA inventes dominios.',
+    '- recursos: 1-2 objetos {"titulo", "url", "tipo"} con URLs REALES https:// directas y educativas (p. ej. Khan Academy, GeoGebra, Desmos, PhET, UNAM, SEP, MEJOREDU, Fundéu RAE o enlace directo a video).',
+    '  PROHIBIDO usar URLs de búsqueda abierta (youtube.com/results, google.com/search, bing.com/search), localhost ni dominios de ejemplo o inventados.',
     '- tipo: "video" para YouTube, "web" para páginas, "lectura" para artículos.',
     '- autoevaluacion: 1-2 preguntas cortas en voz del estudiante (tú), que empiecen con "¿" y tengan mínimo 10 caracteres.',
     '',
@@ -185,7 +186,7 @@ function validAiRecursos(raw: unknown): Array<{ titulo: string; url: string; tip
     const rr = r as Record<string, unknown>;
     const titulo = typeof rr.titulo === 'string' ? rr.titulo.trim() : '';
     const url = typeof rr.url === 'string' ? rr.url.trim() : '';
-    if (titulo.length < 4 || !/^https?:\/\/\S+$/i.test(url)) continue;
+    if (titulo.length < 4 || !/^https?:\/\/\S+$/i.test(url) || isUnusableResourceUrl(url)) continue;
     try {
       new URL(url);
     } catch {

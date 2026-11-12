@@ -7,7 +7,7 @@ import StepUAC from '@/components/planeacion/StepUAC';
 import StepPdfUpload from '@/components/planeacion/StepPdfUpload';
 import StepContext from '@/components/planeacion/StepContext';
 import StepGenerate from '@/components/planeacion/StepGenerate';
-import { useWizardPersistence } from '@/hooks/useWizardPersistence';
+import { clearLocalDraftsByPrefix, useWizardPersistence } from '@/hooks/useWizardPersistence';
 import {
   applyUacSelection,
   type WizardUacSelection,
@@ -132,12 +132,14 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
 
   const handleDone = (id: string) => {
     clearDraft();
+    clearLocalDraftsByPrefix('sigpda_draft_planeacion-');
     router.push(`/${locale}/planeacion/${id}`);
   };
 
   const handleDiscardDraft = () => {
     if (!window.confirm('¿Descartar el borrador guardado en este dispositivo?')) return;
     clearDraft();
+    clearLocalDraftsByPrefix('sigpda_draft_planeacion-');
     window.location.reload();
   };
 
