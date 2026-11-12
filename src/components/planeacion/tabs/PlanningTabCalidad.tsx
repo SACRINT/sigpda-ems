@@ -6,10 +6,11 @@ import type { AuditReport } from '@/lib/audit-engine';
 import PlanningTabAuditoria from './PlanningTabAuditoria';
 import PlanningTabEvaluador, { type PlanningEvaluationResult } from './PlanningTabEvaluador';
 import PlanningTabAnalitica from './PlanningTabAnalitica';
+import PlanningTabDBEPA from './PlanningTabDBEPA';
 import type { TeacherProgressSummary } from '@/lib/pedagogical-analytics';
-import { BarChart3, Award, TrendingUp } from 'lucide-react';
+import { BarChart3, Award, TrendingUp, ShieldCheck } from 'lucide-react';
 
-export type QualitySubTab = 'audit' | 'evaluador' | 'analytics';
+export type QualitySubTab = 'audit' | 'dbepa' | 'evaluador' | 'analytics';
 
 export interface PlanningTabCalidadProps {
   planning: Planning;
@@ -182,6 +183,16 @@ export default function PlanningTabCalidad({
 
           <button
             type="button"
+            onClick={() => handleSubTabSwitch('dbepa')}
+            aria-current={currentSubTab === 'dbepa' ? 'page' : undefined}
+            className={`detail-subtab${currentSubTab === 'dbepa' ? ' is-active' : ''}`}
+          >
+            <ShieldCheck size={14} style={{ color: '#f59e0b' }} />
+            <span>Quality Gate DBEPA</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleSubTabSwitch('evaluador')}
             aria-current={currentSubTab === 'evaluador' ? 'page' : undefined}
             className={`detail-subtab${currentSubTab === 'evaluador' ? ' is-active' : ''}`}
@@ -216,6 +227,8 @@ export default function PlanningTabCalidad({
           handleReAudit={handleReAudit}
         />
       )}
+
+      {currentSubTab === 'dbepa' && <PlanningTabDBEPA planning={planning} />}
 
       {currentSubTab === 'evaluador' && (
         <PlanningTabEvaluador

@@ -206,6 +206,7 @@ export async function generatePlanningPDF(
   const s3 = content?.sectionIII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
+  const ajustesDUA = content?.ajustesDUA;
   const sequenceData = rawWorkbooks
     ? buildFullSequenceFromWorkbooks(rawWorkbooks, s4?.activities, rawSequenceData)
     : rawSequenceData;
@@ -755,6 +756,49 @@ export async function generatePlanningPDF(
       });
       currentY = doc.lastAutoTable!.finalY + 2.5;
     }
+  }
+
+  // ─── Adecuaciones DUA (Diseño Universal para el Aprendizaje) ─────────────
+  if (ajustesDUA?.ajustes?.length) {
+    const duaLabels: Record<string, string> = {
+      bap_sensorial: 'BAP sensorial',
+      bap_motriz: 'BAP motriz',
+      ritmos_rezago: 'Ritmos diferenciados y rezago',
+      sobresalientes: 'Enriquecimiento para sobresalientes',
+    };
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [[{
+        content: 'ADECUACIONES DUA — DISEÑO UNIVERSAL PARA EL APRENDIZAJE',
+        colSpan: 2,
+        styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255] },
+      }]],
+      body: [
+        [{
+          content: sanitizePdfText(ajustesDUA.resumen || 'Ajustes razonables para eliminar barreras de aprendizaje.'),
+          colSpan: 2,
+          styles: { fontStyle: 'italic', fillColor: GRAY_BG },
+        }],
+        ...ajustesDUA.ajustes.map((ajuste) => [
+          {
+            content: sanitizePdfText(`${duaLabels[ajuste.categoria] || ajuste.categoria}\n${ajuste.titulo}`),
+            styles: { fontStyle: 'bold' as const, fillColor: GRAY_BG, cellWidth: 52 },
+          },
+          {
+            content: sanitizePdfText(
+              `${ajuste.descripcion}\nEstrategias: ${ajuste.estrategias.join('; ')}\nEvaluación diferenciada: ${ajuste.evaluacionDiferenciada}\nRecursos: ${ajuste.recursos.join(', ')}`
+            ),
+          },
+        ]),
+      ],
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
+      margin: { left: margin, right: margin },
+      pageBreak: 'auto',
+      rowPageBreak: 'avoid',
+    });
+    currentY = doc.lastAutoTable!.finalY + 2.5;
   }
 
   // ─── Firmas Oficiales Tripartitas (Docente / Director / Supervisión) ─────

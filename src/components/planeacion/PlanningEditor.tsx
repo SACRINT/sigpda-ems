@@ -13,7 +13,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { EditorToolbar } from './editor-toolbar';
 import { BloqueApertura, BloqueDesarrollo, BloqueCierre, BloqueRubrica, BloqueProposito, BloqueActividad, BloqueSeccion } from './editor-extensions';
-import type { GeneratedPlanningContent, ActivityPhase } from '@/types/planning';
+import type { GeneratedPlanningContent, ActivityPhase, AjustesDUA } from '@/types/planning';
 import { Save, FileDown, Loader2, Check, Sparkles } from 'lucide-react';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
@@ -29,6 +29,33 @@ interface LocalEditorDraft {
 }
 
 const LOCAL_DRAFT_PREFIX = 'didactica_editor_draft_';
+
+const DUA_LABELS: Record<string, string> = {
+  bap_sensorial: 'BAP sensorial',
+  bap_motriz: 'BAP motriz',
+  ritmos_rezago: 'Ritmos diferenciados y rezago',
+  sobresalientes: 'Enriquecimiento para sobresalientes',
+};
+
+function duaToHTML(ajustesDUA: AjustesDUA): string {
+  const lines: string[] = [];
+  lines.push(`<div data-bloque="dua" data-titulo="Adecuaciones DUA" class="bloque-seccion">`);
+  lines.push(`<h2>ADECUACIONES DUA</h2>`);
+  lines.push(`<p><em>${ajustesDUA.resumen}</em></p>`);
+  ajustesDUA.ajustes.forEach((ajuste) => {
+    lines.push(`<div data-bloque="dua-ajuste" data-categoria="${ajuste.categoria}">`);
+    lines.push(`<h3>${DUA_LABELS[ajuste.categoria] || ajuste.categoria}: ${ajuste.titulo}</h3>`);
+    lines.push(`<p>${ajuste.descripcion}</p>`);
+    lines.push(`<p><strong>Estrategias:</strong></p><ul>`);
+    ajuste.estrategias.forEach((estrategia) => lines.push(`<li>${estrategia}</li>`));
+    lines.push(`</ul>`);
+    lines.push(`<p><strong>Evaluación diferenciada:</strong> ${ajuste.evaluacionDiferenciada}</p>`);
+    lines.push(`<p><strong>Recursos:</strong> ${ajuste.recursos.join(' · ')}</p>`);
+    lines.push(`</div>`);
+  });
+  lines.push(`</div>`);
+  return lines.join('\n');
+}
 
 function contentToHTML(content: GeneratedPlanningContent): string {
   const s = content;
@@ -119,6 +146,11 @@ function contentToHTML(content: GeneratedPlanningContent): string {
   }
   lines.push(`</div>`);
 
+  // DUA
+  if (s.ajustesDUA?.ajustes?.length) {
+    lines.push(duaToHTML(s.ajustesDUA));
+  }
+
   // Section VI
   lines.push(`<div data-bloque="seccion" data-numero="VI" data-titulo="Recursos" class="bloque-seccion">`);
   lines.push(`<h2>SECCIÓN VI — Recursos y Materiales</h2>`);
@@ -208,7 +240,12 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
   const [localDraftAt, setLocalDraftAt] = useState<string | null>(null);
   const [pendingLocalDraft, setPendingLocalDraft] = useState<LocalEditorDraft | null>(null);
   const localDraftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentRef = useRef(content);
   const localDraftKey = `${LOCAL_DRAFT_PREFIX}${planningId}`;
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
 
   const initialHTML = contentToHTML(content);
 
@@ -245,8 +282,8 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
     setSaved(false);
     try {
       const html = editor.getHTML();
-      const updatedContent = htmlToContent(html, content);
-      const res = await fetch(`/api/plannings/${planningId}/content`, {
+      const updatedContent = htmlToContent(html, contentRef.current);
+      const res = await fetch(`/api/plannings/${planningId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content_json: updatedContent }),
@@ -267,31 +304,48 @@ export function PlanningEditor({ planningId, content, onSave }: PlanningEditorPr
     } finally {
       setIsSaving(false);
     }
-  }, [editor, planningId, content, onSave, localDraftKey]);
+  }, [editor, planningId, onSave, localDraftKey]);
 
   const handleAICommand = useCallback(async (command: string, selectedText: string) => {
     if (!editor) return;
     setIsGenerating(true);
     setAiStatus(`Ejecutando ${command}...`);
     try {
-      const res = await fetch('/api/planeaciones/evaluar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planningId,
-          command,
-          selectedText,
-          currentContent: editor.getHTML(),
-        }),
-      });
-      if (!res.ok) throw new Error('Error en comando IA');
-      const data = await res.json();
-      if (data.html) {
-        editor.commands.setContent(data.html);
-      } else if (data.text) {
-        editor.commands.insertContent(data.text);
+      if (command === '/dua') {
+        const res = await fetch('/api/planeaciones/dua', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planningId }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al generar DUA');
+        if (data.ajustesDUA) {
+          editor.commands.insertContent(duaToHTML(data.ajustesDUA as AjustesDUA));
+        }
+        if (data.contentJson) {
+          contentRef.current = data.contentJson as GeneratedPlanningContent;
+        }
+        setAiStatus(data.warning ? 'DUA generada (propuesta local)' : 'DUA generada');
+      } else {
+        const res = await fetch('/api/planeaciones/evaluar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planningId,
+            command,
+            selectedText,
+            currentContent: editor.getHTML(),
+          }),
+        });
+        if (!res.ok) throw new Error('Error en comando IA');
+        const data = await res.json();
+        if (data.html) {
+          editor.commands.setContent(data.html);
+        } else if (data.text) {
+          editor.commands.insertContent(data.text);
+        }
+        setAiStatus('Comando ejecutado');
       }
-      setAiStatus('Comando ejecutado');
       setTimeout(() => setAiStatus(''), 2000);
     } catch (err) {
       console.error('AI command error:', err);

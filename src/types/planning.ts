@@ -209,6 +209,29 @@ export interface EvaluationRow {
   percentage: number;
 }
 
+export type DUACategoria =
+  | 'bap_sensorial'
+  | 'bap_motriz'
+  | 'ritmos_rezago'
+  | 'sobresalientes';
+
+export interface DUAAdjustment {
+  id: string;
+  categoria: DUACategoria;
+  titulo: string;
+  descripcion: string;
+  estrategias: string[];
+  evaluacionDiferenciada: string;
+  recursos: string[];
+}
+
+export interface AjustesDUA {
+  generadoEn: string;
+  fuente: 'ia' | 'determinista' | 'manual';
+  resumen: string;
+  ajustes: DUAAdjustment[];
+}
+
 export interface GeneratedPlanningContent {
   // Section I - Admin Data (pre-filled from context)
   sectionI: {
@@ -271,6 +294,8 @@ export interface GeneratedPlanningContent {
   };
   // Section VII - Signatures (always empty template)
   sectionVII: Record<string, never>;
+  // Ajustes razonables / Diseño Universal para el Aprendizaje (DUA)
+  ajustesDUA?: AjustesDUA;
 }
 
 export interface Planning {

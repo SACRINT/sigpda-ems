@@ -11,6 +11,8 @@ import { partitionBlockSessionsByActivities } from '@/lib/planning-session-parti
 import { useBlockMaterialReviews } from '@/hooks/useBlockMaterialReviews';
 import PlanningDownloadsHub from '@/components/planeacion/PlanningDownloadsHub';
 import QuickEditPlanningModal from '@/components/planeacion/QuickEditPlanningModal';
+import DUAAdjustmentsCard from '@/components/planeacion/DUAAdjustmentsCard';
+import { evaluateDBEPA } from '@/lib/planning/dbepa-quality-gate';
 import {
   FileText, Zap, BookOpen, Download, RefreshCw, AlertTriangle,
   CheckCircle, ChevronDown, ChevronUp, Library, Edit3, Lock
@@ -122,7 +124,20 @@ export default function PlanningTabDocumento({
   }, [planning?.contentJson]);
 
   const content = localContent || (planning?.contentJson as GeneratedPlanningContent | null);
+  const handleDUAGenerated = (ajustesDUA: GeneratedPlanningContent['ajustesDUA']) => {
+    if (!ajustesDUA) return;
+    const nextContent = content ? { ...content, ajustesDUA } : content;
+    if (nextContent) {
+      setLocalContent(nextContent);
+      onPlanningUpdated?.(nextContent);
+    }
+  };
   const curricularBlocks = resolveCurricularBlocks(content);
+  const dbepaAudit = evaluateDBEPA(content, {
+    uacName: planning.uacName,
+    semester: planning.semester,
+  });
+  const dbepaEmoji = dbepaAudit.semaforo === 'verde' ? '🟢' : dbepaAudit.semaforo === 'amarillo' ? '🟡' : '🔴';
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
   const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
@@ -186,6 +201,32 @@ export default function PlanningTabDocumento({
 
   return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {content && (
+            <div
+              data-testid="dbepa-summary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '10px 16px',
+                borderRadius: '10px',
+                border: '1px solid var(--c-border)',
+                background: 'var(--c-bg-elevated)',
+              }}
+            >
+              <span style={{ fontSize: '22px' }} aria-label={`Semáforo DBEPA ${dbepaAudit.semaforo}`}>
+                {dbepaEmoji}
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <strong style={{ fontSize: '13px', color: 'var(--c-text)' }}>
+                  Quality Gate DBEPA: {dbepaAudit.score}/100
+                </strong>
+                <span style={{ fontSize: '12px', color: 'var(--c-text-muted)' }}>
+                  {dbepaAudit.passed}/{dbepaAudit.total} criterios cumplidos · Consulta el desglose en Calidad → Quality Gate DBEPA
+                </span>
+              </div>
+            </div>
+          )}
           {/* ── BARRA DE ACCIONES EDITORIAL (FASE 3 — TAREA 1 & 2) ── */}
           {isEditorialEngineEnabled && (
             <div
@@ -465,6 +506,13 @@ export default function PlanningTabDocumento({
               </div>
             )}
           </div>
+
+          <DUAAdjustmentsCard
+            planningId={planning.id}
+            ajustesDUA={content?.ajustesDUA}
+            canEdit={canEditDocument}
+            onGenerated={handleDUAGenerated}
+          />
 
           {/* Activities Dosificación Table */}
           {content?.sectionII?.activities && (

@@ -14,6 +14,7 @@ interface ToolbarProps {
 }
 
 const AI_COMMANDS = [
+  { cmd: '/dua', label: 'Generar Adecuación DUA', desc: 'Ajustes razonables para BAP, ritmos y sobresalientes' },
   { cmd: '/rubrica', label: 'Generar Rúbrica', desc: 'Inserta rúbrica analítica calibrada para la actividad' },
   { cmd: '/adaptar-abp', label: 'Adaptar a ABP', desc: 'Transforma actividad en Aprendizaje Basado en Proyectos' },
   { cmd: '/simplificar-bap', label: 'Simplificar (BAP)', desc: 'Reduce complejidad para barreras de aprendizaje' },

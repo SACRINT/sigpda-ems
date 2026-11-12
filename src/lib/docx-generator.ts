@@ -632,6 +632,41 @@ function buildSectionV(content: GeneratedPlanningContent): (Paragraph | Table)[]
   return elements;
 }
 
+function buildSectionDUA(content: GeneratedPlanningContent): (Paragraph | Table)[] {
+  const ajustes = content.ajustesDUA?.ajustes || [];
+  if (ajustes.length === 0) return [];
+
+  const labels: Record<string, string> = {
+    bap_sensorial: 'BAP sensorial',
+    bap_motriz: 'BAP motriz',
+    ritmos_rezago: 'Ritmos diferenciados y rezago',
+    sobresalientes: 'Enriquecimiento para sobresalientes',
+  };
+  const cL = Math.floor(CONTENT * 0.28);
+  const cR = CONTENT - cL;
+
+  return [
+    secHeading('ADECUACIONES DUA — DISEÑO UNIVERSAL PARA EL APRENDIZAJE'),
+    tbl([
+      new TableRow({ children: [tcH('ADECUACIONES DUA', { w: CONTENT, span: 2, align: AlignmentType.CENTER, size: 20 })] }),
+      new TableRow({ children: [tc(content.ajustesDUA?.resumen || 'Ajustes razonables para eliminar barreras de aprendizaje.', { w: CONTENT, span: 2, italics: true, fill: C.alt })] }),
+      new TableRow({ children: [tcM('Categoría / Ajuste', { w: cL }), tcM('Descripción, estrategias y evaluación diferenciada', { w: cR })] }),
+      ...ajustes.map((ajuste, index) => new TableRow({ children: [
+        tc(`${labels[ajuste.categoria] || ajuste.categoria}\n${ajuste.titulo}`, {
+          w: cL,
+          bold: true,
+          fill: index % 2 === 0 ? C.white : C.alt,
+        }),
+        tc(
+          `${ajuste.descripcion}\nEstrategias: ${ajuste.estrategias.join('; ')}\nEvaluación diferenciada: ${ajuste.evaluacionDiferenciada}\nRecursos: ${ajuste.recursos.join(', ')}`,
+          { w: cR, fill: index % 2 === 0 ? C.white : C.alt }
+        ),
+      ]})),
+    ], [cL, cR]),
+    sp(),
+  ];
+}
+
 function buildSectionVI(content: GeneratedPlanningContent): (Paragraph | Table)[] {
   const s = content.sectionVI;
   const cL = Math.floor(CONTENT * 0.26), cR = CONTENT - cL;
@@ -724,6 +759,7 @@ export async function generateDocx(
         ...buildSectionIV(content, sequenceJson),
         ...buildSectionV(content),
         pb(),
+        ...buildSectionDUA(content),
         ...buildSectionVI(content),
         ...buildSectionVII(content),
       ],
@@ -786,6 +822,7 @@ export async function generateSecuenciaDocx(
         sp(),
         ...buildSectionIV(content, sequenceJson),
         sp(),
+        ...buildSectionDUA(content),
         ...buildSectionVII(content),
       ],
     }],

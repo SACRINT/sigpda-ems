@@ -13,6 +13,9 @@ export type { PlanningTabEvaluadorProps } from './PlanningTabEvaluador';
 export { default as PlanningTabAuditoria } from './PlanningTabAuditoria';
 export type { PlanningTabAuditoriaProps } from './PlanningTabAuditoria';
 
+export { default as PlanningTabDBEPA } from './PlanningTabDBEPA';
+export type { PlanningTabDBEPAProps } from './PlanningTabDBEPA';
+
 export { default as PlanningTabAnalitica } from './PlanningTabAnalitica';
 export type { PlanningTabAnaliticaProps } from './PlanningTabAnalitica';
 
