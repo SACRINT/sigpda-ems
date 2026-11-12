@@ -139,12 +139,11 @@ describe('institutional-context · fachada de contexto', () => {
     ]);
 
     const result = await getInstitutionalContext('planeacion', {
-      maxTokens: 850,
-      domainBudgets: { metodologico: 350, curricular: 450 },
       uacName: 'Lengua y Comunicación I',
+      semester: 1,
     });
 
-    expect(result.tokens).toBeLessThanOrEqual(870);
+    expect(result.tokens).toBeLessThanOrEqual(850);
     expect(result.sources.map((source) => source.dominio)).toContain('metodologico');
     expect(result.sources.map((source) => source.dominio)).toContain('curricular');
   });

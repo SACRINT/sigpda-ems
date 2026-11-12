@@ -79,7 +79,11 @@ export async function getInstitutionalContext(
 ): Promise<InstitutionalContextResult> {
   if (!isKnowledgeLayerEnabled()) return EMPTY_CONTEXT;
 
-  const maxTokens = options.maxTokens ?? DEFAULT_KNOWLEDGE_MAX_TOKENS;
+  const isPlaneacion = generator === 'planeacion';
+  const maxTokens = options.maxTokens ?? (isPlaneacion ? 850 : DEFAULT_KNOWLEDGE_MAX_TOKENS);
+  const domainBudgets =
+    options.domainBudgets ??
+    (isPlaneacion ? { metodologico: 350, curricular: 450 } : undefined);
   const maxChars = Math.max(0, maxTokens) * 4;
 
   try {
@@ -168,9 +172,9 @@ export async function getInstitutionalContext(
       return true;
     };
 
-    if (options.domainBudgets) {
+    if (domainBudgets) {
       for (const domain of domains) {
-        const domainTokens = options.domainBudgets[domain];
+        const domainTokens = domainBudgets[domain];
         if (domainTokens === undefined) continue;
 
         const domainChars = Math.max(0, domainTokens) * 4;
