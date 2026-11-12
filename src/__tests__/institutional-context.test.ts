@@ -96,6 +96,33 @@ describe('institutional-context · fachada de contexto', () => {
     expect(result.block).toContain('…');
   });
 
+  it('normaliza uacName y respeta el presupuesto de 600 tokens en planeación', async () => {
+    mockedPages.mockResolvedValue([
+      page({ slug: 'didactica/dua', dominio: 'metodologico' }),
+      page({
+        slug: 'curriculo/submodulo-2-soluciona-problemas-con-lenguaje-natural',
+        dominio: 'curricular',
+        uac_slugs: ['submodulo-2-soluciona-problemas-con-lenguaje-natural'],
+      }),
+      page({
+        slug: 'curriculo/otra-uac',
+        dominio: 'curricular',
+        uac_slugs: ['otra-uac'],
+      }),
+    ]);
+
+    const result = await getInstitutionalContext('planeacion', {
+      maxTokens: 600,
+      uacName: 'Submódulo 2: Soluciona problemas con lenguaje natural',
+      semester: 3,
+    });
+
+    expect(result.tokens).toBeLessThanOrEqual(620);
+    expect(result.block).toContain('didactica/dua');
+    expect(result.block).toContain('submodulo-2-soluciona-problemas-con-lenguaje-natural');
+    expect(result.block).not.toContain('curriculo/otra-uac');
+  });
+
   it('fail-open: si el repositorio falla, devuelve vacío sin lanzar', async () => {
     mockedPages.mockRejectedValue(new Error('BD caída'));
     const result = await getInstitutionalContext('pmc');

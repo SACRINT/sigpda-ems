@@ -3,7 +3,6 @@ import { auth } from '@/lib/auth';
 import { 
   getTeacherByEmail, 
   getPlanningById, 
-  updatePlanningContent,
   getProgramByUacAndSemester,
   getFfeContinuity,
   getAuditResultByPlanningId,
@@ -172,8 +171,10 @@ export async function POST(
       .replace(/^-+|-+$/g, '');
 
     const knowledgeContext = await getInstitutionalContext('planeacion', {
-      maxTokens: 800,
+      maxTokens: 600,
       uacSlug,
+      uacName: rawUacName,
+      semester: planning.semester as number,
     });
 
     let fullUserPrompt = userPrompt;

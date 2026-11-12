@@ -69,7 +69,7 @@ export function isKnowledgeTelemetryEnabled(): boolean {
  */
 export async function getInstitutionalContext(
   generator: ContextGenerator,
-  options: { maxTokens?: number; uacSlug?: string } = {}
+  options: { maxTokens?: number; uacSlug?: string; uacName?: string; semester?: number } = {}
 ): Promise<InstitutionalContextResult> {
   if (!isKnowledgeLayerEnabled()) return EMPTY_CONTEXT;
 
@@ -79,7 +79,16 @@ export async function getInstitutionalContext(
   try {
     const pages = await getPublishedKnowledgePages();
     const domains = DOMAIN_ROUTING[generator];
-    const normalizedUacSlug = options.uacSlug ? options.uacSlug.toLowerCase().trim() : undefined;
+    const rawUac = options.uacSlug ?? options.uacName;
+    const normalizedUacSlug = rawUac
+      ? rawUac
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      : undefined;
 
     const eligible = pages
       .filter((page) => domains.includes(page.dominio))
