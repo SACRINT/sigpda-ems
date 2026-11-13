@@ -682,7 +682,11 @@ export async function withKeyRotation<T>(
         if (isPermanent) {
           permanentlyFailedKeyIds.add(keyId);
           await recordError(keyId, 'permanent');
-        } else if (is503 || is429 || isTimeout) {
+        } else if (is429 || isTimeout) {
+          // 503 es una caída upstream del modelo/proveedor, no un agotamiento
+          // de esa llave. No se escribe cooldown de 45s en la DB: se excluye
+          // solo durante esta llamada y el circuit breaker del proveedor decide
+          // cuándo reintentar el modelo primario.
           await recordError(keyId, 'transient');
         }
       }

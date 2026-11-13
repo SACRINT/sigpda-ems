@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getPlanningById, getTeacherByEmail, getGenerationJobById, getLatestGenerationJob, claimGenerationJob } from '@/lib/db';
+import { getPlanningById, getGenerationJobById, getLatestGenerationJob, claimGenerationJob } from '@/lib/db';
+import { requireActiveTeacher } from '@/lib/api-auth';
 import { processGenerationJob } from '@/lib/job-worker';
 import { logger } from '@/lib/logger';
 
@@ -16,15 +16,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
-      return NextResponse.json({ error: 'Docente no encontrado' }, { status: 401 });
-    }
+    const authResult = await requireActiveTeacher();
+    if (authResult.error) return authResult.error;
+    const { teacher } = authResult;
 
     const { id } = await params;
     const planning = await getPlanningById(id);

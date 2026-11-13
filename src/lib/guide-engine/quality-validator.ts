@@ -22,8 +22,21 @@ export interface QualityValidatorOutput {
   failedWriters: ('foundation' | 'lab' | 'project' | 'evaluation')[];
   retryableWriters: ('foundation' | 'lab' | 'project' | 'evaluation')[];
   totalWordCount: number;
+  /** Mínimo formal del bloque (sin tolerancia). */
+  minRequiredWords: number;
+  /** Mínimo editorial aceptable (90% del formal) para absorber variaciones de tokenización. */
+  editorialMinWords: number;
+  /** true si el volumen está dentro de la tolerancia editorial, aunque no alcance el mínimo formal. */
+  withinEditorialTolerance: boolean;
   warnings: string[];
 }
+
+/**
+ * Tolerancia editorial única del motor: un bloque puede aceptarse si alcanza
+ * al menos el 90% del mínimo formal. Evita que el validador contradiga el gate
+ * final del orquestador (que ya aplica esta misma tolerancia).
+ */
+export const EDITORIAL_TOLERANCE_RATIO = 0.9;
 
 const PLACEHOLDER_REGEX = /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]|\[\s*\.\.\.\s*\]/i;
 
@@ -87,8 +100,12 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
     warnings.push(`Solo ${passingWritersCount} de 4 redactores alcanzaron el umbral mínimo de calidad (>= 70)`);
   }
 
-  // 3. Reglas de decisión por extensión de palabras
+  // 3. Reglas de decisión por extensión de palabras.
+  // El gate formal exige minRequiredWords, pero la política editorial acepta
+  // hasta un 10% por debajo para no descartar libros íntegros de alta calidad.
   const halfMin = minRequiredWords * 0.5;
+  const editorialMinWords = Math.round(minRequiredWords * EDITORIAL_TOLERANCE_RATIO);
+  const withinEditorialTolerance = totalWordCount >= editorialMinWords;
 
   if (totalWordCount < halfMin) {
     // Si el libro tiene menos del 50% del mínimo, es demasiado corto para ser rescatable
@@ -97,12 +114,12 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
     warnings.push(
       `Extensión crítica (${totalWordCount} palabras): inferior al 50% de la meta mínima (${minRequiredWords} palabras). No se reintenta automáticamente.`
     );
-  } else if (totalWordCount < minRequiredWords) {
-    // Si está entre 50% y 99% del mínimo, reintentar solo el writer con menor score
+  } else if (!withinEditorialTolerance) {
+    // Entre 50% y 89.99%: déficit real, reintentar los writers con menor volumen.
     accepted = false;
     qualityWarning = true;
     warnings.push(
-      `Extensión insuficiente (${totalWordCount}/${minRequiredWords} palabras). Se programa reintento del redactor con menor puntaje.`
+      `Extensión insuficiente (${totalWordCount}/${minRequiredWords} palabras; mínimo editorial ${editorialMinWords}). Se programa reintento del redactor con menor puntaje.`
     );
 
     // Priorizar reintentos en orden de menor volumen de palabras generado
@@ -114,20 +131,27 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
         retryableWriters.push(w.type);
       }
     }
-  } else {
-    // totalWordCount >= minRequiredWords
-    // Si hay placeholders, reintentar solo los writers con placeholders
-    if (writersWithPlaceholders.length > 0) {
-      accepted = false;
-      for (const wType of writersWithPlaceholders) {
-        if (!retryableWriters.includes(wType)) {
-          retryableWriters.push(wType);
-        }
+  } else if (totalWordCount < minRequiredWords) {
+    // Dentro de la tolerancia editorial (90-99.99%): se acepta con advertencia.
+    qualityWarning = true;
+    warnings.push(
+      `Extensión por debajo del mínimo formal (${totalWordCount}/${minRequiredWords} palabras), pero dentro de la tolerancia editorial del 90% (${editorialMinWords}). Se acepta con advertencia.`
+    );
+  }
+
+  // Los placeholders son un fallo de integridad independiente del volumen:
+  // deben reintentarse incluso si el bloque está dentro de la tolerancia.
+  if (writersWithPlaceholders.length > 0) {
+    accepted = false;
+    qualityWarning = true;
+    for (const wType of writersWithPlaceholders) {
+      if (!retryableWriters.includes(wType)) {
+        retryableWriters.push(wType);
       }
-      warnings.push(
-        `Se reintentarán los redactores con placeholders: ${writersWithPlaceholders.join(', ')}`
-      );
     }
+    warnings.push(
+      `Se reintentarán los redactores con placeholders: ${writersWithPlaceholders.join(', ')}`
+    );
   }
 
   // Si falló por score y no está en retryable por palabras, agregar los que fallaron
@@ -146,6 +170,9 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
     failedWriters,
     retryableWriters,
     totalWordCount,
+    minRequiredWords,
+    editorialMinWords,
+    withinEditorialTolerance,
     warnings,
   };
 }

@@ -121,6 +121,11 @@ export interface OrchestratorOptions {
   maxBudgetMs?: number;
   /** Expande sesiones deficientes con una pasada editorial dirigida cuando queda presupuesto. */
   expandDeficientSessions?: boolean;
+  /**
+   * Reanudación no destructiva: conserva los 4 redactores del checkpoint y
+   * ejecuta únicamente la expansión dirigida de planes deficientes.
+   */
+  expandOnly?: boolean;
   /** Solo habilitar con semillas auditadas; por defecto se generan bloques frescos. */
   allowCanonicalSeedReuse?: boolean;
   /** Redactores ya persistidos en un checkpoint para reanudar sin repetir llamadas. */
@@ -459,9 +464,10 @@ export async function generateBlockWorkTextbook(
     },
   ];
 
-  const pendingWriterTasks = writerTasks.filter(
-    (task) => !writerOutputs.some((output) => output.type === task.type)
-  );
+  const expandOnly = options.expandOnly === true && writerOutputs.length >= 4;
+  const pendingWriterTasks = expandOnly
+    ? []
+    : writerTasks.filter((task) => !writerOutputs.some((output) => output.type === task.type));
 
   const WRITER_PROGRESS_STEPS = [35, 45, 55, 65] as const;
   const remainingTimeMs = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
@@ -706,9 +712,17 @@ export async function generateBlockWorkTextbook(
     logger.warn(`[Orchestrator] Alineación planeación↔libro bajo umbral: ${alignmentReport.summary}`);
   }
 
-  if (options.expandDeficientSessions) {
+  if (options.expandDeficientSessions || expandOnly) {
     const remainingForExpansion = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
-    if (remainingForExpansion > 60_000 && !signal?.aborted) {
+    const expansionBudgetFloorMs = expandOnly ? 30_000 : 60_000;
+    if (remainingForExpansion > expansionBudgetFloorMs && !signal?.aborted) {
+      await notifyProgress({
+        phase: 'validating',
+        currentStep: expandOnly
+          ? 'Expandiendo planes de sesión deficientes desde el checkpoint (sin regenerar redactores)...'
+          : 'Expandiendo sesiones deficientes con una pasada editorial dirigida...',
+        percent: 93,
+      });
       const expansion = await expandDeficientSessionPlans({
         writerOutputs,
         missionBudgets: effectiveMissionBudgets,
@@ -775,6 +789,13 @@ export async function generateBlockWorkTextbook(
 
   const projectSection: ProjectSection = projectOut.projectSection;
   const evaluationSection: EvaluationSection = evalOut.evaluationSection;
+
+  if (validation.accepted && validation.qualityWarning) {
+    logger.warn(
+      `[Orchestrator] Bloque ${blockIndex} aceptado con advertencia editorial: ` +
+        `${validation.warnings.join(' || ') || 'sin detalle'}`
+    );
+  }
 
   const totalWords = validation.totalWordCount;
   // Estimación transparente y real basada en densidad editorial de texto y espacios de trabajo:
@@ -872,7 +893,8 @@ export async function generateBlockWorkTextbook(
     );
   }
   if (!validation.accepted) {
-    integrityBlockers.push(`qualityScore=${validation.qualityScore} (no aceptado)`);
+    const qualityDetail = validation.warnings.slice(0, 4).join('; ') || 'sin detalle';
+    integrityBlockers.push(`qualityScore=${validation.qualityScore} (no aceptado: ${qualityDetail})`);
   }
   if (!alignmentReport.pass) {
     integrityBlockers.push(`alineacion_planeacion=${alignmentReport.score} (${alignmentReport.summary})`);

@@ -70,6 +70,49 @@ export interface PlanningTabDocumentoProps {
   onPlanningUpdated?: (updatedContent: GeneratedPlanningContent) => void;
 }
 
+function formatDurationMs(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0
+    ? `${minutes}m ${seconds.toString().padStart(2, '0')}s`
+    : `${seconds}s`;
+}
+
+function ElapsedTimer({
+  startedAt,
+  completedAt,
+  durationMs,
+}: {
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+}) {
+  const [now, setNow] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!startedAt || completedAt || durationMs !== undefined) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt, completedAt, durationMs]);
+
+  if (durationMs === undefined && !startedAt) return null;
+
+  const startMs = startedAt ? Date.parse(startedAt) : NaN;
+  const endMs = completedAt ? Date.parse(completedAt) : now ?? startMs;
+  const elapsed =
+    durationMs ?? (Number.isFinite(startMs) ? Math.max(0, endMs - startMs) : 0);
+
+  return (
+    <span
+      title={completedAt ? 'Duración total de la generación' : 'Tiempo transcurrido de generación'}
+      style={{ fontVariantNumeric: 'tabular-nums' }}
+    >
+      ⏱ {formatDurationMs(elapsed)}
+    </span>
+  );
+}
+
 export default function PlanningTabDocumento({
   planning,
   sequenceData = {},
@@ -1183,6 +1226,28 @@ export default function PlanningTabDocumento({
                               </span>
                             )}
 
+                            {wbItem?.workbook &&
+                              (wbItem.workbook.generationDurationMs !== undefined ||
+                                wbItem.workbook.generationStartedAt) && (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    background: 'rgba(59, 130, 246, 0.12)',
+                                    color: '#93c5fd',
+                                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                                  }}
+                                >
+                                  <ElapsedTimer
+                                    startedAt={wbItem.workbook.generationStartedAt}
+                                    durationMs={wbItem.workbook.generationDurationMs}
+                                    completedAt={wbItem.progress?.completedAt}
+                                  />
+                                </span>
+                              )}
+
                             {wbItem?.workbook?.qualityScore !== undefined && (
                               <span
                                 style={{
@@ -1434,8 +1499,9 @@ export default function PlanningTabDocumento({
                               <RefreshCw size={12} className="animate-spin text-blue-400" />
                               {wbItem.progress?.currentStep || 'Escribiendo misiones didácticas con IA...'}
                             </span>
-                            <span style={{ color: '#60a5fa', fontWeight: 700 }}>
+                            <span style={{ color: '#60a5fa', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               {wbItem.progress?.percent || 15}%
+                              <ElapsedTimer startedAt={wbItem.progress?.startedAt} />
                             </span>
                           </div>
                           <div

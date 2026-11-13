@@ -124,6 +124,9 @@ const validationOk: QualityValidatorOutput = {
   failedWriters: [],
   retryableWriters: [],
   totalWordCount: 7125,
+  minRequiredWords: 7125,
+  editorialMinWords: 6413,
+  withinEditorialTolerance: true,
   warnings: [],
 };
 

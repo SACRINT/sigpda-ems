@@ -146,6 +146,15 @@ export async function getAIProvider(isPremium = false): Promise<AIProvider> {
   };
 }
 
+// Circuit breaker en memoria para no repetir el par de llamadas 503 al modelo
+// primario en cada request. Las llaves NO se penalizan en DB por un 503.
+const PRIMARY_503_CIRCUIT_MS = 60_000;
+let primary503CircuitUntil = 0;
+
+export function __resetPrimary503CircuitForTests(): void {
+  primary503CircuitUntil = 0;
+}
+
 function isGemini503FallbackEligible(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { name?: string; status?: number; statusCode?: number; message?: string };
@@ -221,15 +230,34 @@ export async function generateWithRotation(
       }
     );
 
+  const isPrimaryGeminiModel = provider === 'gemini' && model === 'gemini-3.5-flash-lite';
+  const primaryCircuitOpen = isPrimaryGeminiModel && Date.now() < primary503CircuitUntil;
+
+  if (primaryCircuitOpen) {
+    if (
+      options?.signal?.aborted ||
+      (primaryRemaining !== undefined && primaryRemaining <= 15_000)
+    ) {
+      throw new AiServiceUnavailableError(
+        'Gemini 3.5 Flash Lite está en circuito abierto por 503 recientes y no queda presupuesto para el fallback.'
+      );
+    }
+    logger.warn(
+      '[ai-provider] Circuito 503 abierto para gemini-3.5-flash-lite; usando fallback gemini-3.1-flash-lite sin reintentar el primario.'
+    );
+    return runWithModel('gemini-3.1-flash-lite', primaryRemaining);
+  }
+
   try {
-    return await runWithModel(model, primaryRemaining);
+    const result = await runWithModel(model, primaryRemaining);
+    if (isPrimaryGeminiModel) primary503CircuitUntil = 0;
+    return result;
   } catch (err) {
     const elapsed = Date.now() - startedAt;
     const remainingAfterPrimary =
       primaryRemaining !== undefined ? primaryRemaining - elapsed : undefined;
     const canFallback =
-      provider === 'gemini' &&
-      model === 'gemini-3.5-flash-lite' &&
+      isPrimaryGeminiModel &&
       !options?.signal?.aborted &&
       isGemini503FallbackEligible(err) &&
       (remainingAfterPrimary === undefined || remainingAfterPrimary > 15_000);
@@ -238,6 +266,7 @@ export async function generateWithRotation(
       throw err;
     }
 
+    primary503CircuitUntil = Date.now() + PRIMARY_503_CIRCUIT_MS;
     logger.warn(
       '[ai-provider] Fast-fail HTTP 503 en gemini-3.5-flash-lite; ejecutando fallback automático a gemini-3.1-flash-lite.'
     );

@@ -291,6 +291,10 @@ export interface ActiveWorkTextbook {
     fallbackWords?: number;
   };
   generatedAt: string;
+  /** Inicio real del job que produjo este libro (para mostrar duración total). */
+  generationStartedAt?: string;
+  /** Duración total del job, incluyendo reintentos y backoff. */
+  generationDurationMs?: number;
   qualityScore: number;           // 0 - 100
   qualityWarning: boolean;        // true si se us� fallback de calidad
   /**
@@ -364,6 +368,12 @@ export interface GenerationProgressState {
   error?: string;
   /** Job que emitió este estado (permite monotonía de percent dentro de un mismo job). */
   jobId?: string;
+  /** Inicio real del job, para cronómetro en vivo. */
+  startedAt?: string;
+  /** Fin real del job, para duración final. */
+  completedAt?: string;
+  /** Duración total calculada por el servidor o el cliente. */
+  durationMs?: number;
   updatedAt: string;
 }
 

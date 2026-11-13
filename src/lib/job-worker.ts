@@ -42,6 +42,8 @@ interface JobCheckpoint {
   attempts: number;
   updatedAt: string;
   nextRetryAt?: string;
+  /** Reanudar solo con expansión dirigida, conservando los 4 redactores. */
+  expandOnly?: boolean;
 }
 
 function readCheckpoint(result: unknown): JobCheckpoint | null {
@@ -60,6 +62,7 @@ function readCheckpoint(result: unknown): JobCheckpoint | null {
     attempts: candidate.attempts,
     updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : new Date().toISOString(),
     ...(typeof candidate.nextRetryAt === 'string' ? { nextRetryAt: candidate.nextRetryAt } : {}),
+    ...(candidate.expandOnly === true ? { expandOnly: true } : {}),
   };
 }
 
@@ -88,27 +91,61 @@ function computeCooldownBackoffMs(errorMsg: string, isTransient: boolean): numbe
   return 50_000;
 }
 
-function resolvePostRedactionEvictionTarget(
+/**
+ * Un déficit de volumen es recuperable con expansión dirigida: no debe destruir
+ * los 4 redactores del checkpoint. Solo se considera volumen puro si el gate
+ * no reporta además placeholders, contenido genérico, fallback, sesiones
+ * incompletas, desalineación o calidad insuficiente.
+ */
+export function isVolumeOnlyBlockIntegrity(errorMsg: string): boolean {
+  const lower = errorMsg.toLowerCase();
+  if (!lower.includes('blockintegrity') || !lower.includes('palabras_ai=')) {
+    return false;
+  }
+  if (
+    /contenido_genérico=|fallbackwords=|sesiones=|alineacion_planeacion=|placeholder|solo \d+ de 4/i.test(
+      errorMsg
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Resuelve el redactor propietario a partir de las sesiones realmente cubiertas
+ * por cada writer. Sin rangos hardcodeados: un bloque de 24 sesiones no puede
+ * asumir que las sesiones 16-24 pertenecen a evaluación.
+ */
+export function resolvePostRedactionEvictionTarget(
   errorMsgLower: string,
   writers: WriterOutput[]
-): MissionWriterType {
-  const match = errorMsgLower.match(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+(\d+)/i);
-  if (match) {
-    const sNum = parseInt(match[1], 10);
-    const owner = writers.find((w) => w.section?.coveredSessions?.includes(sNum));
-    if (owner) return owner.type;
-    if (sNum <= 3) return 'foundation';
-    if (sNum <= 9) return 'lab';
-    if (sNum <= 15) return 'project';
-    return 'evaluation';
+): MissionWriterType | null {
+  const affectedSessions = Array.from(
+    errorMsgLower.matchAll(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+([\d,\sy]+)/gi)
+  ).flatMap((match) =>
+    (match[1].match(/\d+/g) ?? []).map((n) => parseInt(n, 10)).filter(Number.isFinite)
+  );
+
+  if (affectedSessions.length > 0) {
+    let bestOwner: { type: MissionWriterType; matches: number } | null = null;
+    for (const writer of writers) {
+      const covered = writer.section?.coveredSessions ?? [];
+      const matches = affectedSessions.filter((session) => covered.includes(session)).length;
+      if (matches > 0 && (!bestOwner || matches > bestOwner.matches)) {
+        bestOwner = { type: writer.type, matches };
+      }
+    }
+    if (bestOwner) return bestOwner.type;
   }
+
   if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
     return 'evaluation';
   }
   if (errorMsgLower.includes('project') || errorMsgLower.includes('proyecto')) {
     return 'project';
   }
-  return 'lab';
+  return null;
 }
 
 export async function processGenerationJob(
@@ -228,6 +265,7 @@ export async function processGenerationJob(
           ...(Object.keys(nextPartials).length > 0 ? { partialSessionPlans: nextPartials } : {}),
           attempts: checkpointState.attempts,
           updatedAt: new Date().toISOString(),
+          ...(checkpointState.expandOnly ? { expandOnly: true } : {}),
         };
         await saveGenerationJobCheckpoint(
           jobId,
@@ -257,6 +295,7 @@ export async function processGenerationJob(
           partialSessionPlans: nextPartials,
           attempts: checkpointState.attempts,
           updatedAt: new Date().toISOString(),
+          ...(checkpointState.expandOnly ? { expandOnly: true } : {}),
         };
         await saveGenerationJobCheckpoint(
           jobId,
@@ -281,12 +320,23 @@ export async function processGenerationJob(
         // Misma ruta editorial que la regeneración offline: expande sesiones
         // deficientes solo si queda presupuesto suficiente (ver orquestador).
         expandDeficientSessions: true,
+        expandOnly: checkpointState.expandOnly === true,
         previousWriterOutputs,
         previousPartialSessionPlans: checkpointState.partialSessionPlans,
         onCheckpoint: persistCheckpoint,
         onPartialSessionPlansCheckpoint: persistPartialSessionPlans,
       }
     );
+
+    const jobStartedAtMs = job.started_at ? new Date(job.started_at).getTime() : NaN;
+    workbook.generationStartedAt =
+      workbook.generationStartedAt ||
+      (Number.isFinite(jobStartedAtMs)
+        ? new Date(jobStartedAtMs).toISOString()
+        : new Date().toISOString());
+    workbook.generationDurationMs =
+      workbook.generationDurationMs ??
+      (Number.isFinite(jobStartedAtMs) ? Math.max(0, Date.now() - jobStartedAtMs) : undefined);
 
     // 1. Persistir el workbook en la planeación (idempotente por jobId y protegido por leaseId)
     const saveResult = await saveBlockWorkbook(job.planning_id, job.block_index, workbook, jobId, leaseId);
@@ -340,23 +390,34 @@ export async function processGenerationJob(
 
     if (canResume) {
       let writersToKeep = [...checkpointState.writerOutputs];
-      let nextPartials = checkpointState.partialSessionPlans
+      const nextPartials = checkpointState.partialSessionPlans
         ? { ...checkpointState.partialSessionPlans }
         : undefined;
+      const volumeOnly = isVolumeOnlyBlockIntegrity(errorMsg);
 
-      // Si todos los redactores (4) ya estaban completos pero el job falló en validación o ensamblado:
-      // Conservar los 4 redactores provocaría que el worker repita el fallo de forma determinista.
-      // Descartamos el redactor responsable de las sesiones afectadas (o el último) para que se regenere con IA fresca,
-      // a menos que sea un error transitorio de red o cuota (503/cooldown).
-      if (writersToKeep.length >= 4 && !transientError) {
+      // Un déficit de volumen dentro de la política editorial se corrige con
+      // expansión dirigida, conservando los 4 redactores. Solo se evicta el
+      // writer propietario cuando el fallo es determinista y no recuperable
+      // por volumen (placeholders, contaminación, sesiones incompletas, etc.).
+      if (writersToKeep.length >= 4 && !transientError && !volumeOnly) {
         const errorMsgLower = errorMsg.toLowerCase();
         const evictedType = resolvePostRedactionEvictionTarget(errorMsgLower, writersToKeep);
-        writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
-        if (nextPartials) {
-          delete nextPartials[evictedType];
+        if (evictedType) {
+          writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
+          if (nextPartials) {
+            delete nextPartials[evictedType];
+          }
+          logger.warn(
+            `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor '${evictedType}' del checkpoint para forzar regeneración fresca en el reintento.`
+          );
+        } else {
+          logger.warn(
+            `[job-worker] Error post-redacción sin propietario identificable en job ${jobId}; se conservan los 4 redactores para evitar evicción arbitraria.`
+          );
         }
+      } else if (volumeOnly && writersToKeep.length >= 4) {
         logger.warn(
-          `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor '${evictedType}' del checkpoint para forzar regeneración fresca en el reintento.`
+          `[job-worker] Déficit de volumen en job ${jobId}; se conservan los 4 redactores y se reintentará solo con expansión dirigida.`
         );
       }
 
@@ -368,6 +429,8 @@ export async function processGenerationJob(
           ? `Esperando enfriamiento de APIs IA (~${Math.ceil(backoffMs / 1000)}s) antes de reanudar desde checkpoint...`
           : undefined;
 
+      const nextExpandOnly =
+        volumeOnly || (transientError && checkpointState.expandOnly === true);
       const nextCheckpoint: JobCheckpoint = {
         writerOutputs: writersToKeep,
         ...(nextPartials && Object.keys(nextPartials).length > 0
@@ -376,6 +439,7 @@ export async function processGenerationJob(
         attempts: checkpointState.attempts + 1,
         updatedAt: new Date().toISOString(),
         ...(nextRetryAt ? { nextRetryAt } : {}),
+        ...(nextExpandOnly ? { expandOnly: true } : {}),
       };
       try {
         const partialCount = nextPartials

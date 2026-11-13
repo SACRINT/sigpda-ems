@@ -198,6 +198,12 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
     expect(FAST_FAIL_503_THRESHOLD).toBe(2);
     expect(attemptsExecuted).toBe(2);
 
+    // Un 503 es caída upstream, no agotamiento de la llave: no debe escribir cooldown en DB.
+    const cooldownQueries = mockSqlFn.mock.calls.filter((call) =>
+      call[0].join('').includes('last_error_at = NOW()')
+    );
+    expect(cooldownQueries.length).toBe(0);
+
     const errorInstance = new AiServiceUnavailableError('Saturación en Google');
     expect(isUpstreamAIError(errorInstance)).toBe(true);
     expect(errorInstance.status).toBe(503);

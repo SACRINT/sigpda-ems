@@ -478,6 +478,173 @@ function PlanningDetailModular({
   const pollIntervalsRef = useRef<Record<number, NodeJS.Timeout>>({});
   const pollControllersRef = useRef<Record<number, AbortController>>({});
 
+  const stopWorkbookPolling = useCallback((blockIndex: number) => {
+    const timer = pollIntervalsRef.current[blockIndex];
+    if (timer) {
+      clearTimeout(timer);
+      delete pollIntervalsRef.current[blockIndex];
+    }
+    const controller = pollControllersRef.current[blockIndex];
+    if (controller) {
+      controller.abort();
+      delete pollControllersRef.current[blockIndex];
+    }
+  }, []);
+
+  const startWorkbookPolling = useCallback(
+    (blockIndex: number, jobId: string, initialStartedAt?: string) => {
+      stopWorkbookPolling(blockIndex);
+
+      setBlockWorkbooks((prev) => {
+        const cur = prev[blockIndex];
+        if (cur?.generating) return prev;
+        return {
+          ...prev,
+          [blockIndex]: {
+            loaded: Boolean(cur?.workbook),
+            generating: true,
+            workbook: cur?.workbook || null,
+            version: cur?.version || 1,
+            error: null,
+            progress: cur?.progress || {
+              planningId: planning.id,
+              blockIndex,
+              phase: 'analyzing',
+              currentStep: 'Reanudando generación editorial...',
+              percent: 5,
+              startedAt: initialStartedAt,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        };
+      });
+
+      let isFinished = false;
+      let delay = 2500;
+
+      const poll = async () => {
+        if (isFinished) return;
+        if (document.visibilityState !== 'visible') {
+          pollIntervalsRef.current[blockIndex] = setTimeout(poll, 5000);
+          return;
+        }
+
+        const controller = new AbortController();
+        pollControllersRef.current[blockIndex] = controller;
+
+        try {
+          const statusRes = await fetch(
+            `/api/planeaciones/${planning.id}/libro-bloque/status?jobId=${jobId}`,
+            { signal: controller.signal }
+          );
+          if (!statusRes.ok) return;
+
+          const statusData = await statusRes.json();
+          if (!statusData?.found) return;
+
+          setBlockWorkbooks((prev) => {
+            const cur = prev[blockIndex];
+            if (!cur || !cur.generating) return prev;
+            return {
+              ...prev,
+              [blockIndex]: {
+                ...cur,
+                progress: {
+                  planningId: planning.id,
+                  blockIndex,
+                  phase: statusData.currentPhase || 'writing',
+                  currentStep: statusData.currentStep || 'Generando contenido formativo...',
+                  percent: Math.max(cur.progress?.percent ?? 0, statusData.progress || 10),
+                  startedAt: statusData.startedAt || cur.progress?.startedAt,
+                  updatedAt: statusData.updatedAt || new Date().toISOString(),
+                },
+              },
+            };
+          });
+
+          if (statusData.status === 'completed') {
+            isFinished = true;
+            stopWorkbookPolling(blockIndex);
+
+            const resultRes = await fetch(
+              `/api/planeaciones/${planning.id}/libro-bloque/result?jobId=${jobId}`
+            );
+            const resultData = await resultRes.json();
+
+            if (resultData?.workbook) {
+              const completedAt = statusData.completedAt || new Date().toISOString();
+              const startedAt = statusData.startedAt;
+              const durationMs =
+                resultData.workbook.generationDurationMs ??
+                (startedAt
+                  ? Math.max(0, new Date(completedAt).getTime() - new Date(startedAt).getTime())
+                  : undefined);
+
+              setBlockWorkbooks((prev) => ({
+                ...prev,
+                [blockIndex]: {
+                  loaded: true,
+                  generating: false,
+                  workbook: {
+                    ...resultData.workbook,
+                    generationStartedAt:
+                      resultData.workbook.generationStartedAt || startedAt,
+                    generationDurationMs: durationMs,
+                  },
+                  version: resultData.workbook.version || 1,
+                  progress: {
+                    planningId: planning.id,
+                    blockIndex,
+                    phase: 'completed',
+                    currentStep: '¡Libro-Cuaderno de Trabajo Activo generado exitosamente!',
+                    percent: 100,
+                    qualityScore: resultData.workbook.qualityScore,
+                    wordCount: resultData.wordCount || resultData.workbook.totalWords,
+                    totalWords: resultData.totalWords || resultData.workbook.totalWords,
+                    startedAt,
+                    completedAt,
+                    durationMs,
+                    updatedAt: new Date().toISOString(),
+                  },
+                  error: null,
+                },
+              }));
+              loadExtras();
+            }
+          } else if (statusData.status === 'failed') {
+            isFinished = true;
+            stopWorkbookPolling(blockIndex);
+
+            setBlockWorkbooks((prev) => ({
+              ...prev,
+              [blockIndex]: {
+                loaded: Boolean(prev[blockIndex]?.workbook),
+                generating: false,
+                workbook: prev[blockIndex]?.workbook || null,
+                version: prev[blockIndex]?.version || 1,
+                progress: null,
+                error: statusData.error || 'Error durante la generación del libro de trabajo',
+              },
+            }));
+          }
+        } catch (pollErr) {
+          if ((pollErr as Error)?.name !== 'AbortError') {
+            console.warn('[startWorkbookPolling] Polling warning:', pollErr);
+          }
+        } finally {
+          delete pollControllersRef.current[blockIndex];
+          if (!isFinished) {
+            delay = Math.min(delay * 2, 20000);
+            pollIntervalsRef.current[blockIndex] = setTimeout(poll, delay);
+          }
+        }
+      };
+
+      pollIntervalsRef.current[blockIndex] = setTimeout(poll, 2500);
+    },
+    [planning.id, loadExtras, stopWorkbookPolling]
+  );
+
   // Cleanup active polling timers/controllers when component unmounts
   useEffect(() => {
     const activeTimeouts = pollIntervalsRef.current;
@@ -503,13 +670,21 @@ function PlanningDetailModular({
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
-  // Sync / verify existing workbooks on mount
+  // Reenganche al montar: hidrata el workbook y reanuda el polling si el job
+  // sigue pendiente/en ejecución tras un Ctrl+F5 o cambio de pestaña.
   useEffect(() => {
+    let cancelled = false;
+
     [0, 1, 2].forEach(async (idx) => {
       try {
-        const res = await fetch(`/api/planeaciones/${planning.id}/libro-bloque?blockIndex=${idx}`);
-        if (res.ok) {
-          const data = await res.json();
+        const [workbookRes, statusRes] = await Promise.all([
+          fetch(`/api/planeaciones/${planning.id}/libro-bloque?blockIndex=${idx}`),
+          fetch(`/api/planeaciones/${planning.id}/libro-bloque/status?blockIndex=${idx}`),
+        ]);
+        if (cancelled) return;
+
+        if (workbookRes.ok) {
+          const data = await workbookRes.json();
           if (data?.workbook) {
             setBlockWorkbooks(prev => ({
               ...prev,
@@ -522,11 +697,53 @@ function PlanningDetailModular({
             }));
           }
         }
+
+        if (!statusRes.ok) return;
+        const statusData = await statusRes.json();
+        if (!statusData?.found || !statusData.jobId) return;
+
+        if (statusData.status === 'pending' || statusData.status === 'running') {
+          setBlockWorkbooks(prev => ({
+            ...prev,
+            [idx]: {
+              ...prev[idx],
+              loaded: Boolean(prev[idx]?.workbook),
+              generating: true,
+              workbook: prev[idx]?.workbook || null,
+              version: prev[idx]?.version || 1,
+              error: null,
+              progress: {
+                planningId: planning.id,
+                blockIndex: idx,
+                phase: statusData.currentPhase || 'analyzing',
+                currentStep: statusData.currentStep || 'Reanudando generación editorial...',
+                percent: statusData.progress || 5,
+                startedAt: statusData.startedAt,
+                updatedAt: statusData.updatedAt || new Date().toISOString(),
+              },
+            },
+          }));
+          startWorkbookPolling(idx, statusData.jobId, statusData.startedAt);
+        } else if (statusData.status === 'failed') {
+          setBlockWorkbooks(prev => ({
+            ...prev,
+            [idx]: {
+              ...prev[idx],
+              generating: false,
+              progress: null,
+              error: statusData.error || 'La generación anterior falló. Puedes reintentar el bloque.',
+            },
+          }));
+        }
       } catch {
         // ignore background fetch errors
       }
     });
-  }, [planning.id]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planning.id, startWorkbookPolling]);
 
   const handleGenerateWorkbook = async (blockIndex: number) => {
     setBlockWorkbooks(prev => ({
@@ -543,25 +760,13 @@ function PlanningDetailModular({
           phase: 'analyzing',
           currentStep: 'Iniciando generación editorial del libro...',
           percent: 5,
+          startedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
       },
     }));
 
-    const stopPolling = () => {
-      const timer = pollIntervalsRef.current[blockIndex];
-      if (timer) {
-        clearTimeout(timer);
-        delete pollIntervalsRef.current[blockIndex];
-      }
-      const controller = pollControllersRef.current[blockIndex];
-      if (controller) {
-        controller.abort();
-        delete pollControllersRef.current[blockIndex];
-      }
-    };
-
-    stopPolling();
+    stopWorkbookPolling(blockIndex);
 
     try {
       // 1. Crear / encolar el trabajo asíncrono (responde en < 300ms)
@@ -576,120 +781,10 @@ function PlanningDetailModular({
         throw new Error(createData.error || 'Error al iniciar la generación del libro');
       }
 
-      const jobId = createData.jobId;
-
-      // 2. Polling con backoff (2.5s → 5s → 10s → 20s), solo con pestaña visible
-      let isFinished = false;
-      let delay = 2500;
-
-      const poll = async () => {
-        if (isFinished) return;
-        if (document.visibilityState !== 'visible') {
-          pollIntervalsRef.current[blockIndex] = setTimeout(poll, 5000);
-          return;
-        }
-
-        const controller = new AbortController();
-        pollControllersRef.current[blockIndex] = controller;
-
-        try {
-          const statusRes = await fetch(
-            `/api/planeaciones/${planning.id}/libro-bloque/status?jobId=${jobId}`,
-            { signal: controller.signal }
-          );
-          if (!statusRes.ok) return;
-
-          const statusData = await statusRes.json();
-          if (!statusData?.found) return;
-
-          // Actualizar barra de progreso con el avance verídico del pipeline
-          setBlockWorkbooks(prev => {
-            const cur = prev[blockIndex];
-            if (!cur || !cur.generating) return prev;
-            return {
-              ...prev,
-              [blockIndex]: {
-                ...cur,
-                progress: {
-                  planningId: planning.id,
-                  blockIndex,
-                  phase: statusData.currentPhase || 'writing',
-                  currentStep: statusData.currentStep || 'Generando contenido formativo...',
-                  // Monotonía visual: nunca retroceder dentro de la misma generación.
-                  percent: Math.max(cur.progress?.percent ?? 0, statusData.progress || 10),
-                  updatedAt: statusData.updatedAt || new Date().toISOString(),
-                },
-              },
-            };
-          });
-
-          // Si el worker completó el libro
-          if (statusData.status === 'completed') {
-            isFinished = true;
-            stopPolling();
-
-            // Consultar el resultado final del libro
-            const resultRes = await fetch(
-              `/api/planeaciones/${planning.id}/libro-bloque/result?jobId=${jobId}`
-            );
-            const resultData = await resultRes.json();
-
-            if (resultData?.workbook) {
-              setBlockWorkbooks(prev => ({
-                ...prev,
-                [blockIndex]: {
-                  loaded: true,
-                  generating: false,
-                  workbook: resultData.workbook,
-                  version: resultData.workbook.version || 1,
-                  progress: {
-                    planningId: planning.id,
-                    blockIndex,
-                    phase: 'completed',
-                    currentStep: '¡Libro-Cuaderno de Trabajo Activo generado exitosamente!',
-                    percent: 100,
-                    qualityScore: resultData.workbook.qualityScore,
-                    wordCount: resultData.wordCount || resultData.workbook.totalWords,
-                    totalWords: resultData.totalWords || resultData.workbook.totalWords,
-                    updatedAt: new Date().toISOString(),
-                  },
-                  error: null,
-                },
-              }));
-              loadExtras();
-            }
-          } else if (statusData.status === 'failed') {
-            isFinished = true;
-            stopPolling();
-
-            setBlockWorkbooks(prev => ({
-              ...prev,
-              [blockIndex]: {
-                loaded: Boolean(prev[blockIndex]?.workbook),
-                generating: false,
-                workbook: prev[blockIndex]?.workbook || null,
-                version: prev[blockIndex]?.version || 1,
-                progress: null,
-                error: statusData.error || 'Error durante la generación del libro de trabajo',
-              },
-            }));
-          }
-        } catch (pollErr) {
-          if ((pollErr as Error)?.name !== 'AbortError') {
-            console.warn('[handleGenerateWorkbook] Polling warning:', pollErr);
-          }
-        } finally {
-          delete pollControllersRef.current[blockIndex];
-          if (!isFinished) {
-            delay = Math.min(delay * 2, 20000);
-            pollIntervalsRef.current[blockIndex] = setTimeout(poll, delay);
-          }
-        }
-      };
-
-      pollIntervalsRef.current[blockIndex] = setTimeout(poll, 2500);
+      // 2. Polling reutilizable: también se usa al reenganchar tras Ctrl+F5.
+      startWorkbookPolling(blockIndex, createData.jobId);
     } catch (err: unknown) {
-      stopPolling();
+      stopWorkbookPolling(blockIndex);
       setBlockWorkbooks(prev => ({
         ...prev,
         [blockIndex]: {

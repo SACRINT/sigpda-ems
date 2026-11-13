@@ -41,7 +41,7 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-import { generateWithRotation } from '@/lib/ai-provider';
+import { generateWithRotation, __resetPrimary503CircuitForTests } from '@/lib/ai-provider';
 import { AiCooldownExhaustedError } from '@/lib/ai-provider/key-rotator';
 
 interface PoolKeyRow {
@@ -65,6 +65,7 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetPrimary503CircuitForTests();
     geminiInstances.length = 0;
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/sigpda_test';
 
