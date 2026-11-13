@@ -48,7 +48,7 @@ export default function PlanningDetailLegacy({
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
   const activityLabel = isLaboral ? 'Actividades Clave' : 'Propósitos y Contenidos formativos';
   const prefix = isLaboral ? 'AC' : 'PC';
-  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content), [content]);
+  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content, planning as any), [content, planning]);
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'planning' | 'extras' | 'lessonPlans' | 'teacherGuides' | 'a4print' | 'audit' | 'evaluador' | 'analytics'>('planning');

@@ -26,6 +26,12 @@ import {
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
+import { resolveSemesterWeeks, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
+import { ensureRetoSituadoCalidad } from '@/lib/planning-evaluator';
+import {
+  normalizeEvaluationPercentages,
+  sanitizePlanningContent,
+} from '@/lib/planning/quality-pipeline';
 import { isUpstreamAIError, AI_OUTAGE_USER_MESSAGE } from '@/lib/ai-resilience';
 import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent, FechasCortes } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
@@ -265,6 +271,101 @@ export async function POST(
             if (identidad.municipality) parsedContent.sectionI.municipality = identidad.municipality;
             if (identidad.schoolZone) parsedContent.sectionI.schoolZone = identidad.schoolZone;
 
+            // Hidratación determinista de metadatos oficiales Sección I (evita fallos fail-closed por omisiones del LLM)
+            const resolvedSubsystem =
+              (typeof parsedContent.sectionI.subsystem === 'string' && parsedContent.sectionI.subsystem.trim()) ||
+              context.subsystem ||
+              officialProgram?.subsystem ||
+              (typeof existingSectionI?.subsystem === 'string' && existingSectionI.subsystem.trim()) ||
+              'Bachillerato General Estatal (BGE)';
+            const resolvedUacName =
+              (typeof parsedContent.sectionI.uacName === 'string' && parsedContent.sectionI.uacName.trim()) ||
+              planning.uac_name ||
+              effectiveExtractedData.uacName ||
+              officialProgram?.uac_name ||
+              '';
+            const resolvedSemester =
+              Number(planning.semester || existingSectionI?.semester || parsedContent.sectionI.semester) || 1;
+            const resolvedComponent =
+              (typeof parsedContent.sectionI.component === 'string' && parsedContent.sectionI.component.trim()) ||
+              (planning.component as string) ||
+              'fundamental';
+            const resolvedTotalHoursRaw =
+              Number(
+                officialProgram?.total_hours ||
+                  effectiveExtractedData.totalHours ||
+                  existingSectionI?.totalHours ||
+                  parsedContent.sectionI.totalHours ||
+                  0
+              ) || 0;
+            const extractedWeekly = (effectiveExtractedData as unknown as { totalHoursWeekly?: number }).totalHoursWeekly;
+            const resolvedWeeklyHours = resolveWeeklyHours({
+              uacName: resolvedUacName,
+              subsystem: resolvedSubsystem,
+              totalHours: resolvedTotalHoursRaw > 0 ? resolvedTotalHoursRaw : undefined,
+              totalHoursWeekly:
+                typeof parsedContent.sectionI.totalHoursWeekly === 'number' && parsedContent.sectionI.totalHoursWeekly > 0
+                  ? parsedContent.sectionI.totalHoursWeekly
+                  : typeof extractedWeekly === 'number' && extractedWeekly > 0
+                    ? extractedWeekly
+                    : undefined,
+              extractedData: effectiveExtractedData as unknown as Record<string, unknown>,
+            });
+            const resolvedTotalHours =
+              resolvedTotalHoursRaw > 0
+                ? resolvedTotalHoursRaw
+                : resolvedWeeklyHours * resolveSemesterWeeks(resolvedSubsystem);
+
+            parsedContent.sectionI.uacName = resolvedUacName;
+            if (!parsedContent.sectionI.subjectName) {
+              parsedContent.sectionI.subjectName = resolvedUacName;
+            }
+            parsedContent.sectionI.semester = resolvedSemester;
+            parsedContent.sectionI.component = resolvedComponent;
+            parsedContent.sectionI.subsystem = resolvedSubsystem;
+            parsedContent.sectionI.totalHours = resolvedTotalHours;
+            parsedContent.sectionI.totalHoursWeekly = resolvedWeeklyHours;
+            if (!parsedContent.sectionI.teacherName) {
+              parsedContent.sectionI.teacherName =
+                session.user?.name || (typeof (teacher as { name?: string }).name === 'string' ? (teacher as { name?: string }).name : '') || 'Docente Titular';
+            }
+            if (!parsedContent.sectionI.schoolName) {
+              parsedContent.sectionI.schoolName = 'Plantel EMS';
+            }
+            if (!parsedContent.sectionI.groups) {
+              parsedContent.sectionI.groups =
+                (context.groupInfo && context.groupInfo.trim()) ||
+                (typeof existingSectionI?.groups === 'string' && existingSectionI.groups.trim()) ||
+                'Grupo Único';
+            }
+            if (!parsedContent.sectionI.applicationPeriod) {
+              parsedContent.sectionI.applicationPeriod =
+                (context.applicationPeriod && context.applicationPeriod.trim()) ||
+                (typeof existingSectionI?.applicationPeriod === 'string' && existingSectionI.applicationPeriod.trim()) ||
+                'Semestre 2026-2027';
+            }
+            if (!parsedContent.sectionI.schoolYear) {
+              parsedContent.sectionI.schoolYear = '2026-2027';
+            }
+            if (!parsedContent.sectionI.metodologiaActiva && (planning.metodologia_activa || context.metodologiaActiva)) {
+              parsedContent.sectionI.metodologiaActiva = planning.metodologia_activa || context.metodologiaActiva;
+            }
+
+            // Garantizar Reto Situado 4/4 antes de la validación Anexo 12
+            if (parsedContent.sectionII && typeof parsedContent.sectionII === 'object') {
+              parsedContent.sectionII.retoSituado = ensureRetoSituadoCalidad(
+                parsedContent.sectionII.retoSituado,
+                {
+                  municipality: context.municipality || (parsedContent.sectionI.municipality as string | undefined),
+                  locality: context.locality,
+                  region: context.region,
+                  schoolName: parsedContent.sectionI.schoolName as string | undefined,
+                  uacName: resolvedUacName,
+                  paecProblem: context.paecProblem || planning.paec_context || undefined,
+                }
+              );
+            }
+
             // Post-procesamiento determinista para garantizar 1 bloque por Progresión oficial (verbatim) en 5.º/6.º semestre
             enforceOfficialProgresiones(
               parsedContent as unknown as Record<string, unknown>,
@@ -274,37 +375,98 @@ export async function POST(
               planning.component as string
             );
 
-            // Diversificación contextual determinista del Catálogo Oficial de Instrumentos (Sección V)
-            if (parsedContent.sectionV && Array.isArray(parsedContent.sectionV.evaluations)) {
-              parsedContent.sectionV.evaluations = diversificarInstrumentosEvaluacion(
-                parsedContent.sectionV.evaluations,
-                {
-                  uacName: planning.uac_name || effectiveExtractedData.uacName,
-                  componente: planning.component as string,
-                  metodologia: planning.metodologia_activa || context.metodologiaActiva,
-                  activities: parsedContent.sectionIV?.activities?.map((a: { name?: string; contenidoFormativo?: string }) => ({
-                    name: a.name,
-                    contenidoFormativo: a.contenidoFormativo,
-                  })),
-                }
-              );
+            // Normalización y diversificación determinista de evaluación (Sección V) + Bitácora 50-20-30
+            if (!parsedContent.sectionV || typeof parsedContent.sectionV !== 'object') {
+              parsedContent.sectionV = {};
             }
+            parsedContent.sectionV.evaluations = normalizeEvaluationPercentages(
+              Array.isArray(parsedContent.sectionV.evaluations) ? parsedContent.sectionV.evaluations : undefined
+            ).map((ev) => ({
+              ...ev,
+              agent: (typeof ev.agent === 'string' && ev.agent.trim().length >= 3 ? ev.agent : 'Heteroevaluación docente'),
+              evidence: (typeof ev.evidence === 'string' && ev.evidence.trim().length >= 5 ? ev.evidence : `Evidencia de ${resolvedUacName}`),
+              instrument: (typeof ev.instrument === 'string' && ev.instrument.trim().length >= 3 ? ev.instrument : 'Rúbrica analítica'),
+            }));
+            parsedContent.sectionV.evaluations = diversificarInstrumentosEvaluacion(
+              parsedContent.sectionV.evaluations,
+              {
+                uacName: resolvedUacName,
+                componente: resolvedComponent,
+                metodologia: planning.metodologia_activa || context.metodologiaActiva,
+                activities: parsedContent.sectionIV?.activities?.map((a: { name?: string; contenidoFormativo?: string }) => ({
+                  name: a.name,
+                  contenidoFormativo: a.contenidoFormativo,
+                })),
+              }
+            );
+            const rawBitacora = (parsedContent.sectionV.bitacora502030 && typeof parsedContent.sectionV.bitacora502030 === 'object')
+              ? (parsedContent.sectionV.bitacora502030 as Record<string, unknown>)
+              : {};
+            parsedContent.sectionV.bitacora502030 = {
+              ...rawBitacora,
+              criterioProceso50:
+                typeof rawBitacora.criterioProceso50 === 'string' && rawBitacora.criterioProceso50.trim().length >= 10
+                  ? rawBitacora.criterioProceso50
+                  : `Seguimiento formativo continuo en actividades de ${resolvedUacName} (50%)`,
+              evidenciaColectiva20:
+                typeof rawBitacora.evidenciaColectiva20 === 'string' && rawBitacora.evidenciaColectiva20.trim().length >= 5
+                  ? rawBitacora.evidenciaColectiva20
+                  : 'Producto colaborativo de corte PAEC (20%)',
+              evidenciaIndividual30:
+                typeof rawBitacora.evidenciaIndividual30 === 'string' && rawBitacora.evidenciaIndividual30.trim().length >= 5
+                  ? rawBitacora.evidenciaIndividual30
+                  : 'Resolución individual contextualizada (30%)',
+              ticketSalidaPregunta:
+                typeof rawBitacora.ticketSalidaPregunta === 'string' && rawBitacora.ticketSalidaPregunta.trim().length >= 5
+                  ? rawBitacora.ticketSalidaPregunta
+                  : `¿Qué concepto de ${resolvedUacName} aplicaste hoy en tu contexto?`,
+            };
+
+            const sanitizedContent = sanitizePlanningContent(parsedContent, {
+              fallbackCct: typeof parsedContent.sectionI.cct === 'string' ? parsedContent.sectionI.cct : undefined,
+            });
 
             // Gate Pedagógico Dual determinista (Anexo 12 USICAMM + DBEPA Quality Gate)
             const persistResult = await validateAndPersistPlanningContent(
               id,
               teacher.id,
-              parsedContent as unknown as GeneratedPlanningContent,
+              sanitizedContent as unknown as GeneratedPlanningContent,
               {
                 isNewOrStrictMode: true,
                 context: {
-                  uacName: planning.uac_name || undefined,
-                  semester: planning.semester as number,
-                  component: planning.component as string,
-                  subsystem: context.subsystem,
+                  uacName: resolvedUacName || undefined,
+                  semester: resolvedSemester,
+                  component: resolvedComponent,
+                  subsystem: resolvedSubsystem,
+                  weeklyHours: resolvedWeeklyHours,
+                  totalHours: resolvedTotalHours,
                 },
               }
             );
+
+            if (!persistResult.success) {
+              const failureDetails = (persistResult.criticalFailures || [])
+                .map((c) => `${c.id}: ${c.label}`)
+                .join('; ');
+              logger.error(
+                `[Anexo12] Persistencia bloqueada para planeación ${id}: ${persistResult.error || 'Fallo crítico'} [${failureDetails}]`
+              );
+              await logActivity({
+                teacherEmail,
+                action: 'generate_planning',
+                entityType: 'planning',
+                entityId: id,
+                success: false,
+              }).catch(() => {});
+              const suffix = failureDetails ? ` Detalle: ${failureDetails.slice(0, 220)}` : '';
+              controller.enqueue(
+                encoder.encode(
+                  `\n__ERROR__:${persistResult.error || 'La planeación generada no superó la validación normativa Anexo 12 y no se guardó.'}${suffix}`
+                )
+              );
+              controller.close();
+              return;
+            }
 
             if (persistResult.anexo12Report.ok) {
               logger.info(

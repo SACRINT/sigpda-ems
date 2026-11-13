@@ -270,6 +270,7 @@ export interface ActiveWorkTextbook {
   blockName: string;
   version: number;
   subsystem: 'bge' | 'bt' | string;
+  methodology?: string;
   targetPages: number;
   totalPages: number;
   totalWords: number;

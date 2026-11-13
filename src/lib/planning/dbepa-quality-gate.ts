@@ -1,4 +1,5 @@
 import type { GeneratedPlanningContent } from '@/types/planning';
+import { resolveSemesterWeeks } from '@/lib/guide-engine/content-budget';
 import { validateRetoSituado44 } from '@/lib/planning/quality-pipeline';
 
 export type DBEPACriterionStatus = 'cumple' | 'parcial' | 'no_cumple';
@@ -61,7 +62,7 @@ function makeCriterion(
 
 export function evaluateDBEPA(
   content: GeneratedPlanningContent | null | undefined,
-  meta?: { uacName?: string; semester?: number }
+  meta?: { uacName?: string; semester?: number; subsystem?: string }
 ): DBEPAAudit {
   const root = asRec(content);
   const s1 = asRec(root.sectionI);
@@ -97,13 +98,19 @@ export function evaluateDBEPA(
 
   // 2. Carga horaria y dosificación
   const totalHours = asNum(s1.totalHours);
-  const weeklyHours = asNum(s1.totalHoursWeekly) || (totalHours > 0 ? Math.round(totalHours / 18) : 0);
+  const subsystem = meta?.subsystem || asStr(s1.subsystem);
+  const semesterWeeks = subsystem
+    ? resolveSemesterWeeks(subsystem)
+    : totalHours >= 60 && totalHours % 16 === 0 && totalHours % 18 !== 0
+      ? 16
+      : 18;
+  const weeklyHours = asNum(s1.totalHoursWeekly) || (totalHours > 0 ? Math.round(totalHours / semesterWeeks) : 0);
   const activitiesHours = activities.reduce<number>((sum, act) => sum + asNum(asRec(act).hours), 0);
-  const expectedTotal = weeklyHours > 0 ? weeklyHours * 18 : 0;
+  const expectedTotal = weeklyHours > 0 ? weeklyHours * semesterWeeks : 0;
   const hoursOk =
     totalHours > 0 &&
     weeklyHours > 0 &&
-    Math.abs(totalHours - expectedTotal) <= 1 &&
+    (Math.abs(totalHours - expectedTotal) <= 1 || (totalHours === 64 && weeklyHours === 4)) &&
     (activities.length === 0 || Math.abs(activitiesHours - totalHours) <= 1);
   const hoursPartial = totalHours > 0 && (weeklyHours > 0 || activitiesHours > 0);
   criteria.push(
@@ -113,7 +120,7 @@ export function evaluateDBEPA(
       'Carga horaria y dosificación semestral',
       hoursOk ? 1 : hoursPartial ? 0.5 : 0,
       `${totalHours} h totales; ${weeklyHours} h/semana; ${activitiesHours} h en la secuencia.`,
-      'Verifica que las horas totales correspondan a 18 semanas y que la suma de actividades coincida.'
+      `Verifica que las horas totales correspondan a ${semesterWeeks} semanas y que la suma de actividades coincida.`
     )
   );
 
@@ -244,7 +251,10 @@ export function evaluateDBEPA(
   );
 
   // 10. Evaluación integral y ponderación
-  const moments = evaluations.map((raw) => asStr(asRec(raw).moment || asRec(raw).type).toLowerCase());
+  const moments = evaluations.map((raw) => {
+    const rec = asRec(raw);
+    return `${asStr(rec.type)} ${asStr(rec.moment)} ${asStr(rec.name)}`.toLowerCase();
+  });
   const hasDiagnostic = moments.some((m) => m.includes('diagn'));
   const hasFormative = moments.some((m) => m.includes('format'));
   const hasSummative = moments.some((m) => m.includes('sumat'));

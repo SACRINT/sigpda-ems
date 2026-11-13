@@ -221,7 +221,7 @@ export default function PlanningTabMateriales({
   const content = planning.contentJson as GeneratedPlanningContent | null;
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
-  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content), [content]);
+  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content, planning), [content, planning]);
 
   // Revisión determinista R1 en memoria por bloque (<15ms, 0 tokens) vía hook compartido
   const blockReviews = useBlockMaterialReviews(planning, blockWorkbooks, sequenceData, extras);

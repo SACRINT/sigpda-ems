@@ -11,6 +11,8 @@
  *  - warning: recomendación de calidad; no invalida por sí sola.
  */
 
+import { resolveSemesterWeeks } from '@/lib/guide-engine/content-budget';
+
 export type Anexo12Severity = 'critical' | 'warning';
 
 export interface Anexo12Check {
@@ -76,19 +78,26 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   const component = asStr(sectionI.component) || context.component || '';
   const subsystem = asStr(sectionI.subsystem) || context.subsystem || '';
   const totalHours = asNum(sectionI.totalHours) || context.totalHours || 0;
+  const semesterWeeks = resolveSemesterWeeks(subsystem);
+  const parsedSemester = (() => {
+    const direct = asNum(sectionI.semester);
+    if (direct >= 1 && direct <= 6) return direct;
+    const match = asStr(sectionI.semester).match(/[1-6]/);
+    if (match) return Number(match[0]);
+    return context.semester && context.semester >= 1 && context.semester <= 6 ? context.semester : 0;
+  })();
+  const isLaboral = /laboral|formaci[oó]n para el trabajo|capacitaci[oó]n/i.test(component);
+  const isBt = semesterWeeks === 16 || /profesional|t[eé]cnic/i.test(component);
   const weeklyHours =
     asNum(sectionI.totalHoursWeekly) ||
     context.weeklyHours ||
-    (totalHours > 0 ? Math.round(totalHours / 18) : 0);
-  const isLaboral = /laboral|formaci[oó]n para el trabajo|capacitaci[oó]n/i.test(component);
-  // BT opera por módulos de 80–160 h; BGE laboral opera con 3 bloques de 18 h (54 h).
-  const isBt = /tecnol[oó]gic|\bbt\b/i.test(subsystem) || /profesional|t[eé]cnic/i.test(component);
+    (totalHours > 0 ? Math.round(totalHours / semesterWeeks) : 0);
 
   // ── I. Datos generales ─────────────────────────────────────────────────────
   add('i_uac', 'UAC / asignatura identificada', hasText(uacName, 5), 'critical', uacName);
   add('i_docente', 'Nombre del docente', hasText(sectionI.teacherName, 5));
   add('i_plantel', 'Nombre del plantel', hasText(sectionI.schoolName, 3));
-  add('i_semestre', 'Semestre entre 1 y 6', asNum(sectionI.semester) >= 1 && asNum(sectionI.semester) <= 6);
+  add('i_semestre', 'Semestre entre 1 y 6', parsedSemester >= 1 && parsedSemester <= 6);
   add('i_componente', 'Componente curricular declarado', hasText(component, 3), 'critical', component);
   add('i_subsistema', 'Subsistema declarado', hasText(subsystem, 3), 'warning', subsystem);
   add('i_grupos', 'Grupos atendidos', hasText(sectionI.groups, 1));
@@ -178,7 +187,7 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   if (isLaboral) {
     if (isBt) {
       add('iv_laboral_3_actividades', 'Formación laboral BT: al menos 3 Actividades Clave por módulo', secuencia.length >= 3, 'warning', `${secuencia.length}`);
-      add('iv_bt_carga_modular', 'Formación laboral BT: carga modular de 80 a 160 h', totalHours >= 80 && totalHours <= 160, 'warning', `${totalHours} h`);
+      add('iv_bt_carga_modular', 'Formación laboral BT: carga modular oficial (48 a 224 h)', totalHours >= 48 && totalHours <= 224, 'warning', `${totalHours} h`);
     } else {
       add('iv_laboral_3_actividades', 'Formación laboral BGE: exactamente 3 Actividades Clave', secuencia.length === 3, 'critical', `${secuencia.length}`);
       add('iv_laboral_54h', 'Formación laboral BGE: 54 h (3 × 18 h)', Math.abs(totalHours - 54) <= 1, 'warning', `${totalHours} h`);
@@ -195,7 +204,10 @@ export function validateAnexo12(content: unknown, context: Anexo12Context = {}):
   );
   add('v_ponderacion_100', 'Ponderaciones suman 100% (±1)', Math.abs(ponderacion - 100) <= 1, 'critical', `${ponderacion}%`);
 
-  const momentos = evaluations.map((ev) => asStr(asRec(ev).moment ?? asRec(ev).type).toLowerCase());
+  const momentos = evaluations.map((ev) => {
+    const rec = asRec(ev);
+    return `${asStr(rec.type)} ${asStr(rec.moment)} ${asStr(rec.name)}`.toLowerCase();
+  });
   add(
     'v_momentos',
     'Incluye evaluación diagnóstica, formativa y sumativa',

@@ -162,7 +162,7 @@ export default function PlanningDownloadsHub({
                 color: '#c7d2fe',
                 fontWeight: 600,
               }}
-              title="Descargar los 10 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
+              title="Descargar los 9 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
             >
               <Archive size={12} /> Paquete Completo (Word + PPTX ZIP)
             </a>
@@ -182,7 +182,7 @@ export default function PlanningDownloadsHub({
                 color: '#fca5a5',
                 fontWeight: 600,
               }}
-              title="Descargar los 10 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
+              title="Descargar los 9 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
             >
               <Archive size={12} /> Paquete Completo (PDF + PPTX ZIP)
             </a>

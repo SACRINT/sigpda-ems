@@ -132,7 +132,7 @@ export default function PlanningTabDocumento({
       onPlanningUpdated?.(nextContent);
     }
   };
-  const curricularBlocks = resolveCurricularBlocks(content);
+  const curricularBlocks = resolveCurricularBlocks(content, planning);
   const dbepaAudit = evaluateDBEPA(content, {
     uacName: planning.uacName,
     semester: planning.semester,

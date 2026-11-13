@@ -275,7 +275,7 @@ export async function generateBlockWorkTextbook(
     sequenceJson: rawPlanning.sequence_json || rawPlanning.sequenceJson || null,
   };
 
-  const curricularBlocks = resolveCurricularBlocks(planning.contentJson);
+  const curricularBlocks = resolveCurricularBlocks(planning.contentJson, rawPlanning || planning);
   const targetBlock = curricularBlocks[blockIndex];
   const currentBlockActivity = targetBlock?.activities[0] || planning.contentJson?.sectionIV?.activities?.[blockIndex];
   const blockName = targetBlock?.title || currentBlockActivity?.name || `Bloque ${blockIndex + 1}`;
@@ -300,7 +300,7 @@ export async function generateBlockWorkTextbook(
         },
         saberes: targetBlock.saberes || currentBlockActivity?.saberes,
         contenidoFormativo: targetBlock.contenidoFormativo || currentBlockActivity?.contenidoFormativo,
-        methodology: targetBlock.methodology || currentBlockActivity?.methodology,
+        methodology: targetBlock.methodology || currentBlockActivity?.methodology || planning.metodologiaActiva || undefined,
       }
     : undefined;
 
@@ -884,6 +884,7 @@ export async function generateBlockWorkTextbook(
     blockName,
     version: 1, // saveBlockWorkbook se encargará de asignar la versión correlativa
     subsystem: curriculumContext.subsystem,
+    methodology: planningActivities?.methodology || planning.metodologiaActiva || undefined,
     targetPages: budget.targetPages.ideal,
     totalPages,
     totalWords,

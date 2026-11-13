@@ -13,7 +13,7 @@ import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-re
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
-import { resolveWeeklyHours, computeContentBudget } from '@/lib/guide-engine/content-budget';
+import { resolveWeeklyHours, resolveSessionsPerBlock, computeContentBudget } from '@/lib/guide-engine/content-budget';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -119,7 +119,7 @@ function PlanningDetailModular({
   );
 
   // Generate detailed pedagogical sessions for all 3 curricular blocks using Session Progression Engine
-  const curricularBlocks = useMemo(() => resolveCurricularBlocks(content), [content]);
+  const curricularBlocks = useMemo(() => resolveCurricularBlocks(content, planning), [content, planning]);
   const blockSessionsMap: DetailedSession[][] = useMemo(() => {
     return curricularBlocks.map((block) => {
       const savedSeq = sequenceData?.[block.blockIndex] || null;
@@ -361,7 +361,7 @@ function PlanningDetailModular({
             throw new Error(`Bloque ${blockIndex + 1} no encontrado en la planeación`);
           }
           const outcome = content?.sectionII?.learningOutcomes?.[blockIndex] || '';
-          const hours = act.hours || (isLaboral ? 18 : 12);
+          const hours = act.hours || resolveSessionsPerBlock(resolveWeeklyHours(planning));
           const rawSessions = generateBlockSessions(act, blockIndex, hours, outcome, isLaboral, null);
           const sessions: SecuenciaSesion[] = rawSessions.map((s) => ({
             sessionNum: s.sessionNum,

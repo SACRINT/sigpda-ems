@@ -144,6 +144,7 @@ export async function buildAulaPackageZip(
     paecContext: planning.paec_context || '',
     extractedData: planning.extracted_data,
     contentJson: planning.content_json,
+    metodologiaActiva: (planning as unknown as { metodologia_activa?: string }).metodologia_activa || undefined,
     sequenceJson: rawSequenceJson,
     workbooksJson: (planning as unknown as { workbooks_json?: Record<string, { current?: ActiveWorkTextbook }> }).workbooks_json || null,
     status: planning.status,

@@ -4,6 +4,7 @@ import { getTeacherByEmail, getPlanningsByTeacher, createPlanning, getProgramByU
 import { canCreatePlanningForSubject, lockSubjectInSubscription } from '@/lib/subscription-gate';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { repairExtractedDataWithCatalog } from '@/lib/planning/progresiones-enforcer';
+import { resolveSemesterWeeks, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
 import { logger } from '@/lib/logger';
 
 export async function GET() {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Docente no encontrado' }, { status: 404 });
     }
     const body = await request.json();
-    const { uacName, semester, component, curriculumName, paecContext, extractedData, metodologiaActiva, paecOperationalActivity, teacherName } = body;
+    const { uacName, semester, component, curriculumName, paecContext, extractedData, metodologiaActiva, paecOperationalActivity, teacherName, subsystem } = body;
     if (!uacName || !semester || !component) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos: uacName, semester, component' },
@@ -63,22 +64,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Si es 5.º o 6.º semestre, enriquecer/reparar extractedData con el catálogo oficial
+    // Consultar catálogo oficial para garantizar horas oficiales y metadatos en todos los semestres/subsistemas
     let finalExtractedData = extractedData;
-    if (Number(semester) >= 5 && component !== 'laboral' && extractedData) {
-      try {
-        const officialProgram = await getProgramByUacAndSemester(uacName, Number(semester), component);
-        if (officialProgram) {
-          finalExtractedData = repairExtractedDataWithCatalog(
-            extractedData,
-            officialProgram,
-            Number(semester),
-            component
-          );
-        }
-      } catch (catErr) {
-        logger.warn('[plannings POST] Optional catalog repair skipped:', catErr);
+    let officialProgram = null;
+    try {
+      officialProgram = await getProgramByUacAndSemester(uacName, Number(semester), component, subsystem);
+      if (officialProgram && Number(semester) >= 5 && component !== 'laboral' && extractedData) {
+        finalExtractedData = repairExtractedDataWithCatalog(
+          extractedData,
+          officialProgram,
+          Number(semester),
+          component
+        );
       }
+    } catch (catErr) {
+      logger.warn('[plannings POST] Optional catalog lookup skipped:', catErr);
+    }
+
+    const resolvedSubsystem =
+      (typeof subsystem === 'string' && subsystem.trim()) ||
+      officialProgram?.subsystem ||
+      extractedData?.subsystem ||
+      undefined;
+    const resolvedTotalHours =
+      Number(officialProgram?.total_hours || finalExtractedData?.totalHours || 0) || undefined;
+    const resolvedWeeklyHours = resolveWeeklyHours({
+      uacName,
+      subsystem: resolvedSubsystem,
+      totalHours: resolvedTotalHours,
+      extractedData: finalExtractedData,
+    });
+    const effectiveTotalHours =
+      resolvedTotalHours || resolvedWeeklyHours * resolveSemesterWeeks(resolvedSubsystem);
+
+    if (finalExtractedData && typeof finalExtractedData === 'object') {
+      finalExtractedData = {
+        ...finalExtractedData,
+        totalHours: finalExtractedData.totalHours || effectiveTotalHours,
+        totalHoursWeekly: finalExtractedData.totalHoursWeekly || resolvedWeeklyHours,
+        ...(resolvedSubsystem && !finalExtractedData.subsystem ? { subsystem: resolvedSubsystem } : {}),
+      };
     }
 
     // Crear la planeación
@@ -103,6 +128,9 @@ export async function POST(request: NextRequest) {
       cct: identidad.cct,
       municipality: identidad.municipality,
       schoolZone: identidad.schoolZone,
+      subsystem: resolvedSubsystem || null,
+      totalHours: effectiveTotalHours,
+      totalHoursWeekly: resolvedWeeklyHours,
     });
 
     // Registrar la materia en la suscripción si aún no está (consume un slot)

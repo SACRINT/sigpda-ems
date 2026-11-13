@@ -5,7 +5,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable, { RowInput } from 'jspdf-autotable';
-import type { FechasCortes, GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
+import type { FechasCortes, GeneratedPlanningContent, Planning, SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { loadAllLogos } from './pdf-logos';
 import { SCHOOL_YEAR } from '@/lib/config';
@@ -19,7 +19,7 @@ import {
   setFontCaption,
 } from './visual-engine/font-loader';
 import { normalizeEvaluationPercentages, sanitizePlanningContent } from '@/lib/planning/quality-pipeline';
-import { DEFAULT_UAC_WEEKLY_HOURS, normalizeUacKey } from '@/lib/planning/uac-hours-catalog';
+import { resolveSemesterWeeks, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
 import { buildFullSequenceFromWorkbooks } from '@/lib/planning/workbook-sequence-sync';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { resolveSchoolIdentity, resolverIdentidadEscolar, CCT_NO_REGISTRADO } from '@/lib/school-identity';
@@ -157,29 +157,72 @@ function resolveComponentLabel(rawComp: string, fallback?: string): string {
 function resolveCanonicalHours(
   uacName: string,
   s1TotalHours?: number,
-  s1WeeklyHours?: number
+  s1WeeklyHours?: number,
+  subsystem?: string,
+  extractedData?: Record<string, unknown> | null
 ): { totalHours: number; weeklyHours: number } {
-  const norm = normalizeUacKey(uacName);
-  let catalogWeekly = 0;
-  for (const [key, hrs] of Object.entries(DEFAULT_UAC_WEEKLY_HOURS)) {
-    if (norm.includes(key)) {
-      catalogWeekly = hrs;
-      break;
-    }
-  }
+  const weeks = subsystem
+    ? resolveSemesterWeeks(subsystem)
+    : s1TotalHours && s1TotalHours >= 60 && s1TotalHours % 16 === 0 && s1TotalHours % 18 !== 0
+      ? 16
+      : 18;
+  const weeklyHours = resolveWeeklyHours({
+    uacName,
+    subsystem,
+    totalHours: s1TotalHours,
+    totalHoursWeekly: s1WeeklyHours,
+    extractedData,
+  });
+  const extractedTotal =
+    typeof extractedData?.totalHours === 'number' && extractedData.totalHours > 0
+      ? extractedData.totalHours
+      : typeof extractedData?.hours_per_semester === 'number' && extractedData.hours_per_semester > 0
+        ? extractedData.hours_per_semester
+        : 0;
   const totalHours =
     s1TotalHours && s1TotalHours > 0
       ? s1TotalHours
-      : catalogWeekly > 0
-        ? catalogWeekly * 18
-        : 72;
-  const weeklyHours =
-    s1WeeklyHours && s1WeeklyHours > 0
-      ? s1WeeklyHours
-      : catalogWeekly > 0
-        ? catalogWeekly
-        : Math.round(totalHours / 18);
+      : extractedTotal > 0
+        ? extractedTotal
+        : weeklyHours * weeks;
   return { totalHours, weeklyHours };
+}
+
+function appendSequenceSessionsRows(
+  rows: RowInput[],
+  sessions: SecuenciaSesion[],
+  totalBlockSessions: number,
+  phaseColors: { apertura: [number, number, number]; desarrollo: [number, number, number]; cierre: [number, number, number] },
+  headerFill: [number, number, number]
+): void {
+  rows.push([
+    {
+      content: `Sesiones Programadas (${sessions.length} sesiones de 50 minutos) — Enfoque por Momentos Formativos`,
+      colSpan: 4,
+      styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
+    },
+  ]);
+  rows.push([
+    { content: 'Sesión / Fase', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 24, halign: 'center' } },
+    { content: 'Título / Tema Situado', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 42 } },
+    { content: 'Actividades del Docente (Enseñanza)', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 60 } },
+    { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 } },
+  ]);
+
+  sessions.forEach((s) => {
+    const isAp = s.phase === 'Apertura';
+    const isDes = s.phase === 'Desarrollo';
+    const phaseColor = isAp ? phaseColors.apertura : isDes ? phaseColors.desarrollo : phaseColors.cierre;
+    rows.push([
+      {
+        content: `S${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || sessions.length)}\n[${s.phase}]`,
+        styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
+      },
+      { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
+      { content: s.teachingActivity, styles: { fontSize: 6.2 } },
+      { content: `${s.learningActivity}${s.evidence ? `\n\n📌 Evidencia: ${s.evidence}` : ''}`, styles: { fontSize: 6.2 } },
+    ]);
+  });
 }
 
 export async function generatePlanningPDF(
@@ -325,10 +368,13 @@ export async function generatePlanningPDF(
   drawOfficialHeader();
 
   // ─── Sección I: Datos Generales ──────────────────────────────────────────
+  const rawExtractedMain = (planning.extractedData || rawPlan.extracted_data) as Record<string, unknown> | undefined;
   const { totalHours: totalHoursVal, weeklyHours: weeklyHoursVal } = resolveCanonicalHours(
     rawUacName,
     s1?.totalHours,
-    s1?.totalHoursWeekly
+    s1?.totalHoursWeekly,
+    s1?.subsystem || (rawExtractedMain?.subsystem as string | undefined),
+    rawExtractedMain
   );
   autoTable(doc, {
     startY: currentY,
@@ -858,7 +904,11 @@ export async function generateSecuenciaPDF(
 ): Promise<jsPDF> {
   const rawPlan = planning as unknown as Record<string, unknown>;
   const rawContent = (planning.contentJson || rawPlan.content_json) as GeneratedPlanningContent | null;
-  const sequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const rawSequenceData = (planning.sequenceJson || rawPlan.sequence_json) as Record<number, SecuenciaBloque> | null | undefined;
+  const rawWorkbooks = (rawPlan.workbooks_json || rawPlan.workbooksJson) as
+    | Record<string, { current?: ActiveWorkTextbook } | ActiveWorkTextbook | undefined>
+    | null
+    | undefined;
   const identidadPrevia = resolverIdentidadEscolar({
     schoolName: rawContent?.sectionI?.schoolName,
     cct: rawContent?.sectionI?.cct,
@@ -871,6 +921,9 @@ export async function generateSecuenciaPDF(
   const s2 = content?.sectionII;
   const s4 = content?.sectionIV;
   const s5 = content?.sectionV;
+  const sequenceData = rawWorkbooks
+    ? buildFullSequenceFromWorkbooks(rawWorkbooks, s4?.activities, rawSequenceData)
+    : rawSequenceData;
   const identidad = resolveSchoolIdentity({ sectionI: s1 });
 
   const rawUacName = String(
@@ -881,10 +934,13 @@ export async function generateSecuenciaPDF(
   const rawComponent = String(planning.component || rawPlan.component || s1?.component || '');
   const isLaboral = rawComponent.toLowerCase().includes('laboral') || false;
   const isProgresiones = semesterVal >= 5 || rawPlan.model_type === 'progresiones' || rawPlan.modelType === 'progresiones';
+  const rawExtractedSec = (planning.extractedData || rawPlan.extracted_data) as Record<string, unknown> | undefined;
   const { totalHours: totalHoursVal, weeklyHours: weeklyHoursVal } = resolveCanonicalHours(
     rawUacName,
     s1?.totalHours,
-    s1?.totalHoursWeekly
+    s1?.totalHoursWeekly,
+    s1?.subsystem || (rawExtractedSec?.subsystem as string | undefined),
+    rawExtractedSec
   );
 
   const logos = providedLogos || (await loadAllLogos());
@@ -1143,34 +1199,13 @@ export async function generateSecuenciaPDF(
     }
 
     if (sessions.length > 0) {
-      rows.push([
-        {
-          content: `Sesiones Programadas (${sessions.length} sesiones de 50 minutos) — Enfoque por Momentos Formativos`,
-          colSpan: 4,
-          styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
-        },
-      ]);
-      rows.push([
-        { content: 'Sesión / Fase', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 24, halign: 'center' } },
-        { content: 'Título / Tema Situado', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 42 } },
-        { content: 'Actividades del Docente (Enseñanza)', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 60 } },
-        { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fillColor: BLUE_MID, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 } },
-      ]);
-
-      sessions.forEach((s) => {
-        const isAp = s.phase === 'Apertura';
-        const isDes = s.phase === 'Desarrollo';
-        const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
-        rows.push([
-          {
-            content: `S${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || sessions.length)}\n[${s.phase}]`,
-            styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
-          },
-          { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
-          { content: s.teachingActivity, styles: { fontSize: 6.2 } },
-          { content: `${s.learningActivity}${s.evidence ? `\n\n📌 Evidencia: ${s.evidence}` : ''}`, styles: { fontSize: 6.2 } },
-        ]);
-      });
+      appendSequenceSessionsRows(
+        rows,
+        sessions,
+        totalBlockSessions,
+        { apertura: PHASE_APERTURA, desarrollo: PHASE_DESARROLLO, cierre: PHASE_CIERRE },
+        BLUE_MID
+      );
     } else {
       // Fallback a momentos macro si no se generó secuencia micro
       rows.push([
@@ -1191,7 +1226,7 @@ export async function generateSecuenciaPDF(
       startY: currentY,
       head: [[
         {
-          content: `${buildPlanningActivityHeading(act, idx, activities, { isProgresiones, uppercase: true })} (${act.hours || 12} HORAS) — Metodología: ${act.methodology || 'ABP'}`,
+          content: `${buildPlanningActivityHeading(act, idx, activities, { isProgresiones, uppercase: true })} (${act.hours || Math.round(totalHoursVal / Math.max(1, activities.length))} HORAS) — Metodología: ${act.methodology || s1?.metodologiaActiva || 'ABP'}`,
           colSpan: 4,
           styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255], fontSize: 7.5 },
         },
@@ -1206,6 +1241,42 @@ export async function generateSecuenciaPDF(
 
     currentY = doc.lastAutoTable!.finalY + 4;
   });
+
+  if (activities.length === 0 && sequenceData && Object.keys(sequenceData).length > 0) {
+    const seqEntries = Object.entries(sequenceData)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .filter(([, blk]) => blk && Array.isArray(blk.sessions) && blk.sessions.length > 0);
+    for (const [key, blk] of seqEntries) {
+      const corteNum = Number(key) + 1;
+      const cleanBlockName = (blk.blockName || `Bloque ${corteNum} (Corte ${corteNum})`)
+        .replace(/^(Bloque\s+\d+\s*\(Corte\s*\d+\))\s*:\s*\1$/i, '$1');
+      const rows: RowInput[] = [];
+      appendSequenceSessionsRows(
+        rows,
+        blk.sessions,
+        blk.sessions.length,
+        { apertura: PHASE_APERTURA, desarrollo: PHASE_DESARROLLO, cierre: PHASE_CIERRE },
+        BLUE_MID
+      );
+      autoTable(doc, {
+        startY: currentY,
+        head: [[
+          {
+            content: `${cleanBlockName.toUpperCase()} (${blk.hours || blk.sessions.length} HORAS) — Metodología: ${s1?.metodologiaActiva || 'ABP'}`,
+            colSpan: 4,
+            styles: { fillColor: NAVY, fontStyle: 'bold', textColor: [255, 255, 255], fontSize: 7.5 },
+          },
+        ]],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 6.5, cellPadding: 1.4, textColor: TEXT_DARK },
+        margin: { left: margin, right: margin },
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+      });
+      currentY = doc.lastAutoTable!.finalY + 4;
+    }
+  }
 
   // Evaluación, heteroevaluación y ponderación
   const normalizedEvaluations = diversificarInstrumentosEvaluacion(

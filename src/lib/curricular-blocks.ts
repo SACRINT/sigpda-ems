@@ -20,8 +20,9 @@
 import type { KeyActivityPlan, GeneratedPlanningContent } from '@/types/planning';
 import {
   BLOCKS_PER_SEMESTER,
+  type ResolvableHoursPlanning,
+  resolveSemesterWeeks,
   resolveWeeklyHours,
-  SEMESTER_WEEKS,
 } from '@/lib/guide-engine/content-budget';
 
 export interface CurricularBlock {
@@ -147,16 +148,50 @@ export function mapActivityIndexToBlockIndex(
  * Agrupa las actividades o progresiones de la Sección IV de una planeación
  * en exactamente 3 Bloques Curriculares (Corte 1, Corte 2, Corte 3).
  */
+export interface ResolveBlocksFallback extends ResolvableHoursPlanning {
+  component?: string | null;
+}
+
+const ORDINAL_CORTE_NAMES: Record<1 | 2 | 3, string> = {
+  1: 'Primer Corte de Evaluación Formativa',
+  2: 'Segundo Corte de Evaluación Formativa',
+  3: 'Tercer Corte de Evaluación Formativa',
+};
+
+function stripDuplicateBlockPrefix(raw: string): string {
+  return (raw || '')
+    .replace(/^Bloque\s+[1-3](?:\s*\(\s*Corte\s*[1-3]\s*\))?\s*(?:[:\-–—]\s*|$)/i, '')
+    .trim();
+}
+
 export function resolveCurricularBlocks(
-  contentJson: GeneratedPlanningContent | null | undefined
+  contentJson: GeneratedPlanningContent | null | undefined,
+  fallback?: ResolveBlocksFallback | null
 ): CurricularBlock[] {
   const activities = contentJson?.sectionIV?.activities || [];
   const s1 = contentJson?.sectionI;
-  const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
+  const extracted = (fallback?.extractedData || fallback?.extracted_data || {}) as Record<string, unknown>;
+  const componentRaw = s1?.component || fallback?.component || (typeof extracted.component === 'string' ? extracted.component : '') || '';
+  const isLaboral = componentRaw.toLowerCase().includes('laboral');
+  const subsystem =
+    fallback?.subsystem ||
+    s1?.subsystem ||
+    (typeof extracted.subsystem === 'string' ? extracted.subsystem : undefined);
+  const semesterWeeks = resolveSemesterWeeks(subsystem);
+  const extractedTotal =
+    typeof extracted.totalHours === 'number' && extracted.totalHours > 0
+      ? extracted.totalHours
+      : typeof extracted.hours_per_semester === 'number' && extracted.hours_per_semester > 0
+        ? extracted.hours_per_semester
+        : typeof extracted.hours === 'number' && extracted.hours > 0
+          ? extracted.hours
+          : undefined;
   const totalSemesterHours =
     s1?.totalHours ||
     s1?.totalHoursSemester ||
-    resolveWeeklyHours({ contentJson }) * SEMESTER_WEEKS;
+    fallback?.totalHours ||
+    extractedTotal ||
+    resolveWeeklyHours({ ...fallback, contentJson }) * semesterWeeks;
   const defaultHoursPerBlock = Math.round(totalSemesterHours / BLOCKS_PER_SEMESTER);
 
   // Cubetas oficiales: una por corte del semestre (3 en MCCEMS).
@@ -181,9 +216,10 @@ export function resolveCurricularBlocks(
 
     let blockName = '';
     if (acts.length === 0) {
-      blockName = `Bloque ${corteNumber} (${corteLabel})`;
+      blockName = ORDINAL_CORTE_NAMES[corteNumber];
     } else if (acts.length === 1) {
-      blockName = acts[0].name || `${isLaboral ? 'Actividad Clave' : 'Progresión'} ${indices[0] + 1}`;
+      const cleaned = stripDuplicateBlockPrefix(acts[0].name || '');
+      blockName = cleaned || `${isLaboral ? 'Actividad Clave' : 'Progresión'} ${indices[0] + 1}`;
     } else {
       const progNumbers = indices.length === 2
         ? `${indices[0] + 1} y ${indices[1] + 1}`

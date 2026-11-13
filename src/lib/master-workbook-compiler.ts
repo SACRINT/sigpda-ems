@@ -84,7 +84,7 @@ export async function compileSemestralWorkbook(
 /**
  * Fusiona los libros individuales de cada bloque en un libro semestral continuo
  */
-function buildConsolidatedBook(
+export function buildConsolidatedBook(
   books: ActiveWorkTextbook[],
   planning: Planning
 ): { consolidatedBook: ActiveWorkTextbook; semestralQuality: SemestralValidationOutput } {
@@ -159,6 +159,11 @@ function buildConsolidatedBook(
     blockName: 'Compendio Semestral Completo (Bloques I, II y III)',
     version: 1,
     subsystem: firstBook.subsystem,
+    methodology:
+      books.find((b) => b.methodology)?.methodology ||
+      planning.metodologiaActiva ||
+      planning.contentJson?.sectionI?.metodologiaActiva ||
+      undefined,
     targetPages: firstBook.subsystem === 'bt' ? 180 : 130,
     totalPages,
     totalWords,

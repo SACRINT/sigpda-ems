@@ -283,7 +283,7 @@ async function handleBulkPdf(request: NextRequest) {
 
     const zip = new JSZip();
 
-    // RAMA 1: PAQUETE MASTER CONSOLIDADO DE LA PLANEACIÓN (10 Entregables Compilados en 1 Solo Archivo Cada Uno)
+    // RAMA 1: PAQUETE MASTER CONSOLIDADO DE LA PLANEACIÓN (9 Entregables Compilados en 1 Solo Archivo Cada Uno)
     if (isMasterPackage && planning) {
       const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
       const contentJson = planning.content_json as GeneratedPlanningContent | null;
@@ -297,6 +297,7 @@ async function handleBulkPdf(request: NextRequest) {
         paecContext: planning.paec_context || '',
         extractedData: planning.extracted_data,
         contentJson: planning.content_json,
+        metodologiaActiva: (planning as unknown as { metodologia_activa?: string }).metodologia_activa || undefined,
         sequenceJson: (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> }).sequence_json || null,
         workbooksJson: (planning as unknown as { workbooks_json?: Record<string, { current?: ActiveWorkTextbook }> }).workbooks_json || null,
         status: planning.status,

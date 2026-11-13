@@ -61,7 +61,7 @@ export default function PlanningTabSecuencias({
   const s1 = content?.sectionI;
   const isLaboral = s1?.component?.toLowerCase().includes('laboral') || false;
 
-  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content), [content]);
+  const curricularBlocks = React.useMemo(() => resolveCurricularBlocks(content, planning), [content, planning]);
   const blockSessionsMap: DetailedSession[][] = React.useMemo(() => {
     return curricularBlocks.map((block) => {
       const savedSeq = sequenceData?.[block.blockIndex] || null;

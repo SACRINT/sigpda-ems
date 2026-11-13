@@ -46,9 +46,19 @@ export async function createPlanning(data: {
   cct?: string | null;
   municipality?: string | null;
   schoolZone?: string | null;
+  subsystem?: string | null;
+  totalHours?: number | null;
+  totalHoursWeekly?: number | null;
   contentJson?: object | null;
 }) {
   const sectionI: Record<string, unknown> = {};
+  if (data.uacName) sectionI.uacName = data.uacName;
+  if (data.semester) sectionI.semester = data.semester;
+  if (data.component) sectionI.component = data.component;
+  if (data.subsystem) sectionI.subsystem = data.subsystem;
+  if (data.totalHours && data.totalHours > 0) sectionI.totalHours = data.totalHours;
+  if (data.totalHoursWeekly && data.totalHoursWeekly > 0) sectionI.totalHoursWeekly = data.totalHoursWeekly;
+  if (data.metodologiaActiva) sectionI.metodologiaActiva = data.metodologiaActiva;
   if (data.teacherName) sectionI.teacherName = data.teacherName;
   if (data.schoolName) sectionI.schoolName = data.schoolName;
   if (data.cct) sectionI.cct = data.cct;

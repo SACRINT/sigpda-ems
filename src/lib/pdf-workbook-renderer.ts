@@ -225,6 +225,27 @@ function identidadDelLibro(
   });
 }
 
+export function resolveWorkbookMethodology(
+  workbook: ActiveWorkTextbook,
+  planning?: Planning | null
+): string | undefined {
+  const rawPlanning = planning as unknown as {
+    metodologia_activa?: string;
+    extractedData?: { metodologiaActiva?: string };
+    extracted_data?: { metodologiaActiva?: string };
+  } | null | undefined;
+  return (
+    (workbook as unknown as { methodology?: string }).methodology ||
+    planning?.metodologiaActiva ||
+    rawPlanning?.metodologia_activa ||
+    planning?.contentJson?.sectionI?.metodologiaActiva ||
+    rawPlanning?.extractedData?.metodologiaActiva ||
+    rawPlanning?.extracted_data?.metodologiaActiva ||
+    planning?.contentJson?.sectionIV?.activities?.[workbook.blockIndex]?.methodology ||
+    planning?.contentJson?.sectionIV?.activities?.find((a) => Boolean(a?.methodology))?.methodology
+  );
+}
+
 /**
  * Genera el archivo PDF del Libro-Cuaderno de Trabajo Activo del Bloque.
  */
@@ -307,11 +328,7 @@ export async function renderWorkbookToPdf(
       }
     }
 
-    const rawMet =
-      (workbook as unknown as { methodology?: string }).methodology ||
-      planning?.metodologiaActiva ||
-      planning?.contentJson?.sectionI?.metodologiaActiva ||
-      planning?.contentJson?.sectionIV?.activities?.[workbook.blockIndex]?.methodology;
+    const rawMet = resolveWorkbookMethodology(workbook, planning);
     const metBadge = formatearBadgeMetodologia(rawMet);
 
     // Si no hay clave FLUX, falló, o es fallback determinista: dibujar portada vectorial nativa en jsPDF
@@ -747,8 +764,13 @@ function drawCoverPage(
   doc.setTextColor(232, 160, 32);
   doc.text(`ORGANIZACIÓN CURRICULAR POR PROGRESIONES   ·   ${metBadge}`, margin + 12, yBlock + 5);
 
-  const blockTitle = workbook.blockName
-    ? ((workbook.blockIndex !== undefined ? `BLOQUE ${workbook.blockIndex + 1}: ` : '') + workbook.blockName)
+  const cleanedBlockName = (workbook.blockName || '')
+    .replace(/^(Bloque\s+\d+\s*\(Corte\s*\d+\))\s*:\s*\1$/i, '$1')
+    .trim();
+  const blockTitle = cleanedBlockName
+    ? (/^bloques?\s+\d+/i.test(cleanedBlockName)
+        ? cleanedBlockName
+        : (workbook.blockIndex !== undefined ? `BLOQUE ${workbook.blockIndex + 1}: ` : '') + cleanedBlockName)
     : 'FORMACIÓN FUNDAMENTAL Y LABORAL';
   setFontHeading(doc);
   doc.setFontSize(9);
@@ -1541,11 +1563,7 @@ function drawPlantelComunidadPage(
   const paecProblem = typeof coverExtra?.paecProblem === 'string' ? coverExtra.paecProblem : undefined;
   const paecChallenge = sanitizePdfText(stripMarkdown(workbook.projectSection?.communityUtility || paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.'));
 
-  const rawMet =
-    (workbook as unknown as { methodology?: string }).methodology ||
-    planning?.metodologiaActiva ||
-    planning?.contentJson?.sectionI?.metodologiaActiva ||
-    planning?.contentJson?.sectionIV?.activities?.[workbook.blockIndex]?.methodology;
+  const rawMet = resolveWorkbookMethodology(workbook, planning);
   const metBadge = formatearBadgeMetodologia(rawMet);
 
   // Tabla 1: Ficha Institucional

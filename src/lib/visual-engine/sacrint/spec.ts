@@ -267,9 +267,11 @@ function sessionsLabel(mission: MissionSection): string {
 
 function missionMeta(workbook: ActiveWorkTextbook, mission: MissionSection, pack: SacrintPack): SacrintMissionMeta {
   const cover = workbook.coverData;
+  const dedupedBlockName = (workbook.blockName || `Bloque ${(workbook.blockIndex ?? 0) + 1}`)
+    .replace(/^(Bloque\s+\d+\s*\(Corte\s*\d+\))\s*:\s*\1$/i, '$1');
   return {
     subjectName: clean(cover?.subjectName || pack.label),
-    blockName: clean(workbook.blockName || `Bloque ${(workbook.blockIndex ?? 0) + 1}`),
+    blockName: clean(dedupedBlockName),
     blockNumber: cover?.blockNumber ?? (workbook.blockIndex ?? 0) + 1,
     semester: cover?.semester ?? 1,
     missionNumber: mission.missionIndex || 1,

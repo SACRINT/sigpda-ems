@@ -11,6 +11,7 @@ import type { SecuenciaBloque, SecuenciaSesion, RetoSituado } from '@/types/plan
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/planeaciones/orchestrator';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
+import { resolveSessionsPerBlock, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
 
 export const runtime = 'nodejs';
@@ -193,7 +194,7 @@ export async function POST(
     const isUserAdmin = await isAdmin(userEmail);
 
     const rows = await db`
-      SELECT p.id, p.teacher_id, p.uac_name, p.semester, p.component, p.content_json, p.paec_context, p.sequence_json, p.metodologia_activa,
+      SELECT p.id, p.teacher_id, p.uac_name, p.semester, p.component, p.extracted_data, p.content_json, p.paec_context, p.sequence_json, p.metodologia_activa,
              t.email as teacher_email
       FROM plannings p
       LEFT JOIN teachers t ON p.teacher_id = t.id
@@ -210,7 +211,11 @@ export async function POST(
       return NextResponse.json({ error: 'Acceso denegado a esta planeación' }, { status: 403 });
     }
     const content = plan.content_json || {};
-    const curricularBlocks = resolveCurricularBlocks(content);
+    const curricularBlocks = resolveCurricularBlocks(content, {
+      uac_name: plan.uac_name,
+      component: plan.component,
+      extracted_data: plan.extracted_data,
+    });
     const targetBlock = curricularBlocks[blockIndex];
 
     if (!targetBlock) {
@@ -218,7 +223,14 @@ export async function POST(
     }
 
     const blockActivity = targetBlock.activities[0] || {};
-    const hours = customHours || targetBlock.hours || (plan.component === 'laboral' ? 18 : 12);
+    const fallbackSessions = resolveSessionsPerBlock(
+      resolveWeeklyHours({
+        uac_name: plan.uac_name,
+        content_json: content,
+        extracted_data: plan.extracted_data,
+      })
+    );
+    const hours = customHours || targetBlock.hours || fallbackSessions;
     const learningOutcome = targetBlock.learningOutcome || content.sectionII?.learningOutcomes?.[blockIndex] || '';
     const saberes = targetBlock.saberes || blockActivity.saberes || null;
     const paecContext = plan.paec_context || '';

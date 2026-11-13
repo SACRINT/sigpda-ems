@@ -82,6 +82,7 @@ export async function validateAndPersistPlanningContent(
   const dbepaReport = evaluateDBEPA(content as unknown as GeneratedPlanningContent, {
     uacName: resolvedUacName,
     semester: resolvedSemester,
+    subsystem: options.context?.subsystem,
   });
 
   // 3. Control Fail-Closed ante Fallas Críticas

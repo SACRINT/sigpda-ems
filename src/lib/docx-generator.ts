@@ -12,7 +12,7 @@ import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
 import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
-import type { SecuenciaBloque } from '@/types/planning';
+import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
 
 // ── Color palette (MCCEMS institutional) ─────────────────────────────────────────────
 const C = {
@@ -485,6 +485,57 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
     noteP(content.sectionIV.note || 'El diseño de actividades emplea exclusivamente metodologías activas (ABP, Simulación, Método de Casos, Visita de campo).'),
     sp(),
   ];
+
+  const renderSessionTableForBlock = (
+    actSessions: SecuenciaSesion[],
+    totalBlockSessions: number,
+    badge: string
+  ) => {
+    const sc = [Math.floor(CONTENT * 0.08), Math.floor(CONTENT * 0.22), Math.floor(CONTENT * 0.35), CONTENT - Math.floor(CONTENT * 0.08) - Math.floor(CONTENT * 0.22) - Math.floor(CONTENT * 0.35)];
+    const phaseColor: Record<string, string> = {
+      Apertura: C.apertura,
+      Desarrollo: C.ejecucion,
+      Ejecución: C.ejecucion,
+      Ejecucion: C.ejecucion,
+      Cierre: C.conclusion,
+      Conclusión: C.conclusion,
+      Conclusion: C.conclusion,
+    };
+    const sessRows: TableRow[] = [
+      new TableRow({ children: [tcH(`Sesiones de 50 minutos — ${actSessions.length} sesiones totales · ${badge}`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 17 })] }),
+      new TableRow({ children: [tcM('Sesión', { w: sc[0], align: AlignmentType.CENTER }), tcM('Título / Tema', { w: sc[1] }), tcM('Actividad del Docente', { w: sc[2] }), tcM('Actividad del Estudiante / Evidencia', { w: sc[3] })] }),
+      ...actSessions.map((s, si) => new TableRow({ children: [
+        new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || actSessions.length)}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || C.ejecucion })] }),
+        ] }),
+        new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.title, bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
+        new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.teachingActivity, size: 14, font: 'Arial', color: C.text })] })] }),
+        new TableCell({ width: { size: sc[3], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [
+          new Paragraph({ children: [new TextRun({ text: s.learningActivity, size: 14, font: 'Arial', color: C.text })] }),
+          ...(s.evidence ? [new Paragraph({ spacing: { before: 40 }, children: [new TextRun({ text: `Evidencia: ${s.evidence}`, italics: true, size: 13, font: 'Arial', color: '64748b' })] })] : []),
+        ] }),
+      ] })),
+    ];
+    elements.push(new Table({ width: { size: CONTENT, type: WidthType.DXA }, columnWidths: sc, rows: sessRows }));
+    elements.push(sp());
+  };
+
+  if (content.sectionIV.activities.length === 0 && sequenceJson && Object.keys(sequenceJson).length > 0) {
+    const seqEntries = Object.entries(sequenceJson)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .filter(([, blk]) => blk && Array.isArray(blk.sessions) && blk.sessions.length > 0);
+    const badge = formatearBadgeMetodologia(content.sectionI.metodologiaActiva);
+    seqEntries.forEach(([key, blk], idx) => {
+      const corteNum = Number(key) + 1;
+      const cleanName = (blk.blockName || `Bloque ${corteNum} (Corte ${corteNum})`)
+        .replace(/^(Bloque\s+\d+\s*\(Corte\s*\d+\))\s*:\s*\1$/i, '$1');
+      elements.push(subH(`▶ ${cleanName.toUpperCase()} (${blk.hours || blk.sessions.length} horas) · ${badge} — ${label}`));
+      renderSessionTableForBlock(blk.sessions as SecuenciaSesion[], blk.sessions.length, badge);
+      if (idx < seqEntries.length - 1) elements.push(pb());
+    });
+    return elements;
+  }
+
   content.sectionIV.activities.forEach((activity, i) => {
     const blockMet = activity.methodology || content.sectionI.metodologiaActiva;
     const badge = formatearBadgeMetodologia(blockMet);
@@ -499,33 +550,7 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
       sequenceJson as unknown as Record<number, SecuenciaBloque> | null | undefined
     );
     if (actSessions.length > 0) {
-      const sc = [Math.floor(CONTENT * 0.08), Math.floor(CONTENT * 0.22), Math.floor(CONTENT * 0.35), CONTENT - Math.floor(CONTENT * 0.08) - Math.floor(CONTENT * 0.22) - Math.floor(CONTENT * 0.35)];
-      const phaseColor: Record<string, string> = {
-        Apertura: C.apertura,
-        Desarrollo: C.ejecucion,
-        Ejecución: C.ejecucion,
-        Ejecucion: C.ejecucion,
-        Cierre: C.conclusion,
-        Conclusión: C.conclusion,
-        Conclusion: C.conclusion,
-      };
-      const sessRows: TableRow[] = [
-        new TableRow({ children: [tcH(`Sesiones de 50 minutos — ${actSessions.length} sesiones totales · ${badge}`, { w: CONTENT, span: 4, align: AlignmentType.CENTER, size: 17 })] }),
-        new TableRow({ children: [tcM('Sesión', { w: sc[0], align: AlignmentType.CENTER }), tcM('Título / Tema', { w: sc[1] }), tcM('Actividad del Docente', { w: sc[2] }), tcM('Actividad del Estudiante / Evidencia', { w: sc[3] })] }),
-        ...actSessions.map((s, si) => new TableRow({ children: [
-          new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || actSessions.length)}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || C.ejecucion })] }),
-          ] }),
-          new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.title, bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
-          new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: s.teachingActivity, size: 14, font: 'Arial', color: C.text })] })] }),
-          new TableCell({ width: { size: sc[3], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [
-            new Paragraph({ children: [new TextRun({ text: s.learningActivity, size: 14, font: 'Arial', color: C.text })] }),
-            ...(s.evidence ? [new Paragraph({ spacing: { before: 40 }, children: [new TextRun({ text: `Evidencia: ${s.evidence}`, italics: true, size: 13, font: 'Arial', color: '64748b' })] })] : []),
-          ] }),
-        ] })),
-      ];
-      elements.push(new Table({ width: { size: CONTENT, type: WidthType.DXA }, columnWidths: sc, rows: sessRows }));
-      elements.push(sp());
+      renderSessionTableForBlock(actSessions, totalBlockSessions, badge);
     }
 
     if (i < content.sectionIV.activities.length - 1) elements.push(pb());

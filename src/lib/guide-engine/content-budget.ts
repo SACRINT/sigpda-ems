@@ -10,11 +10,29 @@
  */
 
 import { logger } from '@/lib/logger';
+import { DEFAULT_UAC_WEEKLY_HOURS, normalizeUacKey } from '@/lib/planning/uac-hours-catalog';
 
 export const WEEKS_PER_BLOCK = 6;
 export const BLOCKS_PER_SEMESTER = 3;
 export const SEMESTER_WEEKS = WEEKS_PER_BLOCK * BLOCKS_PER_SEMESTER;
+export const SEMESTER_WEEKS_TECNOLOGICO = 16;
 export const WORDS_PER_PAGE = 450;
+
+/**
+ * Determina el número oficial de semanas por semestre según el subsistema EMS.
+ * - Tecnológico / DGETI / CECyTE / CONALEP / DGETA: 16 semanas efectivas.
+ * - BGE / Bachillerato General / default MCCEMS: 18 semanas semestrales.
+ */
+export function resolveSemesterWeeks(subsystem?: string | null): number {
+  const norm = (subsystem || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  if (/tecnol|\bbt\b|cecyte|cbtis|cbta|cetis|conalep|dgeti|dgeta/.test(norm)) {
+    return SEMESTER_WEEKS_TECNOLOGICO;
+  }
+  return SEMESTER_WEEKS;
+}
 
 /**
  * Política oficial de sesiones por carga horaria semanal (MCCEMS Puebla):
@@ -31,7 +49,7 @@ export const SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS: Readonly<Record<number, number>
 };
 
 export function resolveSessionsPerBlock(weeklyHoursInput: number): number {
-  const weeklyHours = Math.max(1, Math.min(8, Math.round(weeklyHoursInput)));
+  const weeklyHours = Math.max(1, Math.min(16, Math.round(weeklyHoursInput)));
   return SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS[weeklyHours] ?? weeklyHours * WEEKS_PER_BLOCK;
 }
 
@@ -95,42 +113,95 @@ export interface ContentBudget {
  * 4. Fallback: customHours explícito del orquestador
  * 5. Default canónico MCCEMS: 3 horas/semana
  */
+export interface ResolvableHoursPlanning {
+  uacName?: string | null;
+  uac_name?: string | null;
+  subsystem?: string | null;
+  totalHours?: number | null;
+  totalHoursWeekly?: number | null;
+  contentJson?: {
+    sectionI?: {
+      uacName?: string;
+      subsystem?: string;
+      totalHoursWeekly?: number;
+      totalHours?: number;
+      totalHoursSemester?: number;
+    };
+  } | null;
+  content_json?: {
+    sectionI?: {
+      uacName?: string;
+      subsystem?: string;
+      totalHoursWeekly?: number;
+      totalHours?: number;
+      totalHoursSemester?: number;
+    };
+  } | null;
+  extractedData?: object | null;
+  extracted_data?: object | null;
+}
+
+function pickPositiveNumber(val: unknown): number | undefined {
+  return typeof val === 'number' && Number.isFinite(val) && val > 0 ? val : undefined;
+}
+
 export function resolveWeeklyHours(
-  planning?: {
-    contentJson?: {
-      sectionI?: {
-        totalHoursWeekly?: number;
-        totalHours?: number;
-      };
-    } | null;
-    content_json?: {
-      sectionI?: {
-        totalHoursWeekly?: number;
-        totalHours?: number;
-      };
-    } | null;
-  } | null,
+  planning?: ResolvableHoursPlanning | null,
   customHours?: number
 ): number {
   const content = planning?.contentJson || planning?.content_json;
-  if (
-    typeof content?.sectionI?.totalHoursWeekly === 'number' &&
-    content.sectionI.totalHoursWeekly > 0
-  ) {
-    return Math.round(content.sectionI.totalHoursWeekly);
+  const extracted = (planning?.extractedData || planning?.extracted_data || {}) as Record<string, unknown>;
+  const s1 = content?.sectionI;
+
+  const directWeekly =
+    pickPositiveNumber(s1?.totalHoursWeekly) ??
+    pickPositiveNumber(planning?.totalHoursWeekly) ??
+    pickPositiveNumber(extracted.totalHoursWeekly) ??
+    pickPositiveNumber(extracted.weeklyHours) ??
+    pickPositiveNumber(extracted.hours_per_week) ??
+    pickPositiveNumber(extracted.horasSemanales);
+  if (directWeekly !== undefined) {
+    return Math.max(1, Math.min(16, Math.round(directWeekly)));
   }
 
-  if (typeof content?.sectionI?.totalHours === 'number' && content.sectionI.totalHours > 0) {
-    const totalHours = content.sectionI.totalHours;
-    if (totalHours <= 10) {
-      return Math.round(totalHours);
+  const totalHours =
+    pickPositiveNumber(s1?.totalHours) ??
+    pickPositiveNumber(s1?.totalHoursSemester) ??
+    pickPositiveNumber(planning?.totalHours) ??
+    pickPositiveNumber(extracted.totalHours) ??
+    pickPositiveNumber(extracted.hours_per_semester) ??
+    pickPositiveNumber(extracted.hours);
+  if (totalHours !== undefined) {
+    if (totalHours <= 14) {
+      return Math.max(1, Math.round(totalHours));
     }
-    // totalHours de semestre: 18 semanas × horas/semana.
-    return Math.max(1, Math.round(totalHours / SEMESTER_WEEKS));
+    const subsystemRaw =
+      planning?.subsystem ||
+      s1?.subsystem ||
+      (typeof extracted.subsystem === 'string' ? extracted.subsystem : undefined);
+    const weeks = subsystemRaw
+      ? resolveSemesterWeeks(subsystemRaw)
+      : totalHours >= 60 && totalHours % 16 === 0 && totalHours % 18 !== 0
+        ? SEMESTER_WEEKS_TECNOLOGICO
+        : SEMESTER_WEEKS;
+    return Math.max(1, Math.min(16, Math.round(totalHours / weeks)));
   }
 
-  if (typeof customHours === 'number' && customHours > 0) {
-    return Math.round(customHours);
+  if (typeof customHours === 'number' && Number.isFinite(customHours) && customHours > 0) {
+    return Math.max(1, Math.min(16, Math.round(customHours)));
+  }
+
+  const uacName =
+    s1?.uacName ||
+    planning?.uacName ||
+    planning?.uac_name ||
+    (typeof extracted.uacName === 'string' ? extracted.uacName : undefined);
+  if (uacName) {
+    const normUac = normalizeUacKey(uacName);
+    const matched = Object.entries(DEFAULT_UAC_WEEKLY_HOURS).find(([key]) => normUac.includes(key));
+    if (matched) {
+      return matched[1];
+    }
   }
 
   return 3; // Estándar canónico de calibración (3 h/semana = 18 sesiones = 45–50 págs)
@@ -169,7 +240,7 @@ export function computeMissionBudget(sessionCountInput: number): MissionBudget {
  * a partir de las horas semanales de la asignatura.
  */
 export function computeContentBudget(weeklyHoursInput?: number): ContentBudget {
-  const weeklyHours = Math.max(1, Math.min(8, Math.round(weeklyHoursInput ?? 3)));
+  const weeklyHours = Math.max(1, Math.min(16, Math.round(weeklyHoursInput ?? 3)));
   const sessionsPerBlock = resolveSessionsPerBlock(weeklyHours);
 
   const minPages = Math.round(sessionsPerBlock * MIN_PAGES_PER_SESSION);

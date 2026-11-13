@@ -43,6 +43,7 @@ export async function GET(
       paecContext: rawPlanning.paec_context || '',
       extractedData: rawPlanning.extracted_data,
       contentJson: rawPlanning.content_json,
+      metodologiaActiva: rawPlanning.metodologia_activa || undefined,
       status: rawPlanning.status,
       createdAt: rawPlanning.created_at,
       updatedAt: rawPlanning.updated_at,
