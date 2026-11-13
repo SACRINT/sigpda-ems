@@ -31,6 +31,7 @@ import { generateProjectMission } from '@/lib/guide-engine/writers/project-write
 import { generateEvaluationSection } from '@/lib/guide-engine/writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from '@/lib/guide-engine/resilience-agent';
 import { validateBlockGuideQuality } from '@/lib/guide-engine/quality-validator';
+import { expandDeficientSessionPlans } from '@/lib/guide-engine/session-plan-expansion';
 import type { QualityValidatorOutput } from '@/lib/guide-engine/quality-validator';
 import type { WriterInput, WriterOutput } from '@/lib/guide-engine/writers/writer-contract';
 import type { MissionSection } from '@/types/work-textbook';
@@ -69,6 +70,9 @@ vi.mock('@/lib/guide-engine/resilience-agent', () => ({
 }));
 vi.mock('@/lib/guide-engine/quality-validator', () => ({
   validateBlockGuideQuality: vi.fn(),
+}));
+vi.mock('@/lib/guide-engine/session-plan-expansion', () => ({
+  expandDeficientSessionPlans: vi.fn().mockResolvedValue({ expandedPlans: 0, addedWords: 0 }),
 }));
 
 const CONTENIDO = 'Estudio profundo de la fotónica cuántica aplicada a interferometría';
@@ -342,6 +346,33 @@ describe('block-guide-orchestrator — Fase 8.5: alineación dura + reintento di
     expect(generateEvaluationSection).toHaveBeenCalledTimes(1);
 
     expect(wb.planningAlignment?.pass).toBe(true);
+    expect(wb.qualityWarning).toBe(false);
+  }, 30000);
+
+  it('D: expandOnly conserva los 4 redactores y omite la Fase 8', async () => {
+    const previousWriters = [
+      makeOutput('foundation', STRONG),
+      makeOutput('lab', STRONG),
+      makeOutput('project', STRONG),
+      makeOutput('evaluation', STRONG),
+    ];
+    vi.mocked(validateBlockGuideQuality).mockReturnValue({
+      ...validationOk,
+      retryableWriters: ['foundation', 'lab'],
+    });
+
+    const wb = await generateBlockWorkTextbook('pl-1', 0, {
+      expandOnly: true,
+      previousWriterOutputs: previousWriters,
+    });
+
+    expect(generateFoundationMission).not.toHaveBeenCalled();
+    expect(generateLabMission).not.toHaveBeenCalled();
+    expect(generateProjectMission).not.toHaveBeenCalled();
+    expect(generateEvaluationSection).not.toHaveBeenCalled();
+    expect(expandDeficientSessionPlans).toHaveBeenCalledWith(
+      expect.objectContaining({ minRemainingBudgetMs: 30_000 })
+    );
     expect(wb.qualityWarning).toBe(false);
   }, 30000);
 });

@@ -540,8 +540,10 @@ export async function generateBlockWorkTextbook(
     targetWords: budget.targetWords,
   });
 
-  // Si hay redactores reintentables, ejecutar reintentos específicos (máx 1 por redactor)
-  if (validation.retryableWriters.length > 0) {
+  // Si hay redactores reintentables, ejecutar reintentos específicos (máx 1 por redactor).
+  // En expandOnly se conservan los 4 redactores del checkpoint: la recuperación
+  // es exclusivamente por expansión dirigida de sesiones deficientes (Fase 8.7).
+  if (validation.retryableWriters.length > 0 && !expandOnly) {
     for (const writerType of validation.retryableWriters) {
       const remainingBudget = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
       if (remainingBudget < 45_000 || signal?.aborted) {
@@ -733,6 +735,7 @@ export async function generateBlockWorkTextbook(
         teacherId: planning.teacherId,
         signal,
         remainingBudgetMs: remainingForExpansion,
+        minRemainingBudgetMs: expansionBudgetFloorMs,
       });
       if (expansion.expandedPlans > 0) {
         logger.info(

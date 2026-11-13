@@ -10,6 +10,7 @@ const DEFICIT_RATIO = 0.9;
 const CONTENT_MIN_WORDS = 460;
 const EXAMPLE_MIN_WORDS = 320;
 const BATCH_DELAY_MS = 3000;
+const DEFAULT_MIN_REMAINING_BUDGET_MS = 45_000;
 
 type WriterType = WriterOutput['type'];
 
@@ -23,6 +24,12 @@ interface ExpansionParams {
   teacherId?: string;
   signal?: AbortSignal;
   remainingBudgetMs: number;
+  /**
+   * Piso mínimo de tiempo para iniciar o continuar lotes de expansión.
+   * El orquestador lo alinea con su presupuesto: 30s en expandOnly y 60s
+   * en la pasada editorial normal. Si se omite, conserva el piso histórico 45s.
+   */
+  minRemainingBudgetMs?: number;
 }
 
 interface OutputSnapshot {
@@ -163,7 +170,8 @@ async function expandBatch(
   targetPlanWords: number
 ): Promise<Map<number, BatchExpansion>> {
   const remaining = deadline - Date.now();
-  if (remaining < 45_000) return new Map();
+  const minRemainingBudgetMs = params.minRemainingBudgetMs ?? DEFAULT_MIN_REMAINING_BUDGET_MS;
+  if (remaining < minRemainingBudgetMs) return new Map();
 
   const diagnostics = plans
     .map((plan) => {
@@ -238,8 +246,10 @@ export async function expandDeficientSessionPlans(params: ExpansionParams): Prom
 
       const mergedBySession = new Map(plans.map((plan) => [plan.sessionNumber, plan]));
 
+      const minRemainingBudgetMs =
+        params.minRemainingBudgetMs ?? DEFAULT_MIN_REMAINING_BUDGET_MS;
       for (let index = 0; index < deficient.length; index += BATCH_SIZE) {
-        if (deadline - Date.now() < 45_000) break;
+        if (deadline - Date.now() < minRemainingBudgetMs) break;
         if (index > 0) {
           await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
         }
