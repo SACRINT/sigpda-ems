@@ -23,6 +23,8 @@ export interface ResilienceInput {
   component?: string;
   curriculumName?: string;
   careerOrProgramName?: string;
+  signal?: AbortSignal;
+  remainingBudgetMs?: number;
 }
 
 export async function generateTroubleshootingMatrix(
@@ -90,7 +92,10 @@ Semillas tecnicas previas: ${seedErrors.map((s) => s.symptom).join('; ') || 'Nin
 Genera los 5 a 8 casos mas relevantes de la matriz "Que hacer si falla?":`;
 
   try {
-    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.teacherId);
+    const rawResponse = await generateWithRotation(systemInstruction, prompt, input.teacherId, false, {
+      remainingBudgetMs: input.remainingBudgetMs,
+      signal: input.signal,
+    });
     const parsed = robustJsonParse(rawResponse);
 
     if (Array.isArray(parsed) && parsed.length > 0) {

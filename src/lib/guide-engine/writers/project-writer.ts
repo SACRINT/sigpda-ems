@@ -19,6 +19,7 @@ import {
   type FallbackPlanContext,
   evaluateQuality,
   completeSessionPlans,
+  resolveRemainingBudgetMs,
 } from './writer-contract';
 import {
   generateMissingSessionPlans,
@@ -265,6 +266,7 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
 
   try {
     let attempt: 1 | 2 = 1;
+    const remainingBudgetMs = resolveRemainingBudgetMs(input.budgetDeadlineMs);
     const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
     shardedPromise?.catch(() => undefined);
     const rawResponse = await runScheduled(input.scheduler, 'project:narrative', () =>
@@ -273,7 +275,13 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
         effectivePrompt,
         input.planning.teacherId,
         false,
-        { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+        {
+          jsonMode: true,
+          maxTokens: narrativeMaxTokens,
+          timeoutMs: narrativeTimeoutMs,
+          remainingBudgetMs,
+          signal: input.signal,
+        }
       )
     );
     let parsed = robustJsonParse(rawResponse);
@@ -310,7 +318,13 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
               retryPrompt,
               input.planning.teacherId,
               false,
-              { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+              {
+                jsonMode: true,
+                maxTokens: narrativeMaxTokens,
+                timeoutMs: narrativeTimeoutMs,
+                remainingBudgetMs: resolveRemainingBudgetMs(input.budgetDeadlineMs),
+                signal: input.signal,
+              }
             )
           );
           const retryParsed = robustJsonParse(retryResponse);

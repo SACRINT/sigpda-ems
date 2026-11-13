@@ -35,6 +35,7 @@ import { extractCurriculumContext } from './curriculum-context-agent';
 import { buildBlockBlueprint } from './blueprint-architect-agent';
 import {
   computeContentBudget,
+  resolveMissionBudgetsForBlueprint,
   resolveWeeklyHours,
   validateSessionCoverage,
   WORDS_PER_PAGE,
@@ -68,6 +69,7 @@ import type {
   ProjectSection,
   EvaluationSection,
   MissionSection,
+  SessionPlan,
 } from '@/types/work-textbook';
 import type {
   Planning,
@@ -123,8 +125,15 @@ export interface OrchestratorOptions {
   allowCanonicalSeedReuse?: boolean;
   /** Redactores ya persistidos en un checkpoint para reanudar sin repetir llamadas. */
   previousWriterOutputs?: WriterOutput[];
+  /** Planes de sesión parciales guardados por paquete antes de completar un redactor. */
+  previousPartialSessionPlans?: Partial<Record<WriterOutput['type'], SessionPlan[]>>;
   /** Persiste el avance tras cada redactor, reintento o expansión. */
   onCheckpoint?: (writerOutputs: WriterOutput[]) => void | Promise<void>;
+  /** Persiste el avance incremental por paquete de sesiones dentro de un redactor. */
+  onPartialSessionPlansCheckpoint?: (
+    writerType: WriterOutput['type'],
+    plans: SessionPlan[]
+  ) => void | Promise<void>;
 }
 
 /**
@@ -371,7 +380,11 @@ export async function generateBlockWorkTextbook(
   );
   const scheduler = createWriterScheduler({
     maxConcurrency,
-    jitterMs: process.env.NODE_ENV === 'test' ? 0 : 250,
+    jitterMs: process.env.NODE_ENV === 'test' ? 0 : 400,
+    breaker:
+      process.env.NODE_ENV === 'test'
+        ? undefined
+        : { threshold: 2, baseCooldownMs: 12_000, maxCooldownMs: 45_000 },
     signal: options.signal,
   });
   const requiredCurricularTerms = extractRequiredCurricularTerms(planningActivities);
@@ -380,6 +393,9 @@ export async function generateBlockWorkTextbook(
   // Capa de Conocimiento SEP (editorial): solo metodológico/curricular, con
   // presupuesto reducido porque el bloque se inyecta en cada paquete de sesiones.
   const editorialKnowledge = await getInstitutionalContext('editorial', { maxTokens: 600, contextId: `editorial:${String((planning as { id?: string }).id ?? 'default-context')}:${blockIndex}` });
+
+  const effectiveMissionBudgets = resolveMissionBudgetsForBlueprint(budget, blueprint.missions);
+  const budgetDeadlineMs = startTime + MAX_ORCHESTRATOR_BUDGET_MS;
 
   const baseWriterInput: WriterInput = {
     planning,
@@ -394,10 +410,11 @@ export async function generateBlockWorkTextbook(
     uacName: planning.uacName,
     component: planning.component,
     curriculumName: planning.curriculumName,
-    targetWords: budget.missionBudgets.foundation.targetWords,
+    targetWords: effectiveMissionBudgets.foundation.targetWords,
     planningActivities,
     signal: options.signal,
     scheduler,
+    budgetDeadlineMs,
     institutionalContext: editorialKnowledge.block || undefined,
   };
 
@@ -408,42 +425,37 @@ export async function generateBlockWorkTextbook(
     percent: 35,
   });
 
+  const buildWriterInput = (
+    writerType: WriterOutput['type'],
+    requiredTerms: string[]
+  ): WriterInput => ({
+    ...baseWriterInput,
+    targetWords: effectiveMissionBudgets[writerType].targetWords,
+    requiredTerms,
+    cachedSessionPlans: options.previousPartialSessionPlans?.[writerType],
+    onPartialSessionPlans: options.onPartialSessionPlansCheckpoint
+      ? (plans) => options.onPartialSessionPlansCheckpoint!(writerType, plans)
+      : undefined,
+  });
+
   const writerTasks = [
     {
       type: 'foundation' as const,
       fn: () =>
-        generateFoundationMission({
-          ...baseWriterInput,
-          targetWords: budget.missionBudgets.foundation.targetWords,
-          requiredTerms: partitionedTerms.foundation,
-        }),
+        generateFoundationMission(buildWriterInput('foundation', partitionedTerms.foundation)),
     },
     {
       type: 'lab' as const,
-      fn: () =>
-        generateLabMission({
-          ...baseWriterInput,
-          targetWords: budget.missionBudgets.lab.targetWords,
-          requiredTerms: partitionedTerms.lab,
-        }),
+      fn: () => generateLabMission(buildWriterInput('lab', partitionedTerms.lab)),
     },
     {
       type: 'project' as const,
-      fn: () =>
-        generateProjectMission({
-          ...baseWriterInput,
-          targetWords: budget.missionBudgets.project.targetWords,
-          requiredTerms: partitionedTerms.project,
-        }),
+      fn: () => generateProjectMission(buildWriterInput('project', partitionedTerms.project)),
     },
     {
       type: 'evaluation' as const,
       fn: () =>
-        generateEvaluationSection({
-          ...baseWriterInput,
-          targetWords: budget.missionBudgets.evaluation.targetWords,
-          requiredTerms: partitionedTerms.evaluation,
-        }),
+        generateEvaluationSection(buildWriterInput('evaluation', partitionedTerms.evaluation)),
     },
   ];
 
@@ -505,6 +517,8 @@ export async function generateBlockWorkTextbook(
     sampleTopics,
     component: planning.component,
     curriculumName: planning.curriculumName,
+    signal,
+    remainingBudgetMs: Math.max(1000, MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime)),
   });
 
   // ── Fase 8: Validación de Calidad y Reintentos Dirigidos ────────────────
@@ -533,7 +547,7 @@ export async function generateBlockWorkTextbook(
 
       const current = writerOutputs.find((w) => w.type === writerType);
       const currentWords = current?.wordCount || 0;
-      const targetMin = budget.missionBudgets[writerType].targetWords.min;
+      const targetMin = effectiveMissionBudgets[writerType].targetWords.min;
       if (currentWords >= targetMin) {
         logger.info(`[orchestrator] Redactor ${writerType} ya cumple con el mínimo (${currentWords} >= ${targetMin}); omitiendo reintento.`);
         continue;
@@ -564,7 +578,7 @@ export async function generateBlockWorkTextbook(
 
           const writerSpecificInput: WriterInput = {
             ...baseWriterInput,
-            targetWords: budget.missionBudgets[writerType].targetWords,
+            targetWords: effectiveMissionBudgets[writerType].targetWords,
             alignmentDirective: expansionDirective,
           };
 
@@ -657,7 +671,7 @@ export async function generateBlockWorkTextbook(
               );
               const alignInput: WriterInput = {
                 ...baseWriterInput,
-                targetWords: budget.missionBudgets[writerType].targetWords,
+                targetWords: effectiveMissionBudgets[writerType].targetWords,
                 alignmentDirective,
                 previousOutput: own,
                 surgicalSessionTerms,
@@ -697,7 +711,7 @@ export async function generateBlockWorkTextbook(
     if (remainingForExpansion > 60_000 && !signal?.aborted) {
       const expansion = await expandDeficientSessionPlans({
         writerOutputs,
-        missionBudgets: budget.missionBudgets,
+        missionBudgets: effectiveMissionBudgets,
         blockTargetWords: budget.targetWords,
         uacName: planning.uacName,
         blockName,

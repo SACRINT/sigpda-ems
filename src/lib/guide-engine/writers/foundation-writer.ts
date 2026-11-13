@@ -20,6 +20,7 @@ import {
   type FallbackPlanContext,
   evaluateQuality,
   completeSessionPlans,
+  resolveRemainingBudgetMs,
 } from './writer-contract';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { formatRequiredTermsDirective } from '../planning-content-alignment';
@@ -214,6 +215,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
 
   try {
     let attempt: 1 | 2 = 1;
+    const remainingBudgetMs = resolveRemainingBudgetMs(input.budgetDeadlineMs);
     const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
     shardedPromise?.catch(() => undefined);
     const rawResponse = await runScheduled(input.scheduler, 'foundation:narrative', () =>
@@ -222,7 +224,13 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
         effectivePrompt,
         input.planning.teacherId,
         false,
-        { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+        {
+          jsonMode: true,
+          maxTokens: narrativeMaxTokens,
+          timeoutMs: narrativeTimeoutMs,
+          remainingBudgetMs,
+          signal: input.signal,
+        }
       )
     );
     let parsed = robustJsonParse(rawResponse);
@@ -241,7 +249,13 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
             retryPrompt,
             input.planning.teacherId,
             false,
-            { jsonMode: true, maxTokens: narrativeMaxTokens, timeoutMs: narrativeTimeoutMs, signal: input.signal }
+            {
+              jsonMode: true,
+              maxTokens: narrativeMaxTokens,
+              timeoutMs: narrativeTimeoutMs,
+              remainingBudgetMs: resolveRemainingBudgetMs(input.budgetDeadlineMs),
+              signal: input.signal,
+            }
           )
         );
         const retryParsed = robustJsonParse(retryResponse);
@@ -267,7 +281,12 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
             correctivePrompt,
             input.planning.teacherId,
             false,
-            { jsonMode: true, maxTokens: narrativeMaxTokens, signal: input.signal }
+            {
+              jsonMode: true,
+              maxTokens: narrativeMaxTokens,
+              remainingBudgetMs: resolveRemainingBudgetMs(input.budgetDeadlineMs),
+              signal: input.signal,
+            }
           )
         );
         const retryParsed = robustJsonParse(correctiveResponse);

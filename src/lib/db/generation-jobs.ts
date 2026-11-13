@@ -356,16 +356,18 @@ export async function requeueGenerationJob(
   jobId: string,
   checkpoint: Record<string, unknown>,
   leaseId?: string,
-  progress = 0
+  progress = 0,
+  currentStep?: string
 ): Promise<boolean> {
   const client = sql();
+  const resolvedStep = currentStep || 'Reanudando generación desde el último checkpoint...';
   // Monotonía: el reencolado NUNCA reduce el progreso ya alcanzado (solo lo eleva al piso indicado).
   const rows = await client`
     UPDATE generation_jobs
     SET status = 'pending',
         progress = GREATEST(COALESCE(progress, 0), ${progress}::int),
         current_phase = 'queued',
-        current_step = 'Reanudando generación desde el último checkpoint...',
+        current_step = ${resolvedStep},
         result = ${JSON.stringify(checkpoint)}::jsonb,
         error = NULL,
         lease_id = NULL,

@@ -296,6 +296,26 @@ export function computeContentBudget(weeklyHoursInput?: number): ContentBudget {
 }
 
 /**
+ * Ajusta los presupuestos por misión según el número real de sesiones asignadas por el blueprint.
+ */
+export function resolveMissionBudgetsForBlueprint(
+  budget: ContentBudget,
+  missions: Array<{ missionType: string; sessionNumbers: number[] }>
+): ContentBudget['missionBudgets'] {
+  const resolveFor = (type: keyof ContentBudget['missionBudgets']): MissionBudget => {
+    const count = missions.find((m) => m.missionType === type)?.sessionNumbers.length;
+    return count && count > 0 ? computeMissionBudget(count) : budget.missionBudgets[type];
+  };
+
+  return {
+    foundation: resolveFor('foundation'),
+    lab: resolveFor('lab'),
+    project: resolveFor('project'),
+    evaluation: resolveFor('evaluation'),
+  };
+}
+
+/**
  * Suma y audita el conteo de palabras real de un plan de sesión individual (SessionPlan).
  */
 export function countSessionPlanWords(plan: {

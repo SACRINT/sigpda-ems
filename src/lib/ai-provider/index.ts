@@ -146,6 +146,32 @@ export async function getAIProvider(isPremium = false): Promise<AIProvider> {
   };
 }
 
+function isGemini503FallbackEligible(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { name?: string; status?: number; statusCode?: number; message?: string };
+  if (e.name === 'AiCooldownExhaustedError') return false;
+  const msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
+  if (
+    msg.includes('enfriamiento') ||
+    msg.includes('cooldown') ||
+    msg.includes('no hay claves') ||
+    msg.includes('presupuesto de tiempo') ||
+    msg.includes('aborted')
+  ) {
+    return false;
+  }
+  if (e.name === 'AiServiceUnavailableError' || e.status === 503 || e.statusCode === 503) {
+    return true;
+  }
+  return (
+    msg.includes('503') ||
+    msg.includes('fast-fail') ||
+    msg.includes('high demand') ||
+    msg.includes('alta demanda') ||
+    msg.includes('service unavailable')
+  );
+}
+
 /**
  * Generates text with automatic atomic key rotation on quota / 503 errors.
  * Dynamically wires deadlines, attempt timeouts, and structured output.
@@ -168,29 +194,55 @@ export async function generateWithRotation(
   }
 ): Promise<string> {
   const { provider, model } = await getActiveConfig(isPremium);
+  const startedAt = Date.now();
+  const primaryRemaining = options?.remainingBudgetMs;
 
-  return withKeyRotation(
-    provider,
-    async (apiKey, _keyId, round, meta: AttemptMetadata) => {
-      // Si la Vuelta 1 sufrió 503/429 en Google, en Vuelta 2 probamos con gemini-3.1-flash-lite
-      const effectiveModel =
-        provider === 'gemini' && round === 2 && model === 'gemini-3.5-flash-lite'
-          ? 'gemini-3.1-flash-lite'
-          : model;
-      const ai = buildProvider(provider, effectiveModel, apiKey);
-      return ai.generate(systemPrompt, userPrompt, {
-        ...options,
-        timeoutMs: meta?.timeoutMs ?? options?.timeoutMs,
-        remainingBudgetMs: meta?.remainingBudgetMs ?? options?.remainingBudgetMs,
-      });
-    },
-    {
-      teacherId,
-      remainingBudgetMs: options?.remainingBudgetMs,
-      timeoutPerAttemptMs: options?.timeoutMs ?? 60000,
-      signal: options?.signal,
+  const runWithModel = (targetModel: string, budgetMs?: number) =>
+    withKeyRotation(
+      provider,
+      async (apiKey, _keyId, round, meta: AttemptMetadata) => {
+        // Si la Vuelta 1 sufrió 503/429 en Google, en Vuelta 2 probamos con gemini-3.1-flash-lite
+        const effectiveModel =
+          provider === 'gemini' && round === 2 && targetModel === 'gemini-3.5-flash-lite'
+            ? 'gemini-3.1-flash-lite'
+            : targetModel;
+        const ai = buildProvider(provider, effectiveModel, apiKey);
+        return ai.generate(systemPrompt, userPrompt, {
+          ...options,
+          timeoutMs: meta?.timeoutMs ?? options?.timeoutMs,
+          remainingBudgetMs: meta?.remainingBudgetMs ?? options?.remainingBudgetMs,
+        });
+      },
+      {
+        teacherId,
+        remainingBudgetMs: budgetMs,
+        timeoutPerAttemptMs: options?.timeoutMs ?? 60000,
+        signal: options?.signal,
+      }
+    );
+
+  try {
+    return await runWithModel(model, primaryRemaining);
+  } catch (err) {
+    const elapsed = Date.now() - startedAt;
+    const remainingAfterPrimary =
+      primaryRemaining !== undefined ? primaryRemaining - elapsed : undefined;
+    const canFallback =
+      provider === 'gemini' &&
+      model === 'gemini-3.5-flash-lite' &&
+      !options?.signal?.aborted &&
+      isGemini503FallbackEligible(err) &&
+      (remainingAfterPrimary === undefined || remainingAfterPrimary > 15_000);
+
+    if (!canFallback) {
+      throw err;
     }
-  );
+
+    logger.warn(
+      '[ai-provider] Fast-fail HTTP 503 en gemini-3.5-flash-lite; ejecutando fallback automático a gemini-3.1-flash-lite.'
+    );
+    return runWithModel('gemini-3.1-flash-lite', remainingAfterPrimary);
+  }
 }
 
 /**

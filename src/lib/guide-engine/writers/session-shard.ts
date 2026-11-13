@@ -21,6 +21,7 @@ import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { runScheduled } from '../writer-scheduler';
 import {
   completeSessionPlans,
+  resolveRemainingBudgetMs,
   sanitizeSessionPlans,
   type FallbackPlanContext,
   type WriterInput,
@@ -361,6 +362,16 @@ function extractPlans(raw: string, allowed: Set<number>): unknown[] {
   });
 }
 
+function isPoolExhaustedOrServiceError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { name?: string; message?: string };
+  if (e.name === 'AiCooldownExhaustedError' || e.name === 'AiServiceUnavailableError') {
+    return true;
+  }
+  const msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
+  return /enfriamiento por cuota|fast-fail|alta demanda|cortando por deadline/i.test(msg);
+}
+
 async function callPack(
   ctx: SessionShardContext,
   sessions: number[],
@@ -368,11 +379,13 @@ async function callPack(
   label: string
 ): Promise<unknown[]> {
   const { system, user } = buildSessionPackPrompts(ctx, sessions, opts);
+  const remainingBudgetMs = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
   const raw = await runScheduled(ctx.input.scheduler, label, () =>
     generateWithRotation(system, user, ctx.input.planning.teacherId, false, {
       jsonMode: true,
       maxTokens: SESSION_PACK_MAX_TOKENS,
       timeoutMs: SESSION_PACK_TIMEOUT_MS,
+      remainingBudgetMs,
       signal: ctx.input.signal,
     })
   );
@@ -403,6 +416,9 @@ async function generatePack(
       lastError = err;
       if (ctx.input.signal?.aborted) throw err;
       logger.warn(`[SessionShard] ${packLabel} falló (intento ${attempt}):`, { error: String(err) });
+      if (isPoolExhaustedOrServiceError(err)) {
+        break;
+      }
     }
   }
   if (collected.length === 0 && lastError) throw lastError;
@@ -423,35 +439,81 @@ export interface ShardDiagnostics {
 export async function generateShardedSessionPlans(
   ctx: SessionShardContext
 ): Promise<{ plans: SessionPlan[]; diagnostics: ShardDiagnostics }> {
-  const packs = shardSessions(ctx.coveredSessions);
+  const preCached = ctx.input.cachedSessionPlans?.length
+    ? (sanitizeSessionPlans(ctx.input.cachedSessionPlans, ctx.coveredSessions, ctx.fallbackContext) ?? [])
+    : [];
+  const raw: unknown[] = [...preCached];
+  const cachedNums = new Set(preCached.map((p) => p.sessionNumber));
+  const pendingSessions = ctx.coveredSessions.filter((n) => !cachedNums.has(n));
+  const packs = shardSessions(pendingSessions);
   const termShares = distributeTermsAcrossPacks(ctx.requiredTerms ?? [], packs.length);
   const label = `${ctx.missionType}:sessions`;
 
+  const notifyPartialCheckpoint = async () => {
+    if (!ctx.input.onPartialSessionPlans) return;
+    const partialSanitized = sanitizeSessionPlans(raw, ctx.coveredSessions, ctx.fallbackContext) ?? [];
+    if (partialSanitized.length === 0) return;
+    try {
+      await ctx.input.onPartialSessionPlans(partialSanitized);
+    } catch {
+      /* checkpoint incremental best-effort */
+    }
+  };
+
   const settled = await Promise.allSettled(
-    packs.map((pack, i) =>
-      generatePack(ctx, pack, { packTerms: termShares[i] }, `${label}[${pack.join('-')}]`)
-    )
+    packs.map(async (pack, i) => {
+      const result = await generatePack(
+        ctx,
+        pack,
+        { packTerms: termShares[i] },
+        `${label}[${pack.join('-')}]`
+      );
+      if (result.length > 0) {
+        raw.push(...result);
+        await notifyPartialCheckpoint();
+      }
+      return result;
+    })
   );
 
-  const raw: unknown[] = [];
   const rejected: unknown[] = [];
   for (const r of settled) {
-    if (r.status === 'fulfilled') raw.push(...r.value);
-    else rejected.push(r.reason);
+    if (r.status === 'rejected') rejected.push(r.reason);
   }
+  const capacityRejection = rejected.find(isPoolExhaustedOrServiceError);
   if (ctx.input.signal?.aborted && rejected.length > 0) throw rejected[0];
-  if (raw.length === 0 && rejected.length > 0) throw rejected[0];
+  if (raw.length === 0 && rejected.length > 0) throw capacityRejection ?? rejected[0];
 
   // Una pasada final solo para las sesiones que aún falten (paquetes caídos), antes de fallar cerrado
   const presentAfter = new Set(raw.map(sessionNumberOf).filter((n): n is number => n !== null));
   const missing = ctx.coveredSessions.filter((n) => !presentAfter.has(n));
+  if (missing.length > 0 && capacityRejection) {
+    throw capacityRejection;
+  }
+
+  let rescueCapacityRejection: unknown = null;
   if (missing.length > 0 && !ctx.input.signal?.aborted) {
     const rescue = await Promise.allSettled(
-      shardSessions(missing).map((pack) =>
-        generatePack(ctx, pack, { packTerms: [] }, `${label}-rescate[${pack.join('-')}]`)
-      )
+      shardSessions(missing).map(async (pack) => {
+        const result = await generatePack(ctx, pack, { packTerms: [] }, `${label}-rescate[${pack.join('-')}]`);
+        if (result.length > 0) {
+          raw.push(...result);
+          await notifyPartialCheckpoint();
+        }
+        return result;
+      })
     );
-    for (const r of rescue) if (r.status === 'fulfilled') raw.push(...r.value);
+    for (const r of rescue) {
+      if (r.status === 'rejected' && !rescueCapacityRejection && isPoolExhaustedOrServiceError(r.reason)) {
+        rescueCapacityRejection = r.reason;
+      }
+    }
+  }
+
+  const presentPostRescue = new Set(raw.map(sessionNumberOf).filter((n): n is number => n !== null));
+  const missingPostRescue = ctx.coveredSessions.filter((n) => !presentPostRescue.has(n));
+  if (missingPostRescue.length > 0 && rescueCapacityRejection) {
+    throw rescueCapacityRejection;
   }
 
   // Valida densidad por sesión sobre planes ya sanitizados
@@ -465,9 +527,17 @@ export async function generateShardedSessionPlans(
   const maxRepairs = Math.max(2, Math.ceil(ctx.coveredSessions.length / 3));
   if (deficient.length > 0 && !ctx.input.signal?.aborted) {
     const targets = deficient.slice(0, maxRepairs);
-    const repairs = await Promise.allSettled(
-      targets.map(({ plan, report }) =>
-        callPack(
+    for (const { plan, report } of targets) {
+      if (ctx.input.signal?.aborted) break;
+      const remainingBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
+      if (remainingBudget !== undefined && remainingBudget < 45_000) {
+        logger.info(
+          `[SessionShard] Omitiendo reparación de densidad de sesión ${plan.sessionNumber}: presupuesto bajo (${Math.round(remainingBudget / 1000)}s).`
+        );
+        break;
+      }
+      try {
+        const res = await callPack(
           ctx,
           [plan.sessionNumber],
           {
@@ -476,23 +546,34 @@ export async function generateShardedSessionPlans(
               'Redáctala de nuevo COMPLETA cumpliendo exactamente la estructura: contenido en 3 párrafos sustanciales separados por saltos de línea (>=150 palabras cada uno), ejemploResuelto con Planteamiento y 4 pasos numerados (Paso 1..Paso 4), 2 ejercicios con enunciado detallado, pista propia y solución.',
           },
           `${label}-reparacion[${plan.sessionNumber}]`
-        )
-      )
-    );
-    repairs.forEach((res, idx) => {
-      if (res.status !== 'fulfilled') return;
-      const candidate = sanitizeSessionPlans(res.value, [targets[idx].plan.sessionNumber], ctx.fallbackContext)?.[0];
-      if (!candidate) return;
-      const before = targets[idx].report;
-      const after = evaluateSessionPlanDensity(candidate, thresholds);
-      const better =
-        after.deficits.length < before.deficits.length ||
-        (after.deficits.length === before.deficits.length && after.words > before.words);
-      if (better) {
-        sanitized = sanitized.map((p) => (p.sessionNumber === candidate.sessionNumber ? candidate : p));
-        repaired.push(candidate.sessionNumber);
+        );
+        const candidate = sanitizeSessionPlans(res, [plan.sessionNumber], ctx.fallbackContext)?.[0];
+        if (!candidate) continue;
+        const after = evaluateSessionPlanDensity(candidate, thresholds);
+        const better =
+          after.deficits.length < report.deficits.length ||
+          (after.deficits.length === report.deficits.length && after.words > report.words);
+        if (better) {
+          sanitized = sanitized.map((p) => (p.sessionNumber === candidate.sessionNumber ? candidate : p));
+          repaired.push(candidate.sessionNumber);
+        }
+      } catch (repairErr) {
+        if (isPoolExhaustedOrServiceError(repairErr)) {
+          logger.warn(
+            `[SessionShard] Deteniendo reparaciones de densidad de ${ctx.missionType} por agotamiento de cuota/servicio:`,
+            { error: String(repairErr) }
+          );
+          break;
+        }
       }
-    });
+    }
+    if (repaired.length > 0 && ctx.input.onPartialSessionPlans) {
+      try {
+        await ctx.input.onPartialSessionPlans(sanitized);
+      } catch {
+        /* checkpoint incremental best-effort */
+      }
+    }
   }
 
   // Fail-closed: lanza IncompleteSessionPlansError si falta alguna sesión

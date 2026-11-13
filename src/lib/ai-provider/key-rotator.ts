@@ -204,6 +204,7 @@ export interface ClaimOptions {
   excludeTeacherKey?: boolean;
   excludeEnv?: boolean;
   maxWaitMs?: number;
+  waitAttempts?: number;
   signal?: AbortSignal;
   requirePool?: boolean;
 }
@@ -299,15 +300,25 @@ export async function claimApiKey(
       const cooldownEnds = earliestError + COOLDOWN_TRANSIENT_SECONDS * 1000;
       const remainingMs = cooldownEnds - Date.now();
       const maxWait = options?.maxWaitMs ?? 5000;
+      const waitAttempts = options?.waitAttempts ?? 0;
 
       // Esperar solo si cabe de forma segura dentro del presupuesto de tiempo restante
-      if (remainingMs > 0 && remainingMs <= maxWait) {
+      if (remainingMs > 0 && remainingMs <= maxWait && waitAttempts < 2) {
         throwIfAborted(options?.signal);
+        const jitterMs = process.env.NODE_ENV === 'test'
+          ? 100
+          : 150 + Math.floor(Math.random() * 450);
+        const sleepMs = remainingMs + jitterMs;
         logger.info(
-          `[key-rotator] Todas las claves de "${provider}" en cooldown transitorio. Esperando ${remainingMs}ms para recuperación...`
+          `[key-rotator] Todas las claves de "${provider}" en cooldown transitorio. Esperando ${sleepMs}ms para recuperación...`
         );
-        await abortableSleep(remainingMs + 100, options?.signal);
-        return claimApiKey(provider, { ...options, maxWaitMs: 0 });
+        await abortableSleep(sleepMs, options?.signal);
+        const remainingWait = Math.max(0, maxWait - sleepMs);
+        return claimApiKey(provider, {
+          ...options,
+          maxWaitMs: remainingWait,
+          waitAttempts: waitAttempts + 1,
+        });
       } else if (remainingMs > 0) {
         throw new AiCooldownExhaustedError(
           `Todas las claves de "${provider}" están en enfriamiento por cuota (restan ${Math.ceil(remainingMs / 1000)}s). Cortando por deadline.`
@@ -541,6 +552,12 @@ export async function withKeyRotation<T>(
       );
     }
 
+    const maxCooldownWaitMs = preClaimRemaining !== undefined
+      ? preClaimRemaining >= 30_000
+        ? Math.min(46_000, Math.floor(preClaimRemaining / 3))
+        : Math.min(5000, preClaimRemaining / 2)
+      : 5000;
+
     let claimed: ResolvedKey | null = null;
     try {
       claimed = await claimApiKey(provider, {
@@ -548,7 +565,7 @@ export async function withKeyRotation<T>(
         excludeKeyIds: new Set([...permanentlyFailedKeyIds, ...triedKeyIdsInRound]),
         excludeTeacherKey,
         excludeEnv,
-        maxWaitMs: preClaimRemaining ? Math.min(5000, preClaimRemaining / 2) : 5000,
+        maxWaitMs: maxCooldownWaitMs,
         signal,
       });
     } catch (claimErr) {

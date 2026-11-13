@@ -46,8 +46,12 @@ export interface SchedulerOptions {
 
 /** Errores transitorios de capacidad/cuota del proveedor (comparten breaker). */
 export function isTransientCapacityError(err: unknown): boolean {
+  const errName = err instanceof Error ? err.name : '';
   const msg = err instanceof Error ? err.message : String(err ?? '');
-  return /503|UNAVAILABLE|high demand|service unavailable|overloaded|429|RESOURCE_EXHAUSTED|rate.?limit|cooldown|AiServiceUnavailable/i.test(
+  if (errName === 'AiCooldownExhaustedError' || errName === 'AiServiceUnavailableError') {
+    return true;
+  }
+  return /503|UNAVAILABLE|high demand|alta demanda|service unavailable|overloaded|429|RESOURCE_EXHAUSTED|rate.?limit|cooldown|enfriamiento|fast-fail|AiServiceUnavailable|AiCooldownExhausted/i.test(
     msg
   );
 }

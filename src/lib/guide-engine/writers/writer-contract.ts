@@ -116,6 +116,28 @@ export interface WriterInput {
    * Vacío/undefined cuando `KNOWLEDGE_LAYER_ENABLED=false`.
    */
   institutionalContext?: string;
+  /**
+   * Marca de tiempo absoluta (epoch ms) límite del presupuesto editorial del job.
+   */
+  budgetDeadlineMs?: number;
+  /**
+   * Planes de sesión parciales ya completados para esta misión en intentos previos (checkpoint).
+   */
+  cachedSessionPlans?: SessionPlan[];
+  /**
+   * Callback incremental llamado cada vez que se completa un paquete de sesiones en sharding.
+   */
+  onPartialSessionPlans?: (plans: SessionPlan[]) => void | Promise<void>;
+}
+
+/**
+ * Calcula los milisegundos restantes respecto a `budgetDeadlineMs` sin caer por debajo de 1 ms.
+ */
+export function resolveRemainingBudgetMs(budgetDeadlineMs?: number): number | undefined {
+  if (typeof budgetDeadlineMs !== 'number' || !Number.isFinite(budgetDeadlineMs)) {
+    return undefined;
+  }
+  return Math.max(1, budgetDeadlineMs - Date.now());
 }
 
 export interface WriterOutput {

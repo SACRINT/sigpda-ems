@@ -64,8 +64,15 @@ export async function GET(
     // El claim atómico en Neon garantiza un solo worker aunque haya múltiples polls concurrentes.
     const now = Date.now();
     const lastActivity = new Date(job.updated_at || job.created_at).getTime();
+    const resultObj =
+      job.result && typeof job.result === 'object'
+        ? (job.result as unknown as Record<string, unknown>)
+        : null;
+    const nextRetryAtRaw = typeof resultObj?.nextRetryAt === 'string' ? resultObj.nextRetryAt : null;
+    const nextRetryAtMs = nextRetryAtRaw ? Date.parse(nextRetryAtRaw) : NaN;
+    const inCooldownBackoff = Number.isFinite(nextRetryAtMs) && now < nextRetryAtMs;
     const isStalePending =
-      job.status === 'pending' && now - lastActivity > 10000;
+      job.status === 'pending' && !inCooldownBackoff && now - lastActivity > 10000;
     const isLeaseExpired =
       job.status === 'running' &&
       (!job.lease_until || new Date(job.lease_until).getTime() < now);

@@ -26,15 +26,22 @@ import {
   type GenerationJob,
 } from '@/lib/db';
 import { generateBlockWorkTextbook } from './guide-engine/block-guide-orchestrator';
+import { isTransientCapacityError } from './guide-engine/writer-scheduler';
 import type { WriterOutput } from './guide-engine/writers/writer-contract';
+import type { SessionPlan } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
 
 const MAX_CHECKPOINT_REQUEUES = 8;
 
+type MissionWriterType = WriterOutput['type'];
+type PartialSessionPlansMap = Partial<Record<MissionWriterType, SessionPlan[]>>;
+
 interface JobCheckpoint {
   writerOutputs: WriterOutput[];
+  partialSessionPlans?: PartialSessionPlansMap;
   attempts: number;
   updatedAt: string;
+  nextRetryAt?: string;
 }
 
 function readCheckpoint(result: unknown): JobCheckpoint | null {
@@ -42,11 +49,66 @@ function readCheckpoint(result: unknown): JobCheckpoint | null {
   const candidate = result as Record<string, unknown>;
   if (!Array.isArray(candidate.writerOutputs)) return null;
   if (typeof candidate.attempts !== 'number') return null;
+  const rawPartials = candidate.partialSessionPlans;
+  const partialSessionPlans =
+    rawPartials && typeof rawPartials === 'object' && !Array.isArray(rawPartials)
+      ? (rawPartials as PartialSessionPlansMap)
+      : undefined;
   return {
     writerOutputs: candidate.writerOutputs as WriterOutput[],
+    ...(partialSessionPlans ? { partialSessionPlans } : {}),
     attempts: candidate.attempts,
     updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : new Date().toISOString(),
+    ...(typeof candidate.nextRetryAt === 'string' ? { nextRetryAt: candidate.nextRetryAt } : {}),
   };
+}
+
+function hasAnyPartialSessionPlans(partials?: PartialSessionPlansMap): boolean {
+  if (!partials) return false;
+  return Object.values(partials).some((plans) => Array.isArray(plans) && plans.length > 0);
+}
+
+function isTransientJobError(error: unknown): boolean {
+  if (isTransientCapacityError(error)) return true;
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return /timeout|econnreset|fetch failed|network|socket|presupuesto.*cr[ií]tico|job_max_duration_seconds/i.test(
+    msg
+  );
+}
+
+function computeCooldownBackoffMs(errorMsg: string, isTransient: boolean): number {
+  if (!isTransient) return 0;
+  const match = errorMsg.match(/restan\s+(\d+)s/i);
+  if (match) {
+    const remainingSec = parseInt(match[1], 10);
+    if (Number.isFinite(remainingSec)) {
+      return Math.min(60_000, Math.max(15_000, (remainingSec + 5) * 1000));
+    }
+  }
+  return 50_000;
+}
+
+function resolvePostRedactionEvictionTarget(
+  errorMsgLower: string,
+  writers: WriterOutput[]
+): MissionWriterType {
+  const match = errorMsgLower.match(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+(\d+)/i);
+  if (match) {
+    const sNum = parseInt(match[1], 10);
+    const owner = writers.find((w) => w.section?.coveredSessions?.includes(sNum));
+    if (owner) return owner.type;
+    if (sNum <= 3) return 'foundation';
+    if (sNum <= 9) return 'lab';
+    if (sNum <= 15) return 'project';
+    return 'evaluation';
+  }
+  if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
+    return 'evaluation';
+  }
+  if (errorMsgLower.includes('project') || errorMsgLower.includes('proyecto')) {
+    return 'project';
+  }
+  return 'lab';
 }
 
 export async function processGenerationJob(
@@ -144,25 +206,64 @@ export async function processGenerationJob(
   let checkpointQueue = Promise.resolve();
   const persistCheckpoint = (incomingOutputs: WriterOutput[]): Promise<void> => {
     const snapshot = [...incomingOutputs];
-    checkpointQueue = checkpointQueue.then(async () => {
-      const mergedByType = new Map<WriterOutput['type'], WriterOutput>();
-      for (const w of checkpointState.writerOutputs) {
-        if (w?.type) mergedByType.set(w.type, w);
-      }
-      for (const w of snapshot) {
-        if (w?.type) mergedByType.set(w.type, w);
-      }
-      checkpointState = {
-        writerOutputs: Array.from(mergedByType.values()),
-        attempts: checkpointState.attempts,
-        updatedAt: new Date().toISOString(),
-      };
-      await saveGenerationJobCheckpoint(
-        jobId,
-        checkpointState as unknown as Record<string, unknown>,
-        leaseId
-      );
-    });
+    checkpointQueue = checkpointQueue
+      .catch(() => undefined)
+      .then(async () => {
+        if (leaseLost) return;
+        const mergedByType = new Map<MissionWriterType, WriterOutput>();
+        for (const w of checkpointState.writerOutputs) {
+          if (w?.type) mergedByType.set(w.type, w);
+        }
+        const nextPartials: PartialSessionPlansMap = {
+          ...(checkpointState.partialSessionPlans ?? {}),
+        };
+        for (const w of snapshot) {
+          if (w?.type) {
+            mergedByType.set(w.type, w);
+            delete nextPartials[w.type];
+          }
+        }
+        checkpointState = {
+          writerOutputs: Array.from(mergedByType.values()),
+          ...(Object.keys(nextPartials).length > 0 ? { partialSessionPlans: nextPartials } : {}),
+          attempts: checkpointState.attempts,
+          updatedAt: new Date().toISOString(),
+        };
+        await saveGenerationJobCheckpoint(
+          jobId,
+          checkpointState as unknown as Record<string, unknown>,
+          leaseId
+        );
+      });
+    return checkpointQueue;
+  };
+
+  const persistPartialSessionPlans = (
+    writerType: MissionWriterType,
+    plans: SessionPlan[]
+  ): Promise<void> => {
+    const snapshot = [...plans];
+    checkpointQueue = checkpointQueue
+      .catch(() => undefined)
+      .then(async () => {
+        if (leaseLost) return;
+        if (checkpointState.writerOutputs.some((w) => w.type === writerType)) return;
+        const nextPartials: PartialSessionPlansMap = {
+          ...(checkpointState.partialSessionPlans ?? {}),
+          [writerType]: snapshot,
+        };
+        checkpointState = {
+          writerOutputs: checkpointState.writerOutputs,
+          partialSessionPlans: nextPartials,
+          attempts: checkpointState.attempts,
+          updatedAt: new Date().toISOString(),
+        };
+        await saveGenerationJobCheckpoint(
+          jobId,
+          checkpointState as unknown as Record<string, unknown>,
+          leaseId
+        );
+      });
     return checkpointQueue;
   };
 
@@ -181,7 +282,9 @@ export async function processGenerationJob(
         // deficientes solo si queda presupuesto suficiente (ver orquestador).
         expandDeficientSessions: true,
         previousWriterOutputs,
+        previousPartialSessionPlans: checkpointState.partialSessionPlans,
         onCheckpoint: persistCheckpoint,
+        onPartialSessionPlansCheckpoint: persistPartialSessionPlans,
       }
     );
 
@@ -225,62 +328,73 @@ export async function processGenerationJob(
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`[job-worker] Falló job ${jobId}:`, error);
 
+    await checkpointQueue.catch(() => undefined);
+
+    const transientError = isTransientJobError(error);
+    const hasProgress =
+      checkpointState.writerOutputs.length > 0 ||
+      hasAnyPartialSessionPlans(checkpointState.partialSessionPlans);
     const canResume =
-      checkpointState.writerOutputs.length > 0 &&
+      (hasProgress || transientError) &&
       checkpointState.attempts < MAX_CHECKPOINT_REQUEUES;
 
     if (canResume) {
       let writersToKeep = [...checkpointState.writerOutputs];
+      let nextPartials = checkpointState.partialSessionPlans
+        ? { ...checkpointState.partialSessionPlans }
+        : undefined;
 
       // Si todos los redactores (4) ya estaban completos pero el job falló en validación o ensamblado:
       // Conservar los 4 redactores provocaría que el worker repita el fallo de forma determinista.
       // Descartamos el redactor responsable de las sesiones afectadas (o el último) para que se regenere con IA fresca,
       // a menos que sea un error transitorio de red o cuota (503/cooldown).
-      if (writersToKeep.length >= 4) {
-        let evictedType: 'foundation' | 'lab' | 'project' | 'evaluation' = 'lab';
+      if (writersToKeep.length >= 4 && !transientError) {
         const errorMsgLower = errorMsg.toLowerCase();
-        const isQuotaOrNetwork =
-          errorMsgLower.includes('cooldown') ||
-          errorMsgLower.includes('enfriamiento') ||
-          errorMsgLower.includes('503') ||
-          errorMsgLower.includes('serviceunavailable');
-
-        if (!isQuotaOrNetwork) {
-          const match = errorMsgLower.match(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+(\d+)/i);
-          if (match) {
-            const sNum = parseInt(match[1], 10);
-            if (sNum <= 3) evictedType = 'foundation';
-            else if (sNum <= 9) evictedType = 'lab';
-            else if (sNum <= 15) evictedType = 'project';
-            else evictedType = 'evaluation';
-          } else if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
-            evictedType = 'evaluation';
-          } else if (errorMsgLower.includes('project') || errorMsgLower.includes('proyecto')) {
-            evictedType = 'project';
-          }
-          writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
-          logger.warn(
-            `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor '${evictedType}' del checkpoint para forzar regeneración fresca en el reintento.`
-          );
+        const evictedType = resolvePostRedactionEvictionTarget(errorMsgLower, writersToKeep);
+        writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
+        if (nextPartials) {
+          delete nextPartials[evictedType];
         }
+        logger.warn(
+          `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor '${evictedType}' del checkpoint para forzar regeneración fresca en el reintento.`
+        );
       }
+
+      const backoffMs = computeCooldownBackoffMs(errorMsg, transientError);
+      const nextRetryAt =
+        backoffMs > 0 ? new Date(Date.now() + backoffMs).toISOString() : undefined;
+      const resumeStep =
+        backoffMs > 0
+          ? `Esperando enfriamiento de APIs IA (~${Math.ceil(backoffMs / 1000)}s) antes de reanudar desde checkpoint...`
+          : undefined;
 
       const nextCheckpoint: JobCheckpoint = {
         writerOutputs: writersToKeep,
+        ...(nextPartials && Object.keys(nextPartials).length > 0
+          ? { partialSessionPlans: nextPartials }
+          : {}),
         attempts: checkpointState.attempts + 1,
         updatedAt: new Date().toISOString(),
+        ...(nextRetryAt ? { nextRetryAt } : {}),
       };
       try {
-        const resumeProgress = Math.min(65, 25 + nextCheckpoint.writerOutputs.length * 10);
+        const partialCount = nextPartials
+          ? Object.values(nextPartials).reduce((acc, list) => acc + (list?.length ?? 0), 0)
+          : 0;
+        const resumeProgress = Math.min(
+          65,
+          25 + nextCheckpoint.writerOutputs.length * 10 + (partialCount > 0 ? 5 : 0)
+        );
         const requeued = await requeueGenerationJob(
           jobId,
           nextCheckpoint as unknown as Record<string, unknown>,
           leaseId,
-          resumeProgress
+          resumeProgress,
+          resumeStep
         );
         if (requeued) {
           logger.warn(
-            `[job-worker] Job ${jobId} reencolado con ${nextCheckpoint.writerOutputs.length} redactores (reintento ${nextCheckpoint.attempts}/${MAX_CHECKPOINT_REQUEUES}).`
+            `[job-worker] Job ${jobId} reencolado con ${nextCheckpoint.writerOutputs.length} redactores y ${partialCount} sesiones parciales (reintento ${nextCheckpoint.attempts}/${MAX_CHECKPOINT_REQUEUES}${backoffMs > 0 ? `, backoff ${Math.ceil(backoffMs / 1000)}s` : ''}).`
           );
           return await getGenerationJobById(jobId);
         }
