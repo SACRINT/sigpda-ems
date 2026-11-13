@@ -151,6 +151,76 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     mockSaveGenerationJobCheckpoint.mockResolvedValue(true);
     mockRequeueGenerationJob.mockResolvedValue(true);
     mockFailGenerationJob.mockResolvedValue(true);
+    mockSaveBlockWorkbook.mockResolvedValue({ success: true, version: 1 });
+    mockCompleteGenerationJob.mockResolvedValue(true);
+  });
+
+  it('workbook completado en corrida limpia registra generationAttempts = 1', async () => {
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 0,
+        status: 'running',
+        result: null,
+        started_at: new Date().toISOString(),
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'completed' });
+    mockGenerateBlockWorkTextbook.mockResolvedValueOnce({
+      id: 'workbook-clean',
+      planningId,
+      blockIndex: 0,
+      blockName: 'Bloque 1',
+      version: 1,
+      totalWords: 27000,
+      totalPages: 40,
+      qualityScore: 95,
+      qualityWarning: false,
+      coverData: { subjectName: 'Pensamiento Matemático III' },
+    });
+
+    await processGenerationJob(jobId, leaseId);
+
+    expect(mockCompleteGenerationJob).toHaveBeenCalledTimes(1);
+    const completedWorkbook = mockCompleteGenerationJob.mock.calls[0][1];
+    expect(completedWorkbook.generationAttempts).toBe(1);
+  });
+
+  it('workbook completado tras un reencolado registra generationAttempts >= 2', async () => {
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 0,
+        status: 'running',
+        result: {
+          writerOutputs: [],
+          attempts: 1,
+          updatedAt: new Date().toISOString(),
+        },
+        started_at: new Date().toISOString(),
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'completed' });
+    mockGenerateBlockWorkTextbook.mockResolvedValueOnce({
+      id: 'workbook-retried',
+      planningId,
+      blockIndex: 0,
+      blockName: 'Bloque 1',
+      version: 1,
+      totalWords: 27000,
+      totalPages: 40,
+      qualityScore: 95,
+      qualityWarning: false,
+      coverData: { subjectName: 'Pensamiento Matemático III' },
+    });
+
+    await processGenerationJob(jobId, leaseId);
+
+    expect(mockCompleteGenerationJob).toHaveBeenCalledTimes(1);
+    const completedWorkbook = mockCompleteGenerationJob.mock.calls[0][1];
+    expect(completedWorkbook.generationAttempts).toBe(2);
   });
 
   it('status/route.ts respeta nextRetryAt en backoff y solo dispara el worker cuando vence el cooldown', async () => {
@@ -165,7 +235,10 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
       current_phase: 'queued',
       current_step: 'Esperando enfriamiento de APIs IA (~45s)...',
       error: null,
-      result: { nextRetryAt: new Date(now + 40_000).toISOString() },
+      result: {
+        nextRetryAt: new Date(now + 40_000).toISOString(),
+        attempts: 2,
+      },
       lease_until: null,
       updated_at: new Date(now - 15_000).toISOString(),
       created_at: new Date(now - 60_000).toISOString(),
@@ -176,6 +249,9 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     );
     const resCooldown = await GET(reqCooldown, { params: Promise.resolve({ id: planningId }) });
     expect(resCooldown.status).toBe(200);
+    const bodyCooldown = await resCooldown.json();
+    expect(bodyCooldown.attempts).toBe(3);
+    expect(bodyCooldown.nextRetryAt).toBe(new Date(now + 40_000).toISOString());
     expect(mockClaimGenerationJob).not.toHaveBeenCalled();
     expect(mockAfter).not.toHaveBeenCalled();
 
@@ -253,6 +329,33 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     expect(String(currentStep)).toContain('43s');
     expect(requeuedCheckpoint.partialSessionPlans.project).toHaveLength(3);
     expect(Date.parse(requeuedCheckpoint.nextRetryAt)).toBeGreaterThan(Date.now() + 35_000);
+  });
+
+  it('job-worker no reencola el intento 8 para evitar mostrar Intento 9/8', async () => {
+    mockGetGenerationJobById.mockResolvedValueOnce({
+      id: jobId,
+      planning_id: planningId,
+      teacher_id: teacherId,
+      block_index: 0,
+      status: 'running',
+      result: {
+        writerOutputs: [],
+        attempts: 7,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new AiCooldownExhaustedError(
+        'Todas las claves de "gemini" están en enfriamiento por cuota (restan 38s). Cortando por deadline.'
+      )
+    );
+
+    await expect(processGenerationJob(jobId, leaseId)).rejects.toThrow(
+      'Todas las claves de "gemini"'
+    );
+    expect(mockRequeueGenerationJob).not.toHaveBeenCalled();
+    expect(mockFailGenerationJob).toHaveBeenCalledTimes(1);
   });
 
   it('job-worker evicta dinámicamente por coveredSessions reales en bloque de 24 sesiones (sesión 11 -> lab)', async () => {

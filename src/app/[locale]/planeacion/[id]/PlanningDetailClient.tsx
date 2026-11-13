@@ -14,6 +14,11 @@ import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSe
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
 import { resolveWeeklyHours, resolveSessionsPerBlock, computeContentBudget } from '@/lib/guide-engine/content-budget';
+import {
+  registerActiveWorkbookJob,
+  clearActiveWorkbookJob,
+  clearActiveWorkbookJobForBlock,
+} from '@/lib/workbook-job-watch';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 // ── Lucide Icons ────────────────────────────────────────────────────────────
 import {
@@ -26,6 +31,7 @@ interface PlanningDetailClientProps {
   initialExtras: PlanningExtra[];
   editorialEngineEnabled?: boolean;
   canEditDocument?: boolean;
+  showGenerationTelemetry?: boolean;
 }
 
 import PlanningDetailLegacy from './legacy/PlanningDetailLegacy';
@@ -37,6 +43,8 @@ import {
   type QualitySubTab,
 } from '@/components/planeacion/tabs';
 import { useAssistant } from '@/components/assistant';
+
+const BACKGROUND_WORKBOOK_POLL_MS = 50_000;
 
 export default function PlanningDetailClient(props: PlanningDetailClientProps) {
   if (process.env.NEXT_PUBLIC_FF_NEW_PLANNING_DETAIL === 'false') {
@@ -51,6 +59,7 @@ function PlanningDetailModular({
   initialExtras,
   editorialEngineEnabled,
   canEditDocument = false,
+  showGenerationTelemetry = false,
 }: PlanningDetailClientProps) {
   const [planning, setPlanning] = useState<Planning>(initialPlanning);
   const [mounted, setMounted] = useState(false);
@@ -477,8 +486,15 @@ function PlanningDetailModular({
   const [blockWorkbooks, setBlockWorkbooks] = useState<Record<number, BlockWorkbookItem>>(initialWorkbooks);
   const pollIntervalsRef = useRef<Record<number, NodeJS.Timeout>>({});
   const pollControllersRef = useRef<Record<number, AbortController>>({});
+  const pollNowRef = useRef<Record<number, () => void>>({});
+  const pollCancelRef = useRef<Record<number, () => void>>({});
 
   const stopWorkbookPolling = useCallback((blockIndex: number) => {
+    const cancel = pollCancelRef.current[blockIndex];
+    if (cancel) {
+      cancel();
+      delete pollCancelRef.current[blockIndex];
+    }
     const timer = pollIntervalsRef.current[blockIndex];
     if (timer) {
       clearTimeout(timer);
@@ -489,11 +505,18 @@ function PlanningDetailModular({
       controller.abort();
       delete pollControllersRef.current[blockIndex];
     }
+    delete pollNowRef.current[blockIndex];
   }, []);
 
   const startWorkbookPolling = useCallback(
     (blockIndex: number, jobId: string, initialStartedAt?: string) => {
       stopWorkbookPolling(blockIndex);
+      registerActiveWorkbookJob({
+        planningId: planning.id,
+        blockIndex,
+        jobId,
+        startedAt: initialStartedAt,
+      });
 
       setBlockWorkbooks((prev) => {
         const cur = prev[blockIndex];
@@ -520,14 +543,29 @@ function PlanningDetailModular({
       });
 
       let isFinished = false;
+      let inFlight = false;
+      let wakeRequested = false;
       let delay = 2500;
+      let nextRetryAtMs: number | null = null;
+      let timer: NodeJS.Timeout | null = null;
+
+      pollCancelRef.current[blockIndex] = () => {
+        isFinished = true;
+      };
+
+      const schedule = (nextDelay: number) => {
+        if (isFinished) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          void poll();
+        }, nextDelay);
+        pollIntervalsRef.current[blockIndex] = timer;
+      };
 
       const poll = async () => {
-        if (isFinished) return;
-        if (document.visibilityState !== 'visible') {
-          pollIntervalsRef.current[blockIndex] = setTimeout(poll, 5000);
-          return;
-        }
+        if (isFinished || inFlight) return;
+        inFlight = true;
+        nextRetryAtMs = null;
 
         const controller = new AbortController();
         pollControllersRef.current[blockIndex] = controller;
@@ -540,7 +578,16 @@ function PlanningDetailModular({
           if (!statusRes.ok) return;
 
           const statusData = await statusRes.json();
-          if (!statusData?.found) return;
+          if (typeof statusData?.nextRetryAt === 'string') {
+            const parsedRetryAt = Date.parse(statusData.nextRetryAt);
+            nextRetryAtMs = Number.isFinite(parsedRetryAt) ? parsedRetryAt : null;
+          }
+          if (!statusData?.found || statusData.status === 'not_found') {
+            isFinished = true;
+            clearActiveWorkbookJob(jobId);
+            stopWorkbookPolling(blockIndex);
+            return;
+          }
 
           setBlockWorkbooks((prev) => {
             const cur = prev[blockIndex];
@@ -556,6 +603,8 @@ function PlanningDetailModular({
                   currentStep: statusData.currentStep || 'Generando contenido formativo...',
                   percent: Math.max(cur.progress?.percent ?? 0, statusData.progress || 10),
                   startedAt: statusData.startedAt || cur.progress?.startedAt,
+                  attempts: statusData.attempts,
+                  nextRetryAt: statusData.nextRetryAt ?? undefined,
                   updatedAt: statusData.updatedAt || new Date().toISOString(),
                 },
               },
@@ -564,6 +613,7 @@ function PlanningDetailModular({
 
           if (statusData.status === 'completed') {
             isFinished = true;
+            clearActiveWorkbookJob(jobId);
             stopWorkbookPolling(blockIndex);
 
             const resultRes = await fetch(
@@ -579,6 +629,8 @@ function PlanningDetailModular({
                 (startedAt
                   ? Math.max(0, new Date(completedAt).getTime() - new Date(startedAt).getTime())
                   : undefined);
+              const attempts =
+                resultData.workbook.generationAttempts ?? statusData.attempts;
 
               setBlockWorkbooks((prev) => ({
                 ...prev,
@@ -590,6 +642,7 @@ function PlanningDetailModular({
                     generationStartedAt:
                       resultData.workbook.generationStartedAt || startedAt,
                     generationDurationMs: durationMs,
+                    generationAttempts: attempts,
                   },
                   version: resultData.workbook.version || 1,
                   progress: {
@@ -601,6 +654,7 @@ function PlanningDetailModular({
                     qualityScore: resultData.workbook.qualityScore,
                     wordCount: resultData.wordCount || resultData.workbook.totalWords,
                     totalWords: resultData.totalWords || resultData.workbook.totalWords,
+                    attempts,
                     startedAt,
                     completedAt,
                     durationMs,
@@ -613,6 +667,7 @@ function PlanningDetailModular({
             }
           } else if (statusData.status === 'failed') {
             isFinished = true;
+            clearActiveWorkbookJob(jobId);
             stopWorkbookPolling(blockIndex);
 
             setBlockWorkbooks((prev) => ({
@@ -633,14 +688,43 @@ function PlanningDetailModular({
           }
         } finally {
           delete pollControllersRef.current[blockIndex];
+          inFlight = false;
           if (!isFinished) {
-            delay = Math.min(delay * 2, 20000);
-            pollIntervalsRef.current[blockIndex] = setTimeout(poll, delay);
+            if (wakeRequested) {
+              wakeRequested = false;
+              delay = 2500;
+            } else {
+              delay = document.visibilityState === 'visible'
+                ? Math.min(delay * 2, 20000)
+                : BACKGROUND_WORKBOOK_POLL_MS;
+              if (nextRetryAtMs !== null) {
+                delay = Math.min(
+                  delay,
+                  Math.max(1500, nextRetryAtMs - Date.now() + 1000)
+                );
+              }
+            }
+            schedule(delay);
           }
         }
       };
 
-      pollIntervalsRef.current[blockIndex] = setTimeout(poll, 2500);
+      const triggerNow = () => {
+        if (isFinished) return;
+        delay = 2500;
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        if (inFlight) {
+          wakeRequested = true;
+          return;
+        }
+        void poll();
+      };
+
+      pollNowRef.current[blockIndex] = triggerNow;
+      schedule(2500);
     },
     [planning.id, loadExtras, stopWorkbookPolling]
   );
@@ -649,25 +733,33 @@ function PlanningDetailModular({
   useEffect(() => {
     const activeTimeouts = pollIntervalsRef.current;
     const activeControllers = pollControllersRef.current;
+    const activeCancels = pollCancelRef.current;
     return () => {
+      Object.values(activeCancels).forEach((cancel) => cancel());
+      pollCancelRef.current = {};
       Object.values(activeTimeouts).forEach((timer) => {
         if (timer) clearTimeout(timer);
       });
       Object.values(activeControllers).forEach((controller) => {
         controller.abort();
       });
+      pollNowRef.current = {};
     };
   }, []);
 
-  // Abort in-flight polls when the tab is hidden to avoid background DB traffic
+  // Al volver a enfocar o mostrar la pestaña, despertar el polling de inmediato
+  // en lugar de esperar el backoff de hasta 20 s.
   useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') {
-        Object.values(pollControllersRef.current).forEach((controller) => controller.abort());
-      }
+    const wake = () => {
+      if (document.visibilityState !== 'visible') return;
+      Object.values(pollNowRef.current).forEach((trigger) => trigger());
     };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    return () => {
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+    };
   }, []);
 
   // Reenganche al montar: hidrata el workbook y reanuda el polling si el job
@@ -700,7 +792,10 @@ function PlanningDetailModular({
 
         if (!statusRes.ok) return;
         const statusData = await statusRes.json();
-        if (!statusData?.found || !statusData.jobId) return;
+        if (!statusData?.found || !statusData.jobId) {
+          clearActiveWorkbookJobForBlock(planning.id, idx);
+          return;
+        }
 
         if (statusData.status === 'pending' || statusData.status === 'running') {
           setBlockWorkbooks(prev => ({
@@ -719,12 +814,15 @@ function PlanningDetailModular({
                 currentStep: statusData.currentStep || 'Reanudando generación editorial...',
                 percent: statusData.progress || 5,
                 startedAt: statusData.startedAt,
+                attempts: statusData.attempts,
+                nextRetryAt: statusData.nextRetryAt ?? undefined,
                 updatedAt: statusData.updatedAt || new Date().toISOString(),
               },
             },
           }));
           startWorkbookPolling(idx, statusData.jobId, statusData.startedAt);
         } else if (statusData.status === 'failed') {
+          clearActiveWorkbookJob(statusData.jobId);
           setBlockWorkbooks(prev => ({
             ...prev,
             [idx]: {
@@ -734,6 +832,8 @@ function PlanningDetailModular({
               error: statusData.error || 'La generación anterior falló. Puedes reintentar el bloque.',
             },
           }));
+        } else if (statusData.status === 'completed') {
+          clearActiveWorkbookJob(statusData.jobId);
         }
       } catch {
         // ignore background fetch errors
@@ -1055,6 +1155,7 @@ function PlanningDetailModular({
           <PlanningTabDocumento
             planning={planning}
             editorialEngineEnabled={editorialEngineEnabled}
+            showGenerationTelemetry={showGenerationTelemetry}
             sequenceData={sequenceData}
             extras={extras}
             totalSessions={lessonSessions.length}

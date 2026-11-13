@@ -295,6 +295,8 @@ export interface ActiveWorkTextbook {
   generationStartedAt?: string;
   /** Duración total del job, incluyendo reintentos y backoff. */
   generationDurationMs?: number;
+  /** Número total de intentos usados (1 = corrida limpia sin reencolados). */
+  generationAttempts?: number;
   qualityScore: number;           // 0 - 100
   qualityWarning: boolean;        // true si se us� fallback de calidad
   /**
@@ -374,6 +376,10 @@ export interface GenerationProgressState {
   completedAt?: string;
   /** Duración total calculada por el servidor o el cliente. */
   durationMs?: number;
+  /** Intento actual (1 = primera corrida; 2+ = reencolado por enfriamiento). */
+  attempts?: number;
+  /** ISO de la próxima reanudación cuando el job espera enfriamiento de IA. */
+  nextRetryAt?: string;
   updatedAt: string;
 }
 

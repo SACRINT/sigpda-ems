@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTeacherByEmail, getTeacherSchoolZone, getPlanningById, getPlanningExtras } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
+import { canViewGenerationTelemetry } from '@/lib/subscription-plans';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import AppLayout from '@/components/layout/AppLayout';
 import { featureFlags } from '@/lib/platform/feature-flags';
@@ -98,6 +99,9 @@ export default async function PlanningDetailPage({
   const editorialEngineEnabled = featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE');
   const subStatus = await getSubscriptionStatus(teacher.id, session.user.email);
   const canEditDocument = Boolean(subStatus.isAdmin || subStatus.hasActiveSubscription);
+  const showGenerationTelemetry =
+    subStatus.isAdmin ||
+    canViewGenerationTelemetry(subStatus.subscription?.planName);
 
   return (
     <AppLayout locale={locale}>
@@ -107,6 +111,7 @@ export default async function PlanningDetailPage({
         initialExtras={extrasTyped}
         editorialEngineEnabled={editorialEngineEnabled}
         canEditDocument={canEditDocument}
+        showGenerationTelemetry={showGenerationTelemetry}
       />
     </AppLayout>
   );

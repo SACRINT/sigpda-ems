@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { signOutAction, signOutPlain } from '@/lib/server-actions';
 import SignOutButton from './SignOutButton';
+import WorkbookJobWatcher from './WorkbookJobWatcher';
 import NotificationBell from '../notifications/NotificationBell';
 
 import { isEnvAdmin } from '@/lib/admin-env';
@@ -90,6 +91,7 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
           </div>
         </div>
         <div className="header-right">
+          <WorkbookJobWatcher locale={locale} />
           <NotificationBell />
           <div className="header-user">
             <div className="header-avatar">

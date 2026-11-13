@@ -44,6 +44,7 @@ export interface PlanningTabDocumentoProps {
   isEditorialGenerating?: boolean;
   handleExportEditorial?: () => Promise<void> | void;
   editorialEngineEnabled?: boolean;
+  showGenerationTelemetry?: boolean;
   accumulatedWorkbookWords?: number;
   macroTargetWords?: number;
   generatedWorkbookCount?: number;
@@ -92,11 +93,16 @@ function ElapsedTimer({
 
   React.useEffect(() => {
     if (!startedAt || completedAt || durationMs !== undefined) return;
+    const kickoff = window.setTimeout(() => setNow(Date.now()), 0);
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(kickoff);
+      window.clearInterval(timer);
+    };
   }, [startedAt, completedAt, durationMs]);
 
   if (durationMs === undefined && !startedAt) return null;
+  if (!completedAt && durationMs === undefined && now === null) return null;
 
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
   const endMs = completedAt ? Date.parse(completedAt) : now ?? startMs;
@@ -109,6 +115,32 @@ function ElapsedTimer({
       style={{ fontVariantNumeric: 'tabular-nums' }}
     >
       ⏱ {formatDurationMs(elapsed)}
+    </span>
+  );
+}
+
+function RetryCountdown({ nextRetryAt }: { nextRetryAt: string }) {
+  const [now, setNow] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const kickoff = window.setTimeout(() => setNow(Date.now()), 0);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      window.clearTimeout(kickoff);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const target = Date.parse(nextRetryAt);
+  const remaining = Number.isFinite(target) && now !== null
+    ? Math.max(0, Math.ceil((target - now) / 1000))
+    : null;
+
+  return (
+    <span style={{ color: '#fbbf24', fontWeight: 700 }}>
+      {remaining !== null && remaining > 0
+        ? `Reanudando en ${remaining}s...`
+        : 'Reanudando...'}
     </span>
   );
 }
@@ -152,6 +184,7 @@ export default function PlanningTabDocumento({
   isEditorialGenerating = false,
   handleExportEditorial,
   editorialEngineEnabled = false,
+  showGenerationTelemetry = false,
   canEditDocument = false,
   onPlanningUpdated,
 }: PlanningTabDocumentoProps) {
@@ -1230,6 +1263,9 @@ export default function PlanningTabDocumento({
                               (wbItem.workbook.generationDurationMs !== undefined ||
                                 wbItem.workbook.generationStartedAt) && (
                                 <span
+                                  title={showGenerationTelemetry
+                                    ? `IA: ${wbItem.workbook.aiWords ?? wbItem.workbook.coverageReport?.aiWords ?? 0} palabras · Fallback: ${wbItem.workbook.fallbackWords ?? wbItem.workbook.coverageReport?.fallbackWords ?? 0} palabras`
+                                    : undefined}
                                   style={{
                                     fontSize: '11px',
                                     fontWeight: 600,
@@ -1245,6 +1281,10 @@ export default function PlanningTabDocumento({
                                     durationMs={wbItem.workbook.generationDurationMs}
                                     completedAt={wbItem.progress?.completedAt}
                                   />
+                                  {showGenerationTelemetry &&
+                                    wbItem.workbook.generationAttempts !== undefined && (
+                                      <> · {wbItem.workbook.generationAttempts} intento{wbItem.workbook.generationAttempts === 1 ? '' : 's'}</>
+                                    )}
                                 </span>
                               )}
 
@@ -1263,6 +1303,53 @@ export default function PlanningTabDocumento({
                                 Calidad: {wbItem.workbook.qualityScore}/100
                               </span>
                             )}
+
+                            {showGenerationTelemetry && wbItem?.workbook && (() => {
+                              const wb = wbItem.workbook;
+                              const alignmentOk = wb.planningAlignment?.pass !== false;
+                              const materialReview = blockMaterialReviews[i];
+                              const materialsOk = !materialReview || materialReview.ok;
+
+                              if (wb.qualityWarning && alignmentOk && materialsOk) {
+                                return (
+                                  <span
+                                    title="Cerró dentro de la tolerancia editorial del 90% sin errores de alineación ni de materiales."
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      padding: '2px 7px',
+                                      borderRadius: '12px',
+                                      background: 'rgba(245, 158, 11, 0.15)',
+                                      color: '#fbbf24',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                                    }}
+                                  >
+                                    Tolerancia editorial
+                                  </span>
+                                );
+                              }
+
+                              if (!wb.qualityWarning && alignmentOk) {
+                                return (
+                                  <span
+                                    title="Cumplió el mínimo de volumen al 100%."
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      padding: '2px 7px',
+                                      borderRadius: '12px',
+                                      background: 'rgba(16, 185, 129, 0.15)',
+                                      color: '#34d399',
+                                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    }}
+                                  >
+                                    Volumen 100%
+                                  </span>
+                                );
+                              }
+
+                              return null;
+                            })()}
 
                             {wbItem?.workbook?.planningAlignment !== undefined && (
                               <span
@@ -1497,10 +1584,17 @@ export default function PlanningTabDocumento({
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '11.5px' }}>
                             <span style={{ color: '#93c5fd', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               <RefreshCw size={12} className="animate-spin text-blue-400" />
-                              {wbItem.progress?.currentStep || 'Escribiendo misiones didácticas con IA...'}
+                              {showGenerationTelemetry && wbItem.progress?.nextRetryAt ? (
+                                <RetryCountdown nextRetryAt={wbItem.progress.nextRetryAt} />
+                              ) : (
+                                wbItem.progress?.currentStep || 'Escribiendo misiones didácticas con IA...'
+                              )}
                             </span>
                             <span style={{ color: '#60a5fa', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               {wbItem.progress?.percent || 15}%
+                              {showGenerationTelemetry && (
+                                <>· Intento {Math.min(8, wbItem.progress?.attempts ?? 1)}/8</>
+                              )}
                               <ElapsedTimer startedAt={wbItem.progress?.startedAt} />
                             </span>
                           </div>

@@ -65,6 +65,11 @@ export async function GET(
     const nextRetryAtRaw = typeof resultObj?.nextRetryAt === 'string' ? resultObj.nextRetryAt : null;
     const nextRetryAtMs = nextRetryAtRaw ? Date.parse(nextRetryAtRaw) : NaN;
     const inCooldownBackoff = Number.isFinite(nextRetryAtMs) && now < nextRetryAtMs;
+    const checkpointAttempts =
+      typeof resultObj?.attempts === 'number' ? resultObj.attempts : null;
+    const completedAttempts =
+      typeof resultObj?.generationAttempts === 'number' ? resultObj.generationAttempts : null;
+    const attempts = completedAttempts ?? (checkpointAttempts !== null ? checkpointAttempts + 1 : 1);
     const isStalePending =
       job.status === 'pending' && !inCooldownBackoff && now - lastActivity > 10000;
     const isLeaseExpired =
@@ -97,6 +102,8 @@ export async function GET(
       currentPhase: job.current_phase,
       currentStep: job.current_step,
       error: job.error,
+      attempts,
+      nextRetryAt: inCooldownBackoff ? nextRetryAtRaw : null,
       startedAt: job.started_at,
       completedAt: job.completed_at,
       updatedAt: job.updated_at,

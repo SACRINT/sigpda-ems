@@ -337,6 +337,8 @@ export async function processGenerationJob(
     workbook.generationDurationMs =
       workbook.generationDurationMs ??
       (Number.isFinite(jobStartedAtMs) ? Math.max(0, Date.now() - jobStartedAtMs) : undefined);
+    workbook.generationAttempts =
+      workbook.generationAttempts ?? checkpointState.attempts + 1;
 
     // 1. Persistir el workbook en la planeación (idempotente por jobId y protegido por leaseId)
     const saveResult = await saveBlockWorkbook(job.planning_id, job.block_index, workbook, jobId, leaseId);
@@ -386,7 +388,7 @@ export async function processGenerationJob(
       hasAnyPartialSessionPlans(checkpointState.partialSessionPlans);
     const canResume =
       (hasProgress || transientError) &&
-      checkpointState.attempts < MAX_CHECKPOINT_REQUEUES;
+      checkpointState.attempts + 1 < MAX_CHECKPOINT_REQUEUES;
 
     if (canResume) {
       let writersToKeep = [...checkpointState.writerOutputs];

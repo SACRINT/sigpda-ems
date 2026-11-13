@@ -156,6 +156,15 @@ export async function claimGenerationJob(
         status = 'pending'
         OR (status = 'running' AND (lease_until IS NULL OR lease_until < NOW()))
       )
+      AND (
+        status <> 'pending'
+        OR result IS NULL
+        OR CASE
+             WHEN (result->>'nextRetryAt') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'
+             THEN (result->>'nextRetryAt')::timestamptz <= NOW()
+             ELSE TRUE
+           END
+      )
     RETURNING id, planning_id, teacher_id, block_index, status, progress,
               current_phase, current_step, result, error, started_at, completed_at,
               created_at, updated_at, lease_id, heartbeat_at, lease_until
@@ -179,7 +188,17 @@ export async function claimNextPendingJob(
     WITH candidate AS (
       SELECT id
       FROM generation_jobs
-      WHERE status = 'pending'
+      WHERE (
+        status = 'pending'
+        AND (
+          result IS NULL
+          OR CASE
+               WHEN (result->>'nextRetryAt') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'
+               THEN (result->>'nextRetryAt')::timestamptz <= NOW()
+               ELSE TRUE
+             END
+        )
+      )
          OR (status = 'running' AND (lease_until IS NULL OR lease_until < NOW()))
       ORDER BY created_at ASC
       LIMIT 1

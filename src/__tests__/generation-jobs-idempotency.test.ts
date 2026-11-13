@@ -156,6 +156,10 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
       expect(result?.id).toBe('job-100');
       expect(result?.status).toBe('running');
       expect(result?.lease_id).toBe('mocked-lease-uuid');
+
+      const sqlText = (mockQueryFn.mock.calls[0][0] as TemplateStringsArray).join('?');
+      expect(sqlText).toContain("result->>'nextRetryAt'");
+      expect(sqlText).toContain('<= NOW()');
     });
 
     it('claimGenerationJob retorna null si el job ya está tomado con lease vigente', async () => {
@@ -180,6 +184,11 @@ describe('Fase P2: Idempotencia, Lease Fencing y Concurrencia de Workers', () =>
       expect(result).not.toBeNull();
       expect(result?.id).toBe('job-oldest-pending');
       expect(result?.lease_id).toBe('new-lease-uuid');
+
+      const sqlText = (mockQueryFn.mock.calls[0][0] as TemplateStringsArray).join('?');
+      expect(sqlText).toContain("result->>'nextRetryAt'");
+      expect(sqlText).toContain('<= NOW()');
+      expect(sqlText).toContain('FOR UPDATE SKIP LOCKED');
     });
   });
 
