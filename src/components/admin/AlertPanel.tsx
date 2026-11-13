@@ -57,58 +57,82 @@ export default function AlertPanel({
     };
   }, []);
 
-  // Suscripción SSE nativa
+  // Suscripción SSE nativa, solo mientras la pestaña está visible
   useEffect(() => {
     const streamUrl = `/api/analytics/v1/stream${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`;
     let eventSource: EventSource | null = null;
 
-    try {
-      eventSource = new EventSource(streamUrl);
+    const connect = () => {
+      if (eventSource || document.visibilityState !== 'visible') return;
 
-      eventSource.onopen = () => {
-        setSseConnected(true);
-      };
+      try {
+        eventSource = new EventSource(streamUrl);
 
-      eventSource.onerror = () => {
-        setSseConnected(false);
-      };
+        eventSource.onopen = () => {
+          setSseConnected(true);
+        };
 
-      // Escuchar eventos de tipo 'alert'
-      eventSource.addEventListener('alert', (e: MessageEvent) => {
-        try {
-          const payload = JSON.parse(e.data);
-          const newAlert: PedagogicalAlert = {
-            id: payload.eventId || `alert-${Date.now()}`,
-            alertType: payload.eventType || 'ALERT',
-            title: payload.title || 'Nueva Alerta Pedagógica',
-            description: payload.message || '',
-            severity: (payload.severity as AlertSeverity) || 'P1',
-            schoolCct: payload.schoolCct,
-            schoolName: payload.schoolName,
-            zoneId: payload.zoneId,
-            channel: 'in_app',
-            createdAt: payload.timestamp || new Date().toISOString(),
-            resolved: false,
-          };
+        eventSource.onerror = () => {
+          setSseConnected(false);
+        };
 
-          setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
-        } catch {
-          // parse error ignorable
-        }
-      });
+        // Escuchar eventos de tipo 'alert'
+        eventSource.addEventListener('alert', (e: MessageEvent) => {
+          try {
+            const payload = JSON.parse(e.data);
+            const newAlert: PedagogicalAlert = {
+              id: payload.eventId || `alert-${Date.now()}`,
+              alertType: payload.eventType || 'ALERT',
+              title: payload.title || 'Nueva Alerta Pedagógica',
+              description: payload.message || '',
+              severity: (payload.severity as AlertSeverity) || 'P1',
+              schoolCct: payload.schoolCct,
+              schoolName: payload.schoolName,
+              zoneId: payload.zoneId,
+              channel: 'in_app',
+              createdAt: payload.timestamp || new Date().toISOString(),
+              resolved: false,
+            };
 
-      // Escuchar eventos de tipo 'quality_pulse'
-      eventSource.addEventListener('quality_pulse', () => {
-        // Pulso recibido
-      });
-    } catch {
-      // Error al instanciar EventSource
-    }
+            setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
+          } catch {
+            // parse error ignorable
+          }
+        });
 
-    return () => {
+        // Escuchar eventos de tipo 'quality_pulse'
+        eventSource.addEventListener('quality_pulse', () => {
+          // Pulso recibido
+        });
+      } catch {
+        eventSource = null;
+      }
+    };
+
+    const disconnect = () => {
       if (eventSource) {
         eventSource.close();
+        eventSource = null;
       }
+      setSseConnected(false);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        connect();
+      } else {
+        disconnect();
+      }
+    };
+
+    connect();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', connect);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', connect);
+      disconnect();
     };
   }, [zoneId]);
 

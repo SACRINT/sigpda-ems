@@ -474,7 +474,7 @@ export default function PlanningDetailLegacy({
       // 2. Iniciar polling del estado real cada 2500ms
       let isFinished = false;
       const interval = setInterval(async () => {
-        if (isFinished) return;
+        if (isFinished || document.visibilityState !== 'visible') return;
         try {
           const statusRes = await fetch(
             `/api/planeaciones/${planning.id}/libro-bloque/status?jobId=${jobId}`

@@ -1,15 +1,13 @@
-import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { logger } from '@/lib/logger';
 import { signOutAction, signOutPlain } from '@/lib/server-actions';
 import SignOutButton from './SignOutButton';
-import HeartbeatSender from './HeartbeatSender';
 import NotificationBell from '../notifications/NotificationBell';
 
-import { getUserRole } from '@/lib/admin-unified';
+import { isEnvAdmin } from '@/lib/admin-env';
 import { getPlatformName } from '@/lib/platform/platform-name';
+import { getMaintenanceStatus } from '@/lib/platform/maintenance-status';
 import { PlatformNameProvider } from '@/components/platform/PlatformNameProvider';
 
 type Props = {
@@ -17,25 +15,6 @@ type Props = {
   locale: string;
   activeSection?: string;
 };
-
-async function getMaintenanceStatus(): Promise<{ active: boolean; message: string }> {
-  try {
-    const db = sql();
-    const rows = await db`
-      SELECT key, value FROM platform_config
-      WHERE key IN ('maintenance_mode', 'maintenance_message')
-    `;
-    const cfg: Record<string, string> = {};
-    for (const r of rows) cfg[r.key] = r.value;
-    return {
-      active: cfg.maintenance_mode === 'true',
-      message: cfg.maintenance_message || 'La plataforma está en mantenimiento. Por favor regresa más tarde.',
-    };
-  } catch (err) {
-    logger.warn('[AppLayout] Error checking maintenance status, defaulting to inactive', { error: err });
-    return { active: false, message: '' };
-  }
-}
 
 export default async function AppLayout({ children, locale, activeSection }: Props) {
   const session = await auth();
@@ -46,8 +25,9 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
     ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
     : user.email?.[0].toUpperCase() || '?';
 
-  const [{ isAdmin, role }, maintenance, platformName] = await Promise.all([
-    user.email ? getUserRole(user.email) : Promise.resolve({ isAdmin: false, role: 'docente' }),
+  const isAdmin = Boolean(user.is_admin) || isEnvAdmin(user.email);
+  const role = user.role || 'docente';
+  const [maintenance, platformName] = await Promise.all([
     getMaintenanceStatus(),
     getPlatformName(),
   ]);
@@ -143,19 +123,19 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
           </div>
         )}
 
-        <Link href={`/${locale}/nueva-planeacion`} className="sidebar-new-btn">
+        <Link prefetch={false} href={`/${locale}/nueva-planeacion`} className="sidebar-new-btn">
           + Nueva planeación
         </Link>
 
         {/* ── SECCIÓN DOCENTE (todos) ── */}
         <div className="sidebar-section-label">Planeación Docente</div>
-        <Link href={`/${locale}/dashboard`} className={`sidebar-link ${activeSection === 'dashboard' ? 'active' : ''}`}>
+        <Link prefetch={false} href={`/${locale}/dashboard`} className={`sidebar-link ${activeSection === 'dashboard' ? 'active' : ''}`}>
           <span className="sidebar-link-icon">📝</span>Mis planeaciones
         </Link>
-        <Link href={`/${locale}/mis-documentos`} className={`sidebar-link ${activeSection === 'mis-documentos' ? 'active' : ''}`}>
+        <Link prefetch={false} href={`/${locale}/mis-documentos`} className={`sidebar-link ${activeSection === 'mis-documentos' ? 'active' : ''}`}>
           <span className="sidebar-link-icon">📁</span>Mis Documentos
         </Link>
-        <Link href={`/${locale}/mis-escuelas`} className={`sidebar-link ${activeSection === 'mis-escuelas' ? 'active' : ''}`}>
+        <Link prefetch={false} href={`/${locale}/mis-escuelas`} className={`sidebar-link ${activeSection === 'mis-escuelas' ? 'active' : ''}`}>
           <span className="sidebar-link-icon">🏫</span>Mis Escuelas
         </Link>
 
@@ -163,16 +143,16 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
         {(role === 'director' || isAdmin) && (
           <>
             <div className="sidebar-section-label" style={{ marginTop: 14 }}>Gestión del Plantel</div>
-            <Link href={`/${locale}/mi-escuela`} className={`sidebar-link ${activeSection === 'mi-escuela' ? 'active' : ''}`}>
+            <Link prefetch={false} href={`/${locale}/mi-escuela`} className={`sidebar-link ${activeSection === 'mi-escuela' ? 'active' : ''}`}>
               <span className="sidebar-link-icon">👥</span>Mi Personal
             </Link>
-            <Link href={`/${locale}/paec`} className={`sidebar-link ${activeSection === 'paec' ? 'active' : ''}`}>
+            <Link prefetch={false} href={`/${locale}/paec`} className={`sidebar-link ${activeSection === 'paec' ? 'active' : ''}`}>
               <span className="sidebar-link-icon">🏫</span>Proyectos PAEC-PEC
             </Link>
-            <Link href={`/${locale}/pmc`} className={`sidebar-link ${activeSection === 'pmc' ? 'active' : ''}`}>
+            <Link prefetch={false} href={`/${locale}/pmc`} className={`sidebar-link ${activeSection === 'pmc' ? 'active' : ''}`}>
               <span className="sidebar-link-icon">📈</span>Plan de Mejora (PMC)
             </Link>
-            <Link href={`/${locale}/horarios`} className={`sidebar-link ${activeSection === 'horarios' ? 'active' : ''}`}>
+            <Link prefetch={false} href={`/${locale}/horarios`} className={`sidebar-link ${activeSection === 'horarios' ? 'active' : ''}`}>
               <span className="sidebar-link-icon">📅</span>Horarios IA (Directores)
             </Link>
           </>
@@ -182,10 +162,10 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
         {(role === 'supervisor' || isAdmin) && (
           <>
             <div className="sidebar-section-label" style={{ marginTop: 14 }}>Supervisión de Zona</div>
-            <Link href={`/${locale}/mi-zona`} className={`sidebar-link ${activeSection === 'mi-zona' ? 'active' : ''}`}>
+            <Link prefetch={false} href={`/${locale}/mi-zona`} className={`sidebar-link ${activeSection === 'mi-zona' ? 'active' : ''}`}>
               <span className="sidebar-link-icon">🗺️</span>Mi Zona
             </Link>
-            <Link href={`/${locale}/pips`} className={`sidebar-link ${activeSection === 'pips' ? 'active' : ''}`}>
+            <Link prefetch={false} href={`/${locale}/pips`} className={`sidebar-link ${activeSection === 'pips' ? 'active' : ''}`}>
               <span className="sidebar-link-icon">📋</span>Cartografía de Zona Escolar
             </Link>
           </>
@@ -196,12 +176,14 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
           <>
             <div className="sidebar-section-label" style={{ marginTop: 16 }}>Administrador</div>
             <Link
+              prefetch={false}
               href={`/${locale}/admin`}
               className={`sidebar-link ${activeSection === 'admin' ? 'active' : ''}`}
             >
               <span className="sidebar-link-icon">⚙️</span>Panel de Admin
             </Link>
             <Link
+              prefetch={false}
               href={`/${locale}/admin/health`}
               className={`sidebar-link ${activeSection === 'admin-health' ? 'active' : ''}`}
             >
@@ -213,7 +195,6 @@ export default async function AppLayout({ children, locale, activeSection }: Pro
 
       {/* Main */}
       <main className="app-main">
-        <HeartbeatSender />
         <PlatformNameProvider value={platformName}>{children}</PlatformNameProvider>
       </main>
     </div>

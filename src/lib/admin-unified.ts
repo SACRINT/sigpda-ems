@@ -2,6 +2,7 @@ import { sql } from './db';
 import { logger } from './logger';
 import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
+import { isEnvAdmin } from './admin-env';
 
 /**
  * Sistema Unificado de Autorización Administrativa (SIGPDA-EMS)
@@ -12,15 +13,7 @@ import { NextResponse } from 'next/server';
  * 2. Su rol conocido o en tabla teachers es 'administrador' o 'admin'.
  * 3. Su correo está registrado en la tabla `admins`.
  */
-export function isEnvAdmin(email?: string | null): boolean {
-  if (!email) return false;
-  const cleanEmail = email.toLowerCase().trim();
-  const envAdmins = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '')
-    .split(',')
-    .map((e) => e.toLowerCase().trim())
-    .filter(Boolean);
-  return envAdmins.includes(cleanEmail);
-}
+export { isEnvAdmin };
 
 export async function isAdmin(email?: string | null, knownRole?: string | null): Promise<boolean> {
   if (!email) return false;

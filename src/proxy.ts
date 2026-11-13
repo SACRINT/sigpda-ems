@@ -1,11 +1,9 @@
-import { sql } from '@/lib/db/client';
 import { auth } from '@/lib/auth';
 import createMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { logger } from '@/lib/logger';
-import { isAdmin } from '@/lib/admin-unified';
+import { isEnvAdmin } from '@/lib/admin-env';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -30,26 +28,6 @@ const protectedPaths = [
   '/admin',
 ];
 
-async function getTeacherStatus(email: string) {
-  try {
-    const db = sql();
-    const rows = await db`
-      SELECT t.id, t.profile_completed, t.school_locked, t.role,
-             s.status as sub_status,
-             (SELECT count(*)::int FROM plannings p WHERE p.teacher_id = t.id) AS planning_count
-      FROM teachers t
-      LEFT JOIN subscriptions s ON s.teacher_id = t.id
-        AND s.status IN ('active', 'trialing')
-      WHERE t.email = ${email}
-      LIMIT 1
-    `;
-    return rows[0] || null;
-  } catch (error) {
-    logger.warn('Error al consultar estado del docente en proxy:', error);
-    return null;
-  }
-}
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const locale = pathname.split('/')[1] || 'es';
@@ -68,8 +46,13 @@ export async function proxy(request: NextRequest) {
 
     const email = session.user.email;
 
-    // 2. Admin unificado (env var, tabla admins o rol administrador) → acceso total sin restricciones
-    if (await isAdmin(email)) {
+    // 2. Cuenta bloqueada → no permitir navegación con cookie existente
+    if (session.user.is_blocked) {
+      return NextResponse.redirect(new URL(`/${locale}/login?error=blocked`, request.url));
+    }
+
+    // 3. Admin unificado (env var o claim del JWT) → acceso total sin restricciones
+    if (isEnvAdmin(email) || session.user.is_admin) {
       return intlMiddleware(request);
     }
 
@@ -79,19 +62,18 @@ export async function proxy(request: NextRequest) {
     }
 
     if (isProtected) {
-      const teacher = await getTeacherStatus(email);
-
-      // 3. Perfil no completado → configurar perfil
-      if (!teacher || !teacher.profile_completed) {
+      // 4. Perfil no completado → configurar perfil
+      if (!session.user.profile_completed) {
         return NextResponse.redirect(new URL(`/${locale}/configurar-perfil`, request.url));
       }
 
-      // 4. Sin suscripción activa: Welcome Tier de 1 planeación de cortesía.
+      // 5. Sin suscripción activa: Welcome Tier de 1 planeación de cortesía.
       // El docente puede conocer el dashboard y crear su primera planeación.
       // La segunda planeación y el resto de rutas protegidas exigen suscripción.
-      if (!teacher.sub_status) {
-        const planningCount = Number(teacher.planning_count ?? 0);
-        const isDashboard = pathWithoutLocale === '/dashboard' || pathWithoutLocale.startsWith('/dashboard/');
+      if (!session.user.has_active_subscription) {
+        const planningCount = Number(session.user.planning_count ?? 0);
+        const isDashboard =
+          pathWithoutLocale === '/dashboard' || pathWithoutLocale.startsWith('/dashboard/');
         const isNewPlanning =
           pathWithoutLocale === '/nueva-planeacion' ||
           pathWithoutLocale.startsWith('/nueva-planeacion/');

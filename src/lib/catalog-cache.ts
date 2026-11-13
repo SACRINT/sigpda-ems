@@ -1,4 +1,4 @@
-import { sql, ProgramCatalogItem, resolveComponentAliases } from '@/lib/db';
+import { sql, ProgramCatalogItem, getProgramsCatalog, resolveComponentAliases } from '@/lib/db';
 import { cleanSocioemotionalName } from '@/lib/utils';
 
 interface CacheEntry<T> {
@@ -7,6 +7,7 @@ interface CacheEntry<T> {
 }
 
 let programsCatalogCache: CacheEntry<ProgramCatalogItem[]> | null = null;
+const filteredCatalogCache = new Map<string, CacheEntry<ProgramCatalogItem[]>>();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 
 /**
@@ -35,37 +36,45 @@ export async function getAllCachedPrograms(): Promise<ProgramCatalogItem[]> {
 }
 
 /**
- * Filtra programas en memoria usando el caché de alto rendimiento.
+ * Obtiene solo el subconjunto filtrado del catálogo (query SQL + caché particionado).
+ * Evita cargar las 498 UACs completas con JSONB cuando el consumidor solo necesita
+ * un semestre/componente/subsistema.
  */
 export async function getFilteredCachedPrograms(
   semester?: number,
   component?: string,
   subsystem?: string
 ): Promise<ProgramCatalogItem[]> {
-  const allPrograms = await getAllCachedPrograms();
-  const normalizedSubsystem = (subsystem && subsystem !== 'all' && subsystem !== 'todos') ? subsystem.toLowerCase() : null;
-  const compAliases = resolveComponentAliases(component);
+  const normalizedSubsystem = (subsystem && subsystem !== 'all' && subsystem !== 'todos')
+    ? subsystem.toLowerCase()
+    : null;
   const sem = (semester !== undefined && !isNaN(semester)) ? semester : null;
+  const cacheKey = `${sem ?? 'all'}|${component || 'all'}|${normalizedSubsystem || 'all'}`;
+  const now = Date.now();
 
-  return allPrograms
-    .filter(p => {
-      if (sem !== null && p.semester !== sem) return false;
-      if (compAliases !== null && !compAliases.includes(p.component)) return false;
-      if (normalizedSubsystem !== null) {
-        const pSub = (p.subsystem || 'all').toLowerCase();
-        if (pSub !== 'all' && pSub !== normalizedSubsystem && pSub !== 'bge') return false;
-      }
-      return true;
-    })
-    .map(p => {
-      if (p.component === 'ampliado' || p.component === 'socioemocional') {
-        return {
-          ...p,
-          uac_name: cleanSocioemotionalName(p.uac_name, p.semester),
-        };
-      }
-      return p;
-    });
+  const cached = filteredCatalogCache.get(cacheKey);
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const rows = await getProgramsCatalog(
+    sem ?? undefined,
+    component,
+    normalizedSubsystem ?? undefined
+  );
+
+  const data = (rows as ProgramCatalogItem[]).map((p) => {
+    if (p.component === 'ampliado' || p.component === 'socioemocional') {
+      return {
+        ...p,
+        uac_name: cleanSocioemotionalName(p.uac_name, p.semester),
+      };
+    }
+    return p;
+  });
+
+  filteredCatalogCache.set(cacheKey, { data, timestamp: now });
+  return data;
 }
 
 /**
@@ -134,4 +143,5 @@ export async function getCachedProgramByUacAndSemester(
  */
 export function invalidateCatalogCache(): void {
   programsCatalogCache = null;
+  filteredCatalogCache.clear();
 }

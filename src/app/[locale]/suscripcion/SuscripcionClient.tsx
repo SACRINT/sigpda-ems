@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 interface Props {
   locale: string;
@@ -24,6 +25,7 @@ export default function SuscripcionClient({
   isWelcomePlan,
   canActivateWelcome,
 }: Props) {
+  const { update } = useSession();
   const [loading, setLoading] = useState<string | null>(null);
   const [activatingWelcome, setActivatingWelcome] = useState(false);
   const [activeTab, setActiveTab] = useState<'docente' | 'director' | 'supervisor' | 'institucional'>(
@@ -198,6 +200,11 @@ export default function SuscripcionClient({
       const res = await fetch('/api/subscription/welcome', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo activar la cortesía.');
+      try {
+        await update();
+      } catch (refreshError) {
+        console.warn('No se pudo refrescar la sesión tras activar la cortesía:', refreshError);
+      }
       window.location.href = `/${locale}/dashboard`;
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al activar la cortesía.');

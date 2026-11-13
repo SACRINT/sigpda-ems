@@ -17,6 +17,7 @@ const mockSql = vi.fn().mockResolvedValue([]);
 vi.mock('@/lib/db', () => ({
   sql: () => mockSql,
   getTeacherByEmail: vi.fn(),
+  getTeacherIdByEmail: vi.fn(),
 }));
 
 vi.mock('@/lib/admin-unified', () => ({
@@ -171,7 +172,9 @@ describe('Fase 5 — API Endpoints REST v1 & SSE (GAP-003)', () => {
 
   describe('4. GET /api/analytics/v1/stream (SSE)', () => {
     it('retorna 200 con Content-Type text/event-stream para sesión autorizada', async () => {
-      vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'supervisor@seppuebla.gob.mx' } } as never);
+      vi.mocked(auth).mockResolvedValueOnce({
+        user: { id: 's-1', email: 'supervisor@seppuebla.gob.mx', role: 'supervisor', is_admin: false },
+      } as never);
       vi.mocked(getTeacherByEmail).mockResolvedValueOnce({ id: 's-1', role: 'supervisor' } as never);
       vi.mocked(isAdmin).mockResolvedValueOnce(false);
 

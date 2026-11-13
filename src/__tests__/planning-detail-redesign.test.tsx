@@ -10,6 +10,10 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
+vi.mock('next-auth/react', () => ({
+  useSession: () => ({ update: vi.fn() }),
+}));
+
 import ResourceCard from '@/components/planeacion/ResourceCard';
 import PlanningDetailHero from '@/components/planeacion/PlanningDetailHero';
 import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';

@@ -23,11 +23,13 @@ export default function NotificationBell() {
   const [filter, setFilter] = useState<'all' | 'unread' | 'alerts'>('all');
   const [loading, setLoading] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastFetchRef = useRef<number>(0);
 
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch('/api/notifications');
       if (res.ok) {
+        lastFetchRef.current = Date.now();
         const data = await res.json();
         setNotifications(data.notifications || []);
         setUnreadCount(data.unreadCount || 0);
@@ -40,8 +42,24 @@ export default function NotificationBell() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Polling cada 60s
-    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastFetchRef.current < 15_000) return;
+      lastFetchRef.current = now;
+      void fetchNotifications();
+    };
+
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    window.addEventListener('focus', refreshIfVisible);
+
+    return () => {
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+      window.removeEventListener('focus', refreshIfVisible);
+    };
   }, [fetchNotifications]);
 
   // Cerrar dropdown al hacer clic afuera
@@ -69,6 +87,7 @@ export default function NotificationBell() {
       if (res.ok) {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
+        void fetchNotifications();
       }
     } catch (e) {
       console.error('Error marking notification as read:', e);
@@ -86,6 +105,7 @@ export default function NotificationBell() {
       if (res.ok) {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         setUnreadCount(0);
+        void fetchNotifications();
       }
     } catch (e) {
       console.error('Error marking all as read:', e);
@@ -101,6 +121,7 @@ export default function NotificationBell() {
       });
       if (res.ok) {
         setNotifications(prev => prev.filter(n => n.id !== id));
+        void fetchNotifications();
       }
     } catch (e) {
       console.error('Error deleting notification:', e);

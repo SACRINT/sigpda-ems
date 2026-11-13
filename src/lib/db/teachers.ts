@@ -155,7 +155,7 @@ export async function upsertTeacher(data: {
     INSERT INTO teachers (name, email)
     VALUES (${data.name}, ${cleanEmail})
     ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
-    RETURNING id, name, email, school_name, municipality, subsystem, created_at
+    RETURNING id, name, email, school_name, municipality, subsystem, is_blocked, created_at
   `;
   return rows[0];
 }
@@ -179,4 +179,64 @@ export async function updateTeacherProfile(teacherId: string, data: {
     RETURNING *
   `;
   return rows[0];
+}
+
+export interface TeacherAuthSnapshot {
+  id: string;
+  email: string;
+  role: string;
+  school_name: string | null;
+  cct: string | null;
+  subsystem: string | null;
+  profile_completed: boolean;
+  is_blocked: boolean;
+  is_premium: boolean;
+  has_active_subscription: boolean;
+  is_admin: boolean;
+  planning_count: number;
+}
+
+/**
+ * Snapshot ligero para hidratar el JWT sin descifrar custom_api_key.
+ * Se ejecuta como máximo una vez por TTL de sesión o tras update().
+ */
+export async function getTeacherAuthSnapshot(email: string): Promise<TeacherAuthSnapshot | null> {
+  const rows = await sql()`
+    SELECT t.id, t.email, t.role, t.school_name, t.cct, t.subsystem,
+           t.profile_completed, t.is_blocked, t.is_premium,
+           EXISTS (
+             SELECT 1 FROM subscriptions s
+             WHERE s.teacher_id = t.id AND s.status IN ('active', 'trialing')
+           ) AS has_active_subscription,
+           (
+             t.role IN ('administrador', 'admin')
+             OR EXISTS (SELECT 1 FROM admins a WHERE LOWER(a.email) = LOWER(t.email))
+           ) AS is_admin,
+           (SELECT COUNT(*)::int FROM plannings p WHERE p.teacher_id = t.id) AS planning_count
+    FROM teachers t
+    WHERE t.email = ${email.toLowerCase().trim()}
+    LIMIT 1
+  `;
+  return (rows[0] as TeacherAuthSnapshot) || null;
+}
+
+export async function getTeacherIdByEmail(email: string): Promise<string | null> {
+  const rows = await sql()`
+    SELECT id FROM teachers
+    WHERE email = ${email.toLowerCase().trim()}
+    LIMIT 1
+  `;
+  return (rows[0]?.id as string) || null;
+}
+
+/**
+ * Actualiza la última actividad real del docente (login / acciones relevantes).
+ * No se invoca por latido periódico.
+ */
+export async function touchTeacherLastSeen(teacherId: string): Promise<void> {
+  if (!teacherId) return;
+  await sql()`
+    UPDATE teachers SET last_seen_at = NOW()
+    WHERE id = ${teacherId}::uuid
+  `;
 }

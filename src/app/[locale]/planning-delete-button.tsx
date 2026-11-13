@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 
 export default function PlanningDeleteButton({ id }: { id: string }) {
   const router = useRouter();
+  const { update } = useSession();
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
@@ -13,6 +15,11 @@ export default function PlanningDeleteButton({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/plannings/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        try {
+          await update();
+        } catch (updateErr) {
+          console.warn('No se pudo refrescar la sesión tras eliminar la planeación:', updateErr);
+        }
         router.refresh();
       } else {
         alert('Error al eliminar la planeación');

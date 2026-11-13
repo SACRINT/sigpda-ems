@@ -9,6 +9,12 @@ declare module 'next-auth' {
       school_name?: string;
       cct?: string;
       subsystem?: string;
+      profile_completed?: boolean;
+      has_active_subscription?: boolean;
+      is_admin?: boolean;
+      is_blocked?: boolean;
+      is_premium?: boolean;
+      planning_count?: number;
     } & DefaultSession['user'];
   }
 
@@ -18,6 +24,12 @@ declare module 'next-auth' {
     school_name?: string;
     cct?: string;
     subsystem?: string;
+    profile_completed?: boolean;
+    has_active_subscription?: boolean;
+    is_admin?: boolean;
+    is_blocked?: boolean;
+    is_premium?: boolean;
+    planning_count?: number;
   }
 }
 
@@ -28,5 +40,12 @@ declare module 'next-auth/jwt' {
     school_name?: string;
     cct?: string;
     subsystem?: string;
+    profile_completed?: boolean;
+    has_active_subscription?: boolean;
+    is_admin?: boolean;
+    is_blocked?: boolean;
+    is_premium?: boolean;
+    planning_count?: number;
+    refreshedAt?: number;
   }
 }

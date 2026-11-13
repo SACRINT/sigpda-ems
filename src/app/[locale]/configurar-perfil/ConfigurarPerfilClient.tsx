@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import SignOutButton from '@/components/layout/SignOutButton';
 import { signOutAction } from '@/lib/server-actions';
 
@@ -91,6 +92,7 @@ interface Props {
 
 export default function ConfigurarPerfilClient({ locale, platformName, teacherName, teacherEmail, currentData, editMode = false }: Props) {
   const router = useRouter();
+  const { update } = useSession();
   const [step, setStep] = useState<1 | 2>(editMode ? 2 : 1);
   const [selectedRole, setSelectedRole] = useState('');
   const [form, setForm] = useState({
@@ -137,6 +139,11 @@ export default function ConfigurarPerfilClient({ locale, platformName, teacherNa
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Error al guardar');
+      }
+      try {
+        await update();
+      } catch (refreshError) {
+        console.warn('No se pudo refrescar la sesión tras guardar el perfil:', refreshError);
       }
       router.push(editMode ? `/${locale}/dashboard` : `/${locale}/suscripcion`);
     } catch (err: unknown) {

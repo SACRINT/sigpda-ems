@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
 interface DeletePlanningButtonProps {
@@ -20,6 +21,7 @@ export default function DeletePlanningButton({
   size = 'md',
 }: DeletePlanningButtonProps) {
   const router = useRouter();
+  const { update } = useSession();
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -31,6 +33,11 @@ export default function DeletePlanningButton({
       });
 
       if (res.ok) {
+        try {
+          await update();
+        } catch (updateErr) {
+          console.warn('No se pudo refrescar la sesión tras eliminar la planeación:', updateErr);
+        }
         toast.success('Planeación eliminada correctamente');
         if (redirectAfterDelete) {
           router.push(`/${locale}/dashboard`);

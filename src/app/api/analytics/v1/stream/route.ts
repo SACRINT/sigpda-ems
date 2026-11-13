@@ -6,8 +6,8 @@
 
 import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail } from '@/lib/db';
-import { isAdmin } from '@/lib/admin-unified';
+import { getTeacherIdByEmail } from '@/lib/db';
+import { isEnvAdmin } from '@/lib/admin-env';
 import { getZoneAnalytics } from '@/lib/analytics/aggregations';
 import { getActiveSupervisoryAlerts } from '@/lib/analytics/alert-engine';
 import { logger } from '@/lib/logger';
@@ -15,18 +15,27 @@ import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const ALERTS_CACHE_TTL_MS = 60_000;
+const alertsCache = new Map<string, { data: unknown; expires: number }>();
+
+async function getCachedAlerts(supervisorId: string) {
+  const now = Date.now();
+  const cached = alertsCache.get(supervisorId);
+  if (cached && cached.expires > now) {
+    return cached.data;
+  }
+  const alerts = await getActiveSupervisoryAlerts(supervisorId, { limit: 10 });
+  alertsCache.set(supervisorId, { data: alerts, expires: now + ALERTS_CACHE_TTL_MS });
+  return alerts;
+}
+
 export async function GET(request: NextRequest) {
   let heartbeatTimer: NodeJS.Timeout | null = null;
-  let metricsTimer: NodeJS.Timeout | null = null;
 
   const clearTimers = () => {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
-    }
-    if (metricsTimer) {
-      clearInterval(metricsTimer);
-      metricsTimer = null;
     }
   };
 
@@ -39,16 +48,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const teacher = await getTeacherByEmail(session.user.email);
-    if (!teacher) {
+    const supervisorId =
+      session.user.id || (await getTeacherIdByEmail(session.user.email));
+    if (!supervisorId) {
       return new Response(JSON.stringify({ error: 'Usuario no encontrado' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const isUserAdmin = await isAdmin(session.user.email, teacher.role);
-    const isSupervisor = isUserAdmin || teacher.role === 'supervisor';
+    const isUserAdmin = isEnvAdmin(session.user.email) || Boolean(session.user.is_admin);
+    const isSupervisor = isUserAdmin || session.user.role === 'supervisor';
 
     if (!isSupervisor) {
       return new Response(JSON.stringify({ error: 'Acceso reservado a Supervisores y Administradores' }), {
@@ -56,8 +66,6 @@ export async function GET(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-
-    const supervisorId = teacher.id;
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
@@ -74,7 +82,7 @@ export async function GET(request: NextRequest) {
         try {
           const [zoneMetric, alerts] = await Promise.all([
             getZoneAnalytics(supervisorId),
-            getActiveSupervisoryAlerts(supervisorId, { limit: 10 }),
+            getCachedAlerts(supervisorId),
           ]);
 
           const payload = JSON.stringify({
@@ -87,7 +95,8 @@ export async function GET(request: NextRequest) {
           logger.warn('[SSE-Stream] Advertencia al emitir métricas iniciales:', initErr);
         }
 
-        // 3. Heartbeat cada 15 segundos para mantener viva la conexión
+        // 3. Heartbeat cada 15 segundos para mantener viva la conexión.
+        // No consulta la base de datos; el refresco de alertas ocurre al reconectar.
         heartbeatTimer = setInterval(() => {
           try {
             controller.enqueue(encoder.encode(`: heartbeat ${Date.now()}\n\n`));
@@ -95,21 +104,6 @@ export async function GET(request: NextRequest) {
             clearTimers();
           }
         }, 15000);
-
-        // 4. Actualización de métricas periódica (cada 45 segundos)
-        metricsTimer = setInterval(async () => {
-          try {
-            const alerts = await getActiveSupervisoryAlerts(supervisorId, { limit: 10 });
-            const payload = JSON.stringify({
-              alerts,
-              timestamp: new Date().toISOString(),
-            });
-            controller.enqueue(encoder.encode(`event: alerts_pulse\ndata: ${payload}\n\n`));
-          } catch (pulseErr) {
-            logger.warn('[SSE-Stream] Advertencia en pulso de alertas:', pulseErr);
-            clearTimers();
-          }
-        }, 45000);
       },
 
       cancel() {

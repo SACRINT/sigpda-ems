@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { routing } from '@/i18n/routing';
 import type { Metadata } from 'next';
 import ChunkErrorListener from '@/components/common/ChunkErrorListener';
+import SessionProviderWrapper from '@/components/auth/SessionProviderWrapper';
 import {
   AssistantProvider,
   UniversalPedagogicalAssistant,
@@ -39,23 +40,25 @@ export default async function LocaleLayout({ children, params }: Props) {
     <html lang={locale}>
       <body>
         <ChunkErrorListener />
-        <NextIntlClientProvider messages={messages}>
-          <AssistantProvider>
-            {children}
-            <UniversalPedagogicalAssistant />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'var(--c-bg-elevated)',
-                  color: 'var(--c-text)',
-                  border: '1px solid var(--c-border-2)',
-                },
-              }}
-            />
-          </AssistantProvider>
-        </NextIntlClientProvider>
+        <SessionProviderWrapper>
+          <NextIntlClientProvider messages={messages}>
+            <AssistantProvider>
+              {children}
+              <UniversalPedagogicalAssistant />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: 'var(--c-bg-elevated)',
+                    color: 'var(--c-text)',
+                    border: '1px solid var(--c-border-2)',
+                  },
+                }}
+              />
+            </AssistantProvider>
+          </NextIntlClientProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );

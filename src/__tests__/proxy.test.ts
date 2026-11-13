@@ -69,8 +69,24 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
     expect(mockDb).not.toHaveBeenCalled();
   });
 
-  it('3. Admin por rol en base de datos (role = "administrador") → acceso total sin restricciones', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'admin_db@puebla.gob.mx' } });
+  it('2b. Usuario bloqueado con cookie válida → redirección a login', async () => {
+    mockAuth.mockResolvedValue({
+      user: { email: 'bloqueado@bge.edu.mx', is_blocked: true },
+    });
+
+    const request = new NextRequest('http://localhost:3000/es/dashboard');
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toBe('http://localhost:3000/es/login?error=blocked');
+    expect(mockDb).not.toHaveBeenCalled();
+  });
+
+  it('3. Admin por claim is_admin → acceso total sin restricciones', async () => {
+    mockAuth.mockResolvedValue({
+      user: { email: 'admin_db@puebla.gob.mx', is_admin: true, profile_completed: false },
+    });
     mockDbRows = [{
       id: 'teacher-admin-1',
       profile_completed: false, // Incluso sin perfil completo pasa por ser admin
@@ -86,7 +102,9 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('4. Docente con perfil incompleto → redirección a /[locale]/configurar-perfil', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_nuevo@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: { email: 'docente_nuevo@bge.edu.mx', profile_completed: false },
+    });
     mockDbRows = [{
       id: 'teacher-2',
       profile_completed: false,
@@ -103,7 +121,14 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('5. Docente sin suscripción activa → redirección a /[locale]/suscripcion', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_sin_pago@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_sin_pago@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: false,
+        planning_count: 0,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-3',
       profile_completed: true,
@@ -120,7 +145,14 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('5b. Welcome Tier: dashboard con 0 planeaciones y sin suscripción → acceso permitido', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_welcome@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: false,
+        planning_count: 0,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-welcome-1',
       profile_completed: true,
@@ -137,7 +169,14 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('5c. Welcome Tier: primera planeación con 0 planeaciones y sin suscripción → acceso permitido', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_welcome@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: false,
+        planning_count: 0,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-welcome-2',
       profile_completed: true,
@@ -154,7 +193,14 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('5d. Segunda planeación sin suscripción → gate a /suscripcion', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_welcome@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: false,
+        planning_count: 1,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-welcome-3',
       profile_completed: true,
@@ -172,7 +218,14 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('5e. Primera planeación de cortesía con 1 planeación → detalle permitido', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_welcome@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_welcome@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: false,
+        planning_count: 1,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-welcome-4',
       profile_completed: true,
@@ -189,7 +242,13 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('6. Docente regular con perfil completo y suscripción activa → acceso concedido', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_activo@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_activo@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: true,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-4',
       profile_completed: true,
@@ -216,7 +275,14 @@ describe('Proxy Auth & Security Gate (Next.js 16)', () => {
   });
 
   it('8. Docente no-admin intenta acceder a /admin → redirección a /[locale]/dashboard', async () => {
-    mockAuth.mockResolvedValue({ user: { email: 'docente_normal@bge.edu.mx' } });
+    mockAuth.mockResolvedValue({
+      user: {
+        email: 'docente_normal@bge.edu.mx',
+        profile_completed: true,
+        has_active_subscription: true,
+        is_admin: false,
+      },
+    });
     mockDbRows = [{
       id: 'teacher-5',
       profile_completed: true,

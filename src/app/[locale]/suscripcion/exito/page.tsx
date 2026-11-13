@@ -5,6 +5,7 @@ import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { getPlatformName } from '@/lib/platform/platform-name';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import SessionRefresher from '@/components/auth/SessionRefresher';
 
 export async function generateMetadata(): Promise<Metadata> {
   const platformName = await getPlatformName();
@@ -42,6 +43,7 @@ export default async function SuscripcionExitoPage({
       padding: '24px',
       fontFamily: 'Inter, sans-serif',
     }}>
+      <SessionRefresher />
       <div style={{ maxWidth: 540, textAlign: 'center' }}>
         {/* Success animation */}
         <div style={{

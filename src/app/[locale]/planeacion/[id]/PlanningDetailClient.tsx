@@ -476,15 +476,31 @@ function PlanningDetailModular({
 
   const [blockWorkbooks, setBlockWorkbooks] = useState<Record<number, BlockWorkbookItem>>(initialWorkbooks);
   const pollIntervalsRef = useRef<Record<number, NodeJS.Timeout>>({});
+  const pollControllersRef = useRef<Record<number, AbortController>>({});
 
-  // Cleanup active polling intervals when component unmounts
+  // Cleanup active polling timers/controllers when component unmounts
   useEffect(() => {
-    const activeIntervals = pollIntervalsRef.current;
+    const activeTimeouts = pollIntervalsRef.current;
+    const activeControllers = pollControllersRef.current;
     return () => {
-      Object.values(activeIntervals).forEach(interval => {
-        if (interval) clearInterval(interval);
+      Object.values(activeTimeouts).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+      Object.values(activeControllers).forEach((controller) => {
+        controller.abort();
       });
     };
+  }, []);
+
+  // Abort in-flight polls when the tab is hidden to avoid background DB traffic
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') {
+        Object.values(pollControllersRef.current).forEach((controller) => controller.abort());
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
   // Sync / verify existing workbooks on mount
@@ -532,10 +548,20 @@ function PlanningDetailModular({
       },
     }));
 
-    if (pollIntervalsRef.current[blockIndex]) {
-      clearInterval(pollIntervalsRef.current[blockIndex]);
-      delete pollIntervalsRef.current[blockIndex];
-    }
+    const stopPolling = () => {
+      const timer = pollIntervalsRef.current[blockIndex];
+      if (timer) {
+        clearTimeout(timer);
+        delete pollIntervalsRef.current[blockIndex];
+      }
+      const controller = pollControllersRef.current[blockIndex];
+      if (controller) {
+        controller.abort();
+        delete pollControllersRef.current[blockIndex];
+      }
+    };
+
+    stopPolling();
 
     try {
       // 1. Crear / encolar el trabajo asíncrono (responde en < 300ms)
@@ -552,13 +578,24 @@ function PlanningDetailModular({
 
       const jobId = createData.jobId;
 
-      // 2. Iniciar polling del estado real cada 2500ms
+      // 2. Polling con backoff (2.5s → 5s → 10s → 20s), solo con pestaña visible
       let isFinished = false;
-      const interval = setInterval(async () => {
+      let delay = 2500;
+
+      const poll = async () => {
         if (isFinished) return;
+        if (document.visibilityState !== 'visible') {
+          pollIntervalsRef.current[blockIndex] = setTimeout(poll, 5000);
+          return;
+        }
+
+        const controller = new AbortController();
+        pollControllersRef.current[blockIndex] = controller;
+
         try {
           const statusRes = await fetch(
-            `/api/planeaciones/${planning.id}/libro-bloque/status?jobId=${jobId}`
+            `/api/planeaciones/${planning.id}/libro-bloque/status?jobId=${jobId}`,
+            { signal: controller.signal }
           );
           if (!statusRes.ok) return;
 
@@ -589,10 +626,7 @@ function PlanningDetailModular({
           // Si el worker completó el libro
           if (statusData.status === 'completed') {
             isFinished = true;
-            if (pollIntervalsRef.current[blockIndex]) {
-              clearInterval(pollIntervalsRef.current[blockIndex]);
-              delete pollIntervalsRef.current[blockIndex];
-            }
+            stopPolling();
 
             // Consultar el resultado final del libro
             const resultRes = await fetch(
@@ -626,10 +660,7 @@ function PlanningDetailModular({
             }
           } else if (statusData.status === 'failed') {
             isFinished = true;
-            if (pollIntervalsRef.current[blockIndex]) {
-              clearInterval(pollIntervalsRef.current[blockIndex]);
-              delete pollIntervalsRef.current[blockIndex];
-            }
+            stopPolling();
 
             setBlockWorkbooks(prev => ({
               ...prev,
@@ -644,16 +675,21 @@ function PlanningDetailModular({
             }));
           }
         } catch (pollErr) {
-          console.warn('[handleGenerateWorkbook] Polling warning:', pollErr);
+          if ((pollErr as Error)?.name !== 'AbortError') {
+            console.warn('[handleGenerateWorkbook] Polling warning:', pollErr);
+          }
+        } finally {
+          delete pollControllersRef.current[blockIndex];
+          if (!isFinished) {
+            delay = Math.min(delay * 2, 20000);
+            pollIntervalsRef.current[blockIndex] = setTimeout(poll, delay);
+          }
         }
-      }, 2500);
+      };
 
-      pollIntervalsRef.current[blockIndex] = interval;
+      pollIntervalsRef.current[blockIndex] = setTimeout(poll, 2500);
     } catch (err: unknown) {
-      if (pollIntervalsRef.current[blockIndex]) {
-        clearInterval(pollIntervalsRef.current[blockIndex]);
-        delete pollIntervalsRef.current[blockIndex];
-      }
+      stopPolling();
       setBlockWorkbooks(prev => ({
         ...prev,
         [blockIndex]: {

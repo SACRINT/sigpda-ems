@@ -2,6 +2,7 @@ import { sql } from '@/lib/db/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-auth';
 import { invalidatePlatformNameCache } from '@/lib/platform/platform-name';
+import { invalidateMaintenanceCache } from '@/lib/platform/maintenance-status';
 
 function getDb() { return sql(); }
 
@@ -38,6 +39,13 @@ export async function PUT(req: NextRequest) {
 
     if (Object.prototype.hasOwnProperty.call(body, 'platform_name')) {
       invalidatePlatformNameCache();
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'maintenance_mode') ||
+      Object.prototype.hasOwnProperty.call(body, 'maintenance_message')
+    ) {
+      invalidateMaintenanceCache();
     }
 
     return NextResponse.json({ success: true });

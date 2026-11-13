@@ -21,7 +21,7 @@ export default async function LoginPage({
   const { locale } = await params;
   const session = await auth();
 
-  if (session?.user) {
+  if (session?.user && !session.user.is_blocked) {
     redirect(`/${locale}/dashboard`);
   }
 
@@ -46,6 +46,21 @@ export default async function LoginPage({
           <p className="login-subtitle" style={{ fontSize: '13px', marginBottom: '20px' }}>
             Generación inteligente de planeaciones, horarios, PMC, PAEC y Cartografía
           </p>
+
+          {session?.user?.is_blocked && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '12px 14px',
+              borderRadius: '10px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#fca5a5',
+              fontSize: '13px',
+              lineHeight: 1.5,
+            }}>
+              Tu cuenta está suspendida temporalmente. Contacta al administrador para reactivar el acceso.
+            </div>
+          )}
 
           <AuthCard locale={locale} />
 

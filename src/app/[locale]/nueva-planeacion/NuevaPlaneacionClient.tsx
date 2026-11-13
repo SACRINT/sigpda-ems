@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import type { ExtractedPdfData, TeacherContext } from '@/types/planning';
 import StepUAC from '@/components/planeacion/StepUAC';
 import StepPdfUpload from '@/components/planeacion/StepPdfUpload';
@@ -46,6 +47,7 @@ interface Props {
 
 export default function NuevaPlaneacionClient({ locale }: Props) {
   const router = useRouter();
+  const { update } = useSession();
 
   // All wizard state is persisted in localStorage automatically
   const { state: draft, setState: setDraft, clearDraft, isHydrated, hasDraft, restoredFromStorage } = useWizardPersistence<WizardDraft>(
@@ -112,6 +114,12 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
 
       if (!res.ok || !data.planning?.id) {
         throw new Error(data.error || 'No se pudo registrar la planeación en el servidor.');
+      }
+
+      try {
+        await update();
+      } catch (updateErr) {
+        console.warn('No se pudo refrescar la sesión tras crear la planeación:', updateErr);
       }
 
       // Transición ATÓMICA al paso 4 con el planningId ya verificado
