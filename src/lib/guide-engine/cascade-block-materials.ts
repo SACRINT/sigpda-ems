@@ -70,6 +70,7 @@ export interface CascadeResult {
   executionTimeMs: number;
   review?: MaterialReviewReport;
   omitted?: MaterialType[];
+  syncedSequence?: SecuenciaBloque | null;
   error?: string;
 }
 
@@ -669,6 +670,7 @@ export async function cascadeBlockMaterials(
       executionTimeMs,
       review,
       omitted,
+      syncedSequence: syncedBlockSeq,
     };
   } catch (error: unknown) {
     if (error instanceof WorkerLeaseLostError) {

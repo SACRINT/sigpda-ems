@@ -50,21 +50,46 @@ function sessionsOf(m: MissionSection): number[] {
   return Array.isArray(m.coveredSessions) ? m.coveredSessions : [];
 }
 
+function resolveCoherenceStartSession(
+  workbook: ActiveWorkTextbook,
+  planes: PlanDeClaseDerivado[],
+  expected: number
+): number {
+  const declared = (workbook.missions ?? [])
+    .flatMap((m) => sessionsOf(m))
+    .filter((n) => Number.isInteger(n) && n >= 1);
+  const planNums = planes.map((p) => p.numeroSesion).filter((n) => Number.isInteger(n) && n >= 1);
+  const nums = declared.length > 0 ? declared : planNums;
+  if (nums.length === 0) return 1;
+
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  if (max > expected && min > expected) {
+    const bIdx = typeof workbook.blockIndex === 'number' && workbook.blockIndex > 0
+      ? workbook.blockIndex
+      : Math.floor((min - 1) / expected);
+    return bIdx * expected + 1;
+  }
+  return 1;
+}
+
 export function auditPlanWorkbookCoherence(
   workbook: ActiveWorkTextbook,
   planes: PlanDeClaseDerivado[],
-  opts: { expectedSessions?: number } = {}
+  opts: { expectedSessions?: number; startSession?: number } = {}
 ): CoherenceReport {
   const expected = opts.expectedSessions ?? 24;
+  const start = opts.startSession ?? resolveCoherenceStartSession(workbook, planes, expected);
+  const end = start + expected - 1;
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // E1 — numeración consecutiva sin repetidos
+  // E1 — numeración consecutiva sin repetidos (1..N o rango acumulado del bloque)
   const nums = planes.map((p) => p.numeroSesion);
   const unique = new Set(nums);
   if (planes.length !== expected) errors.push(`E1: se esperaban ${expected} planes de clase y hay ${planes.length}.`);
   if (unique.size !== nums.length) errors.push('E1: hay números de sesión repetidos.');
-  for (let i = 1; i <= expected; i++) {
+  for (let i = start; i <= end; i++) {
     if (!unique.has(i)) errors.push(`E1: falta el plan de la sesión ${i}.`);
   }
 
@@ -80,11 +105,11 @@ export function auditPlanWorkbookCoherence(
 
   for (const m of workbook.missions ?? []) {
     const label = `Misión ${m.missionIndex}`;
-    const covered = sessionsOf(m).filter((n) => n <= expected);
+    const covered = sessionsOf(m).filter((n) => n >= start && n <= end);
 
     // E3 — cobertura de las sesiones declaradas
     for (const n of sessionsOf(m)) {
-      if (n <= expected && !byNum.has(n)) errors.push(`E3: ${label} declara la sesión ${n} pero no tiene plan de clase.`);
+      if (n >= start && n <= end && !byNum.has(n)) errors.push(`E3: ${label} declara la sesión ${n} pero no tiene plan de clase.`);
     }
 
     // E4 — sin sesiones clonadas dentro de la misión

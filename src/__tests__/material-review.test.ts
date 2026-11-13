@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
-import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extractor';
+import {
+  extractMaterialsFromWorkbook,
+  resolveBlockSessionRange,
+  resolveTargetSessionsForWorkbook,
+} from '@/lib/guide-engine/material-extractor';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { buildSacrintDeck, buildSacrintInfographic } from '@/lib/visual-engine/sacrint/spec';
 
@@ -104,13 +108,14 @@ function buildValidSessionPlan(sessionNumber: number): SessionPlan {
   };
 }
 
-function buildValidWorkbook(totalSessions: number = 12): ActiveWorkTextbook {
+function buildValidWorkbook(totalSessions: number = 12, startSession: number = 1): ActiveWorkTextbook {
   const missionCount = 4;
   const baseSize = Math.floor(totalSessions / missionCount);
   const remainder = totalSessions % missionCount;
 
   const missions: MissionSection[] = [];
-  let cursor = 1;
+  let cursor = startSession;
+  const inferredBlockIndex = startSession > 1 ? Math.floor((startSession - 1) / totalSessions) : 0;
 
   for (let m = 0; m < missionCount; m++) {
     const count = baseSize + (m < remainder ? 1 : 0);
@@ -204,8 +209,8 @@ function buildValidWorkbook(totalSessions: number = 12): ActiveWorkTextbook {
   return {
     id: 'wb-test-valid',
     planningId: 'plan-test-001',
-    blockIndex: 0,
-    blockName: 'Bloque I: Modelación Lineal y Sustentabilidad Hídrica',
+    blockIndex: inferredBlockIndex,
+    blockName: `Bloque ${inferredBlockIndex + 1}: Modelación Lineal y Sustentabilidad Hídrica`,
     version: 1,
     subsystem: 'bge',
     targetPages: 40,
@@ -220,7 +225,7 @@ function buildValidWorkbook(totalSessions: number = 12): ActiveWorkTextbook {
       subtitle: 'Modelación Matemática para la Sustentabilidad Comunitaria',
       subjectName: 'Pensamiento Matemático II',
       semester: 2,
-      blockNumber: 1,
+      blockNumber: inferredBlockIndex + 1,
       teacherName: 'Docente Investigador',
       schoolName: 'Bachillerato General Oficial Emiliano Zapata',
       cct: '21EBH0123Z',
@@ -492,6 +497,50 @@ describe('Fase R1 — Revisor Determinista de Materiales Derivados (material-rev
     durations.sort((a, b) => a - b);
     const p95 = durations[Math.floor(durations.length * 0.95)];
     expect(p95).toBeLessThan(200);
+  });
+
+  it('S1: aprueba bloques con numeración semestral acumulada (B2: 19..36, B3: 37..54) y detecta sesiones faltantes', () => {
+    const wbB2 = buildValidWorkbook(18, 19);
+    expect(resolveTargetSessionsForWorkbook(wbB2, null)).toBe(18);
+    expect(resolveBlockSessionRange(wbB2, null)).toEqual({
+      targetSessions: 18,
+      startSession: 19,
+      endSession: 36,
+    });
+
+    // Incluso sin sessionsPerBlock explícito debe inferir 18 sesiones en [19..36]
+    const wbB2NoBudget = { ...wbB2, sessionsPerBlock: undefined };
+    expect(resolveTargetSessionsForWorkbook(wbB2NoBudget, null)).toBe(18);
+    expect(resolveBlockSessionRange(wbB2NoBudget, null)).toEqual({
+      targetSessions: 18,
+      startSession: 19,
+      endSession: 36,
+    });
+
+    const extB2 = extractMaterialsFromWorkbook(wbB2);
+    expect(extB2.planesDeClase).toHaveLength(18);
+    expect(extB2.planesDeClase[0].numeroSesion).toBe(19);
+    expect(extB2.planesDeClase[17].numeroSesion).toBe(36);
+    expect(extB2.coherencia?.ok).toBe(true);
+
+    const revB2 = reviewBlockMaterials({ workbook: wbB2, extracted: extB2 });
+    expect(revB2.ok).toBe(true);
+    expect(revB2.errors).toHaveLength(0);
+
+    const wbB3 = buildValidWorkbook(18, 37);
+    const extB3 = extractMaterialsFromWorkbook(wbB3);
+    expect(extB3.planesDeClase[0].numeroSesion).toBe(37);
+    expect(extB3.planesDeClase[17].numeroSesion).toBe(54);
+    expect(reviewBlockMaterials({ workbook: wbB3, extracted: extB3 }).ok).toBe(true);
+
+    // Regresión negativa: si al Bloque 2 (19..36) le faltan las sesiones iniciales [19, 20], S1 debe bloquear
+    const wbB2Broken = buildValidWorkbook(18, 19);
+    wbB2Broken.missions[0].coveredSessions = wbB2Broken.missions[0].coveredSessions!.filter((s) => s > 20);
+    wbB2Broken.missions[0].sessionPlans = wbB2Broken.missions[0].sessionPlans!.filter((sp) => sp.sessionNumber > 20);
+    const revBroken = reviewBlockMaterials({ workbook: wbB2Broken });
+    expect(revBroken.ok).toBe(false);
+    expect(revBroken.errors.some((e) => e.code === 'S1_MISSING_DECLARED_SESSIONS' && e.session === 19)).toBe(true);
+    expect(revBroken.errors.some((e) => e.code === 'S1_SYNTHETIC_FALLBACK_DETECTED' && e.session === 19)).toBe(true);
   });
 });
 
@@ -927,6 +976,63 @@ describe('Fase R1 — Integración en Cascada y Gate HTTP 422 en Descargas', () 
     expect(res.status).toBe(200);
     expect(mockGetBlockWorkbook).toHaveBeenCalledWith('plan-1', 0);
     expect(mockGetBlockWorkbook).toHaveBeenCalledWith('plan-1', 1);
+  });
+
+  it('POST /materiales-bloque?blockIndex=1 sincroniza bloque acumulado (19..36) con status 200 y persistedExtras válidos S7', async () => {
+    const wbB2 = buildValidWorkbook(18, 19);
+    mockSql.mockImplementation((strings: TemplateStringsArray) => {
+      const q = String(strings?.[0] || '');
+      if (q.includes('FROM plannings')) {
+        return Promise.resolve([
+          {
+            id: 'plan-1',
+            teacher_id: 'teacher-1',
+            uac_name: 'PENSAMIENTO MATEMÁTICO II',
+            component: 'Formación Fundamental',
+            curriculum_name: 'MCCEMS 2026',
+            sequence_json: null,
+            content_json: null,
+            extracted_data: null,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    mockGetBlockWorkbook.mockResolvedValue(wbB2);
+
+    const postReq = new NextRequest('http://localhost:3000/api/planeaciones/plan-1/materiales-bloque?blockIndex=1', {
+      method: 'POST',
+    });
+    const postRes = await POST_MATERIALES_BLOQUE(postReq, { params: Promise.resolve({ id: 'plan-1' }) });
+    expect(postRes.status).toBe(200);
+    const postJson = await postRes.json();
+    expect(postJson.success).toBe(true);
+    expect(postJson.cascade.planesCount).toBe(18);
+    expect(postJson.cascade.syncedSequence?.sessions).toHaveLength(18);
+    expect(postJson.cascade.syncedSequence?.sessions[0]?.sessionNum).toBe(19);
+    expect(postJson.cascade.syncedSequence?.sessions[17]?.sessionNum).toBe(36);
+
+    // Verificar que los extras insertados en planning_extras pasan S7 sin S7_TRUNCATED_MATERIAL ni W0_UNRESOLVED_LESSON_PLAN_SESSION
+    const insertedExtras = mockSql.mock.calls
+      .filter((c) => String(c[0] || '').includes('INSERT INTO planning_extras'))
+      .map((c) => ({
+        type: String(c[2]),
+        title: String(c[3]),
+        key_index: Number(c[4]),
+        content_text: String(c[5]),
+      }));
+    expect(insertedExtras.some((e) => e.title.startsWith('Plan de Clase: Sesión 19'))).toBe(true);
+    expect(insertedExtras.some((e) => e.title.startsWith('Plan de Clase: Sesión 36'))).toBe(true);
+
+    const postReview = reviewBlockMaterials({
+      workbook: wbB2,
+      blockSequence: postJson.cascade.syncedSequence,
+      persistedExtras: insertedExtras,
+      uacName: 'PENSAMIENTO MATEMÁTICO II',
+    });
+    expect(postReview.ok).toBe(true);
+    expect(postReview.errors).toHaveLength(0);
+    expect(postReview.warnings.some((w) => w.code === 'W0_UNRESOLVED_LESSON_PLAN_SESSION')).toBe(false);
   });
 });
 

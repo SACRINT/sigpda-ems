@@ -180,4 +180,26 @@ describe('H-324 — auditoría de coherencia', () => {
     expect(r.warnings.some((w) => w.startsWith('W1'))).toBe(true);
     expect(r.warnings.some((w) => w.startsWith('W2'))).toBe(true);
   });
+
+  it('soporta bloques con numeración semestral acumulada (19..36) y detecta huecos en el rango', () => {
+    const wbB2 = workbook(6);
+    wbB2.blockIndex = 1;
+    wbB2.sessionsPerBlock = 18;
+    wbB2.missions = wbB2.missions.map((m, idx) =>
+      mission(idx + 1, {
+        coveredSessions: [19 + idx * 3, 20 + idx * 3, 21 + idx * 3],
+      })
+    );
+    const ex = extractMaterialsFromWorkbook(wbB2);
+    expect(ex.planesDeClase.map((p) => p.numeroSesion)).toEqual(
+      Array.from({ length: 18 }, (_, i) => 19 + i)
+    );
+    expect(ex.coherencia?.ok).toBe(true);
+    expect(ex.coherencia?.errors).toEqual([]);
+
+    const broken = ex.planesDeClase.slice(0, 17);
+    const brokenReport = auditPlanWorkbookCoherence(wbB2, broken, { expectedSessions: 18 });
+    expect(brokenReport.ok).toBe(false);
+    expect(brokenReport.errors.some((e) => e.includes('sesión 36'))).toBe(true);
+  });
 });

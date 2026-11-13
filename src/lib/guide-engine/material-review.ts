@@ -25,7 +25,7 @@ import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import {
   extractMaterialsFromWorkbook,
-  resolveTargetSessionsForWorkbook,
+  resolveBlockSessionRange,
   type BlockCurricularAnchor,
   type ExtractedBlockMaterials,
   type PlanDeClaseDerivado,
@@ -320,7 +320,10 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
     '';
 
   // ── S1: Cobertura y origen real de sesiones (anti-fallback sintético) ──────
-  const targetSessions = resolveTargetSessionsForWorkbook(workbook, blockSequence);
+  const { targetSessions, startSession, endSession } = resolveBlockSessionRange(
+    workbook,
+    blockSequence
+  );
   const missions = Array.isArray(workbook.missions) ? workbook.missions : [];
 
   const hasExplicitCurricularHours = Boolean(
@@ -342,13 +345,13 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
     Array.isArray(m.coveredSessions) ? m.coveredSessions : []
   );
   const declaredSet = new Set<number>(
-    rawDeclared.filter((s) => Number.isInteger(s) && s >= 1 && s <= targetSessions)
+    rawDeclared.filter((s) => Number.isInteger(s) && s >= startSession && s <= endSession)
   );
   const declared = Array.from(declaredSet).sort((a, b) => a - b);
 
-  // 1.1 Verificar que declared cubra 1..N sin huecos
+  // 1.1 Verificar que declared cubra [startSession..endSession] sin huecos
   const missingDeclared: number[] = [];
-  for (let s = 1; s <= targetSessions; s++) {
+  for (let s = startSession; s <= endSession; s++) {
     if (!declaredSet.has(s)) {
       missingDeclared.push(s);
     }
@@ -389,7 +392,7 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
     }
 
     for (const sNum of mCovered) {
-      if (sNum >= 1 && sNum <= targetSessions && !mPlanMap.has(sNum)) {
+      if (sNum >= startSession && sNum <= endSession && !mPlanMap.has(sNum)) {
         pushIssue({
           code: 'S1_MISSING_SESSION_PLANS',
           material: 'lesson_plan',

@@ -62,8 +62,8 @@ const ROLE_OFFSET: Record<SessionRole, number> = { introduccion: 0, practica: 1,
 
 /**
  * Selección determinista y variada (no aleatoria) de una técnica.
- * Usa la repetición del ciclo de 3 sesiones (para que sesiones del mismo rol no repitan técnica)
- * y un desfase por rol (para que sesiones consecutivas de roles distintos tampoco coincidan).
+ * Avanza por cada sesión individual y se combina con tablas coprimas (4, 4, 5) + desfase por rol,
+ * evitando clones incluso en misiones largas de 4 a 6 sesiones con múltiples sesiones de práctica.
  */
 export function pickTechnique<T>(
   list: readonly T[],
@@ -72,7 +72,7 @@ export function pickTechnique<T>(
   role: SessionRole,
   salt = 0
 ): T {
-  const variant = Math.floor((Math.max(1, sessionNum) - 1) / 3);
+  const variant = Math.max(1, sessionNum) - 1;
   const idx = Math.abs(missionIndex * 7 + variant + ROLE_OFFSET[role] + salt) % list.length;
   return list[idx];
 }

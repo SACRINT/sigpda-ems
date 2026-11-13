@@ -213,7 +213,13 @@ function PlanningDetailModular({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al sincronizar materiales del bloque');
 
-      // Recargar extras en estado React
+      // Recargar extras y secuencia del bloque en estado React para reflejar R1 de inmediato
+      if (data?.cascade?.syncedSequence) {
+        setSequenceData((prev) => ({
+          ...prev,
+          [blockIdx]: data.cascade.syncedSequence,
+        }));
+      }
       await loadExtras();
 
       // Auto-navegar a la pestaña de Planes para ver las sesiones

@@ -107,6 +107,17 @@ export interface ExtractedBlockMaterials {
  * respetando la carga horaria curricular de la UAC (36h -> 12/bloque, 54h -> 18/bloque, 72h -> 24/bloque)
  * y manteniendo retrocompatibilidad con mocks parciales de pruebas unitarias.
  */
+export interface BlockSessionRange {
+  targetSessions: number;
+  startSession: number;
+  endSession: number;
+}
+
+/**
+ * Calcula dinámicamente el total oficial de sesiones del bloque (12, 18 o 24)
+ * respetando la carga horaria curricular de la UAC (36h -> 12/bloque, 54h -> 18/bloque, 72h -> 24/bloque)
+ * y manteniendo retrocompatibilidad con mocks parciales de pruebas unitarias.
+ */
 export function resolveTargetSessionsForWorkbook(
   workbook: ActiveWorkTextbook,
   blockSequence?: SecuenciaBloque | null
@@ -126,18 +137,115 @@ export function resolveTargetSessionsForWorkbook(
   }
   const missions = workbook.missions || [];
   if (missions.length >= 1) {
-    const allSessions = missions.flatMap((m) =>
-      Array.isArray(m.coveredSessions) ? m.coveredSessions : []
-    );
-    if (allSessions.length > 0) {
-      const maxSession = Math.max(...allSessions);
-      if (maxSession >= 6 && maxSession <= 30) {
-        return maxSession;
+    const validSessions = missions
+      .flatMap((m) => (Array.isArray(m.coveredSessions) ? m.coveredSessions : []))
+      .filter((s) => Number.isInteger(s) && s >= 1);
+    if (validSessions.length > 0) {
+      const minSession = Math.min(...validSessions);
+      const maxSession = Math.max(...validSessions);
+      if (minSession === 1) {
+        if (maxSession >= 6 && maxSession <= 30) {
+          return maxSession;
+        }
+      } else {
+        // Bloques con numeración acumulada en el semestre (ej. 19..36, 37..54, 13..24, 25..48).
+        const span = maxSession - minSession + 1;
+        const uniqueCount = new Set(validSessions).size;
+        const inferred = span >= uniqueCount && span <= 36 ? span : uniqueCount;
+        if (inferred >= 6 && inferred <= 36) {
+          return inferred;
+        }
       }
     }
   }
   // Fallback histórico para workbooks legacy sin sessionsPerBlock ni secuencia.
   return 24;
+}
+
+/**
+ * Resuelve el rango oficial de sesiones [startSession..endSession] del bloque.
+ * Soporta tanto bloques locales (1..N en cada bloque) como bloques con numeración
+ * semestral acumulada (ej. B1: 1..18, B2: 19..36, B3: 37..54).
+ */
+export function resolveBlockSessionRange(
+  workbook: ActiveWorkTextbook,
+  blockSequence?: SecuenciaBloque | null
+): BlockSessionRange {
+  const targetSessions = resolveTargetSessionsForWorkbook(workbook, blockSequence);
+  const seqNums = Array.isArray(blockSequence?.sessions)
+    ? blockSequence.sessions
+        .map((s) => s?.sessionNum)
+        .filter((n): n is number => Number.isInteger(n) && n >= 1)
+    : [];
+
+  const missions = Array.isArray(workbook?.missions) ? workbook.missions : [];
+  const declaredNums = missions
+    .flatMap((m) => (Array.isArray(m.coveredSessions) ? m.coveredSessions : []))
+    .filter((n): n is number => Number.isInteger(n) && n >= 1);
+  const planNums = missions
+    .flatMap((m) =>
+      Array.isArray(m.sessionPlans) ? m.sessionPlans.map((sp) => sp.sessionNumber) : []
+    )
+    .filter((n): n is number => Number.isInteger(n) && n >= 1);
+  const bookNums = declaredNums.length > 0 ? declaredNums : planNums;
+
+  const rawBlockIdx =
+    typeof blockSequence?.blockIndex === 'number'
+      ? blockSequence.blockIndex
+      : typeof workbook?.blockIndex === 'number'
+        ? workbook.blockIndex
+        : 0;
+
+  let startSession = 1;
+  if (seqNums.length === targetSessions) {
+    const seqMin = Math.min(...seqNums);
+    const seqMax = Math.max(...seqNums);
+    const seqContiguous =
+      seqMax - seqMin + 1 === targetSessions && new Set(seqNums).size === targetSessions;
+    const bookStartsAtOne = bookNums.length > 0 && Math.min(...bookNums) === 1;
+    if (seqContiguous && seqMin > 1 && !bookStartsAtOne) {
+      startSession = seqMin;
+    }
+  }
+
+  if (startSession === 1 && bookNums.length > 0) {
+    const minBook = Math.min(...bookNums);
+    const maxBook = Math.max(...bookNums);
+    if (maxBook > targetSessions) {
+      if (minBook > targetSessions) {
+        if (rawBlockIdx > 0) {
+          const alignedStart = rawBlockIdx * targetSessions + 1;
+          if (minBook >= alignedStart && maxBook <= alignedStart + targetSessions - 1) {
+            startSession = alignedStart;
+          } else if (
+            maxBook - minBook + 1 === targetSessions &&
+            new Set(bookNums).size === targetSessions
+          ) {
+            startSession = minBook;
+          } else {
+            const inferredIdx = Math.floor((minBook - 1) / targetSessions);
+            startSession = inferredIdx * targetSessions + 1;
+          }
+        } else {
+          const inferredIdx = Math.floor((minBook - 1) / targetSessions);
+          startSession = inferredIdx * targetSessions + 1;
+        }
+      } else if (
+        rawBlockIdx > 0 &&
+        minBook > 1 &&
+        maxBook - minBook + 1 === targetSessions &&
+        new Set(bookNums).size === targetSessions
+      ) {
+        startSession = minBook;
+      }
+    }
+  }
+
+  return {
+    targetSessions,
+    startSession,
+    endSession: startSession + targetSessions - 1,
+  };
 }
 
 /**
@@ -163,18 +271,22 @@ export function extractMaterialsFromWorkbook(
   const planesDeClase: PlanDeClaseDerivado[] = [];
 
   // 1. Extraer o mapear las sesiones oficiales de clase a partir de las misiones y secuencia
-  const TARGET_SESSIONS = resolveTargetSessionsForWorkbook(workbook, blockSequence);
+  const { targetSessions: TARGET_SESSIONS, startSession, endSession } = resolveBlockSessionRange(
+    workbook,
+    blockSequence
+  );
 
   if (missions.length > 0) {
     // Si las misiones tienen coveredSessions explícitas, mapearlas
     for (let mIdx = 0; mIdx < missions.length; mIdx++) {
       const mission = missions[mIdx];
-      const sessions = Array.isArray(mission.coveredSessions) && mission.coveredSessions.length > 0
-        ? mission.coveredSessions
-        : [mIdx * 3 + 1, mIdx * 3 + 2, mIdx * 3 + 3];
+      const sessions =
+        Array.isArray(mission.coveredSessions) && mission.coveredSessions.length > 0
+          ? mission.coveredSessions
+          : [startSession + mIdx * 3, startSession + mIdx * 3 + 1, startSession + mIdx * 3 + 2];
 
       for (const sNum of sessions) {
-        if (sNum <= TARGET_SESSIONS) {
+        if (sNum >= startSession && sNum <= endSession) {
           planesDeClase.push(buildPlanDeClase(workbook, mission, sNum, blockSequence, curricularAnchor));
         }
       }
@@ -184,11 +296,14 @@ export function extractMaterialsFromWorkbook(
   // Si la cobertura de misiones es menor al total del bloque, se completan las
   // sesiones reutilizando misiones REALES de forma proporcional. Nunca se inventa
   // una misión de contingencia con texto genérico.
-  const currentCount = planesDeClase.length;
-  if (currentCount < TARGET_SESSIONS) {
-    for (let i = currentCount + 1; i <= TARGET_SESSIONS; i++) {
-      const parentMission = missions[(i - 1) % missions.length];
-      planesDeClase.push(buildPlanDeClase(workbook, parentMission, i, blockSequence, curricularAnchor));
+  if (planesDeClase.length < TARGET_SESSIONS) {
+    const presentSessions = new Set(planesDeClase.map((p) => p.numeroSesion));
+    for (let sNum = startSession; sNum <= endSession && planesDeClase.length < TARGET_SESSIONS; sNum++) {
+      if (!presentSessions.has(sNum)) {
+        const parentMission = missions[(sNum - startSession) % missions.length];
+        planesDeClase.push(buildPlanDeClase(workbook, parentMission, sNum, blockSequence, curricularAnchor));
+        presentSessions.add(sNum);
+      }
     }
   }
 
@@ -235,7 +350,10 @@ export function extractMaterialsFromWorkbook(
       executionTimeMs,
     },
     planesDeClase,
-    coherencia: auditPlanWorkbookCoherence(workbook, planesDeClase, { expectedSessions: TARGET_SESSIONS }),
+    coherencia: auditPlanWorkbookCoherence(workbook, planesDeClase, {
+      expectedSessions: TARGET_SESSIONS,
+      startSession,
+    }),
     guiaDelBloque,
     solucionarioDocente,
     instrumentosEvaluacion,

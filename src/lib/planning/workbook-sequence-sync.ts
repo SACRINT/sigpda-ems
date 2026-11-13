@@ -9,7 +9,10 @@
 
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { KeyActivityPlan, SecuenciaBloque, SecuenciaCompleta, SecuenciaSesion } from '@/types/planning';
-import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extractor';
+import {
+  extractMaterialsFromWorkbook,
+  resolveBlockSessionRange,
+} from '@/lib/guide-engine/material-extractor';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 
 function cleanText(raw: string | undefined | null): string {
@@ -51,15 +54,17 @@ function formatObjectiveAsTitle(objetivo: string | undefined, fallbackTitle: str
 function resolveSessionPhase(
   sessionNum: number,
   totalSessions: number,
-  missionIndex?: number
+  missionIndex?: number,
+  startSession = 1
 ): 'Apertura' | 'Desarrollo' | 'Cierre' {
   if (missionIndex === 1) return 'Apertura';
   if (missionIndex === 4) return 'Cierre';
   if (missionIndex === 2 || missionIndex === 3) return 'Desarrollo';
+  const relSession = Math.max(1, sessionNum - startSession + 1);
   const apLimit = totalSessions >= 16 ? 3 : totalSessions >= 10 ? 2 : 1;
   const cieStart = totalSessions - (totalSessions >= 16 ? 3 : totalSessions >= 10 ? 2 : 1) + 1;
-  if (sessionNum <= apLimit) return 'Apertura';
-  if (sessionNum >= cieStart) return 'Cierre';
+  if (relSession <= apLimit) return 'Apertura';
+  if (relSession >= cieStart) return 'Cierre';
   return 'Desarrollo';
 }
 
@@ -97,6 +102,7 @@ export function buildBlockSequenceFromWorkbook(
   const totalSessions = sessionEntries.length > 0
     ? sessionEntries.length
     : extracted.planesDeClase.length;
+  const { startSession } = resolveBlockSessionRange(workbook);
 
   const sessions: SecuenciaSesion[] = [];
 
@@ -104,7 +110,7 @@ export function buildBlockSequenceFromWorkbook(
     for (const { mission, sp } of sessionEntries) {
       const sNum = sp.sessionNumber;
       const plan = planesBySession.get(sNum);
-      const phase = resolveSessionPhase(sNum, totalSessions, mission.missionIndex);
+      const phase = resolveSessionPhase(sNum, totalSessions, mission.missionIndex, startSession);
       const title = formatObjectiveAsTitle(
         sp.objetivo,
         plan?.tituloSesion || mission.sessionTopic || mission.title || `Sesión ${sNum}`,
@@ -167,7 +173,7 @@ export function buildBlockSequenceFromWorkbook(
   } else {
     for (const plan of extracted.planesDeClase) {
       const sNum = plan.numeroSesion;
-      const phase = resolveSessionPhase(sNum, totalSessions);
+      const phase = resolveSessionPhase(sNum, totalSessions, undefined, startSession);
       const phaseData = phase === 'Apertura' ? plan.apertura : phase === 'Cierre' ? plan.cierre : plan.desarrollo;
       sessions.push({
         sessionNum: sNum,
