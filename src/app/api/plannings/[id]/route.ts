@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, deletePlanning } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { validateAndPersistPlanningContent } from '@/lib/planning/planning-persistence';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
   request: NextRequest,
@@ -39,9 +42,13 @@ export async function DELETE(
     if (!teacher) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
 
     const { id } = await params;
+    if (!UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: 'ID de planeación inválido' }, { status: 400 });
+    }
     await deletePlanning(id, teacher.id);
     return NextResponse.json({ success: true });
   } catch (error) {
+    logger.error('DELETE /api/plannings/[id] error:', error);
     return NextResponse.json({ error: 'Error al eliminar' }, { status: 500 });
   }
 }

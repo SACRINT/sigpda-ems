@@ -22,9 +22,9 @@ vi.mock('@/lib/subscription-gate', () => ({
 }));
 
 import { auth } from '@/lib/auth';
-import { getTeacherByEmail, updatePlanningContent } from '@/lib/db';
+import { getTeacherByEmail, updatePlanningContent, deletePlanning } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
-import { PUT } from '@/app/api/plannings/[id]/route';
+import { PUT, DELETE } from '@/app/api/plannings/[id]/route';
 
 describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', () => {
   const planningId = '166f816d-7a66-46dc-b5b6-b1ccda273353';
@@ -160,6 +160,69 @@ describe('Nivel 1: PUT /api/plannings/[id] — Guardián de Edición Rápida', (
       teacherId,
       expect.objectContaining(updatedContent)
     );
+  });
+});
+
+describe('DELETE /api/plannings/[id]', () => {
+  const validPlanningId = '215643ee-47ad-436a-85df-ea0c8ca39ca4';
+  const teacherId = 'teacher-123';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@ejemplo.edu.mx' } } as never);
+    vi.mocked(getTeacherByEmail).mockResolvedValue({ id: teacherId } as never);
+    vi.mocked(deletePlanning).mockResolvedValue(undefined);
+  });
+
+  it('retorna 401 si no hay sesión autenticada', async () => {
+    vi.mocked(auth).mockResolvedValueOnce(null as never);
+
+    const req = new NextRequest(`http://localhost:3000/api/plannings/${validPlanningId}`, {
+      method: 'DELETE',
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id: validPlanningId }) });
+
+    expect(res.status).toBe(401);
+    expect(deletePlanning).not.toHaveBeenCalled();
+  });
+
+  it('retorna 400 si el ID de planeación no es un UUID válido', async () => {
+    const req = new NextRequest('http://localhost:3000/api/plannings/not-a-uuid', {
+      method: 'DELETE',
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id: 'not-a-uuid' }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe('ID de planeación inválido');
+    expect(deletePlanning).not.toHaveBeenCalled();
+  });
+
+  it('elimina una planeación con UUID válido y retorna 200', async () => {
+    const req = new NextRequest(`http://localhost:3000/api/plannings/${validPlanningId}`, {
+      method: 'DELETE',
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id: validPlanningId }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual({ success: true });
+    expect(deletePlanning).toHaveBeenCalledWith(validPlanningId, teacherId);
+  });
+
+  it('retorna 500 controlado si deletePlanning falla en BD', async () => {
+    vi.mocked(deletePlanning).mockRejectedValueOnce(
+      new Error('planning_versions rows are immutable')
+    );
+
+    const req = new NextRequest(`http://localhost:3000/api/plannings/${validPlanningId}`, {
+      method: 'DELETE',
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id: validPlanningId }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBeTruthy();
   });
 });
 
