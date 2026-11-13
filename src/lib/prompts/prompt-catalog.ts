@@ -1,12 +1,15 @@
 /**
- * prompt-catalog.ts — Loader del catálogo de prompts de planeación.
+ * prompt-catalog.ts — Loader experimental del catálogo de prompts de planeación (F6).
+ *
+ * ESTADO: DESACTIVADO INTENCIONALMENTE EN PRODUCCIÓN (`PROMPT_CATALOG_ENABLED = false`).
+ * No debe conectarse en los generadores ni prompts activos: el pipeline actual
+ * (`system-prompt.ts`, `build-prompt.ts`, Wiki SEP y validadores Anexo 12 / DBEPA)
+ * es la única fuente operativa; inyectar estos fragmentos duplicaría o diluiría
+ * instrucciones críticas.
  *
  * El catálogo vive como fragmentos markdown versionados en Git
  * (`src/prompts/catalog/planeacion/`) y se compila a un módulo TypeScript con
  * `scripts/build-prompt-catalog.ts`. Este loader solo lo expone con tipado.
- *
- * La activación está detrás de `PROMPT_CATALOG_ENABLED` (default `false`):
- * mientras esté apagado, los generadores conservan su prompt legacy intacto.
  */
 
 import { isFeatureEnabled } from '@/lib/platform/feature-flags';

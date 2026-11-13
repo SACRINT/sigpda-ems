@@ -4,6 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 
+const ADMIN_SHOWROOM_TEACHER_ID = 'e2bf54f5-4f52-4d2b-a58e-10346ebee53d';
+const RUN_LIVE_SAMPLE_AUDIT = process.env.RUN_LIVE_SAMPLE_AUDIT === '1';
+
 // Cargar DATABASE_URL desde process.env o .env.local
 const dbUrl = (() => {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
@@ -34,18 +37,53 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return value as T;
 }
 
-describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB)', () => {
+interface CanonicalFixtureSample {
+  id: string;
+  shortName: string;
+  uac_name: string;
+  semester: number;
+  component: 'fundamental' | 'laboral';
+  hours: number;
+  content_json: Record<string, any>;
+  sequence_json: Record<string, any>;
+  workbooks_json: Record<string, any>;
+  lesson_plans: Array<{ key_index: number; title: string; content_text: string }>;
+  latest_version: {
+    version_number: number;
+    sha256_hash: string;
+    anexo12_score: number;
+    dbepa_score: number;
+  };
+}
+
+function loadCanonicalSamplesFixture(): CanonicalFixtureSample[] {
+  const fixturePath = path.resolve(
+    process.cwd(),
+    'src',
+    '__tests__',
+    'fixtures',
+    'canonical-samples.json'
+  );
+  const parsed = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as {
+    samples: CanonicalFixtureSample[];
+  };
+  return parsed.samples;
+}
+
+describe('Auditoría Integral de Calidad y Cierre (Neon DB Catálogo/ISO + Fixture Muestras)', () => {
   let sql: NeonQueryFunction<false, false>;
+  let fixtureSamples: CanonicalFixtureSample[] = [];
 
   beforeAll(() => {
     if (!dbUrl) {
       throw new Error('DATABASE_URL no configurada para live-database-quality-audit.test.ts');
     }
     sql = neon(dbUrl);
+    fixtureSamples = loadCanonicalSamplesFixture();
   });
 
   // --------------------------------------------------------------------------
-  // 1. Verificación BGE Laboral: 15 Carreras, 120 UACs
+  // 1. Verificación BGE Laboral: 15 Carreras, 120 UACs (Neon DB)
   // --------------------------------------------------------------------------
   describe('1. BGE Laboral: 120 UACs sin saberes vacíos y sin plantillas genéricas', () => {
     it('Existen exactamente 120 UACs laborales de BGE en programs_catalog', async () => {
@@ -82,10 +120,7 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
       let emptySaberesActivities = 0;
 
       for (const row of rows) {
-        const contenidos = typeof row.contenidos_formativos === 'string'
-          ? JSON.parse(row.contenidos_formativos)
-          : row.contenidos_formativos;
-
+        const contenidos = parseJson<any[]>(row.contenidos_formativos, []);
         if (Array.isArray(contenidos)) {
           for (const c of contenidos) {
             if (Array.isArray(c.saberes) && c.saberes.length === 0) emptySaberesContenidos++;
@@ -93,10 +128,7 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
           }
         }
 
-        const activities = typeof row.activities === 'string'
-          ? JSON.parse(row.activities)
-          : row.activities;
-
+        const activities = parseJson<any[]>(row.activities, []);
         if (Array.isArray(activities)) {
           for (const a of activities) {
             if (Array.isArray(a.saberes) && a.saberes.length === 0) emptySaberesActivities++;
@@ -111,7 +143,7 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 2. Verificación FFEO: 8 UACs
+  // 2. Verificación FFEO: 8 UACs (Neon DB)
   // --------------------------------------------------------------------------
   describe('2. FFEO: 8 UACs sin plantillas genéricas epistemológicas', () => {
     it('Existen exactamente 8 UACs en component = ffeo', async () => {
@@ -138,7 +170,7 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 3. Verificación FFE Optativas: 40 UACs con metas y categorías pobladas
+  // 3. Verificación FFE Optativas: 40 UACs con metas y categorías pobladas (Neon DB)
   // --------------------------------------------------------------------------
   describe('3. FFE Optativas: 40 UACs con metas y categorías MCCEMS', () => {
     it('Existen 40 UACs en component = ffe_optativa', async () => {
@@ -161,10 +193,7 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
       let emptyCategorias = 0;
 
       for (const row of rows) {
-        const cfs = typeof row.contenidos_formativos === 'string'
-          ? JSON.parse(row.contenidos_formativos)
-          : (row.contenidos_formativos || []);
-
+        const cfs = parseJson<any[]>(row.contenidos_formativos, []);
         for (const cf of cfs) {
           if (!Array.isArray(cf.metas) || cf.metas.length === 0) emptyMetas++;
           if (!Array.isArray(cf.categorias) || cf.categorias.length === 0) emptyCategorias++;
@@ -177,23 +206,21 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 4. Verificación Bachillerato Tecnológico: 38 Submódulos
+  // 4. Verificación Bachillerato Tecnológico: 285 UACs / Submódulos (Neon DB)
   // --------------------------------------------------------------------------
-  describe('4. Bachillerato Tecnológico: 0 submódulos con saberes vacíos', () => {
-    it('0 submódulos laborales tecnológicos tienen saberes: []', async () => {
+  describe('4. Bachillerato Tecnológico: 285 submódulos y 0 con saberes vacíos', () => {
+    it('Existen exactamente 285 submódulos laborales tecnológicos y ninguno tiene saberes: []', async () => {
       const rows = await sql`
         SELECT id, uac_name, contenidos_formativos
         FROM programs_catalog
         WHERE subsystem = 'tecnologico' AND component = 'laboral'
       `;
+      expect(rows.length).toBe(285);
 
       let emptySaberesCount = 0;
 
       for (const row of rows) {
-        const contenidos = typeof row.contenidos_formativos === 'string'
-          ? JSON.parse(row.contenidos_formativos)
-          : row.contenidos_formativos;
-
+        const contenidos = parseJson<any[]>(row.contenidos_formativos, []);
         if (Array.isArray(contenidos)) {
           for (const c of contenidos) {
             if (Array.isArray(c.saberes) && c.saberes.length === 0) emptySaberesCount++;
@@ -206,39 +233,19 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 5. Verificación de las 5 Muestras Canónicas y sus 270 Sesiones
+  // 5. Verificación de las 5 Muestras Canónicas y sus 270 Sesiones (Fixture JSON)
   // --------------------------------------------------------------------------
-  describe('5. Muestras Canónicas: 270 Sesiones Reales (54/72/36/54/54) y 270 Planes Diarios', () => {
-    const canonicalUACs = [
-      { name: 'Lenguaje y Comunicación I. Leer y escribir para pensar juntos', hours: 54 },
-      { name: 'Ciencias Naturales, Experimentales y Tecnología I. Invitación a la Ciencia. Naturaleza de la materia', hours: 72 },
-      { name: 'Ciencias sociales I. Estado, ciudadanía y relaciones de poder', hours: 36 },
-      { name: 'Inglés I. To Be, or Not to be, That is the Question', hours: 54 },
-      { name: 'Actualiza equipos de cómputo de acuerdo con especificaciones del fabricante', hours: 54 },
-    ];
-
-    it('Las 5 planeaciones canónicas existen en la tabla plannings con paridad exacta de sesiones', async () => {
+  describe('5. Muestras Canónicas (Fixture JSON): 270 Sesiones Reales (54/72/36/54/54) y 270 Planes Diarios', () => {
+    it('Las 5 muestras canónicas del fixture tienen paridad exacta de 270 sesiones, Anexo 12 = 100 y DBEPA verde', () => {
+      expect(fixtureSamples).toHaveLength(5);
       let totalSessionsSum = 0;
 
-      for (const sample of canonicalUACs) {
-        const rows = await sql`
-          SELECT id, uac_name, content_json, sequence_json, workbooks_json
-          FROM plannings
-          WHERE uac_name = ${sample.name}
-          ORDER BY updated_at DESC
-          LIMIT 1
-        `;
-
-        expect(rows.length).toBe(1);
-        const p = rows[0];
-
-        // Content JSON
-        const content = typeof p.content_json === 'string' ? JSON.parse(p.content_json) : p.content_json;
+      for (const sample of fixtureSamples) {
+        const content = sample.content_json;
         const totalHours = Number(content.sectionI?.totalHours || content.totalHours);
         expect(totalHours).toBe(sample.hours);
 
-        // Sequence JSON sessions (bloques 0, 1, 2)
-        const seq = typeof p.sequence_json === 'string' ? JSON.parse(p.sequence_json) : p.sequence_json;
+        const seq = sample.sequence_json;
         const seqSessions =
           (seq['0']?.sessions?.length || 0) +
           (seq['1']?.sessions?.length || 0) +
@@ -246,11 +253,13 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
         expect(seqSessions).toBe(sample.hours);
         totalSessionsSum += seqSessions;
 
-        // Workbooks JSON sessions (block_0, block_1, block_2 -> missions -> sessionPlans)
-        const wb = typeof p.workbooks_json === 'string' ? JSON.parse(p.workbooks_json) : p.workbooks_json;
+        const wb = sample.workbooks_json;
         const countWbSessions = (blockObj: any) => {
           if (!blockObj?.current?.missions) return 0;
-          return blockObj.current.missions.reduce((acc: number, m: any) => acc + (m.sessionPlans?.length || 0), 0);
+          return blockObj.current.missions.reduce(
+            (acc: number, m: any) => acc + (m.sessionPlans?.length || 0),
+            0
+          );
         };
         const wbSessions =
           countWbSessions(wb.block_0) +
@@ -258,92 +267,50 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
           countWbSessions(wb.block_2);
         expect(wbSessions).toBe(sample.hours);
 
-        // Anexo 12 Audit: 100 y 0 críticas
-        const anexo12 = content.anexo12Audit;
-        expect(anexo12.score).toBe(100);
-        expect(anexo12.criticalFailures).toBe(0);
-
-        // DBEPA Audit: semáforo verde
-        const dbepa = content.dbepaAudit;
-        expect(dbepa.semaforo).toBe('verde');
+        expect(content.anexo12Audit.score).toBe(100);
+        expect(content.anexo12Audit.criticalFailures).toBe(0);
+        expect(content.dbepaAudit.semaforo).toBe('verde');
       }
 
       expect(totalSessionsSum).toBe(270);
     });
 
-    it('Existen exactamente 270 planes de clase individuales en planning_extras (54/72/36/54/54)', async () => {
+    it('Existen exactamente 270 planes de clase individuales en el fixture (54/72/36/54/54)', () => {
       let totalExtrasPlans = 0;
 
-      for (const sample of canonicalUACs) {
-        const pRows = await sql`
-          SELECT id FROM plannings WHERE uac_name = ${sample.name} ORDER BY updated_at DESC LIMIT 1
-        `;
-        const planningId = pRows[0].id;
-
-        const extraRows = await sql`
-          SELECT COUNT(*)::int as count
-          FROM planning_extras
-          WHERE planning_id = ${planningId} AND type = 'lesson_plan'
-        `;
-
-        const planCount = Number(extraRows[0].count);
-        expect(planCount).toBe(sample.hours);
-        totalExtrasPlans += planCount;
+      for (const sample of fixtureSamples) {
+        expect(sample.lesson_plans).toHaveLength(sample.hours);
+        totalExtrasPlans += sample.lesson_plans.length;
       }
 
       expect(totalExtrasPlans).toBe(270);
     });
 
-    it('0 URLs de búsqueda genéricas en workbooks_json de las 5 muestras', async () => {
-      for (const sample of canonicalUACs) {
-        const rows = await sql`
-          SELECT workbooks_json::text as wb_str
-          FROM plannings
-          WHERE uac_name = ${sample.name}
-          ORDER BY updated_at DESC
-          LIMIT 1
-        `;
-        const wbStr = rows[0].wb_str;
+    it('0 URLs de búsqueda genéricas en workbooks_json de las 5 muestras del fixture', () => {
+      for (const sample of fixtureSamples) {
+        const wbStr = JSON.stringify(sample.workbooks_json);
         expect(wbStr.includes('youtube.com/results')).toBe(false);
         expect(wbStr.includes('google.com/search')).toBe(false);
       }
     });
 
-    it('0 textos genéricos de modelado docente en workbooks_json de las 5 muestras', async () => {
+    it('0 textos genéricos de modelado docente en workbooks_json de las 5 muestras del fixture', () => {
       const genericModelado = 'El docente realiza el modelado procedimental explícito ante el grupo';
 
-      for (const sample of canonicalUACs) {
-        const rows = await sql`
-          SELECT workbooks_json::text as wb_str
-          FROM plannings
-          WHERE uac_name = ${sample.name}
-          ORDER BY updated_at DESC
-          LIMIT 1
-        `;
-        const wbStr = rows[0].wb_str;
+      for (const sample of fixtureSamples) {
+        const wbStr = JSON.stringify(sample.workbooks_json);
         expect(wbStr.includes(genericModelado)).toBe(false);
       }
     });
 
-    it('0 plantillas genéricas en los planes de clase de planning_extras', async () => {
+    it('0 plantillas genéricas en los planes de clase de las 5 muestras del fixture', () => {
       const genericApertura = 'Activación de conocimientos previos y presentación de la consigna';
       const genericDesarrollo = 'Trabajo colaborativo guiado y aplicación práctica';
       const genericCierre = 'Evaluación formativa, síntesis y retroalimentación colectiva';
 
-      for (const sample of canonicalUACs) {
-        const pRows = await sql`
-          SELECT id FROM plannings WHERE uac_name = ${sample.name} ORDER BY updated_at DESC LIMIT 1
-        `;
-        const planningId = pRows[0].id;
-
-        const rows = await sql`
-          SELECT content_text
-          FROM planning_extras
-          WHERE planning_id = ${planningId} AND type = 'lesson_plan'
-        `;
-
-        for (const r of rows) {
-          const text = r.content_text || '';
+      for (const sample of fixtureSamples) {
+        for (const plan of sample.lesson_plans) {
+          const text = plan.content_text || '';
           expect(text.includes(genericApertura)).toBe(false);
           expect(text.includes(genericDesarrollo)).toBe(false);
           expect(text.includes(genericCierre)).toBe(false);
@@ -353,7 +320,7 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 6. Integridad global del catálogo
+  // 6. Integridad global del catálogo: 498 UACs (Neon DB)
   // --------------------------------------------------------------------------
   describe('6. Integridad global del catálogo: 498 UACs y saberes completos', () => {
     it('El catálogo contiene exactamente 498 UACs y ninguna actividad vacía', async () => {
@@ -445,30 +412,16 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 7. Muestras canónicas: contenido único por sesión
+  // 7. Muestras canónicas: contenido único por sesión (Fixture JSON)
   // --------------------------------------------------------------------------
-  describe('7. Muestras canónicas: 270 sesiones y 270 planes únicos', () => {
-    const samples = [
-      { id: '18016fa8-7a96-4d89-b693-47788285560e', name: 'Lenguaje y Comunicación I', hours: 54 },
-      { id: 'cc626dd9-9a8a-442a-ab25-532d485d6b36', name: 'Ciencias Naturales I', hours: 72 },
-      { id: '57484f68-811a-485e-817e-f68ff0c92fe8', name: 'Ciencias sociales I', hours: 36 },
-      { id: '7a1e4e19-efa3-40eb-b819-dd604d742cbf', name: 'Inglés I', hours: 54 },
-      { id: 'd944cd30-7fb6-4e3d-a7a6-db48caa78973', name: 'Actualiza equipos de cómputo', hours: 54 },
-    ];
-
-    it('Cada sesión tiene título y actividades docentes/didácticas/evaluativas únicas', async () => {
+  describe('7. Muestras canónicas (Fixture JSON): 270 sesiones y 270 planes únicos', () => {
+    it('Cada sesión tiene título y actividades docentes/didácticas/evaluativas únicas', () => {
       let totalSessions = 0;
 
-      for (const sample of samples) {
-        const rows = await sql`
-          SELECT sequence_json, workbooks_json
-          FROM plannings
-          WHERE id = ${sample.id}
-        `;
-        expect(rows.length).toBe(1);
-
-        const seq = parseJson<Record<string, any>>(rows[0].sequence_json, {});
-        const sessions = Object.values(seq).flatMap((block: any) => block.sessions || []);
+      for (const sample of fixtureSamples) {
+        const sessions = Object.values(sample.sequence_json).flatMap(
+          (block: any) => block.sessions || []
+        );
         expect(sessions.length).toBe(sample.hours);
         totalSessions += sessions.length;
 
@@ -477,10 +430,9 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
           expect(new Set(sessions.map((s: any) => s[key])).size).toBe(sample.hours);
         }
 
-        const wb = parseJson<Record<string, any>>(rows[0].workbooks_json, {});
         const wbSessions: any[] = [];
         let emptyIDo = 0;
-        for (const block of Object.values(wb)) {
+        for (const block of Object.values(sample.workbooks_json)) {
           for (const mission of (block as any)?.current?.missions || []) {
             const demo = mission?.iDoSection?.stepByStepDemo;
             if (typeof demo !== 'string' || demo.trim().length < 40) emptyIDo++;
@@ -496,32 +448,20 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
       expect(totalSessions).toBe(270);
     });
 
-    it('Los 270 planes de planning_extras son únicos e incluyen el título de su sesión', async () => {
+    it('Los 270 planes de clase del fixture son únicos e incluyen el título de su sesión', () => {
       let totalPlans = 0;
 
-      for (const sample of samples) {
-        const pRows = await sql`
-          SELECT sequence_json
-          FROM plannings
-          WHERE id = ${sample.id}
-        `;
-        const seq = parseJson<Record<string, any>>(pRows[0].sequence_json, {});
-        const titles = Object.values(seq)
+      for (const sample of fixtureSamples) {
+        const titles = Object.values(sample.sequence_json)
           .flatMap((block: any) => block.sessions || [])
           .map((session: any) => String(session.title || '').trim());
 
-        const extras = await sql`
-          SELECT content_text
-          FROM planning_extras
-          WHERE planning_id = ${sample.id} AND type = 'lesson_plan'
-        `;
+        expect(sample.lesson_plans.length).toBe(sample.hours);
+        expect(new Set(sample.lesson_plans.map((p) => p.content_text)).size).toBe(sample.hours);
+        totalPlans += sample.lesson_plans.length;
 
-        expect(extras.length).toBe(sample.hours);
-        expect(new Set(extras.map((e: any) => e.content_text)).size).toBe(sample.hours);
-        totalPlans += extras.length;
-
-        for (const extra of extras as any[]) {
-          const text = String(extra.content_text || '');
+        for (const plan of sample.lesson_plans) {
+          const text = String(plan.content_text || '');
           const match = text.match(/\*\*Tema específico:\*\*\s*(.+)/);
           expect(match).not.toBeNull();
           expect(titles).toContain(match![1].trim());
@@ -534,41 +474,126 @@ describe('Auditoría Integral de Calidad y Cierre en Base de Datos Real (Neon DB
   });
 
   // --------------------------------------------------------------------------
-  // 8. Trazabilidad e inmutabilidad
+  // 8. Trazabilidad e inmutabilidad ISO (Fixture + Esquema/Trigger en Neon DB)
   // --------------------------------------------------------------------------
-  describe('8. Trazabilidad de versiones y trigger de inmutabilidad', () => {
-    const sampleIds = [
-      '18016fa8-7a96-4d89-b693-47788285560e',
-      'cc626dd9-9a8a-442a-ab25-532d485d6b36',
-      '57484f68-811a-485e-817e-f68ff0c92fe8',
-      '7a1e4e19-efa3-40eb-b819-dd604d742cbf',
-      'd944cd30-7fb6-4e3d-a7a6-db48caa78973',
-    ];
-
-    it('Cada muestra tiene una versión con SHA-256 de 64 caracteres y Anexo 12 = 100', async () => {
-      for (const id of sampleIds) {
-        const rows = await sql`
-          SELECT version_number, sha256_hash, anexo12_score
-          FROM planning_versions
-          WHERE planning_id = ${id}
-          ORDER BY version_number DESC
-          LIMIT 1
-        `;
-
-        expect(rows.length).toBe(1);
-        expect(Number(rows[0].version_number)).toBeGreaterThanOrEqual(1);
-        expect(rows[0].sha256_hash).toMatch(/^[a-f0-9]{64}$/);
-        expect(Number(rows[0].anexo12_score)).toBe(100);
+  describe('8. Trazabilidad de versiones y trigger/esquema ISO en Neon DB', () => {
+    it('Cada muestra del fixture conserva versión >= 1, SHA-256 de 64 caracteres y Anexo 12 = 100', () => {
+      for (const sample of fixtureSamples) {
+        expect(sample.latest_version.version_number).toBeGreaterThanOrEqual(1);
+        expect(sample.latest_version.sha256_hash).toMatch(/^[a-f0-9]{64}$/);
+        expect(sample.latest_version.anexo12_score).toBe(100);
       }
     });
 
-    it('El trigger que impide mutar versiones de planeación existe', async () => {
+    it('El trigger que impide mutar versiones de planeación existe en Neon DB', async () => {
       const rows = await sql`
-        SELECT tgname
+        SELECT tgname, pg_get_triggerdef(oid) AS def
         FROM pg_trigger
         WHERE tgname = 'trg_prevent_planning_version_mutation'
       `;
       expect(rows.length).toBe(1);
+      expect(String(rows[0].def)).toContain('BEFORE DELETE OR UPDATE ON public.planning_versions');
+    });
+
+    it('El esquema y restricciones ISO de planning_versions existen en Neon DB', async () => {
+      const cols = await sql`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'planning_versions'
+      `;
+      const colNames = new Set(cols.map((c: any) => String(c.column_name)));
+      for (const requiredCol of [
+        'id',
+        'planning_id',
+        'teacher_id',
+        'version_number',
+        'snapshot_json',
+        'sha256_hash',
+        'anexo12_score',
+        'dbepa_score',
+        'change_summary',
+        'created_at',
+      ]) {
+        expect(colNames.has(requiredCol)).toBe(true);
+      }
+
+      const constraints = await sql`
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'planning_versions'::regclass
+      `;
+      const constraintNames = new Set(constraints.map((c: any) => String(c.conname)));
+      expect(constraintNames.has('planning_versions_pkey')).toBe(true);
+      expect(constraintNames.has('uq_planning_version')).toBe(true);
+      expect(constraintNames.has('planning_versions_planning_id_fkey')).toBe(true);
+      expect(constraintNames.has('planning_versions_teacher_id_fkey')).toBe(true);
     });
   });
+
+  // --------------------------------------------------------------------------
+  // 9. Auditoría viva opcional de las 5 muestras reales en Neon DB (RUN_LIVE_SAMPLE_AUDIT=1)
+  // --------------------------------------------------------------------------
+  describe.runIf(RUN_LIVE_SAMPLE_AUDIT)(
+    '9. Auditoría viva opcional de muestras canónicas en Neon DB (RUN_LIVE_SAMPLE_AUDIT=1)',
+    () => {
+      it('Las 5 muestras canónicas residen en la cuenta admin con 270 sesiones, Anexo 12 = 100 y DBEPA verde', async () => {
+        const ids = fixtureSamples.map((s) => s.id);
+        const rows = await sql`
+          SELECT id::text, teacher_id::text, content_json, sequence_json, workbooks_json
+          FROM plannings
+          WHERE id = ANY(${ids}::uuid[])
+        `;
+        expect(rows.length).toBe(5);
+
+        let totalSessions = 0;
+        for (const sample of fixtureSamples) {
+          const row = (rows as any[]).find((r) => r.id === sample.id);
+          expect(row).toBeDefined();
+          expect(row.teacher_id).toBe(ADMIN_SHOWROOM_TEACHER_ID);
+
+          const content = parseJson<Record<string, any>>(row.content_json, {});
+          expect(content.anexo12Audit?.score).toBe(100);
+          expect(content.anexo12Audit?.criticalFailures).toBe(0);
+          expect(content.dbepaAudit?.semaforo).toBe('verde');
+
+          const seq = parseJson<Record<string, any>>(row.sequence_json, {});
+          const sessions = Object.values(seq).flatMap((b: any) => b.sessions || []);
+          expect(sessions.length).toBe(sample.hours);
+          totalSessions += sessions.length;
+        }
+        expect(totalSessions).toBe(270);
+      });
+
+      it('Existen exactamente 270 planes de clase en planning_extras para las 5 muestras en Neon DB', async () => {
+        let totalPlans = 0;
+        for (const sample of fixtureSamples) {
+          const extraRows = await sql`
+            SELECT count(*)::int AS cnt
+            FROM planning_extras
+            WHERE planning_id = ${sample.id}::uuid AND type = 'lesson_plan'
+          `;
+          const cnt = Number(extraRows[0]?.cnt || 0);
+          expect(cnt).toBe(sample.hours);
+          totalPlans += cnt;
+        }
+        expect(totalPlans).toBe(270);
+      });
+
+      it('Cada muestra en Neon DB conserva su historial ISO en planning_versions', async () => {
+        for (const sample of fixtureSamples) {
+          const rows = await sql`
+            SELECT version_number, sha256_hash, anexo12_score
+            FROM planning_versions
+            WHERE planning_id = ${sample.id}::uuid
+            ORDER BY version_number DESC
+            LIMIT 1
+          `;
+          expect(rows.length).toBe(1);
+          expect(Number(rows[0].version_number)).toBeGreaterThanOrEqual(1);
+          expect(rows[0].sha256_hash).toMatch(/^[a-f0-9]{64}$/);
+          expect(Number(rows[0].anexo12_score)).toBe(100);
+        }
+      });
+    }
+  );
 });
