@@ -1390,12 +1390,12 @@ function renderCover(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extrac
 
   if (spec.topicsCovered && spec.topicsCovered.length > 0) {
     addPanel(slide, 80, 582, 940, 224, { fill: C.panel, transparency: 14, stroke: C.strokeSoft });
-    addLabel(slide, 'Temas y clases incluidas en esta presentación', 102, 598, 620, 18, accent, 8);
-    spec.topicsCovered.slice(0, 4).forEach((topic, idx) => {
-      addText(slide, `• ${topic}`, 102, 626 + idx * 42, 896, 36, {
-        fontSize: pt(15),
+    addLabel(slide, 'Temas y clases incluidas en esta presentación', 102, 594, 620, 18, accent, 8);
+    spec.topicsCovered.slice(0, 6).forEach((topic, idx) => {
+      addText(slide, `• ${topic}`, 102, 618 + idx * 30, 896, 28, {
+        fontSize: pt(13.5),
         color: C.textSoft,
-        maxLines: 2,
+        maxLines: 1,
       });
     });
   }
@@ -1460,47 +1460,56 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
   const sesTag = spec.sessionNumber ? `SESIÓN ${String(spec.sessionNumber).padStart(2, '0')}` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')}`;
   addHud(
     slide,
-    isGuide ? 'Conocimiento nuevo' : 'Núcleo técnico',
-    isGuide ? `${sesTag} // EXPLICACIÓN DOCENTE` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONCEPTO CERO`,
+    isGuide ? 'Conocimiento nuevo y ejemplo' : 'Núcleo técnico',
+    isGuide ? `${sesTag} // PIZARRÓN DOCENTE (1/2)` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONCEPTO CERO`,
     isGuide ? 0 : 2,
     accent,
-    isGuide ? 4 : 8
+    isGuide ? 2 : 8
   );
-  addText(slide, spec.title, 80, 198, 700, 110, {
+  addText(slide, spec.title, 80, 198, 700, 102, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(spec.title.length > 42 ? 28 : 36),
+    fontSize: pt(spec.title.length > 42 ? 27 : 34),
     bold: true,
     color: C.white,
     maxLines: 2,
   });
-  addText(slide, spec.subtitle ?? '', 80, 310, 700, 36, { fontSize: pt(isGuide ? 15 : 13), color: accent, bold: !isGuide, maxLines: 2 });
+  addText(slide, spec.subtitle ?? '', 80, 302, 700, 36, { fontSize: pt(isGuide ? 14 : 13), color: accent, bold: !isGuide, maxLines: 2 });
 
   if (isGuide) {
-    addPanel(slide, 80, 354, 700, 260, { fill: C.panel, transparency: 10 });
-    addLabel(slide, 'Conocimiento nuevo e ideas clave', 104, 378, 520, 18, accent, 9);
-    const bodyLines = [
-      spec.explanation,
-      ...(spec.keyTakeaways ?? []).filter((item) => item !== spec.explanation).slice(0, 2).map((item) => `• ${item}`),
-    ]
-      .filter(Boolean)
-      .join('\n');
-    addText(slide, bodyLines, 104, 410, 652, 192, {
-      fontSize: pt(17),
-      color: C.text,
-      lineSpacingMultiple: 1.08,
-      maxLines: 7,
-    });
+    const exStatement = spec.workedExample?.problemStatement || spec.explanation;
+    const exSteps = (spec.workedExample?.steps ?? spec.keyTakeaways ?? []).slice(0, 3);
+    const exResult = spec.workedExample?.interpretation;
 
-    addPanel(slide, 80, 628, 700, 160, { fill: '1E080C', transparency: 32, stroke: C.red });
-    addLabel(slide, 'Activación y error común a evitar', 104, 650, 520, 18, C.red, 9);
-    const lowerText = [spec.activationNote ? `Detonador: ${spec.activationNote}` : '', `Error frecuente: ${spec.misconception}`]
-      .filter(Boolean)
-      .join('\n');
-    addText(slide, lowerText, 104, 680, 652, 98, {
-      fontSize: pt(15),
+    addPanel(slide, 80, 344, 700, 332, { fill: C.panel, transparency: 10 });
+    addLabel(slide, 'Ejemplo resuelto para explicar en pizarrón', 104, 364, 560, 18, accent, 9);
+    addText(slide, exStatement, 104, 390, 652, 64, {
+      fontSize: pt(14.5),
+      color: C.white,
+      bold: true,
+      lineSpacingMultiple: 1.05,
+      maxLines: 3,
+    });
+    exSteps.forEach((step, idx) => {
+      const sy = 462 + idx * 52;
+      addText(slide, `0${idx + 1}`, 104, sy, 32, 22, { fontSize: pt(11), bold: true, color: accent2 });
+      addText(slide, step, 140, sy - 2, 616, 44, { fontSize: pt(13.5), color: C.textSoft, maxLines: 2 });
+    });
+    if (exResult) {
+      addText(slide, `Conclusión: ${exResult}`, 104, 622, 652, 42, {
+        fontSize: pt(13),
+        color: C.emerald,
+        bold: true,
+        maxLines: 2,
+      });
+    }
+
+    addPanel(slide, 80, 688, 700, 100, { fill: '1E080C', transparency: 32, stroke: C.red });
+    addLabel(slide, 'Error común a prevenir en el grupo', 104, 704, 520, 18, C.red, 8);
+    addText(slide, spec.misconception, 104, 728, 652, 50, {
+      fontSize: pt(13.5),
       color: C.textSoft,
-      lineSpacingMultiple: 1.06,
-      maxLines: 4,
+      lineSpacingMultiple: 1.05,
+      maxLines: 2,
     });
   } else {
     addPanel(slide, 80, 354, 700, 232, { fill: C.panel, transparency: 12 });
@@ -1675,49 +1684,102 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
   const sesTag = spec.sessionNumber ? `SESIÓN ${String(spec.sessionNumber).padStart(2, '0')}` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')}`;
   addHud(
     slide,
-    isGuide ? 'Actividad del libro' : 'Hacemos',
-    isGuide ? `${sesTag} // EJERCITACIÓN EN CLASE` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // PRÁCTICA GUIADA`,
-    isGuide ? 2 : 5,
+    isGuide ? 'Ejercicios y aplicación' : 'Hacemos',
+    isGuide ? `${sesTag} // PIZARRÓN DOCENTE (2/2)` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // PRÁCTICA GUIADA`,
+    isGuide ? 1 : 5,
     accent,
-    isGuide ? 4 : 8
+    isGuide ? 2 : 8
   );
-  addText(slide, spec.title, 80, 204, 760, 110, {
+  addText(slide, spec.title, 80, 198, 920, 88, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(spec.title.length > 45 ? 28 : 36),
+    fontSize: pt(spec.title.length > 45 ? 27 : 34),
     bold: true,
     color: C.white,
     maxLines: 2,
   });
-  addLabel(slide, spec.eyebrow, 80, 322, 740, 18, accent, 9);
-
-  addPanel(slide, 80, 344, 760, 300, { fill: C.panel, transparency: 12 });
-  addLabel(slide, isGuide ? 'Consigna para el estudiante' : 'Práctica colaborativa', 104, 372, 420, 18, accent, 9);
-  addText(slide, spec.practiceText, 104, 410, 712, 212, { fontSize: pt(19), color: C.text, lineSpacingMultiple: 1.06, maxLines: 7 });
-
-  if (spec.hint) {
-    addPanel(slide, 80, 668, 760, 172, { fill: '1E1808', transparency: 30, stroke: C.amber });
-    addLabel(slide, 'Pista docente · Apoyo sin dar la respuesta', 104, 694, 520, 18, C.amber, 8);
-    addText(slide, spec.hint, 104, 728, 712, 92, { fontSize: pt(16), color: C.textSoft, maxLines: 4 });
-  }
+  addLabel(slide, spec.subtitle || spec.eyebrow, 80, 292, 920, 18, accent, 9);
 
   const activityItems = spec.activities && spec.activities.length > 0
     ? spec.activities
     : spec.checkpoints.map((cp, idx) => ({ label: `Actividad ${idx + 1}`, statement: cp, hint: '' }));
 
-  addLabel(slide, isGuide ? 'Ejercicios seleccionados del libro' : 'Andamiaje de la práctica', 880, 190, 620, 18, accent2, 9);
-  const visibleActivities = activityItems.slice(0, 4);
-  const actStride = visibleActivities.length >= 4 ? 148 : 185;
-  visibleActivities.forEach((act, index) => {
-    const y = 226 + index * actStride;
-    addPanel(slide, 880, y, 960, actStride - 16, { fill: C.panel, transparency: 18, stroke: C.strokeSoft });
-    addLabel(slide, act.label, 904, y + 18, 320, 18, accent2, 8);
-    addText(slide, act.statement, 904, y + 42, 912, actStride - 84, { fontSize: pt(16), color: C.text, maxLines: 3 });
-    if (act.hint) {
-      addText(slide, `Pista: ${act.hint}`, 904, y + actStride - 40, 912, 22, { fontSize: pt(12), color: C.amber, maxLines: 1 });
-    }
-  });
+  if (isGuide) {
+    addLabel(slide, 'Guía de ejercicios del libro para explicar al grupo', 80, 326, 760, 18, accent2, 9);
+    const visibleActivities = activityItems.slice(0, 3);
+    const actStride = visibleActivities.length >= 3 ? 192 : 276;
+    visibleActivities.forEach((act, index) => {
+      const y = 356 + index * actStride;
+      const cardH = actStride - 16;
+      addPanel(slide, 80, y, 940, cardH, { fill: C.panel, transparency: 14, stroke: C.strokeSoft });
+      addLabel(slide, act.label, 104, y + 16, 320, 18, accent2, 8);
+      addText(slide, act.statement, 104, y + 40, 892, cardH - 86, { fontSize: pt(15.5), color: C.text, maxLines: 4 });
+      if (act.hint) {
+        addText(slide, `Pista docente: ${act.hint}`, 104, y + cardH - 40, 892, 28, { fontSize: pt(12.5), color: C.amber, maxLines: 2 });
+      }
+    });
 
-  addFooter(slide, deck, `${sesTag} · ejercitar · contrastar · justificar`, accent);
+    addPanel(slide, 1056, 326, 784, 214, { fill: C.panel, transparency: 12 });
+    addLabel(slide, '¿Dónde se aplica este conocimiento?', 1080, 348, 520, 18, accent, 9);
+    addText(slide, spec.applicationText || spec.practiceText, 1080, 380, 736, 142, {
+      fontSize: pt(16),
+      color: C.text,
+      lineSpacingMultiple: 1.06,
+      maxLines: 5,
+    });
+
+    addPanel(slide, 1056, 558, 784, 174, { fill: '061410', transparency: 28, stroke: C.emerald });
+    addLabel(slide, 'Evidencia y entregable de la sesión', 1080, 580, 520, 18, C.emerald, 8);
+    addText(slide, spec.artifactName || 'Evidencia de clase', 1080, 606, 736, 32, {
+      fontFace: FONT_DISPLAY,
+      fontSize: pt(17),
+      bold: true,
+      color: C.white,
+      maxLines: 1,
+    });
+    addText(slide, spec.artifactStep || spec.applicationText || '', 1080, 642, 736, 76, {
+      fontSize: pt(14),
+      color: C.textSoft,
+      maxLines: 3,
+    });
+
+    const checks = (spec.exitChecks ?? []).slice(0, 2);
+    if (checks.length > 0) {
+      addPanel(slide, 1056, 750, 784, 166, { fill: C.panel, transparency: 18, stroke: C.strokeSoft });
+      addLabel(slide, 'Verificación rápida de cierre', 1080, 770, 520, 18, accent2, 8);
+      checks.forEach((chk, idx) => {
+        addText(slide, `• ${chk}`, 1080, 800 + idx * 52, 736, 46, {
+          fontSize: pt(13.5),
+          color: C.textSoft,
+          maxLines: 2,
+        });
+      });
+    }
+  } else {
+    addPanel(slide, 80, 344, 760, 300, { fill: C.panel, transparency: 12 });
+    addLabel(slide, 'Práctica colaborativa', 104, 372, 420, 18, accent, 9);
+    addText(slide, spec.practiceText, 104, 410, 712, 212, { fontSize: pt(19), color: C.text, lineSpacingMultiple: 1.06, maxLines: 7 });
+
+    if (spec.hint) {
+      addPanel(slide, 80, 668, 760, 172, { fill: '1E1808', transparency: 30, stroke: C.amber });
+      addLabel(slide, 'Pista docente · Apoyo sin dar la respuesta', 104, 694, 520, 18, C.amber, 8);
+      addText(slide, spec.hint, 104, 728, 712, 92, { fontSize: pt(16), color: C.textSoft, maxLines: 4 });
+    }
+
+    addLabel(slide, 'Andamiaje de la práctica', 880, 190, 620, 18, accent2, 9);
+    const visibleActivities = activityItems.slice(0, 4);
+    const actStride = visibleActivities.length >= 4 ? 148 : 185;
+    visibleActivities.forEach((act, index) => {
+      const y = 226 + index * actStride;
+      addPanel(slide, 880, y, 960, actStride - 16, { fill: C.panel, transparency: 18, stroke: C.strokeSoft });
+      addLabel(slide, act.label, 904, y + 18, 320, 18, accent2, 8);
+      addText(slide, act.statement, 904, y + 42, 912, actStride - 84, { fontSize: pt(16), color: C.text, maxLines: 3 });
+      if (act.hint) {
+        addText(slide, `Pista: ${act.hint}`, 904, y + actStride - 40, 912, 22, { fontSize: pt(12), color: C.amber, maxLines: 1 });
+      }
+    });
+  }
+
+  addFooter(slide, deck, `${sesTag} · ejercitar · aplicar · verificar`, accent);
 }
 
 function renderChallenge(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract<SacrintChallengeSlide, { kind: 'challenge' }>) {

@@ -332,14 +332,22 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
     return {
       enunciado: 'Ejemplo resuelto de aplicación guiada.',
       pasos: [
-        'Paso 1: Identificar los datos iniciales y aplicar la fórmula correspondiente.',
-        'Paso 2: Realizar los cálculos y validar el resultado final.',
+        'Identificar los datos, conceptos o criterios iniciales del planteamiento.',
+        'Desarrollar el procedimiento paso a paso y validar la conclusión.',
       ],
     };
   }
 
-  const lines = rawEjemplo.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
-  const pasoRegex = /^(?:paso\s*\d+[:.\-]?|\d+[:.)\-]|[-*•])\s*(.+)$/i;
+  // Expand inline step markers ("... Paso 1: ... Paso 2: ...") into separate segments
+  const normalizedRaw = rawEjemplo
+    .replace(/\s+(?=\bPaso\s*\d+\s*[:.\-–])/gi, '\n')
+    .replace(/\s+(?=(?:Conclusi[oó]n|Resultado\s+final|Interpretaci[oó]n)\s*:)/gi, '\n');
+
+  const lines = normalizedRaw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const pasoRegex = /^(?:paso\s*\d+\s*[:.\-–]?|\d+[.)\-]|[-*•])\s*(.+)$/i;
 
   const pasos: string[] = [];
   const enunciadoLines: string[] = [];
@@ -355,15 +363,35 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
     }
   }
 
-  const enunciado =
-    enunciadoLines.join(' ').trim() || (pasos.length > 0 ? pasos.shift()! : rawEjemplo.slice(0, 100));
+  let enunciado =
+    enunciadoLines
+      .join(' ')
+      .replace(/^(?:planteamiento|problema|situaci[oó]n|enunciado)\s*:\s*/i, '')
+      .trim() || (pasos.length > 0 ? pasos.shift()! : rawEjemplo.slice(0, 140).trim());
+
+  // If no explicit "Paso N" markers existed, derive steps from sentences of the example itself
+  if (pasos.length === 0 && enunciado.length > 80) {
+    const sentences = enunciado
+      .split(/(?<=[.?!])\s+(?=[A-ZÁÉÍÓÚÑ¿¡0-9])/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 12);
+    if (sentences.length >= 3) {
+      enunciado = sentences[0];
+      for (const s of sentences.slice(1, 5)) {
+        pasos.push(s);
+      }
+    } else if (sentences.length === 2) {
+      enunciado = sentences[0];
+      pasos.push(sentences[1]);
+    }
+  }
 
   if (pasos.length < 2) {
     if (pasos.length === 1) {
-      pasos.push('Paso 2: Concluir y verificar el resultado con el contexto de la situación.');
+      pasos.push('Verificar la coherencia del resultado con el contexto planteado.');
     } else {
-      pasos.push('Paso 1: Plantear la ecuación con los datos dados en el enunciado.');
-      pasos.push('Paso 2: Despejar y calcular la solución numérica requerida.');
+      pasos.push('Identificar los elementos, relaciones o datos clave del planteamiento.');
+      pasos.push('Desarrollar el procedimiento correspondiente y comprobar la conclusión.');
     }
   }
 

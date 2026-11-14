@@ -430,20 +430,16 @@ export function dispatchVisual(
     // Evitar falso positivo cuando "vértice" refiere a ángulos, transportador o geometría plana
     const extractedQuadratic = tryExtractQuadraticParameters(rawContext);
     const hasExplicitQuadraticCue =
-      searchText.includes('parabola') ||
-      searchText.includes('parabolic') ||
-      searchText.includes('cuadrat') ||
-      searchText.includes('segundo grado') ||
-      searchText.includes('discriminante') ||
-      searchText.includes('concav') ||
-      /x\s*(?:\^2|\u00b2)/i.test(rawContext);
+      /\b(?:parabola|parabolico|ecuacion(?:es)?\s+cuadratica(?:s)?|funcion(?:es)?\s+cuadratica(?:s)?|modelo\s+cuadratico|segundo\s+grado|discriminante|concavidad|tiro\s+parabolico)\b/.test(
+        searchText
+      ) || /\b\d*x\s*(?:\^2|\u00b2)/i.test(rawContext);
     const hasGeometryAngleCue =
       /\b(?:angulo|angulos|transportador|bisectriz|suplementari[oa]?s?|complementari[oa]?s?|opuestos por el vertice|vertice del angulo|vertice comun|triangulo|poligono|cuadrilatero|pitagoras|trigonometr\w*|teorema de tales|congruencia|semejanza|circunferencia|cateto|hipotenusa)\b/.test(
         searchText
       );
     const hasContextualQuadraticCue =
       !hasGeometryAngleCue &&
-      (searchText.includes('trayectoria') || searchText.includes('vertice'));
+      /\b(?:trayectoria\s+parabolica|vertice\s+de\s+la\s+parabola|altura\s+maxima\s+del\s+proyectil)\b/.test(searchText);
 
     if (extractedQuadratic || hasExplicitQuadraticCue || hasContextualQuadraticCue) {
       if (extractedQuadratic) {
@@ -471,10 +467,9 @@ export function dispatchVisual(
 
     // 2. Sistemas de Ecuaciones Lineales (prioridad si se menciona sistema o 2x2)
     if (
-      searchText.includes('sistema') ||
-      searchText.includes('interseccion') ||
-      searchText.includes('simultane') ||
-      searchText.includes('2x2')
+      /\b(?:sistema(?:s)?\s+de\s+ecuaciones|sistema(?:s)?\s+lineal(?:es)?|ecuaciones\s+simultaneas|2x2|metodo\s+de\s+(?:sustitucion|igualacion|reduccion|eliminacion|determinantes|cramer)|regla\s+de\s+cramer|punto\s+de\s+equilibrio|interseccion\s+de\s+rectas)\b/.test(
+        searchText
+      )
     ) {
       const mod = ((missionIndex - 1) % 3) + 1;
       if (mod === 2) {
@@ -492,13 +487,11 @@ export function dispatchVisual(
       });
     }
 
-    // 3. Ecuaciones y Funciones Lineales
+    // 3. Ecuaciones y Funciones Lineales, Balanza Algebraica y Variación
     if (
-      searchText.includes('lineal') ||
-      searchText.includes('recta') ||
-      searchText.includes('primer grado') ||
-      searchText.includes('pendiente') ||
-      searchText.includes('funcion lineal')
+      /\b(?:lineal(?:es)?|linea\s+recta|primer\s+grado|pendiente|ordenada\s+al\s+origen|funcion\s+lineal|ecuacion(?:es)?|igualdad|balanza|incognita(?:s)?|despeje|algebraic[oa]s?|proporcionalidad|interes\s+simple|interes\s+compuesto|tasa\s+de\s+crecimiento)\b/.test(
+        searchText
+      )
     ) {
       const extracted = tryExtractLinearParameters(rawContext);
       if (extracted) {
@@ -543,33 +536,18 @@ export function dispatchVisual(
 
     // 4. Triángulos, Ángulos en el Plano, Teorema de Pitágoras y Trigonometría
     const hasAngleGeometryTopic =
-      searchText.includes('angulo') ||
-      searchText.includes('transportador') ||
-      searchText.includes('bisectriz') ||
-      searchText.includes('suplementari') ||
-      searchText.includes('complementari') ||
-      searchText.includes('congruencia') ||
-      searchText.includes('semejanza') ||
-      searchText.includes('teorema de tales');
+      /\b(?:tipos?\s+de\s+angulos|angulo(?:s)?\s+(?:agudo|recto|obtuso|llano|complementario|suplementario|opuesto|interno|externo)|transportador|bisectriz|suplementari[oa]s?|complementari[oa]s?|congruencia\s+de\s+triangulos|semejanza\s+de\s+triangulos|teorema\s+de\s+tales)\b/.test(
+        searchText
+      );
 
     if (
-      searchText.includes('triangulo') ||
-      searchText.includes('pitagoras') ||
-      searchText.includes('trigonometr') ||
-      searchText.includes('cateto') ||
-      searchText.includes('hipotenusa') ||
-      searchText.includes('razon trigonometrica') ||
-      searchText.includes('seno') ||
-      searchText.includes('coseno') ||
-      searchText.includes('tangente') ||
+      /\b(?:triangulo(?:s)?|pitagoras|trigonometria|trigonometric[oa]s?|cateto(?:s)?|hipotenusa|razon(?:es)?\s+trigonometrica(?:s)?|ley\s+de\s+senos|ley\s+de\s+cosenos)\b/.test(
+        searchText
+      ) ||
       hasAngleGeometryTopic
     ) {
       const hasTriangleSpec =
-        searchText.includes('triangulo') ||
-        searchText.includes('pitagoras') ||
-        searchText.includes('trigonometr') ||
-        searchText.includes('cateto') ||
-        searchText.includes('hipotenusa');
+        /\b(?:triangulo(?:s)?|pitagoras|trigonometria|trigonometric[oa]s?|cateto(?:s)?|hipotenusa)\b/.test(searchText);
       const mod = ((missionIndex - 1) % 3) + 1;
       if (hasAngleGeometryTopic && !hasTriangleSpec) {
         return generateTriangle(4, 3, 5, {
@@ -593,11 +571,9 @@ export function dispatchVisual(
 
     // 5. Rectángulos, Polígonos, Áreas y Perímetros
     if (
-      searchText.includes('rectangulo') ||
-      searchText.includes('area') ||
-      searchText.includes('perimetro') ||
-      searchText.includes('poligono') ||
-      searchText.includes('cuadrilatero')
+      /\b(?:rectangulo(?:s)?|perimetro|poligono(?:s)?|cuadrilatero(?:s)?|area\s+(?:y\s+perimetro|del\s+(?:rectangulo|cuadrado|triangulo|poligono|terreno|circulo)))\b/.test(
+        searchText
+      )
     ) {
       const mod = ((missionIndex - 1) % 3) + 1;
       if (mod === 2) {

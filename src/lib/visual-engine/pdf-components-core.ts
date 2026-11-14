@@ -57,11 +57,77 @@ export const EMOJI_TO_TEXT: Record<string, string> = {
 };
 
 /**
+ * Normaliza expresiones LaTeX, títulos de bloque duplicados ("Bloque 1 (Corte 1): Bloque 1 (Corte 1)"),
+ * prefijos repetidos ("Ejercicio 1. Ejercicio 1:") y etiquetas residuales [[...]] a texto WinAnsi limpio.
+ */
+export function normalizePdfEditorialText(text: string | null | undefined): string {
+  if (!text) return '';
+  let str = String(text);
+
+  // 1. Títulos de bloque repetidos: "Bloque 1 (Corte 1): Bloque 1 (Corte 1)" -> "Bloque 1 (Corte 1)"
+  str = str.replace(
+    /\b(Bloque\s+(\d+)(?:\s*\(\s*Corte\s+\d+\s*\))?)\s*[:\-–—]\s*Bloque\s+\2(?:\s*\(\s*Corte\s+\d+\s*\))?/gi,
+    '$1'
+  );
+
+  // 2. Prefijos de ejercicio duplicados: "Ejercicio 1. Ejercicio 1:" o "**Ejercicio 1.** Ejercicio 1:"
+  str = str.replace(
+    /(\*{0,2}Ejercicio\s+(\d+)\.?(\*{0,2}))\s*Ejercicio\s+\2\s*[:.]\s*/gi,
+    '$1: '
+  );
+  str = str.replace(/\bEjercicio\s+(\d+)\s*\.\s*:\s*/gi, 'Ejercicio $1: ');
+
+  // 3. Etiquetas [[...]] residuales que no sean [[material:...]]
+  str = str.replace(/\[\[\s*(?!material\s*:)([^\]]+?)\s*\]\]/gi, (_m, inner: string) => {
+    const parts = inner.split('|');
+    return (parts[1] || parts[0] || '').trim();
+  });
+
+  // 4. Comandos matemáticos LaTeX a notación WinAnsi legible
+  for (let i = 0; i < 2; i++) {
+    str = str.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '($1)/($2)');
+  }
+  str = str
+    .replace(/\\sqrt\s*\[([^\]]+)\]\s*\{([^{}]+)\}/g, 'raiz_$1($2)')
+    .replace(/\\sqrt\s*\{([^{}]+)\}/g, 'raiz($1)')
+    .replace(/\\(?:text|mathrm|mathbf|mathit)\s*\{([^{}]*)\}/g, '$1')
+    .replace(/\\left\s*([(\[{|])/g, '$1')
+    .replace(/\\right\s*([)\]}|])/g, '$1')
+    .replace(/\\cdot\b/g, '·')
+    .replace(/\\times\b/g, '×')
+    .replace(/\\div\b/g, '÷')
+    .replace(/\\(?:pm|mp)\b/g, '±')
+    .replace(/\\(?:leq|le)\b/g, '<=')
+    .replace(/\\(?:geq|ge)\b/g, '>=')
+    .replace(/\\(?:neq|ne)\b/g, '!=')
+    .replace(/\\approx\b/g, '~')
+    .replace(/\\infty\b/g, 'infinito')
+    .replace(/\\pi\b/g, 'pi')
+    .replace(/\\Delta\b/g, 'Delta')
+    .replace(/\\alpha\b/g, 'alfa')
+    .replace(/\\beta\b/g, 'beta')
+    .replace(/\\theta\b/g, 'theta')
+    .replace(/\^\{\s*2\s*\}|\^2\b/g, '²')
+    .replace(/\^\{\s*3\s*\}|\^3\b/g, '³')
+    .replace(/\^\{([^{}]+)\}/g, '^($1)')
+    .replace(/_\{([^{}]+)\}/g, '_$1');
+
+  // 5. Delimitadores LaTeX inline $...$ (preservando montos monetarios como "$100 a $200")
+  str = str.replace(/\$\$?\s*([^$\n]{1,100}?)\s*\$\$?/g, (full, inner: string) => {
+    const trimmed = inner.trim();
+    if (/^\d+(?:[.,]\d+)*\s+[a-záéíóúñ]/i.test(trimmed)) return full;
+    return trimmed;
+  });
+
+  return str;
+}
+
+/**
  * Sanitiza texto para PDF eliminando caracteres fuera de WinAnsi / ASCII
  */
 export function sanitizePdfText(text: string | null | undefined): string {
   if (!text) return '';
-  let str = text;
+  let str = normalizePdfEditorialText(text);
   for (const [emoji, replacement] of Object.entries(EMOJI_TO_TEXT)) {
     if (str.includes(emoji)) {
       str = str.split(emoji).join(replacement);

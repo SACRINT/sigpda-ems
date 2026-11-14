@@ -6,6 +6,7 @@ import {
   cleanSacrintText,
   distillConciseText,
   distillLessonBundle,
+  extractChalkboardTopicTitle,
   extractCleanTopicTitle,
   extractConceptHighlights,
   extractWorkedExample,
@@ -127,6 +128,7 @@ export interface SacrintConceptSlide extends SacrintSlideBase {
   activationNote?: string;
   formulas?: string[];
   keyTakeaways?: string[];
+  workedExample?: DistilledExample;
 }
 
 export interface SacrintDemoSlide extends SacrintSlideBase {
@@ -144,6 +146,10 @@ export interface SacrintPracticeSlide extends SacrintSlideBase {
   checkpoints: string[];
   hint?: string;
   activities?: DistilledPracticeActivity[];
+  applicationText?: string;
+  artifactName?: string;
+  artifactStep?: string;
+  exitChecks?: string[];
   facts: SacrintFact[];
 }
 
@@ -404,7 +410,23 @@ function resolveMissionMisconceptionParts(
     .filter(Boolean)
     .join(' ');
 
-  if (/cuadr[aá]tic|par[aá]bola|segundo\s*grado|ax\^?2|x\s*[²2]/i.test(contextText)) {
+  if (/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+(?:exponencial|poblacional)|P\(t\)\s*=/i.test(contextText)) {
+    return {
+      error: 'Multiplicar la tasa por el número de periodos como si fuera crecimiento lineal.',
+      correction: 'Aplicar la potencia (1 + r)ᵗ sobre el valor acumulado en cada periodo.',
+    };
+  }
+  if (/muestra\s+estad[ií]stica|tama[ñn]o\s+de\s+muestra|encuesta|poblaci[oó]n\s+finita|nivel\s+de\s+confianza/i.test(contextText)) {
+    return {
+      error: 'Usar el porcentaje de margen de error sin convertirlo a decimal al sustituir en la fórmula.',
+      correction: 'Convertir porcentajes a decimales (ej. 5% = 0.05) y respetar los paréntesis del denominador.',
+    };
+  }
+  if (
+    /ecuaci[oó]n(?:es)?\s+cuadr[aá]tica|funci[oó]n(?:es)?\s+cuadr[aá]tica|modelo\s+cuadr[aá]tico|par[aá]bola|ecuaci[oó]n(?:es)?\s+de\s+segundo\s+grado|\bax\s*(?:²|\^2)|\bdiscriminante\b/i.test(
+      contextText
+    )
+  ) {
     return {
       error: 'Omitir el signo del coeficiente lineal o descartar raíces sin evaluar el discriminante.',
       correction: 'Evaluar b² - 4ac y verificar ambas raíces en el contexto real del problema.',
@@ -414,12 +436,6 @@ function resolveMissionMisconceptionParts(
     return {
       error: 'Sustituir la variable despejada en la misma ecuación origen sin cruzar con la segunda.',
       correction: 'Sustituir en la ecuación complementaria y comprobar el par (x, y) en ambas.',
-    };
-  }
-  if (/inter[eé]s\s+compuesto|capitalizaci[oó]n|exponencial/i.test(contextText)) {
-    return {
-      error: 'Multiplicar la tasa por el número de periodos como si fuera crecimiento lineal.',
-      correction: 'Aplicar la potencia (1 + i)ⁿ sobre el monto acumulado en cada periodo.',
     };
   }
   if (/raz[oó]n|proporci[oó]n|porcentaje|regla\s+de\s+tres/i.test(contextText)) {
@@ -506,16 +522,10 @@ function buildLessonGuideSlidesForSession(
     session,
     allowMissionFallback: false,
   });
-  const projectPhases = (workbook.projectSection?.phases ?? [])
-    .slice(0, 3)
-    .map((phase) => ({
-      title: cleanSacrintText(phase.title).replace(/^fase\s*\d+\s*[:.-]\s*/i, '') || `Fase ${phase.phaseNum}`,
-      hours: phase.allocatedHours ?? 0,
-    }));
 
   const conceptSlide: SacrintConceptSlide = {
     kind: 'concept',
-    eyebrow: `SESIÓN ${sesLabel} · APERTURA Y CONOCIMIENTO NUEVO`,
+    eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 1/2 · CONOCIMIENTO NUEVO Y EJEMPLO`,
     title: bundle.topicTitle,
     subtitle: bundle.objective,
     missionIndex: meta.missionNumber,
@@ -523,9 +533,10 @@ function buildLessonGuideSlidesForSession(
     isLessonGuide: true,
     activationNote: bundle.activation,
     analogy: bundle.question || bundle.activation,
-    explanation: bundle.concepts.definition,
+    explanation: bundle.example.problemStatement,
     formulas: bundle.concepts.formulas.length > 0 ? bundle.concepts.formulas : [formula],
-    keyTakeaways: bundle.concepts.keyRules,
+    keyTakeaways: bundle.example.steps,
+    workedExample: bundle.example,
     misconception,
     formula,
     variables,
@@ -533,57 +544,29 @@ function buildLessonGuideSlidesForSession(
     facts,
   };
 
-  const demoSlide: SacrintDemoSlide = {
-    kind: 'demo',
-    eyebrow: `SESIÓN ${sesLabel} · EJEMPLO RESUELTO PASO A PASO`,
-    title: `Modelado: ${bundle.topicTitle}`,
-    subtitle: 'Explicación guiada para proyectar frente al grupo',
-    missionIndex: meta.missionNumber,
-    sessionNumber: bundle.sessionNumber,
-    isLessonGuide: true,
-    problemStatement: bundle.example.problemStatement,
-    demoText: bundle.example.problemStatement,
-    steps: bundle.example.steps,
-    interpretation: bundle.example.interpretation,
-    facts,
-  };
-
   const practiceSlide: SacrintPracticeSlide = {
     kind: 'practice',
-    eyebrow: `SESIÓN ${sesLabel} · ACTIVIDAD DEL LIBRO`,
-    title: `Ejercitación en clase · Sesión ${sesLabel}`,
-    subtitle: 'Consignas para trabajar en aula (sin mostrar respuestas)',
+    eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 2/2 · EJERCICIOS Y APLICACIÓN`,
+    title: `Guía de actividades y aplicación · Sesión ${sesLabel}`,
+    subtitle: bundle.topicTitle,
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
     isLessonGuide: true,
-    practiceText: bundle.objective,
+    practiceText: bundle.application,
     activities: bundle.activities,
     checkpoints: bundle.activities.map((item) => `${item.label}: ${item.statement}`),
     hint: bundle.activities[0]?.hint,
-    facts,
-  };
-
-  const challengeSlide: SacrintChallengeSlide = {
-    kind: 'challenge',
-    eyebrow: `SESIÓN ${sesLabel} · ¿DÓNDE SE APLICA? Y CIERRE`,
-    title: `Aplicación real · ${bundle.topicTitle}`,
-    subtitle: 'Transferencia al entorno, producto integrador y ticket de salida',
-    missionIndex: meta.missionNumber,
-    sessionNumber: bundle.sessionNumber,
-    isLessonGuide: true,
     applicationText: bundle.application,
-    challengeText: bundle.artifactStep,
     artifactName:
       distillConciseText(cleanSacrintText(session.productoIntegrador), 70, 12) ||
       cleanSacrintText(workbook.projectSection?.artifactName) ||
       `Evidencia sesión ${sesLabel}`,
-    communityUtility: bundle.application,
-    exitChecks: bundle.exitChecks,
-    phases: projectPhases,
+    artifactStep: bundle.artifactStep,
+    exitChecks: bundle.exitChecks.slice(0, 2),
     facts,
   };
 
-  return [conceptSlide, demoSlide, practiceSlide, challengeSlide];
+  return [conceptSlide, practiceSlide];
 }
 
 export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintBuildOptions = {}): SacrintDeckSpec {
@@ -598,7 +581,10 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
       : sessionPlans[0];
 
   const topicsCovered = sessionPlans
-    .map((session) => `S${String(session.sessionNumber).padStart(2, '0')}: ${extractCleanTopicTitle(session.objetivo, mission.sessionTopic)}`)
+    .map(
+      (session) =>
+        `S${String(session.sessionNumber).padStart(2, '0')}: ${extractChalkboardTopicTitle(session.objetivo, mission.sessionTopic)}`
+    )
     .slice(0, 6);
 
   const facts = baseFacts(meta, mission);
@@ -880,12 +866,14 @@ function buildSteps(
     sanitizeField(mission.iDoSection?.stepByStepDemo, '', 220, 34),
     sanitizeField(mission.weDoSection?.guidedPractice, '', 220, 34),
     sanitizeField(mission.youDoSection?.autonomousChallenge, '', 220, 34),
+    'Verificar que el resultado responda con coherencia al contexto del planteamiento inicial.',
+    'Integrar el procedimiento y la conclusión con evidencia en el producto del bloque.',
   ];
 
   const source =
     effectiveSolved.length >= 4
       ? effectiveSolved.slice(0, 4)
-      : [...effectiveSolved, ...fallback.slice(effectiveSolved.length)]
+      : [...effectiveSolved, ...fallback]
           .filter((item, index, items) => Boolean(item) && !isRubricOrBoilerplateLeak(item) && items.indexOf(item) === index)
           .slice(0, 4);
 

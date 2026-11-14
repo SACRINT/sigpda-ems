@@ -339,6 +339,55 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     }
   }
 
+  // 3. Ecuación lineal con paréntesis: a(x ± b) = c
+  const parenLinearMatch = text.match(
+    /(?<![²^0-9A-Za-z])(\d+(?:\.\d+)?)\s*\(\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*(-?\d+(?:\.\d+)?)/i
+  );
+  if (parenLinearMatch) {
+    const a = Number(parenLinearMatch[1]);
+    const varName = parenLinearMatch[2];
+    const sign = parenLinearMatch[3];
+    const bRaw = Number(parenLinearMatch[4]);
+    const c = Number(parenLinearMatch[5]);
+    if (Number.isFinite(a) && a !== 0 && Number.isFinite(bRaw) && Number.isFinite(c)) {
+      const expandedB = (sign === '-' ? -1 : 1) * a * bRaw;
+      const xSol = (c - expandedB) / a;
+      const boundedDom = Math.min(40, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
+      return {
+        slope: a,
+        intercept: expandedB,
+        domainMax: boundedDom,
+        targetY: c > 0 ? c : undefined,
+        equation: `${formatCoef(a)}(${varName} ${sign} ${formatCoef(bRaw)}) = ${formatCoef(c)}`,
+      };
+    }
+  }
+
+  // 4. Ecuación lineal con dos incógnitas aislada: Ax ± By = C (cuando no es un sistema 2x2 de dos ecuaciones)
+  const twoVarSingleMatches = [
+    ...text.matchAll(/(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi),
+  ];
+  if (twoVarSingleMatches.length === 1) {
+    const m = twoVarSingleMatches[0];
+    const aCoef = Number(m[1]);
+    const bSign = m[2] === '-' ? -1 : 1;
+    const bMag = Number(m[3]);
+    const bCoef = bSign * bMag;
+    const cCoef = Number(m[4]);
+    if (Number.isFinite(aCoef) && Number.isFinite(bCoef) && bCoef !== 0 && Number.isFinite(cCoef) && aCoef !== 0) {
+      const slope = Number((-aCoef / bCoef).toFixed(2));
+      const intercept = Number((cCoef / bCoef).toFixed(2));
+      const xInt = cCoef / aCoef;
+      const boundedDom = Math.min(40, Math.max(8, xInt > 0 ? Math.ceil((xInt * 1.2) / 2) * 2 : 12));
+      return {
+        slope,
+        intercept,
+        domainMax: boundedDom,
+        equation: `${formatCoef(aCoef)}x ${m[2]} ${formatCoef(bMag)}y = ${formatCoef(cCoef)}`,
+      };
+    }
+  }
+
   const coeffMatch = text.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
   if (coeffMatch && !/cuadr[aá]tic|ax²|par[aá]bol/i.test(text)) {
     const a = Number(coeffMatch[1]) || 1;
@@ -384,7 +433,10 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
   const quadPureMatch = source.match(
     /(?:(?:f\(x\)|y)\s*=\s*)?(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
   );
-  const isQuadraticTopic = /cuadr[aá]tic|par[aá]bol|segundo\s+grado|f[oó]rmula\s+general|discriminante/i.test(source);
+  const isQuadraticTopic =
+    /ecuaci[oó]n(?:es)?\s+cuadr[aá]tica|funci[oó]n(?:es)?\s+cuadr[aá]tica|modelo\s+cuadr[aá]tico|par[aá]bol|segundo\s+grado|f[oó]rmula\s+general\s+cuadr[aá]tica|\bdiscriminante\b/i.test(
+      source
+    ) && !/inter[eé]s\s+(?:simple|compuesto)|crecimiento\s+(?:exponencial|poblacional)|muestra\s+estad[ií]stica/i.test(source);
 
   let a = 0;
   let b = 0;
@@ -485,7 +537,10 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
 
 function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
   if (!source) return null;
-  const sysTopic = /sistema[s]?\s+(?:de\s+ecuaciones|lineal(?:es)?\s*2x2)|2x2|dos\s+inc[oó]gnitas|igualaci[oó]n|determinantes|cramer/i.test(source);
+  const sysTopic =
+    /sistema[s]?\s+(?:de\s+ecuaciones|lineal(?:es)?(?:\s*2x2)?)|\b2x2\b|m[eé]todo\s+de\s+(?:igualaci[oó]n|sustituci[oó]n|reducci[oó]n|eliminaci[oó]n|determinantes|cramer)|regla\s+de\s+cramer/i.test(
+      source
+    );
   const twoVarEqRe = /(-?\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)?\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi;
   const parsed: Array<{ a: number; b: number; c: number; eq: string }> = [];
 
@@ -571,11 +626,20 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
 }
 
 function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | null {
-  if (!source || !/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+exponencial/i.test(source)) {
+  if (
+    !source ||
+    !/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+(?:exponencial|poblacional|demogr[aá]fico)|tasa\s+(?:de\s+crecimiento|anual|de\s+inter[eé]s)|P\(t\)\s*=|M\s*=\s*C/i.test(
+      source
+    )
+  ) {
     return null;
   }
-  const capitalMatch = source.match(/(?:capital|monto\s+inicial|inversi[oó]n|\$)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})/i);
-  const rateMatch = source.match(/(\d+(?:\.\d+)?)\s*%/);
+  const isPopulation =
+    /poblaci[oó]n|habitantes|demogr[aá]fic|P\(t\)/i.test(source) && !/inter[eé]s\s+(?:simple|compuesto)|cr[eé]dito|inversi[oó]n/i.test(source);
+  const capitalMatch = source.match(
+    /(?:capital|monto\s+inicial|inversi[oó]n|poblaci[oó]n(?:\s+inicial|\s+actual|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]?\s*=|\$)\s*(?:de\s*)?\$?\s*(\d[\d,]{1,6})/i
+  ) || source.match(/\b(\d{3,6})\s*(?:habitantes|personas|pesos|individuos)\b/i);
+  const rateMatch = source.match(/(\d+(?:\.\d+)?)\s*%/) || source.match(/1\s*\+\s*0\.(\d{1,3})/);
   if (!capitalMatch && !rateMatch) {
     return {
       kind: 'exponential',
@@ -588,11 +652,17 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
       compoundSeries: [],
       yMax: 100,
       xLabel: 'Períodos (t)',
-      yLabel: 'Monto acumulado ($)',
+      yLabel: isPopulation ? 'Población P(t)' : 'Monto acumulado ($)',
     };
   }
-  const principal = capitalMatch ? Math.min(50000, Math.max(100, Number(capitalMatch[1].replace(/,/g, '')))) : 1000;
-  const ratePct = rateMatch ? Math.min(50, Math.max(2, Number(rateMatch[1]))) : 12;
+  const principal = capitalMatch ? Math.min(100000, Math.max(50, Number(capitalMatch[1].replace(/,/g, '')))) : 1000;
+  let ratePct = 10;
+  if (rateMatch) {
+    const rawRate = rateMatch[0].includes('1') && !rateMatch[0].includes('%')
+      ? Number(`0.${rateMatch[1]}`) * 100
+      : Number(rateMatch[1]);
+    ratePct = Math.min(50, Math.max(0.5, rawRate));
+  }
   const rate = ratePct / 100;
   const periods = 6;
   const simpleSeries: Array<{ t: number; value: number }> = [];
@@ -606,21 +676,26 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
   return {
     kind: 'exponential',
     available: true,
-    equation: `M = C₀(1 + r)ᵗ  (C₀=${principal}, r=${ratePct}%)`,
+    equation: isPopulation
+      ? `P(t) = P₀(1 + r)ᵗ  (P₀=${principal}, r=${ratePct}%)`
+      : `M = C₀(1 + r)ᵗ  (C₀=${principal}, r=${ratePct}%)`,
     principal,
     rate,
     periods,
     simpleSeries,
     compoundSeries,
-    yMax: Math.ceil((maxVal * 1.1) / 100) * 100,
+    yMax: Math.ceil((maxVal * 1.1) / 50) * 50,
     xLabel: 'Períodos (t)',
-    yLabel: 'Monto acumulado ($)',
+    yLabel: isPopulation ? 'Población P(t)' : 'Monto acumulado ($)',
   };
 }
 
 function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
   const isAngle = /tipos?\s+de\s+[aá]ngulos|[aá]ngulos?\s+(?:agudo|recto|obtuso|llano|complementarios|suplementarios)|paralelas.*transversal/i.test(source);
-  const isTriangle = /pit[aá]goras|tri[aá]ngulo\s+rect[aá]ngulo|hipotenusa|cateto|sen\s|cos\s|tan\s|trigonometr/i.test(source);
+  const isTriangle =
+    /pit[aá]goras|tri[aá]ngulo\s+rect[aá]ngulo|hipotenusa|cateto|\b(?:sen|cos|tan)\s*(?:[θ°αβ]|\d+\s*°|\([A-Za-z0-9θ°\s+-]+\))|trigonometr/i.test(
+      source
+    );
   const isPolygon = /[aá]rea\s+y\s+per[ií]metro|per[ií]metro\s+del\s+rect[aá]ngulo|congruencia\s+de\s+tri[aá]ngulos/i.test(source);
 
   if (!isAngle && !isTriangle && !isPolygon) return null;
@@ -630,7 +705,7 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
       kind: 'geometry',
       variant: 'right-triangle',
       available: true,
-      equation: 'c² = a² + b²  |  ∠A + ∠B = 90°',
+      equation: 'c² = a² + b²  |  Ángulo A + Ángulo B = 90°',
       primaryLabel: 'Catetos a, b e hipotenusa c',
       secondaryLabel: 'Ángulo recto = 90°',
       highlights: [
@@ -1400,7 +1475,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
       ];
     case 'geometry':
       return [
-        { symbol: '∠', label: 'Ángulo / Figura', meaning: clip(diagram.primaryLabel, 68) },
+        { symbol: '90°', label: 'Ángulo / Figura', meaning: clip(diagram.primaryLabel, 68) },
         { symbol: 'R', label: 'Regla', meaning: clip(diagram.secondaryLabel, 68) },
         { symbol: 'A', label: diagram.highlights[0]?.label ?? 'Elemento 1', meaning: clip(diagram.highlights[0]?.detail ?? '', 68) },
         { symbol: 'B', label: diagram.highlights[1]?.label ?? 'Elemento 2', meaning: clip(diagram.highlights[1]?.detail ?? '', 68) },

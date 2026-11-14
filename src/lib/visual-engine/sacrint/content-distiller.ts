@@ -17,10 +17,16 @@ import { parseContenidoToBloques, parseEjemploResuelto } from '@/lib/editorial/s
 import { normalizeMathNotation } from './math-text';
 
 const RUBRIC_OR_META_LEAK_RE =
-  /r[úu]brica\s+anal[íi]tica|ponderaci[oó]n\s*:\s*\d+\s*%|excelente\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|bueno\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|suficiente\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|este\s+(?:ejercicio|apartado)\s+de\s+\d+\s+palabras/i;
+  /ponderaci[oó]n\s*:\s*\d+\s*%|excelente\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|bueno\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|suficiente\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|insuficiente\s*\(\s*\d+\s*(?:pts?|puntos?)\s*\)|este\s+(?:ejercicio|apartado)\s+de\s+\d+\s+palabras/i;
 
 const BOILERPLATE_PREFIX_RE =
   /^(?:(?:misi[oó]n|bloque|sesi[oó]n)\s*\d+\s*:\s*)+(?:optimizaci[oó]n\s+y\s+consolidaci[oó]n\s+de\s+la\s+evidencia|exploraci[oó]n\s+diagn[oó]stica\s+y\s+problematizaci[oó]n\s+situada|modelado\s+metodol[oó]gico\s+y\s+procedimientos\s+clave|evaluaci[oó]n\s+(?:de\s+logros|sumativa|diagn[oó]stica)|fundamentaci[oó]n\s+e\s+intuici[oó]n)\s*[—–\-:]\s*/i;
+
+const CHALKBOARD_VERB_LEAD_RE =
+  /^(?:en\s+esta\s+sesi[oó]n\s+|durante\s+esta\s+(?:clase|sesi[oó]n)\s+|hoy\s+)?(?:(?:vas\s+a|aprender[aá]s\s+a|lograr[aá]s|podr[aá]s|vamos\s+a)\s+)?(?:identificar|comprender|analizar|aplicar|resolver|modelar|calcular|construir|explorar|reconocer|utilizar|interpretar|evaluar|comparar|explicar|traducir|plantear|desarrollar|integrar|verificar|validar|formular|dise[ñn]ar|estructurar|realizar|ejecutar|sistematizar|sintetizar|argumentar|contrastar|deducir|inferir|estimar|medir|graficar|representar|diagnosticar|revisar|presentar|socializar|consolidar|optimizar|dominar|emplear|establecer|determinar)[a-záéíóúñ]*\s+(?:c[oó]mo\s+|qu[eé]\s+(?:es|son)\s+)?(?:el\s+concepto\s+de\s+|la\s+importancia\s+de\s+|el\s+uso\s+de\s+|la\s+aplicaci[oó]n\s+de\s+|una?\s+revisi[oó]n\s+de\s+|un[ao]?\s+|el\s+|la\s+|los\s+|las\s+)?/i;
+
+const CHALKBOARD_PURPOSE_TAIL_RE =
+  /\s*(?:,\s*)?(?:para\s+(?:que|resolver|modelar|determinar|calcular|analizar|comprender|aplicar|explicar|evaluar|comparar|tomar|fundamentar|optimizar|identificar|construir|interpretar|verificar|validar|lograr|obtener|establecer|representar)|con\s+el\s+prop[oó]sito\s+de|con\s+la\s+finalidad\s+de|a\s+fin\s+de|evaluando\s+registros|utilizando\s+datos\s+de\s+tu|en\s+situaciones\s+de\s+tu\s+entorno|como\s+una?\s+herramienta\s+[a-záéíóúñ]+\s+fundamental\s+para)\b.*$/i;
 
 export interface DistilledExample {
   problemStatement: string;
@@ -72,11 +78,37 @@ export function cleanSacrintText(value: string | null | undefined): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+function cleanSacrintTextPreservingLines(value: string | null | undefined): string {
+  if (!value) return '';
+  let text = stripWorkbookTags(value);
+  text = stripMaterialTokens(text);
+  text = text
+    .replace(/^\s*[-*_]{3,}\s*$/gm, ' ')
+    .replace(/(^|\r?\n)\s{0,3}#{1,6}\s+/g, '$1')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1');
+  text = stripInlineMarkdownEmphasis(text);
+  text = normalizeMathNotation(text);
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
 /** Detecta fragmentos de rúbricas de evaluación o instrucciones de prompt filtradas en campos de contenido. */
 export function isRubricOrBoilerplateLeak(value: string | null | undefined): boolean {
   const cleaned = cleanSacrintText(value);
   if (!cleaned) return false;
   if (RUBRIC_OR_META_LEAK_RE.test(cleaned)) return true;
+  if (/^r[úu]brica\s+anal[íi]tica\s*[:\-–]?$/i.test(cleaned)) return true;
+  if (
+    /r[úu]brica\s+anal[íi]tica/i.test(cleaned) &&
+    /criterio\s*:|ponderaci[oó]n|excelente|insuficiente|requiere\s+apoyo|niveles?\s+de\s+desempe[ñn]o|\b\d+\s*(?:pts?|puntos?|%)/i.test(
+      cleaned
+    )
+  ) {
+    return true;
+  }
   if (/^fases?\s+del\s+proyecto\s+formativo\s*:?\s*$/i.test(cleaned)) return true;
   if (/^criterio\s*:\s*/i.test(cleaned) && /ponderaci[oó]n|excelente|requiere\s+apoyo/i.test(cleaned)) return true;
   return false;
@@ -94,6 +126,42 @@ export function extractCleanTopicTitle(
   const candidate = withoutBoilerplate || cleanSacrintText(fallbackTopic);
   if (!candidate) return 'Concepto central de la clase';
   return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+}
+
+/**
+ * Sintetiza un objetivo extenso ("Vas a identificar el concepto de ecuación...") en un
+ * título conciso de pizarrón para el docente ("Concepto de ecuación para modelar situaciones").
+ */
+export function extractChalkboardTopicTitle(
+  rawObjectiveOrTitle: string | null | undefined,
+  fallbackTopic?: string | null
+): string {
+  const base = extractCleanTopicTitle(rawObjectiveOrTitle, fallbackTopic)
+    .replace(/^(?:sesi[oó]n|clase)\s*\d+\s*[:.\-–—]\s*/i, '')
+    .trim();
+  if (!base) return 'Concepto central de la clase';
+
+  const firstSentence = base.split(/(?<=[.?!])\s+/)[0] || base;
+  let concise = firstSentence
+    .replace(
+      /\s+como\s+una?\s+herramienta\s+[a-záéíóúñ\s]+?\s+para\s+([a-záéíóúñ]+(?:ar|er|ir))\b/i,
+      ' para $1'
+    )
+    .replace(CHALKBOARD_VERB_LEAD_RE, '')
+    .replace(CHALKBOARD_PURPOSE_TAIL_RE, '')
+    .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una)\s*$/i, '')
+    .replace(/[,;:\-–—]+$/, '')
+    .trim();
+
+  if (concise.length < 14) {
+    concise = firstSentence
+      .replace(CHALKBOARD_VERB_LEAD_RE, '')
+      .replace(/[,;:\-–—]+$/, '')
+      .trim();
+  }
+  if (!concise) concise = base;
+  const bounded = concise.length > 68 ? trimAtCleanBoundary(concise, 68).replace(/[,;:\-–—]+$/, '').trim() : concise;
+  return bounded.charAt(0).toUpperCase() + bounded.slice(1);
 }
 
 /**
@@ -149,15 +217,48 @@ export function extractBulletSentences(
 }
 
 const MATH_EXPR_RE =
-  /(?:[A-Za-z](?:\([A-Za-z0-9,]+\))?\s*=\s*[^.,;\n]{2,42}|\d*[A-Za-z]²\s*[+-]\s*\d*[A-Za-z]?(?:\s*[+-]\s*\d+)?\s*=\s*-?\d+|\d+\s*[a-z]\s*[+-]\s*\d+\s*[a-z]?\s*=\s*-?\d+|(?:sen|cos|tan)\s*[A-Za-zθ°(][^.,;\n]{1,28})/g;
+  /(?:\b(?:sen|cos|tan)\s*(?:\([A-Za-z0-9θ°αβ\s+-]+\)|[θ°αβ]|\d+\s*°)\s*=\s*[-+0-9A-Za-z/()*^²³√.,\s]{1,32}|(?:[A-Za-zΔ][0-9₀₁₂]?(?:\([A-Za-z0-9,\s+-]+\))?|\d+\s*[A-Za-z²³]+(?:\s*[+-]\s*\d*\s*[A-Za-z²³]+)*|\d*\s*[A-Za-z]²(?:\s*[+-]\s*\d*\s*[A-Za-z])?(?:\s*[+-]\s*\d+)?|\([A-Za-z0-9\s+-]+\))\s*=\s*[-+0-9A-Za-zθ°αβπΔ/()*^²³√.,\s]{1,44})/g;
 
-/** Extrae fórmulas o ecuaciones relevantes presentes en teoría o ejemplos. */
+const NON_MATH_PROSE_WORD_RE =
+  /\b(?:(?!sen\b|cos\b|tan\b|log\b|ln\b|lim\b|max\b|min\b|mod\b|cte\b|const\b)[A-Za-záéíóúñÁÉÍÓÚÑ]{3,}|(?:en|el|la|de|un|al|se|es|si|ya|no|ni|mi|tu|su|lo|le|me|te|va|da|ha|he|del|por|con|sin|mas|más|que|como|para|pero|sino)\b|[yoaeu]\s+[A-Za-záéíóúñÁÉÍÓÚÑ]{2,})/i;
+
+function sanitizeExtractedFormula(rawCandidate: string): string {
+  const eqParts = rawCandidate.split('=');
+  if (eqParts.length < 2) return '';
+  const lhs = eqParts[0].trim();
+  let rhs = eqParts.slice(1).join('=').trim();
+
+  // Reject if LHS contains Spanish prose words
+  if (NON_MATH_PROSE_WORD_RE.test(lhs)) return '';
+
+  // Truncate RHS right before the first Spanish prose word
+  const proseMatch = rhs.match(NON_MATH_PROSE_WORD_RE);
+  if (proseMatch && proseMatch.index !== undefined) {
+    rhs = rhs.slice(0, proseMatch.index).trim();
+  }
+
+  // Strip trailing operators or unbalanced punctuation
+  rhs = rhs.replace(/[+\-*/^.,;:\s]+$/, '').trim();
+  const openParens = (rhs.match(/\(/g) || []).length;
+  const closeParens = (rhs.match(/\)/g) || []).length;
+  if (closeParens > openParens) {
+    rhs = rhs.replace(/\)+$/, '');
+  }
+  if (!lhs || !rhs) return '';
+
+  const formula = `${lhs} = ${rhs}`;
+  // Require at least one digit, math operator, superscript, or explicit function/Greek symbol
+  if (!/[0-9+\-*/^²³√()Δπθ°]/.test(formula)) return '';
+  return formula;
+}
+
+/** Extrae fórmulas o ecuaciones relevantes presentes en teoría o ejemplos sin fragmentos de prosa. */
 export function extractFormulasFromText(text: string, limit = 3): string[] {
   const clean = cleanSacrintText(text);
   if (!clean) return [];
   const found: string[] = [];
   for (const match of clean.matchAll(MATH_EXPR_RE)) {
-    const candidate = match[0].trim().replace(/[.)]+$/, '');
+    const candidate = sanitizeExtractedFormula(match[0]);
     if (candidate.length >= 5 && candidate.length <= 48 && !found.includes(candidate)) {
       found.push(candidate);
     }
@@ -255,6 +356,24 @@ export function extractConceptHighlights(
   };
 }
 
+function extractExampleConclusion(rawExample: string, steps: string[]): string {
+  const clean = cleanSacrintText(rawExample);
+  const explicitMatch = clean.match(
+    /(?:conclusi[oó]n|interpretaci[oó]n|resultado\s+final|por\s+lo\s+tanto|en\s+conclusi[oó]n|respuesta\s+final)\s*[:\-–,]?\s*([^.?!]+[.?!]?)/i
+  );
+  if (explicitMatch && explicitMatch[1]) {
+    const candidate = distillConciseText(explicitMatch[1], 160, 26);
+    if (candidate.length >= 12) return candidate;
+  }
+  if (steps.length >= 2) {
+    const lastStep = steps[steps.length - 1];
+    if (lastStep && lastStep.length >= 12) {
+      return distillConciseText(lastStep, 160, 26);
+    }
+  }
+  return '';
+}
+
 /**
  * Extrae el ejemplo resuelto con pasos reales evitando fugas de rúbrica y mensajes vacíos.
  */
@@ -268,8 +387,9 @@ export function extractWorkedExample(
   const rawSessionExample = session?.ejemploResuelto?.trim();
 
   if (rawSessionExample && !isRubricOrBoilerplateLeak(rawSessionExample)) {
+    const preservedSessionExample = cleanSacrintTextPreservingLines(rawSessionExample);
     const cleanedSessionExample = cleanSacrintText(rawSessionExample);
-    const parsed = parseEjemploResuelto(cleanedSessionExample);
+    const parsed = parseEjemploResuelto(preservedSessionExample);
     const statement = distillConciseText(
       parsed.enunciado.replace(/^planteamiento\s*:\s*/i, ''),
       210,
@@ -282,6 +402,7 @@ export function extractWorkedExample(
       .slice(0, 4);
 
     if (steps.length > 0) {
+      const derivedConclusion = extractExampleConclusion(rawSessionExample, steps);
       return {
         problemStatement:
           statement ||
@@ -290,8 +411,9 @@ export function extractWorkedExample(
           'Por completar en el libro: planteamiento del ejemplo.',
         steps,
         interpretation:
+          derivedConclusion ||
           (allowMission ? distillConciseText(solved?.interpretation, 160, 26) : '') ||
-          'Revisa la consigna y comunica la conclusión con evidencia verificando su coherencia.',
+          'Verifica que el resultado obtenido responda con coherencia al planteamiento inicial.',
       };
     }
 
@@ -311,7 +433,9 @@ export function extractWorkedExample(
           distillConciseText(cleanedSessionExample, 200, 34) ||
           distillConciseText(session?.objetivo, 200, 34),
         steps: effectiveSteps,
-        interpretation: 'Revisa la consigna y comunica la conclusión con evidencia.',
+        interpretation:
+          extractExampleConclusion(rawSessionExample, effectiveSteps) ||
+          'Verifica que el resultado responda con coherencia al planteamiento.',
       };
     }
   }
@@ -369,8 +493,44 @@ export function extractWorkedExample(
     steps: derivedSteps,
     interpretation:
       distillConciseText(solved?.interpretation, 160, 26) ||
+      extractExampleConclusion(demoRaw, derivedSteps) ||
       'Comunica la conclusión con evidencia y contrástala con el contexto real de la situación.',
   };
+}
+
+/**
+ * Sintetiza el enunciado de un ejercicio preservando los datos numéricos, ecuaciones y la pregunta/consigna.
+ */
+function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 235): string {
+  const clean = cleanSacrintText(rawEnunciado);
+  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  if (clean.length <= maxChars) return clean;
+
+  const sentences = clean
+    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9(¿¡])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length >= 2) {
+    const coreSentences = sentences.filter((s, idx) =>
+      idx > 0 &&
+      (/[0-9=¿?%]/.test(s) ||
+        /\b(?:calcula|determina|encuentra|resuelve|plantea|obtiene|redacta|analiza|explica|compara|identifica|prop[oó]n|elabora|construye|eval[úu]a|cu[aá]nto|cu[aá]l|qu[eé])\b/i.test(
+          s
+        ))
+    );
+    if (coreSentences.length > 0) {
+      const tail = coreSentences.join(' ');
+      if (tail.length <= maxChars - 45) {
+        const headBudget = Math.max(45, maxChars - tail.length - 2);
+        const head = distillConciseText(sentences[0], headBudget);
+        return `${head}. ${tail}`.replace(/\.\./g, '.').trim();
+      }
+      return distillConciseText(tail, maxChars, 40);
+    }
+  }
+
+  return distillConciseText(clean, maxChars, 40);
 }
 
 /**
@@ -387,7 +547,7 @@ export function extractPracticeActivities(
     .slice(0, 3)
     .map((item, idx) => ({
       label: `Actividad ${idx + 1}`,
-      statement: distillConciseText(item.enunciado, 195, 34),
+      statement: distillExerciseStatement(item.enunciado, 235),
       hint: distillConciseText(item.pista, 145, 25) || 'Revisa la consigna y apóyate en el ejemplo trabajado en clase.',
     }));
 
@@ -512,10 +672,15 @@ export function distillLessonBundle(
   const topicSource =
     session?.objetivo ||
     (allowMission ? mission.sessionTopic || mission.title : session?.contenido || fallbackSessionTitle);
-  const topicTitle = extractCleanTopicTitle(
-    session ? session.objetivo || session.contenido || fallbackSessionTitle : mission.sessionTopic || mission.title,
-    allowMission ? mission.sessionTopic || mission.title : fallbackSessionTitle
-  );
+  const topicTitle = session
+    ? extractChalkboardTopicTitle(
+        session.objetivo || session.contenido || fallbackSessionTitle,
+        allowMission ? mission.sessionTopic || mission.title : fallbackSessionTitle
+      )
+    : extractCleanTopicTitle(
+        mission.sessionTopic || mission.title,
+        allowMission ? mission.sessionTopic || mission.title : fallbackSessionTitle
+      );
   const objective =
     distillConciseText(session?.objetivo || (allowMission ? topicSource : ''), 165, 28) ||
     (allowMission

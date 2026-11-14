@@ -131,11 +131,18 @@ export function stripMaterialTokens(text: string): string {
   if (!text || typeof text !== 'string') return '';
   const regex = new RegExp(MATERIAL_TOKEN_RE.source, MATERIAL_TOKEN_RE.flags);
 
-  return text.replace(regex, (_fullMatch, rawSlug: string, rawLabel: string | undefined) => {
+  const resolved = text.replace(regex, (_fullMatch, rawSlug: string, rawLabel: string | undefined) => {
     const label = rawLabel?.trim();
     if (label && label.length > 0) return label;
     const item = getMaterial(rawSlug.toLowerCase());
     return item ? item.name : rawSlug;
+  });
+
+  return resolved.replace(/\[\[\s*(?:material\s*:\s*)?([^\]]+?)\s*\]\]/gi, (_m, inner: string) => {
+    const parts = inner.split('|');
+    const chosen = (parts[1] || parts[0] || '').trim();
+    const item = getMaterial(chosen.toLowerCase());
+    return item ? item.name : chosen;
   });
 }
 

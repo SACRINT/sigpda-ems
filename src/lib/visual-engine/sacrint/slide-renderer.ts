@@ -89,17 +89,17 @@ function renderCover(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kind:
   if (slide.topicsCovered && slide.topicsCovered.length > 0) {
     const topicsY = subtitleY + subtitle.fitted.height + 76;
     parts.push(panel(leftX, topicsY, leftW, 250, { fill: 'rgba(6,14,24,0.72)', radius: 16, stroke: SACRINT.strokeSoft }));
-    parts.push(sectionLabel(leftX + 20, topicsY + 26, leftW - 40, 'Temas y clases incluidas', accent, `${slide.topicsCovered.length}`));
-    slide.topicsCovered.slice(0, 4).forEach((topic, idx) => {
-      const ty = topicsY + 52 + idx * 44;
+    parts.push(sectionLabel(leftX + 20, topicsY + 24, leftW - 40, 'Temas y clases incluidas', accent, `${slide.topicsCovered.length}`));
+    slide.topicsCovered.slice(0, 6).forEach((topic, idx) => {
+      const ty = topicsY + 46 + idx * 32;
       const itemBlock = textBlock(topic, leftW - 44, {
         x: leftX + 22,
-        y: ty + 12,
+        y: ty + 8,
         fill: SACRINT.textSoft,
-        maxFontSize: 15,
-        minFontSize: 11,
-        maxLines: 2,
-        lineHeightRatio: 1.22,
+        maxFontSize: 14,
+        minFontSize: 10.5,
+        maxLines: 1,
+        lineHeightRatio: 1.2,
         truncate: false,
       });
       parts.push(itemBlock.svg);
@@ -228,11 +228,11 @@ function renderConcept(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kin
   parts.push(glow(260, 300, 430, 'url(#sacrint-glow-gold)', 0.45));
   parts.push(topHud(
     W,
-    isGuide ? 'CONOCIMIENTO NUEVO' : 'NÚCLEO TÉCNICO',
-    isGuide ? `${sesTag} // EXPLICACIÓN DOCENTE` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONCEPTO CERO`,
+    isGuide ? 'CONOCIMIENTO NUEVO Y EJEMPLO' : 'NÚCLEO TÉCNICO',
+    isGuide ? `${sesTag} // PIZARRÓN DOCENTE (1/2)` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONCEPTO CERO`,
     accent
   ));
-  parts.push(progressRail(80, 116, 420, isGuide ? 1 : 3, isGuide ? 4 : 8, accent, deck.style.id));
+  parts.push(progressRail(80, 116, 420, isGuide ? 1 : 3, isGuide ? 2 : 8, accent, deck.style.id));
 
   const title = textBlock(slide.title, leftW, {
     x: leftX,
@@ -263,47 +263,44 @@ function renderConcept(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kin
   parts.push(subBlock.svg);
 
   if (isGuide) {
-    const knowledgeY = Math.max(326, subY + subBlock.fitted.height + 16);
-    const knowledgeH = 266;
+    const knowledgeY = Math.max(326, subY + subBlock.fitted.height + 14);
+    const knowledgeH = 312;
     parts.push(panel(leftX, knowledgeY, leftW, knowledgeH, { fill: 'rgba(8,17,29,0.82)', radius: 18 }));
-    parts.push(sectionLabel(leftX + 24, knowledgeY + 28, leftW - 48, 'Conocimiento nuevo e ideas clave', accent, '1'));
+    parts.push(sectionLabel(leftX + 24, knowledgeY + 26, leftW - 48, 'Ejemplo resuelto para explicar en pizarrón', accent, '1'));
+    const exStatement = slide.workedExample?.problemStatement || slide.explanation;
+    const exSteps = (slide.workedExample?.steps ?? slide.keyTakeaways ?? []).slice(0, 3);
+    const exResult = slide.workedExample?.interpretation;
     const bulletLines = [
-      slide.explanation,
-      ...(slide.keyTakeaways ?? []).filter((item) => item !== slide.explanation).slice(0, 2),
+      exStatement,
+      ...exSteps.map((step, idx) => `0${idx + 1}. ${step}`),
+      exResult ? `Conclusión: ${exResult}` : '',
     ]
       .filter(Boolean)
-      .map((item, idx) => (idx === 0 ? item : `• ${item}`))
       .join('\n');
     const knowledgeBody = textBlock(bulletLines, leftW - 48, {
       x: leftX + 24,
-      y: knowledgeY + 58,
+      y: knowledgeY + 54,
       fill: SACRINT.text,
-      maxFontSize: 17,
-      minFontSize: 12,
-      maxLines: 8,
-      lineHeightRatio: 1.32,
+      maxFontSize: 16,
+      minFontSize: 11,
+      maxLines: 10,
+      lineHeightRatio: 1.28,
       truncate: false,
     });
     parts.push(knowledgeBody.svg);
 
-    const lowerY = knowledgeY + knowledgeH + 14;
-    const lowerH = Math.max(120, 774 - lowerY);
+    const lowerY = knowledgeY + knowledgeH + 12;
+    const lowerH = Math.max(100, 774 - lowerY);
     parts.push(panel(leftX, lowerY, leftW, lowerH, { fill: 'rgba(30,8,12,0.48)', radius: 18, stroke: 'rgba(255,49,49,0.4)' }));
-    parts.push(sectionLabel(leftX + 24, lowerY + 26, leftW - 48, 'Activación y error común a evitar', SACRINT.red, '2'));
-    const activationAndError = [
-      slide.activationNote ? `Detonador: ${slide.activationNote}` : '',
-      `Error frecuente: ${slide.misconception}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    const lowerBody = textBlock(activationAndError, leftW - 48, {
+    parts.push(sectionLabel(leftX + 24, lowerY + 24, leftW - 48, 'Error común a prevenir en el grupo', SACRINT.red, '2'));
+    const lowerBody = textBlock(slide.misconception, leftW - 48, {
       x: leftX + 24,
-      y: lowerY + 54,
+      y: lowerY + 50,
       fill: SACRINT.textSoft,
-      maxFontSize: 15,
+      maxFontSize: 14.5,
       minFontSize: 11,
-      maxLines: 5,
-      lineHeightRatio: 1.28,
+      maxLines: 3,
+      lineHeightRatio: 1.25,
       truncate: false,
     });
     parts.push(lowerBody.svg);
@@ -606,86 +603,161 @@ function renderPractice(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { ki
   parts.push(glow(1560, 820, 600, 'url(#sacrint-glow-blue)', 0.65));
   parts.push(topHud(
     W,
-    isGuide ? 'EJERCITACIÓN' : 'HACEMOS',
-    isGuide ? `${sesTag} // ACTIVIDAD DEL LIBRO` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // PRÁCTICA GUIADA`,
+    isGuide ? 'EJERCICIOS Y APLICACIÓN' : 'HACEMOS',
+    isGuide ? `${sesTag} // PIZARRÓN DOCENTE (2/2)` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // PRÁCTICA GUIADA`,
     accent
   ));
-  parts.push(progressRail(80, 116, 420, isGuide ? 3 : 5, isGuide ? 4 : 8, accent, deck.style.id));
+  parts.push(progressRail(80, 116, 420, isGuide ? 2 : 5, isGuide ? 2 : 8, accent, deck.style.id));
 
-  const title = textBlock(slide.title, leftW, {
+  const title = textBlock(slide.title, isGuide ? 920 : leftW, {
     x: leftX,
-    y: 214,
+    y: 204,
     fill: SACRINT.white,
     family: 'display',
     weight: 'bold',
-    maxFontSize: 44,
-    minFontSize: 24,
+    maxFontSize: 40,
+    minFontSize: 22,
     maxLines: 2,
     lineHeightRatio: 1.06,
     letterSpacing: -0.6,
     truncate: false,
   });
   parts.push(title.svg);
-  parts.push(singleLine(uppercaseLabel(slide.eyebrow), leftX, 214 + title.fitted.height + 24, { fill: accent, fontSize: 12, weight: 'semibold', letterSpacing: 2 }));
-
-  parts.push(panel(leftX, 344, leftW, 300, { fill: 'rgba(7,16,28,0.82)', radius: 18 }));
-  parts.push(sectionLabel(leftX + 24, 376, leftW - 48, isGuide ? 'Consigna para el estudiante' : 'Práctica colaborativa', accent, 'A'));
-  const practiceText = textBlock(slide.practiceText, leftW - 48, {
-    x: leftX + 24,
-    y: 416,
-    fill: SACRINT.text,
-    maxFontSize: 20,
-    minFontSize: 12,
-    maxLines: 9,
-    lineHeightRatio: 1.38,
-    truncate: false,
-  });
-  parts.push(practiceText.svg);
-
-  if (slide.hint) {
-    parts.push(panel(leftX, 668, leftW, 172, { fill: 'rgba(30,24,8,0.5)', radius: 14, stroke: 'rgba(251,191,36,0.4)' }));
-    parts.push(sectionLabel(leftX + 24, 696, leftW - 48, 'Pista docente · Apoyo sin dar la respuesta', SACRINT.amber, 'B'));
-    const hint = textBlock(slide.hint, leftW - 48, {
-      x: leftX + 24,
-      y: 734,
-      fill: SACRINT.textSoft,
-      maxFontSize: 16,
-      minFontSize: 11,
-      maxLines: 4,
-      lineHeightRatio: 1.32,
-      truncate: false,
-    });
-    parts.push(hint.svg);
-  }
+  parts.push(singleLine(uppercaseLabel(slide.subtitle || slide.eyebrow), leftX, 204 + title.fitted.height + 20, { fill: accent, fontSize: 12, weight: 'semibold', letterSpacing: 2 }));
 
   const activityItems = slide.activities && slide.activities.length > 0
     ? slide.activities
     : slide.checkpoints.map((cp, idx) => ({ label: `Actividad ${idx + 1}`, statement: cp, hint: '' }));
 
-  parts.push(sectionLabel(rightX, 190, rightW, isGuide ? 'Ejercicios del libro para resolver en clase' : 'Andamiaje de la práctica', accent2, `${activityItems.length}`));
-  const visibleActivities = activityItems.slice(0, 4);
-  const actStride = visibleActivities.length >= 4 ? 148 : 185;
-  visibleActivities.forEach((act, index) => {
-    const y = 226 + index * actStride;
-    parts.push(panel(rightX, y, rightW, actStride - 16, { fill: 'rgba(5,12,20,0.68)', radius: 14, stroke: SACRINT.strokeSoft }));
-    parts.push(singleLine(uppercaseLabel(act.label), rightX + 22, y + 30, { fill: accent2, fontSize: 11, weight: 'semibold', letterSpacing: 1.5 }));
-    const body = textBlock(act.statement, rightW - 44, {
-      x: rightX + 22,
-      y: y + 52,
+  if (isGuide) {
+    const gLeftW = 940;
+    const gRightX = 1056;
+    const gRightW = 784;
+    parts.push(sectionLabel(leftX, 326, gLeftW, 'Guía de ejercicios del libro para explicar al grupo', accent2, `${activityItems.length}`));
+    const visibleActivities = activityItems.slice(0, 3);
+    const actStride = visibleActivities.length >= 3 ? 190 : 272;
+    visibleActivities.forEach((act, index) => {
+      const y = 358 + index * actStride;
+      const cardH = actStride - 16;
+      parts.push(panel(leftX, y, gLeftW, cardH, { fill: 'rgba(5,12,20,0.68)', radius: 14, stroke: SACRINT.strokeSoft }));
+      parts.push(singleLine(uppercaseLabel(act.label), leftX + 22, y + 28, { fill: accent2, fontSize: 11, weight: 'semibold', letterSpacing: 1.5 }));
+      const body = textBlock(act.statement, gLeftW - 44, {
+        x: leftX + 22,
+        y: y + 50,
+        fill: SACRINT.text,
+        maxFontSize: 16,
+        minFontSize: 11,
+        maxLines: 4,
+        lineHeightRatio: 1.26,
+        truncate: false,
+      });
+      parts.push(body.svg);
+      if (act.hint) {
+        parts.push(singleLine(`Pista docente: ${act.hint}`, leftX + 22, y + cardH - 26, { fill: SACRINT.amber, fontSize: 12, weight: 'medium' }));
+      }
+    });
+
+    parts.push(panel(gRightX, 326, gRightW, 214, { fill: 'rgba(7,16,28,0.82)', radius: 18 }));
+    parts.push(sectionLabel(gRightX + 24, 354, gRightW - 48, '¿Dónde se aplica este conocimiento?', accent, 'A'));
+    const appText = textBlock(slide.applicationText || slide.practiceText, gRightW - 48, {
+      x: gRightX + 24,
+      y: 390,
       fill: SACRINT.text,
-      maxFontSize: 17,
+      maxFontSize: 16,
       minFontSize: 11,
-      maxLines: 3,
+      maxLines: 5,
+      lineHeightRatio: 1.3,
+      truncate: false,
+    });
+    parts.push(appText.svg);
+
+    parts.push(panel(gRightX, 558, gRightW, 174, { fill: 'rgba(6,20,16,0.55)', radius: 14, stroke: 'rgba(52,211,153,0.35)' }));
+    parts.push(sectionLabel(gRightX + 24, 584, gRightW - 48, 'Evidencia y entregable de la sesión', SACRINT.emerald, 'B'));
+    const artifactBody = [slide.artifactName || 'Evidencia de clase', slide.artifactStep || ''].filter(Boolean).join(' — ');
+    const artBlock = textBlock(artifactBody, gRightW - 48, {
+      x: gRightX + 24,
+      y: 616,
+      fill: SACRINT.textSoft,
+      maxFontSize: 14.5,
+      minFontSize: 11,
+      maxLines: 4,
       lineHeightRatio: 1.28,
       truncate: false,
     });
-    parts.push(body.svg);
-    if (act.hint) {
-      parts.push(singleLine(`Pista: ${act.hint}`, rightX + 22, y + actStride - 32, { fill: SACRINT.amber, fontSize: 12, weight: 'medium' }));
-    }
-  });
+    parts.push(artBlock.svg);
 
-  parts.push(footer(W, H, `${deck.meta.blockName} · ${isGuide ? `${sesTag} · Práctica` : 'Hacemos juntos'}`, 'ejercitar · argumentar · contrastar', accent));
+    const checks = (slide.exitChecks ?? []).slice(0, 2);
+    if (checks.length > 0) {
+      parts.push(panel(gRightX, 750, gRightW, 166, { fill: 'rgba(5,12,20,0.66)', radius: 14, stroke: SACRINT.strokeSoft }));
+      parts.push(sectionLabel(gRightX + 24, 776, gRightW - 48, 'Verificación rápida de cierre', accent2, `${checks.length}`));
+      const chkText = textBlock(checks.map((c) => `• ${c}`).join('\n'), gRightW - 48, {
+        x: gRightX + 24,
+        y: 808,
+        fill: SACRINT.textSoft,
+        maxFontSize: 13.5,
+        minFontSize: 10.5,
+        maxLines: 4,
+        lineHeightRatio: 1.26,
+        truncate: false,
+      });
+      parts.push(chkText.svg);
+    }
+  } else {
+    parts.push(panel(leftX, 344, leftW, 300, { fill: 'rgba(7,16,28,0.82)', radius: 18 }));
+    parts.push(sectionLabel(leftX + 24, 376, leftW - 48, 'Práctica colaborativa', accent, 'A'));
+    const practiceText = textBlock(slide.practiceText, leftW - 48, {
+      x: leftX + 24,
+      y: 416,
+      fill: SACRINT.text,
+      maxFontSize: 20,
+      minFontSize: 12,
+      maxLines: 9,
+      lineHeightRatio: 1.38,
+      truncate: false,
+    });
+    parts.push(practiceText.svg);
+
+    if (slide.hint) {
+      parts.push(panel(leftX, 668, leftW, 172, { fill: 'rgba(30,24,8,0.5)', radius: 14, stroke: 'rgba(251,191,36,0.4)' }));
+      parts.push(sectionLabel(leftX + 24, 696, leftW - 48, 'Pista docente · Apoyo sin dar la respuesta', SACRINT.amber, 'B'));
+      const hint = textBlock(slide.hint, leftW - 48, {
+        x: leftX + 24,
+        y: 734,
+        fill: SACRINT.textSoft,
+        maxFontSize: 16,
+        minFontSize: 11,
+        maxLines: 4,
+        lineHeightRatio: 1.32,
+        truncate: false,
+      });
+      parts.push(hint.svg);
+    }
+
+    parts.push(sectionLabel(rightX, 190, rightW, 'Andamiaje de la práctica', accent2, `${activityItems.length}`));
+    const visibleActivities = activityItems.slice(0, 4);
+    const actStride = visibleActivities.length >= 4 ? 148 : 185;
+    visibleActivities.forEach((act, index) => {
+      const y = 226 + index * actStride;
+      parts.push(panel(rightX, y, rightW, actStride - 16, { fill: 'rgba(5,12,20,0.68)', radius: 14, stroke: SACRINT.strokeSoft }));
+      parts.push(singleLine(uppercaseLabel(act.label), rightX + 22, y + 30, { fill: accent2, fontSize: 11, weight: 'semibold', letterSpacing: 1.5 }));
+      const body = textBlock(act.statement, rightW - 44, {
+        x: rightX + 22,
+        y: y + 52,
+        fill: SACRINT.text,
+        maxFontSize: 17,
+        minFontSize: 11,
+        maxLines: 3,
+        lineHeightRatio: 1.28,
+        truncate: false,
+      });
+      parts.push(body.svg);
+      if (act.hint) {
+        parts.push(singleLine(`Pista: ${act.hint}`, rightX + 22, y + actStride - 32, { fill: SACRINT.amber, fontSize: 12, weight: 'medium' }));
+      }
+    });
+  }
+
+  parts.push(footer(W, H, `${deck.meta.blockName} · ${isGuide ? `${sesTag} · Pizarrón` : 'Hacemos juntos'}`, 'ejercitar · aplicar · verificar', accent));
   return svgDocument(W, H, parts.join(''), accent, accent2, deck.style.id);
 }
 

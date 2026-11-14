@@ -12,6 +12,7 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { logger } from './logger';
 import { COLORS } from './visual-engine/design-tokens';
+import { normalizePdfEditorialText } from './visual-engine/pdf-components-core';
 import {
   loadEditorialFonts,
   setFontHeading,
@@ -34,7 +35,7 @@ const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo 
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
 function sanitizePdfText(value: string): string {
-  return String(value || '')
+  return normalizePdfEditorialText(String(value || ''))
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

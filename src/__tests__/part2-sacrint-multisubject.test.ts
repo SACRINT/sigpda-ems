@@ -136,7 +136,7 @@ describe('SACRINT Part 2 — Multi-Subject Neutrality & Session Isolation', () =
       const pptxBuf = await generateSacrintPptx(deck);
       const zip = await JSZip.loadAsync(pptxBuf);
       const slideFiles = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f));
-      expect(slideFiles).toHaveLength(9);
+      expect(slideFiles).toHaveLength(5);
       for (const f of slideFiles) {
         const xml = await zip.files[f]!.async('text');
         expect(xml).not.toMatch(FORBIDDEN_MATH_FALLBACK_RE);
@@ -149,11 +149,11 @@ describe('SACRINT Part 2 — Multi-Subject Neutrality & Session Isolation', () =
     const wb = buildNonMathIncompleteWorkbook('Historia de México II');
     const deck = buildSacrintDeck(wb, { mode: 'lesson-guide' });
 
-    // 1 cover + 2 sessions * 4 slides = 9 slides
-    expect(deck.slides).toHaveLength(9);
+    // 1 cover + 2 sessions * 2 slides = 5 slides
+    expect(deck.slides).toHaveLength(5);
 
-    const session1Slides = deck.slides.slice(1, 5);
-    const session2Slides = deck.slides.slice(5, 9);
+    const session1Slides = deck.slides.slice(1, 3);
+    const session2Slides = deck.slides.slice(3, 5);
 
     const s1Serialized = JSON.stringify(session1Slides);
     const s2Serialized = JSON.stringify(session2Slides);

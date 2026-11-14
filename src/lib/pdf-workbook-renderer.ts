@@ -94,6 +94,7 @@ import {
   drawProcessFlowBanner,
   extractProcessFlowSteps,
 } from '@/lib/visual-engine/pdf-components';
+import { normalizePdfEditorialText } from '@/lib/visual-engine/pdf-components-core';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
   ColumnFlowManager,
@@ -206,7 +207,7 @@ const WIN_ANSI_REGEX = /[^\x20-\xFF€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“�
  */
 export function sanitizePdfText(text: string | null | undefined): string {
   if (!text) return '';
-  let str = text.replace(/<!--[\s\S]*?-->/g, '');
+  let str = normalizePdfEditorialText(text.replace(/<!--[\s\S]*?-->/g, ''));
   for (const [emoji, replacement] of Object.entries(EMOJI_TO_TEXT)) {
     if (str.includes(emoji)) {
       str = str.split(emoji).join(replacement);
@@ -716,6 +717,7 @@ function drawCoverPage(
   doc.text('NUEVA ESCUELA MEXICANA (NEM)', margin + 32, 59.8, { align: 'center' });
 
   // Badge Metodología Activa Oficial
+  const cleanMetBadge = metBadge.replace(/^\s*\[|\]\s*$/g, '').trim();
   doc.setFillColor(15, 35, 65);
   doc.setDrawColor(56, 189, 248);
   doc.setLineWidth(0.2);
@@ -723,7 +725,7 @@ function drawCoverPage(
   setFontHeading(doc);
   doc.setFontSize(5.8);
   doc.setTextColor(56, 189, 248);
-  doc.text(metBadge, margin + 61 + 34, 59.8, { align: 'center' });
+  doc.text(cleanMetBadge, margin + 61 + 34, 59.8, { align: 'center' });
 
   setFontHeading(doc);
   doc.setFontSize(5.8);
@@ -762,13 +764,17 @@ function drawCoverPage(
   setFontHeading(doc);
   doc.setFontSize(6.5);
   doc.setTextColor(232, 160, 32);
-  doc.text(`ORGANIZACIÓN CURRICULAR POR PROGRESIONES   ·   ${metBadge}`, margin + 12, yBlock + 5);
+  doc.text('ORGANIZACIÓN CURRICULAR POR PROGRESIONES   ·   MCCEMS PUEBLA', margin + 12, yBlock + 5);
 
-  const cleanedBlockName = (workbook.blockName || '')
+  const cleanedBlockName = normalizePdfEditorialText(workbook.blockName || '')
     .replace(/^(Bloque\s+\d+\s*\(Corte\s*\d+\))\s*:\s*\1$/i, '$1')
     .trim();
+  const isMasterOrExplicitBlock =
+    /^bloques?\s+\d+/i.test(cleanedBlockName) ||
+    /libro\s+maestro|integral/i.test(cleanedBlockName) ||
+    (workbook.blockIndex !== undefined && workbook.blockIndex >= 10);
   const blockTitle = cleanedBlockName
-    ? (/^bloques?\s+\d+/i.test(cleanedBlockName)
+    ? (isMasterOrExplicitBlock
         ? cleanedBlockName
         : (workbook.blockIndex !== undefined ? `BLOQUE ${workbook.blockIndex + 1}: ` : '') + cleanedBlockName)
     : 'FORMACIÓN FUNDAMENTAL Y LABORAL';
@@ -1966,6 +1972,11 @@ function drawPracticeTasksWithDottedLines(
   return y + 2;
 }
 
+function cleanSequenceSessionTitle(rawTitle: string | undefined, fallbackTitle: string): string {
+  const base = (rawTitle || fallbackTitle || '').trim();
+  return base.replace(/^Misi[oó]n\s*\d+\s*[:.\-–—]\s*/i, '').trim() || fallbackTitle;
+}
+
 function getSessionMetaFromSequence(
   sequenceJson: Record<number, SecuenciaBloque> | null | undefined,
   sessionNum: number,
@@ -1987,7 +1998,7 @@ function getSessionMetaFromSequence(
       if (match) {
         return {
           phase: match.phase || fallbackPhase,
-          title: match.title || fallbackTitle,
+          title: cleanSequenceSessionTitle(match.title, fallbackTitle),
           teachingActivity: match.teachingActivity,
           learningActivity: match.learningActivity,
           evidence: match.evidence,
@@ -1998,7 +2009,7 @@ function getSessionMetaFromSequence(
   }
   return {
     phase: fallbackPhase,
-    title: fallbackTitle,
+    title: cleanSequenceSessionTitle(fallbackTitle, fallbackTitle),
   };
 }
 
@@ -2454,16 +2465,16 @@ async function drawMission(
       flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true });
 
     // ── EMPIEZA AQUÍ (~10 min) ──
-    y = printSessionPhaseLabel(flow, 'EMPIEZA AQUI · Objetivo y motivacion (~10 min)', phaseColor, y);
+    y = printSessionPhaseLabel(flow, 'EMPIEZA AQUÍ · Objetivo y motivación (~10 min)', phaseColor, y);
     y = lead('Lo que vas a aprender:', plan?.objetivo
-      || `En la sesion ${sNum} vas a estudiar "${topicLabel}" y aprenderas a aplicarlo en situaciones reales de tu comunidad.`);
+      || `En la sesión ${sNum} vas a estudiar "${topicLabel}" y aprenderás a aplicarlo en situaciones reales de tu comunidad.`);
     const motivFallback = mission.phenomenonHook?.detonatingQuestion
-      ? `Imagina un caso real de tu comunidad donde aparece "${topicLabel}". En la sesion anterior (${sNum - 1}) ya viste bases del tema; hoy vas a ver como se usa en un problema cercano a ti. Preguntate: "${mission.phenomenonHook.detonatingQuestion}"`
-      : `Piensa en una situacion de la vida diaria donde se aplica "${topicLabel}". Hoy vas a aprender a resolverla paso a paso y a explicar por que importa en tu comunidad.`;
+      ? `Imagina un caso real de tu comunidad donde aparece "${topicLabel}". En la sesión anterior (${sNum - 1}) ya viste bases del tema; hoy vas a ver cómo se usa en un problema cercano a ti. Pregúntate: "${mission.phenomenonHook.detonatingQuestion}"`
+      : `Piensa en una situación de la vida diaria donde se aplica "${topicLabel}". Hoy vas a aprender a resolverla paso a paso y a explicar por qué importa en tu comunidad.`;
     y = lead('Imagina esto:', plan?.motivacion || motivFallback);
     const saberesFallback = diagQuestions.length > 0
       ? `Antes de empezar, responde en tu cuaderno: ${diagQuestions[rotation % diagQuestions.length]} Escribe lo que recuerdes; sirve como punto de partida.`
-      : `Anota en tu cuaderno 2 ideas que recuerdes de la sesion anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
+      : `Anota en tu cuaderno 2 ideas que recuerdes de la sesión anterior sobre "${topicLabel}" y 1 duda que te quede. Ese es tu punto de partida.`;
     y = lead('Sabes que ya:', plan?.saberesPrevios || saberesFallback);
     y += 1.5;
 
@@ -2473,7 +2484,7 @@ async function drawMission(
     const theoryPool = [...conceptSentences, ...narrativeSentences];
     let theoryFallback: string;
     if (theoryPool.length === 0) {
-      theoryFallback = `En la sesion ${sNum} vas a estudiar "${topicLabel}". Este tema te permite entender como se aplica en situaciones reales. Lee con atencion, toma notas en tu cuaderno y trata de explicar cada idea con tus palabras.`;
+      theoryFallback = `En la sesión ${sNum} vas a estudiar "${topicLabel}". Este tema te permite entender cómo se aplica en situaciones reales. Lee con atención, toma notas en tu cuaderno y trata de explicar cada idea con tus palabras.`;
     } else {
       const picked: string[] = [];
       for (let i = 0; i < theoryPool.length && picked.length < 6; i++) picked.push(theoryPool[(rotation + i) % theoryPool.length]);
@@ -2484,17 +2495,17 @@ async function drawMission(
     y = para(plan?.contenido || (conceptLine ? `${conceptLine}\n\n${theoryFallback}` : theoryFallback));
 
     const exampleFallback = mission.conceptZero?.solvedExample?.problemStatement
-      ? `Observa el ejemplo resuelto: "${mission.conceptZero.solvedExample.problemStatement}" Sigue el procedimiento paso a paso en tu cuaderno y anota cada calculo.`
+      ? `Observa el ejemplo resuelto: "${mission.conceptZero.solvedExample.problemStatement}" Sigue el procedimiento paso a paso en tu cuaderno y anota cada cálculo.`
       : mission.conceptZero?.physicalAnalogy
-        ? `Conectalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogia al tema "${topicLabel}" y escribela con tus palabras.`
-        : `Elabora un ejemplo propio de "${topicLabel}" con datos numericos concretos, resuelvelo paso a paso y verifica el resultado.`;
+        ? `Conéctalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogía al tema "${topicLabel}" y escríbela con tus palabras.`
+        : `Elabora un ejemplo propio de "${topicLabel}" con datos concretos, resuélvelo paso a paso y verifica el resultado.`;
     y = printPdfSubLabel(flow, 'Ejemplo resuelto', phaseColor, y);
     y = para(plan?.ejemploResuelto || exampleFallback);
 
     // Figura visual de la sesión (vector determinista con alfa transparente)
     y = await drawSessionFigure(sNum, sMeta.title || topicLabel, `${plan?.contenido || ''} ${topicLabel}`, y);
 
-    y = printPdfSubLabel(flow, 'Practica', phaseColor, y);
+    y = printPdfSubLabel(flow, 'Práctica', phaseColor, y);
     if (plan?.practica && plan.practica.length > 0) {
       for (let tIdx = 0; tIdx < plan.practica.length; tIdx++) {
         const item = plan.practica[tIdx];
@@ -2517,30 +2528,30 @@ async function drawMission(
 
     const appFallback = mission.realLifeConnection?.householdApplication
       ? `Ahora lleva lo aprendido a tu contexto real: ${mission.realLifeConnection.householdApplication} Documenta la evidencia (foto, esquema o nota) en tu cuaderno.`
-      : `Aplica lo aprendido a una situacion nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
+      : `Aplica lo aprendido a una situación nueva de "${topicLabel}" y registra en tu cuaderno el procedimiento y el resultado.`;
     y = printPdfSubLabel(flow, 'Aplica en tu vida', phaseColor, y);
     y = para(plan?.aplicacion || appFallback);
     y += 1.5;
 
     // ── TU PRODUCTO (~10 min) ──
-    y = printSessionPhaseLabel(flow, 'TU PRODUCTO · Avance y autoevaluacion (~10 min)', phaseColor, y);
+    y = printSessionPhaseLabel(flow, 'TU PRODUCTO · Avance y autoevaluación (~10 min)', phaseColor, y);
     y = lead('Tu producto de hoy:', plan?.productoIntegrador
-      || `Agrega a tu producto integrador el avance de esta sesion: deja registrado en tu cuaderno o portafolio lo que produjiste, con evidencia legible y fechada.`);
+      || `Agrega a tu producto integrador el avance de esta sesión: deja registrado en tu cuaderno o portafolio lo que produjiste, con evidencia legible y fechada.`);
 
-    y = printPdfSubLabel(flow, 'Autoevaluacion', phaseColor, y);
+    y = printPdfSubLabel(flow, 'Autoevaluación', phaseColor, y);
     const autoevalItems: string[] = plan?.autoevaluacion && plan.autoevaluacion.length > 0
       ? plan.autoevaluacion
       : [
           mission.formativeCheckpoint?.question?.trim() || `¿Puedo explicar con mis palabras el concepto central de "${topicLabel}"?`,
-          reflPrompts.length > 0 ? reflPrompts[rotation % reflPrompts.length] : `¿Logre resolver la practica sin copiar el ejemplo?`,
-          criteriaItems.length > 0 ? criteriaItems[rotation % criteriaItems.length] : `¿Registre mi trabajo con evidencia fechada en el cuaderno?`,
+          reflPrompts.length > 0 ? reflPrompts[rotation % reflPrompts.length] : `¿Logré resolver la práctica sin copiar el ejemplo?`,
+          criteriaItems.length > 0 ? criteriaItems[rotation % criteriaItems.length] : `¿Registré mi trabajo con evidencia fechada en el cuaderno?`,
         ].filter((q) => q.length >= 10);
     for (const item of autoevalItems) {
       y = printPdfCheckItem(flow, item, y);
     }
 
     if (plan?.recursos && plan.recursos.length > 0) {
-      y = printPdfSubLabel(flow, 'Para saber mas', phaseColor, y);
+      y = printPdfSubLabel(flow, 'Para saber más', phaseColor, y);
       for (const r of plan.recursos) {
         y = printPdfResourceLine(flow, r.titulo, r.url, r.tipo, y);
       }
@@ -2605,7 +2616,7 @@ async function drawMission(
   }
 
   // 1. Enganche y Desafío Situado
-  y = drawSectionHeader(doc, '1. Enganche y Desafio Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace, '[ SITUACION REAL ]');
+  y = drawSectionHeader(doc, '1. Enganche y Desafío Situado en la Comunidad', margin, mainW, y, pageHeight, SECTION_COLORS.enganche, checkSpace, '[ SITUACIÓN REAL ]');
   y = flow.printMainParagraph(mission.phenomenonHook.story, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8, parseParagraphs: true });
   y += 2;
 
@@ -2628,7 +2639,7 @@ async function drawMission(
   y += detBoxH + 4;
 
   // 2. Concepto Cero
-  y = drawSectionHeader(doc, '2. Concepto Cero: Analogia Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace, '[ LEO Y COMPRENDO ]');
+  y = drawSectionHeader(doc, '2. Concepto Cero: Analogía Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace, '[ LEO Y COMPRENDO ]');
 
   // Widget Concept-Cards (Fase 3) con Degradación Canónica D9
   const conceptCards = extractConceptCardsFromMission(mission);
@@ -2643,7 +2654,7 @@ async function drawMission(
     y += 2.0;
   } else {
     // Degradación histórica D9: párrafos directos de analogía y fundamento
-    y = flow.printMainParagraph(`Analogia Fisica Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 7.5, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8 });
+    y = flow.printMainParagraph(`Analogía Física Cotidiana: ${mission.conceptZero.physicalAnalogy}`, y, { size: 7.5, fontStyle: 'italic', color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8 });
     y += 1.5;
     y = flow.printMainParagraph(mission.conceptZero.coreExplanation, y, { size: 7.5, color: DARK_TEXT, lineHeight: 3.5, paragraphSpacing: 1.8, parseParagraphs: true });
     y += 2;
@@ -2659,7 +2670,7 @@ async function drawMission(
   const conceptCallout = extractCalloutBox(conceptFullText, {
     missionNumber,
     defaultType: 'idea_clave',
-    defaultTitle: 'Idea Clave de la Mision',
+    defaultTitle: 'Idea Clave de la Misión',
     defaultSubjectName: subjectName,
   });
   if (conceptCallout) {
@@ -2686,7 +2697,7 @@ async function drawMission(
     y += 2;
 
     if (ex.interpretation) {
-      y = flow.printMainParagraph(`Conclusion pedagogica: ${ex.interpretation}`, y, { size: 7.8, fontStyle: 'italic', color: MID_BLUE, lineHeight: 3.8 });
+      y = flow.printMainParagraph(`Conclusión pedagógica: ${ex.interpretation}`, y, { size: 7.8, fontStyle: 'italic', color: MID_BLUE, lineHeight: 3.8 });
       y += 4;
     }
   }
@@ -2697,7 +2708,7 @@ async function drawMission(
     setFontBody(doc, 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
-    doc.text('Matriz de Contrastacion Conceptual y Prevencion de Errores:', margin, y);
+    doc.text('Matriz de Contrastación Conceptual y Prevención de Errores:', margin, y);
     y += 4.5;
 
     const contrastBody = mission.conceptZero.contrastTable.map((row) => [
@@ -2710,7 +2721,7 @@ async function drawMission(
       startY: y,
       margin: { left: margin, right: margin },
       tableWidth: mainW,
-      head: [['Concepto Valido', 'Error Frecuente', 'Fundamentacion']],
+      head: [['Concepto Válido', 'Error Frecuente', 'Fundamentación']],
       body: contrastBody,
       theme: 'grid',
       headStyles: { fillColor: MID_BLUE, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
@@ -2979,7 +2990,7 @@ async function drawMission(
   // Si la misión abarca 3 o más sesiones, la Sesión 2 inicia en el Modelado Docente
   if (totalSessionsCount >= 3) {
     const s2 = coveredSessions[1];
-    const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'DESARROLLO', 'MODELADO Y PRACTICA GUIADA');
+    const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'DESARROLLO', 'MODELADO Y PRÁCTICA GUIADA');
     y = checkSpace(y, 14);
     y = drawSessionDivider(doc, {
       sessionNumber: s2,
@@ -3008,7 +3019,7 @@ async function drawMission(
   }
 
   // 3. Yo Hago (Demostración) — zona principal
-  y = drawSectionHeader(doc, '3. Yo Hago: Demostracion y Protocolo Guiado por el Docente', margin, mainW, y, pageHeight, SECTION_COLORS.yoHago, checkSpace, '[ MODELO DOCENTE ]');
+  y = drawSectionHeader(doc, '3. Yo Hago: Demostración y Protocolo Guiado por el Docente', margin, mainW, y, pageHeight, SECTION_COLORS.yoHago, checkSpace, '[ MODELO DOCENTE ]');
 
   const labSteps = parseLabStepsFromProse(mission.iDoSection.stepByStepDemo);
   if (labSteps.length >= 3) {
@@ -3039,7 +3050,7 @@ async function drawMission(
     // Si la misión abarca exactamente 2 sesiones (caso estándar), la Sesión 2 inicia en la Práctica Guiada
     if (totalSessionsCount === 2) {
       const s2 = coveredSessions[1];
-      const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'DESARROLLO', 'PRACTICA GUIADA, RETO Y CIERRE');
+      const s2Meta = getSessionMetaFromSequence(sequenceJson, s2, blockIndex, 'DESARROLLO', 'PRÁCTICA GUIADA, RETO Y CIERRE');
       y = checkSpace(y, 14);
       y = drawSessionDivider(doc, {
         sessionNumber: s2,
@@ -3067,7 +3078,7 @@ async function drawMission(
       }
     }
 
-    y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
+    y = drawSectionHeader(doc, '4. Nosotros Hacemos: Práctica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
     y = await drawSessionFigure(
       coveredSessions[1] ?? coveredSessions[0] ?? 1,
       mission.sessionTopic || mission.title,
@@ -3090,11 +3101,11 @@ async function drawMission(
     const taskBuckets = distributeItems(allWeDoTasks, midSessions.length);
     const elemBuckets = distributeItems(allWeDoElements, midSessions.length);
 
-    y = drawSectionHeader(doc, '4. Nosotros Hacemos: Practica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
+    y = drawSectionHeader(doc, '4. Nosotros Hacemos: Práctica Guiada en Equipo', margin, mainW, y, pageHeight, SECTION_COLORS.hacemos, checkSpace, '[ TRABAJO EN EQUIPO ]');
 
     for (let mIdx = 0; mIdx < midSessions.length; mIdx++) {
       const sNum = midSessions[mIdx];
-      const sMeta = getSessionMetaFromSequence(sequenceJson, sNum, blockIndex, 'DESARROLLO', `PRACTICA COLABORATIVA (SESION ${sNum})`);
+      const sMeta = getSessionMetaFromSequence(sequenceJson, sNum, blockIndex, 'DESARROLLO', `PRÁCTICA COLABORATIVA (SESIÓN ${sNum})`);
       const phaseColor = getPhaseColorRgb(sMeta.phase);
       y = checkSpace(y, 14);
       y = drawSessionDivider(doc, {
@@ -3138,7 +3149,7 @@ async function drawMission(
   // 5. Tú Haces (Reto Autónomo)
   if (totalSessionsCount >= 3) {
     const lastSession = coveredSessions[totalSessionsCount - 1];
-    const lastMeta = getSessionMetaFromSequence(sequenceJson, lastSession, blockIndex, 'CIERRE', 'RETO AUTONOMO Y CIERRE FORMATIVO');
+    const lastMeta = getSessionMetaFromSequence(sequenceJson, lastSession, blockIndex, 'CIERRE', 'RETO AUTÓNOMO Y CIERRE FORMATIVO');
     y = checkSpace(y, 14);
     y = drawSessionDivider(doc, {
       sessionNumber: lastSession,
@@ -3166,7 +3177,7 @@ async function drawMission(
     }
   }
 
-  y = drawSectionHeader(doc, '5. Tu Haces: Reto Autonomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace, '[ HAGO Y RESUELVO ]');
+  y = drawSectionHeader(doc, '5. Tú Haces: Reto Autónomo con Evidencia Cotidiana', margin, mainW, y, pageHeight, SECTION_COLORS.tuHaces, checkSpace, '[ HAGO Y RESUELVO ]');
   y = drawPracticeTasksWithDottedLines(doc, mission.youDoSection.autonomousChallenge, margin, mainW, pageHeight, y, 3, checkSpace);
   y += 4;
 
@@ -3178,7 +3189,7 @@ async function drawMission(
 
   // 6. Matriz de Resiliencia / Troubleshooting
   if (mission.troubleshooting && mission.troubleshooting.length > 0) {
-    y = drawSectionHeader(doc, '6. Matriz de Resiliencia: Que hacer si falla?', margin, mainW, y, pageHeight, SECTION_COLORS.resiliencia, checkSpace, '[ ERROR COMUN ]');
+    y = drawSectionHeader(doc, '6. Matriz de Resiliencia: ¿Qué hacer si falla?', margin, mainW, y, pageHeight, SECTION_COLORS.resiliencia, checkSpace, '[ ERROR COMÚN ]');
     y = checkSpace(y, 22);
 
     const troubleItems = mission.troubleshooting.slice(0, 4);
@@ -3194,7 +3205,7 @@ async function drawMission(
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin + contentWidth - mainW },
-      head: [['Sintoma / Falla', 'Causa Raiz', 'Solucion Metodica', 'Prevencion']],
+      head: [['Síntoma / Falla', 'Causa Raíz', 'Solución Metódica', 'Prevención']],
       body: troubleBody,
       theme: 'grid',
       headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 6.4, fontStyle: 'bold' },
@@ -3214,7 +3225,7 @@ async function drawMission(
 
   // 7. Checkpoint Formativo
   if (mission.formativeCheckpoint) {
-    y = drawSectionHeader(doc, '7. Punto de Control Formativo (Metacognicion)', margin, mainW, y, pageHeight, SECTION_COLORS.checkpoint, checkSpace, '[ MI ENTREGA ]');
+    y = drawSectionHeader(doc, '7. Punto de Control Formativo (Metacognición)', margin, mainW, y, pageHeight, SECTION_COLORS.checkpoint, checkSpace, '[ MI ENTREGA ]');
     y = flow.printMainParagraph(`Pregunta formativa: ${mission.formativeCheckpoint.question}`, y, { size: 8, fontStyle: 'bold', color: MID_BLUE, lineHeight: 4 });
     y += 2;
 
@@ -3229,7 +3240,7 @@ async function drawMission(
       setFontBody(doc, 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(...DARK_TEXT);
-      doc.text('Criterios de Verificacion:', margin, y);
+      doc.text('Criterios de Verificación:', margin, y);
       y += 4;
 
       for (const crit of mission.formativeCheckpoint.criteriaChecklist) {

@@ -24,6 +24,7 @@ import {
   drawSectionRibbon,
   drawCalloutBox,
   sanitizePdfText,
+  normalizePdfEditorialText,
 } from '@/lib/visual-engine/pdf-components-core';
 import {
   loadEditorialFonts,
@@ -104,7 +105,7 @@ export function renderFormattedBlock(
 
   // Descomponer en segmentos tipográficos (normal, **negrita**, *cursiva*, ***ambos***)
   // preservando operadores matemáticos (*) en expresiones algebraicas.
-  const segments = parseInlineMarkdownSegments(rawMarkdownLine);
+  const segments = parseInlineMarkdownSegments(normalizePdfEditorialText(rawMarkdownLine));
   interface Token {
     word: string;
     bold: boolean;
@@ -286,9 +287,10 @@ export function renderExtraDocument(
 
   // La métrica del título se calcula YA con el tamaño con el que se dibuja (9 pt):
   // con el tamaño previo de la pila jsPDF (16 pt) se sobreestimaba el alto de cabecera.
+  const cleanExtraTitle = sanitizePdfText(extra.title);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  const titleLines = doc.splitTextToSize(extra.title, contentW - 10) as string[];
+  const titleLines = doc.splitTextToSize(cleanExtraTitle, contentW - 10) as string[];
   const titleLineHeight = isUltra ? 3.9 : compact ? 4.0 : 4.5;
   const titleStartY = hasTopSup
     ? (isUltra ? 24.5 : compact ? 24.5 : 25.5)
@@ -341,14 +343,14 @@ export function renderExtraDocument(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...WHITE);
-    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${truncateLabelAtWordBoundary(extra.title, 85)}`, margin, 8);
+    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${truncateLabelAtWordBoundary(cleanExtraTitle, 85)}`, margin, 8);
     doc.setTextColor(...GOLD);
     doc.text(branding.cycle, pageWidth - margin, 8, { align: 'right' });
     y = margin + 6;
   };
 
   // ── Parsing de líneas y componentes ───────────────────────────────────────
-  const contentToParse = getExtraContentForRender(extra);
+  const contentToParse = normalizePdfEditorialText(getExtraContentForRender(extra));
   const lines = contentToParse.split('\n');
   let inTable = false;
   let tableHeaders: string[] = [];

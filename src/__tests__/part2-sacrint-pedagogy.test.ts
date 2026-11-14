@@ -187,18 +187,18 @@ describe('SACRINT Part 2 — Pedagogical Redesign & Diagram Authenticity', () =>
     const wb = buildMultiTopicWorkbook();
     const deck = buildSacrintDeck(wb, { mode: 'lesson-guide' });
 
-    // 1 Cover + 3 sessions × 4 slides = 13 slides
+    // 1 Cover + 3 sessions × 2 chalkboard slides = 7 slides
     expect(deck.mode).toBe('lesson-guide');
-    expect(deck.slides).toHaveLength(13);
+    expect(deck.slides).toHaveLength(7);
     expect(deck.slides[0]!.kind).toBe('cover');
-    expect(deck.slides.slice(1, 5).map((s) => s.kind)).toEqual(['concept', 'demo', 'practice', 'challenge']);
+    expect(deck.slides.slice(1, 3).map((s) => s.kind)).toEqual(['concept', 'practice']);
 
     // Check material-review accepts lesson-guide cleanly
     const review = reviewBlockMaterials({ workbook: wb, deck });
     expect(review.byMaterial.deck.issues.some((i) => i.code === 'S6_INVALID_SLIDE_COUNT')).toBe(false);
 
     const svgs = renderDeckSvgs(deck);
-    expect(svgs).toHaveLength(13);
+    expect(svgs).toHaveLength(7);
 
     for (const item of svgs) {
       expect(item.svg).not.toContain('Sin pasos resueltos registrados.');
@@ -217,7 +217,7 @@ describe('SACRINT Part 2 — Pedagogical Redesign & Diagram Authenticity', () =>
       .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
       .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]));
 
-    expect(slideFiles).toHaveLength(13);
+    expect(slideFiles).toHaveLength(7);
 
     for (const slideFile of slideFiles) {
       const xml = await zip.files[slideFile]!.async('text');

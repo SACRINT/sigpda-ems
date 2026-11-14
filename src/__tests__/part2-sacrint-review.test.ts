@@ -41,7 +41,7 @@ describe('SACRINT Part 2 — S6 Review Gate on Combined Decks & Aula Package', (
     mockGetTeacherByEmail.mockResolvedValue({ id: teacherId, role: 'docente' });
   });
 
-  it('reports 4–160 range in S6_INVALID_SLIDE_COUNT message when slide count is invalid', () => {
+  it('reports 3–160 range in S6_INVALID_SLIDE_COUNT message when slide count is invalid', () => {
     const wb = structuredClone(MATH_DEMO_WORKBOOK);
     const deck = buildSacrintDeck(wb, { mode: 'lesson-guide' });
     deck.slides = deck.slides.slice(0, 2); // 2 slides is invalid in all modes
@@ -49,7 +49,7 @@ describe('SACRINT Part 2 — S6 Review Gate on Combined Decks & Aula Package', (
     const report = reviewBlockMaterials({ workbook: wb, deck, checkFullBlockPersistence: false });
     const issue = report.byMaterial.deck.issues.find((i) => i.code === 'S6_INVALID_SLIDE_COUNT');
     expect(issue).toBeDefined();
-    expect(issue?.message).toContain('4 a 160 en modo guía por clase');
+    expect(issue?.message).toContain('3 a 160 en modo guía por clase');
   });
 
   it('blocks GET /api/planeaciones/[id]/presentacion/combinada with HTTP 422 when a combined deck has an S6 error', async () => {
