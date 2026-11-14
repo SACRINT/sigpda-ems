@@ -160,7 +160,7 @@ export default function InfographicModal({ planningId, blockIndex, onClose }: In
               maxWidth: '100%',
               boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
               borderRadius: 6,
-              background: engine === 'sacrint' ? '#05070B' : '#fff',
+              background: engine === 'sacrint' ? '#F8FAFC' : '#fff',
             }}
           />
         )}

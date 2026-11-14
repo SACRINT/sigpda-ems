@@ -1,7 +1,6 @@
-import type { MissionSection } from '@/types/work-textbook';
-import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
+import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SacrintPack } from './discipline-packs';
-import { normalizeMathNotation } from './math-text';
+import { cleanSacrintText, distillConciseText } from './content-distiller';
 
 export interface SacrintVariable {
   symbol: string;
@@ -25,6 +24,70 @@ export interface LinearDiagramSpec {
   points: Array<{ x: number; y: number; label?: string }>;
   xLabel: string;
   yLabel: string;
+  targetY?: number;
+}
+
+export interface QuadraticDiagramSpec {
+  kind: 'quadratic';
+  available: boolean;
+  equation: string;
+  a: number;
+  b: number;
+  c: number;
+  vertexX: number;
+  vertexY: number;
+  roots: number[];
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  samples: Array<{ x: number; y: number }>;
+  xLabel: string;
+  yLabel: string;
+}
+
+export interface System2x2DiagramSpec {
+  kind: 'system-2x2';
+  available: boolean;
+  equation1: string;
+  equation2: string;
+  a1: number;
+  b1: number;
+  c1: number;
+  a2: number;
+  b2: number;
+  c2: number;
+  intersection: { x: number; y: number } | null;
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  xLabel: string;
+  yLabel: string;
+}
+
+export interface ExponentialDiagramSpec {
+  kind: 'exponential';
+  available: boolean;
+  equation: string;
+  principal: number;
+  rate: number;
+  periods: number;
+  simpleSeries: Array<{ t: number; value: number }>;
+  compoundSeries: Array<{ t: number; value: number }>;
+  yMax: number;
+  xLabel: string;
+  yLabel: string;
+}
+
+export interface GeometryDiagramSpec {
+  kind: 'geometry';
+  available: boolean;
+  variant: 'angles' | 'right-triangle' | 'polygon';
+  equation: string;
+  primaryLabel: string;
+  secondaryLabel: string;
+  highlights: SacrintDiagramNode[];
 }
 
 export interface ReactionDiagramSpec {
@@ -123,6 +186,10 @@ export interface RegulationFlowDiagramSpec {
 
 export type SacrintDiagramSpec =
   | LinearDiagramSpec
+  | QuadraticDiagramSpec
+  | System2x2DiagramSpec
+  | ExponentialDiagramSpec
+  | GeometryDiagramSpec
   | ReactionDiagramSpec
   | ArgumentDiagramSpec
   | LanguageDiagramSpec
@@ -139,32 +206,20 @@ export type SacrintDiagramSpec =
 interface DiagramBuildOptions {
   xLabel?: string;
   yLabel?: string;
+  session?: SessionPlan;
+  allowMissionFallback?: boolean;
 }
 
 function clean(value: string | null | undefined): string {
-  return normalizeMathNotation(stripWorkbookTags(value ?? '')).replace(/\s+/g, ' ').trim();
+  return cleanSacrintText(value);
 }
 
 function clip(value: string, max: number): string {
-  const text = clean(value);
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max - 1);
-  const space = cut.lastIndexOf(' ');
-  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+  return distillConciseText(value, max) || clean(value).slice(0, max);
 }
 
 function firstSentence(value: string | null | undefined, max = 220): string {
-  const text = clean(value);
-  if (!text) return '';
-  const sentence = text.match(/^(.{12,}?[.!?])(?:\s|$)/)?.[1] ?? text;
-  if (sentence.length <= max) return sentence;
-  const punctuationCut = sentence.slice(0, max).search(/[,;:—](?=[^,;:—]*$)/);
-  if (punctuationCut > max * 0.45) {
-    return `${sentence.slice(0, punctuationCut).trimEnd()}.`;
-  }
-  const space = sentence.slice(0, max).lastIndexOf(' ');
-  const cleanCut = space > max * 0.6 ? sentence.slice(0, space).trimEnd() : sentence.slice(0, max).trimEnd();
-  return `${cleanCut}.`;
+  return distillConciseText(value, max);
 }
 
 function detail(value: string | null | undefined, max = 220, fallback = 'Sin registro.'): string {
@@ -172,25 +227,142 @@ function detail(value: string | null | undefined, max = 220, fallback = 'Sin reg
   return text || fallback;
 }
 
+/** Calcula un tamaño de paso limpio ("1, 2, 5 × 10ⁿ") para ~5 marcas de eje sin amontonamiento. */
+export function niceTickStep(span: number, targetTicks = 5): number {
+  const safeSpan = Math.max(1e-6, Math.abs(span));
+  const rough = safeSpan / Math.max(2, targetTicks);
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const rel = rough / mag;
+  if (rel <= 1) return mag;
+  if (rel <= 2) return 2 * mag;
+  if (rel <= 2.5) return 2.5 * mag;
+  if (rel <= 5) return 5 * mag;
+  return 10 * mag;
+}
+
+function collectSessionCoreSource(session?: SessionPlan): string {
+  if (!session) return '';
+  return [session.objetivo, session.contenido, session.ejemploResuelto]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function collectSessionFullSource(session?: SessionPlan): string {
+  if (!session) return '';
+  return [
+    collectSessionCoreSource(session),
+    session.practica?.map((p) => `${p.enunciado} ${p.pista}`).join(' '),
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function collectMathSource(mission: MissionSection, session?: SessionPlan): string {
+  return [
+    collectSessionFullSource(session),
+    mission.conceptZero?.coreExplanation,
+    mission.conceptZero?.solvedExample?.problemStatement,
+    mission.conceptZero?.solvedExample?.solutionSteps?.join(' '),
+    mission.iDoSection?.stepByStepDemo,
+    mission.iDoSection?.visualOrDiagram,
+    mission.sessionTopic,
+    mission.title,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function formatCoef(value: number): string {
+  return Number.isInteger(value) ? String(value) : Number(value.toFixed(2)).toString();
+}
+
 function parseNumber(text: string, symbol: 'm' | 'b'): number | null {
-  const pattern = new RegExp(`${symbol}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`, 'i');
+  const pattern = new RegExp(`\\b${symbol}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`, 'i');
   const match = text.match(pattern);
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isFinite(value) ? value : null;
 }
 
-function parseAlgebraicLinearModel(
-  source: string,
-  mission: MissionSection
-): { slope: number; intercept: number; equation: string } | null {
+type ParsedLinearModel = {
+  slope: number;
+  intercept: number;
+  domainMax: number;
+  targetY?: number;
+  equation: string;
+};
+
+function parseLinearFromText(text: string): ParsedLinearModel | null {
+  if (!text) return null;
+
+  // 1. Forma pendiente-ordenada: y = mx ± b o f(x) = mx ± b (sin exponente cuadrático)
+  const slopeInterceptMatch = text.match(
+    /(?:f\(x\)|V\(t\)|y)\s*=\s*(-?\d+(?:\.\d+)?)\s*[xt]\s*([+-])\s*(\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i
+  );
+  if (slopeInterceptMatch) {
+    const rawM = Number(slopeInterceptMatch[1]);
+    const sign = slopeInterceptMatch[2];
+    const rawB = Number(slopeInterceptMatch[3]);
+    if (Number.isFinite(rawM) && Number.isFinite(rawB)) {
+      const signedB = sign === '-' ? -rawB : rawB;
+      return {
+        slope: rawM,
+        intercept: signedB,
+        domainMax: 10,
+        equation: `f(x) = ${formatCoef(rawM)}x ${sign} ${formatCoef(rawB)}`,
+      };
+    }
+  }
+
+  // 2. Ecuación lineal de primer grado: ax ± b = c (conservando coeficientes reales, sin distorsionar)
+  const balanceMatch = text.match(
+    /(?<![²^0-9A-Za-z])(\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i
+  );
+  if (balanceMatch) {
+    const a = Number(balanceMatch[1]);
+    const varName = balanceMatch[2];
+    const sign = balanceMatch[3];
+    const bRaw = Number(balanceMatch[4]);
+    const c = Number(balanceMatch[5]);
+    if (Number.isFinite(a) && a !== 0 && Number.isFinite(bRaw) && Number.isFinite(c)) {
+      const signedB = sign === '-' ? -bRaw : bRaw;
+      const xSol = (c - signedB) / a;
+      const niceDom = xSol > 0 ? Math.max(8, Math.ceil((xSol * 1.35) / 2) * 2) : 10;
+      const boundedDom = Math.min(40, Math.max(8, niceDom));
+      return {
+        slope: a,
+        intercept: signedB,
+        domainMax: boundedDom,
+        targetY: c > 0 ? c : undefined,
+        equation: `${formatCoef(a)}${varName} ${sign} ${formatCoef(bRaw)} = ${formatCoef(c)}`,
+      };
+    }
+  }
+
+  const coeffMatch = text.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
+  if (coeffMatch && !/cuadr[aá]tic|ax²|par[aá]bol/i.test(text)) {
+    const a = Number(coeffMatch[1]) || 1;
+    const bVal = Number(coeffMatch[2]) || 0;
+    return {
+      slope: a,
+      intercept: bVal,
+      domainMax: 10,
+      equation: `f(x) = ${formatCoef(a)}x + ${formatCoef(bVal)}`,
+    };
+  }
+
+  return null;
+}
+
+function parseLinearEquationModel(source: string, extendedSource: string): ParsedLinearModel | null {
   const parsedSlope = parseNumber(source, 'm');
   const parsedIntercept = parseNumber(source, 'b');
   if (parsedSlope !== null && parsedIntercept !== null) {
     return {
       slope: parsedSlope,
       intercept: parsedIntercept,
-      equation: `f(x) = ${parsedSlope.toFixed(2).replace(/0$/, '')}x + ${parsedIntercept.toFixed(2).replace(/0$/, '')}`,
+      domainMax: 10,
+      equation: `f(x) = ${formatCoef(parsedSlope)}x + ${formatCoef(parsedIntercept)}`,
     };
   }
 
@@ -198,151 +370,305 @@ function parseAlgebraicLinearModel(
     return null;
   }
 
-  const extendedSource = [
-    source,
-    mission.weDoSection?.guidedPractice,
-    mission.youDoSection?.autonomousChallenge,
-    mission.title,
-    mission.sessionTopic,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  // 1. Forma pendiente-ordenada: y = mx ± b o f(x) = mx ± b
-  const slopeInterceptMatch = extendedSource.match(
-    /(?:f\(x\)|y)\s*=\s*(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
-  );
-  if (slopeInterceptMatch) {
-    const rawM = Number(slopeInterceptMatch[1]);
-    const sign = slopeInterceptMatch[2];
-    const rawB = Number(slopeInterceptMatch[3]);
-    if (Number.isFinite(rawM) && Number.isFinite(rawB)) {
-      const slope = Math.max(0.5, Math.abs(rawM));
-      const intercept =
-        Math.abs(rawB) > 20 ? Number((Math.abs(rawB) / 100).toFixed(1)) : Math.max(0.5, Math.abs(rawB));
-      return {
-        slope,
-        intercept,
-        equation: `f(x) = ${rawM}x ${sign} ${rawB}`,
-      };
-    }
-  }
-
-  // 2. Ecuación cuadrática completa: ax² ± bx ± c = 0 (evaluar antes de lineal para no capturar la cola bx ± c = 0)
-  const quadEqMatch = extendedSource.match(
-    /(\d+(?:\.\d+)?)\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*0/i
-  );
-  if (quadEqMatch) {
-    const a = Number(quadEqMatch[1]);
-    const sign1 = quadEqMatch[2];
-    const bVal = Number(quadEqMatch[3]);
-    const sign2 = quadEqMatch[4];
-    const cVal = Number(quadEqMatch[5]);
-    return {
-      slope: Math.max(1, a),
-      intercept: Math.min(10, Math.max(1, bVal)),
-      equation: `${a}x² ${sign1} ${bVal}x ${sign2} ${cVal} = 0`,
-    };
-  }
-
-  // 3. Ecuación algebraica de balance: ax ± b = c (ej. 4x + 200 = 1000, 5x - 300 = 1200, 3x + 5 = 20)
-  const balanceMatch = extendedSource.match(
-    /(\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
-  );
-  if (balanceMatch) {
-    const a = Number(balanceMatch[1]);
-    const sign = balanceMatch[2];
-    const bVal = Number(balanceMatch[3]);
-    const cVal = Number(balanceMatch[4]);
-    if (Number.isFinite(a) && Number.isFinite(bVal)) {
-      const slope = a > 10 ? Number((a / 3).toFixed(1)) : Math.max(0.5, a);
-      const intercept = bVal > 20 ? Number((bVal / 100).toFixed(1)) : Math.max(0.5, bVal);
-      return {
-        slope,
-        intercept,
-        equation: `${a}x ${sign} ${bVal} = ${cVal}`,
-      };
-    }
-  }
-
-  const coeffMatch = extendedSource.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
-  if (coeffMatch) {
-    const a = Math.abs(Number(coeffMatch[1])) || 1;
-    const bVal = Math.abs(Number(coeffMatch[2])) || 2;
-    const intercept = bVal > 20 ? Number((bVal / 10).toFixed(1)) : bVal;
-    return {
-      slope: a,
-      intercept,
-      equation: `f(x) = ${a}x + ${intercept}`,
-    };
-  }
-
-  // 4. Síntesis algebraica contextual por temática de bloque (Misiones de Construcción / Evaluación)
-  if (/cuadr[aá]tica|par[aá]bola|segundo grado/i.test(extendedSource)) {
-    const idx = mission.missionIndex || 1;
-    const slope = idx === 3 ? 2 : 1.5;
-    const intercept = idx === 3 ? 3 : 2;
-    return {
-      slope,
-      intercept,
-      equation: idx === 3 ? '2x² + 5x - 300 = 0' : 'x² - 12x + 32 = 0',
-    };
-  }
-  if (/sistema[s]? de ecuaciones|dos inc[oó]gnitas/i.test(extendedSource)) {
-    const idx = mission.missionIndex || 1;
-    const slope = idx === 3 ? 3 : 2;
-    const intercept = idx === 3 ? 2 : 4;
-    return {
-      slope,
-      intercept,
-      equation: idx === 3 ? '3x + 2y = 24' : '2x + y = 18',
-    };
-  }
-  if (/ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal/i.test(extendedSource)) {
-    const idx = mission.missionIndex || 1;
-    const slope = idx === 3 ? 4 : 3;
-    const intercept = idx === 3 ? 2 : 1.5;
-    return {
-      slope,
-      intercept,
-      equation: idx === 3 ? '4x + 200 = 1000' : '3x + 150 = 900',
-    };
-  }
-
-  return null;
+  return parseLinearFromText(source) || (extendedSource && extendedSource !== source ? parseLinearFromText(extendedSource) : null);
 }
 
-function buildLinearDiagram(mission: MissionSection, options: DiagramBuildOptions): LinearDiagramSpec {
-  const source = [
-    mission.conceptZero?.coreExplanation,
-    mission.iDoSection?.stepByStepDemo,
-    mission.conceptZero?.solvedExample?.solutionSteps?.join(' '),
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const parsedModel = parseAlgebraicLinearModel(source, mission);
-  const available = parsedModel !== null;
-  const slope = parsedModel?.slope ?? 0;
-  const intercept = parsedModel?.intercept ?? 0;
-  const domainMax = 10;
-  const rawMax = slope * domainMax + intercept;
-  const rangeMax = Math.max(4, Math.ceil(rawMax / 2) * 2);
-  const equation = parsedModel?.equation ?? 'y = mx + b';
-  const points = available
-    ? [0, 4, 8].filter((x) => x <= domainMax).map((x) => ({ x, y: Number((slope * x + intercept).toFixed(2)) }))
-    : [];
+function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
+  if (!source) return null;
+  const quadEqMatch = source.match(
+    /(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+  );
+  const quadFuncMatch = source.match(
+    /(?:f\(x\)|y)\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
+  );
+  const quadPureMatch = source.match(
+    /(?:(?:f\(x\)|y)\s*=\s*)?(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+  );
+  const isQuadraticTopic = /cuadr[aá]tic|par[aá]bol|segundo\s+grado|f[oó]rmula\s+general|discriminante/i.test(source);
+
+  let a = 0;
+  let b = 0;
+  let c = 0;
+  let equation = 'Modelo por construir';
+
+  const m = quadEqMatch || quadFuncMatch;
+  if (m) {
+    a = m[1] ? Number(m[1]) : 1;
+    if (a === 0) a = 1;
+    b = (m[2] === '-' ? -1 : 1) * (m[3] ? Number(m[3]) : 1);
+    const rhs = m[6] ? Number(m[6]) : 0;
+    c = (m[4] === '-' ? -1 : 1) * Number(m[5]) - (quadEqMatch ? rhs : 0);
+    const signB = b >= 0 ? '+' : '-';
+    const signC = c >= 0 ? '+' : '-';
+    equation = quadEqMatch
+      ? `${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`
+      : `f(x) = ${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))}`;
+  } else if (quadPureMatch) {
+    a = quadPureMatch[1] ? Number(quadPureMatch[1]) : 1;
+    if (a === 0) a = 1;
+    b = 0;
+    const rhs = quadPureMatch[4] ? Number(quadPureMatch[4]) : 0;
+    c = (quadPureMatch[2] === '-' ? -1 : 1) * Number(quadPureMatch[3]) - rhs;
+    const signC = c >= 0 ? '+' : '-';
+    equation = `${formatCoef(a)}x² ${signC} ${formatCoef(Math.abs(c))} = 0`;
+  } else if (isQuadraticTopic) {
+    return {
+      kind: 'quadratic',
+      available: false,
+      equation: 'Modelo por construir',
+      a: 0,
+      b: 0,
+      c: 0,
+      vertexX: 0,
+      vertexY: 0,
+      roots: [],
+      xMin: -5,
+      xMax: 5,
+      yMin: -5,
+      yMax: 5,
+      samples: [],
+      xLabel: 'Eje x (variable)',
+      yLabel: 'Modelo por construir',
+    };
+  } else {
+    return null;
+  }
+
+  const vertexX = -b / (2 * a);
+  const vertexY = a * vertexX * vertexX + b * vertexX + c;
+  const disc = b * b - 4 * a * c;
+  const roots: number[] = [];
+  if (disc > 0) {
+    const r1 = (-b - Math.sqrt(disc)) / (2 * a);
+    const r2 = (-b + Math.sqrt(disc)) / (2 * a);
+    roots.push(Number(Math.min(r1, r2).toFixed(2)), Number(Math.max(r1, r2).toFixed(2)));
+  } else if (disc === 0) {
+    roots.push(Number(vertexX.toFixed(2)));
+  }
+
+  const halfSpan = Math.max(5, roots.length === 2 ? Math.abs(roots[1] - roots[0]) * 0.85 : 6);
+  const xMin = Math.floor(vertexX - halfSpan);
+  const xMax = Math.ceil(vertexX + halfSpan);
+  const samples: Array<{ x: number; y: number }> = [];
+  const steps = 28;
+  let yMinRaw = Math.min(0, vertexY);
+  let yMaxRaw = Math.max(0, vertexY);
+
+  for (let i = 0; i <= steps; i++) {
+    const x = xMin + ((xMax - xMin) * i) / steps;
+    const y = a * x * x + b * x + c;
+    samples.push({ x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) });
+    yMinRaw = Math.min(yMinRaw, y);
+    yMaxRaw = Math.max(yMaxRaw, y);
+  }
+  const yPad = Math.max(4, (yMaxRaw - yMinRaw) * 0.12);
 
   return {
-    kind: 'linear',
-    available,
+    kind: 'quadratic',
+    available: true,
     equation,
-    slope,
-    intercept,
-    domainMax,
-    rangeMax,
-    points,
-    xLabel: options.xLabel || 'VARIABLE INDEPENDIENTE (x)',
-    yLabel: options.yLabel || 'VARIABLE DEPENDIENTE (y)',
+    a: Number(a.toFixed(2)),
+    b: Number(b.toFixed(2)),
+    c: Number(c.toFixed(2)),
+    vertexX: Number(vertexX.toFixed(2)),
+    vertexY: Number(vertexY.toFixed(2)),
+    roots,
+    xMin,
+    xMax,
+    yMin: Number((yMinRaw - yPad).toFixed(1)),
+    yMax: Number((yMaxRaw + yPad).toFixed(1)),
+    samples,
+    xLabel: 'Eje x (variable)',
+    yLabel: 'f(x) = ax² + bx + c',
+  };
+}
+
+function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
+  if (!source) return null;
+  const sysTopic = /sistema[s]?\s+(?:de\s+ecuaciones|lineal(?:es)?\s*2x2)|2x2|dos\s+inc[oó]gnitas|igualaci[oó]n|determinantes|cramer/i.test(source);
+  const twoVarEqRe = /(-?\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)?\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi;
+  const parsed: Array<{ a: number; b: number; c: number; eq: string }> = [];
+
+  for (const m of source.matchAll(twoVarEqRe)) {
+    const a = m[1] ? Number(m[1]) : 1;
+    const bSign = m[2] === '-' ? -1 : 1;
+    const bMag = m[3] ? Number(m[3]) : 1;
+    const b = bSign * bMag;
+    const c = Number(m[4]);
+    if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c) && b !== 0) {
+      const label = `${formatCoef(a)}x ${m[2]} ${formatCoef(bMag)}y = ${formatCoef(c)}`;
+      if (!parsed.some((p) => p.eq === label)) {
+        parsed.push({ a, b, c, eq: label });
+      }
+    }
+    if (parsed.length >= 2) break;
+  }
+
+  if (parsed.length < 2) {
+    if (!sysTopic) return null;
+    return {
+      kind: 'system-2x2',
+      available: false,
+      equation1: 'Modelo por construir',
+      equation2: 'Modelo por construir',
+      a1: 0,
+      b1: 1,
+      c1: 0,
+      a2: 0,
+      b2: 1,
+      c2: 0,
+      intersection: null,
+      xMin: 0,
+      xMax: 10,
+      yMin: 0,
+      yMax: 10,
+      xLabel: 'Variable x',
+      yLabel: 'Variable y',
+    };
+  }
+
+  const eqA = parsed[0]!;
+  const eqB = parsed[1]!;
+  const det = eqA.a * eqB.b - eqB.a * eqA.b;
+  const intersection =
+    Math.abs(det) > 1e-6
+      ? {
+          x: Number(((eqA.c * eqB.b - eqB.c * eqA.b) / det).toFixed(2)),
+          y: Number(((eqA.a * eqB.c - eqB.a * eqA.c) / det).toFixed(2)),
+        }
+      : null;
+
+  const cx = intersection?.x ?? 3;
+  const cy = intersection?.y ?? 2;
+  const span = Math.max(6, Math.ceil(Math.max(Math.abs(cx), Math.abs(cy)) * 1.4));
+  const xMin = Math.min(0, Math.floor(cx - span));
+  const xMax = Math.max(span, Math.ceil(cx + span * 0.7));
+
+  const evalLine = (eq: { a: number; b: number; c: number }, xVal: number) => (eq.c - eq.a * xVal) / eq.b;
+  const ys = [evalLine(eqA, xMin), evalLine(eqA, xMax), evalLine(eqB, xMin), evalLine(eqB, xMax), cy, 0];
+  const yMin = Math.floor(Math.min(...ys) - 2);
+  const yMax = Math.ceil(Math.max(...ys) + 2);
+
+  return {
+    kind: 'system-2x2',
+    available: true,
+    equation1: eqA.eq,
+    equation2: eqB.eq,
+    a1: eqA.a,
+    b1: eqA.b,
+    c1: eqA.c,
+    a2: eqB.a,
+    b2: eqB.b,
+    c2: eqB.c,
+    intersection,
+    xMin,
+    xMax,
+    yMin,
+    yMax,
+    xLabel: 'Variable x',
+    yLabel: 'Variable y',
+  };
+}
+
+function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | null {
+  if (!source || !/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+exponencial/i.test(source)) {
+    return null;
+  }
+  const capitalMatch = source.match(/(?:capital|monto\s+inicial|inversi[oó]n|\$)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})/i);
+  const rateMatch = source.match(/(\d+(?:\.\d+)?)\s*%/);
+  if (!capitalMatch && !rateMatch) {
+    return {
+      kind: 'exponential',
+      available: false,
+      equation: 'Modelo por construir',
+      principal: 0,
+      rate: 0,
+      periods: 6,
+      simpleSeries: [],
+      compoundSeries: [],
+      yMax: 100,
+      xLabel: 'Períodos (t)',
+      yLabel: 'Monto acumulado ($)',
+    };
+  }
+  const principal = capitalMatch ? Math.min(50000, Math.max(100, Number(capitalMatch[1].replace(/,/g, '')))) : 1000;
+  const ratePct = rateMatch ? Math.min(50, Math.max(2, Number(rateMatch[1]))) : 12;
+  const rate = ratePct / 100;
+  const periods = 6;
+  const simpleSeries: Array<{ t: number; value: number }> = [];
+  const compoundSeries: Array<{ t: number; value: number }> = [];
+
+  for (let t = 0; t <= periods; t++) {
+    simpleSeries.push({ t, value: Math.round(principal * (1 + rate * t)) });
+    compoundSeries.push({ t, value: Math.round(principal * Math.pow(1 + rate, t)) });
+  }
+  const maxVal = Math.max(...compoundSeries.map((p) => p.value));
+  return {
+    kind: 'exponential',
+    available: true,
+    equation: `M = C₀(1 + r)ᵗ  (C₀=${principal}, r=${ratePct}%)`,
+    principal,
+    rate,
+    periods,
+    simpleSeries,
+    compoundSeries,
+    yMax: Math.ceil((maxVal * 1.1) / 100) * 100,
+    xLabel: 'Períodos (t)',
+    yLabel: 'Monto acumulado ($)',
+  };
+}
+
+function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
+  const isAngle = /tipos?\s+de\s+[aá]ngulos|[aá]ngulos?\s+(?:agudo|recto|obtuso|llano|complementarios|suplementarios)|paralelas.*transversal/i.test(source);
+  const isTriangle = /pit[aá]goras|tri[aá]ngulo\s+rect[aá]ngulo|hipotenusa|cateto|sen\s|cos\s|tan\s|trigonometr/i.test(source);
+  const isPolygon = /[aá]rea\s+y\s+per[ií]metro|per[ií]metro\s+del\s+rect[aá]ngulo|congruencia\s+de\s+tri[aá]ngulos/i.test(source);
+
+  if (!isAngle && !isTriangle && !isPolygon) return null;
+
+  if (isTriangle) {
+    return {
+      kind: 'geometry',
+      variant: 'right-triangle',
+      available: true,
+      equation: 'c² = a² + b²  |  ∠A + ∠B = 90°',
+      primaryLabel: 'Catetos a, b e hipotenusa c',
+      secondaryLabel: 'Ángulo recto = 90°',
+      highlights: [
+        { label: 'Catetos', detail: 'Lados perpendiculares que forman 90° (a y b).' },
+        { label: 'Hipotenusa', detail: 'Lado mayor opuesto al ángulo recto (c = √(a² + b²)).' },
+        { label: 'Suma angular', detail: 'Los ángulos agudos son complementarios (90°).' },
+      ],
+    };
+  }
+
+  if (isAngle) {
+    return {
+      kind: 'geometry',
+      variant: 'angles',
+      available: true,
+      equation: 'Agudo < 90°  |  Recto = 90°  |  Obtuso > 90°  |  Llano = 180°',
+      primaryLabel: 'Clasificación por abertura angular',
+      secondaryLabel: 'Complementarios = 90° · Suplementarios = 180°',
+      highlights: [
+        { label: 'Agudo', detail: 'Abertura mayor a 0° y menor a 90°.' },
+        { label: 'Recto', detail: 'Exactamente 90° (rectas perpendiculares).' },
+        { label: 'Obtuso', detail: 'Mayor a 90° y menor a 180°.' },
+      ],
+    };
+  }
+
+  return {
+    kind: 'geometry',
+    variant: 'polygon',
+    available: true,
+    equation: 'P = 2(b + h)  |  A = b · h',
+    primaryLabel: 'Relación de dimensiones y contorno',
+    secondaryLabel: 'Unidades lineales vs. cuadradas',
+    highlights: [
+      { label: 'Base y altura', detail: 'Dimensiones ortogonales del espacio o polígono.' },
+      { label: 'Perímetro', detail: 'Suma total de los lados del contorno.' },
+      { label: 'Área', detail: 'Superficie interior delimitada por el perímetro.' },
+    ],
   };
 }
 
@@ -722,39 +1048,259 @@ function buildRegulationFlowDiagram(mission: MissionSection): RegulationFlowDiag
   };
 }
 
+function buildUnavailableLinearDiagram(options: DiagramBuildOptions): LinearDiagramSpec {
+  return {
+    kind: 'linear',
+    available: false,
+    equation: 'y = mx + b',
+    slope: 0,
+    intercept: 0,
+    domainMax: 10,
+    rangeMax: 10,
+    points: [],
+    xLabel: options.xLabel || 'VARIABLE INDEPENDIENTE (x)',
+    yLabel: options.yLabel || 'VARIABLE DEPENDIENTE (y)',
+  };
+}
+
+function buildLinearDiagramSpec(linearDirect: ParsedLinearModel, options: DiagramBuildOptions): LinearDiagramSpec {
+  const { slope, intercept, domainMax, targetY, equation } = linearDirect;
+  const yAtEnd = slope * domainMax + intercept;
+  const rawMax = Math.max(4, intercept, yAtEnd, targetY ?? 0);
+  const step = niceTickStep(rawMax, 5);
+  const rangeMax = domainMax <= 10 && rawMax <= 12
+    ? Math.max(4, Math.ceil(rawMax / 2) * 2)
+    : Math.ceil(rawMax / step) * step;
+  const sampleXs = domainMax <= 10 ? [0, 4, 8] : [0, Math.round(domainMax / 2), domainMax];
+  const points = sampleXs.filter((x) => x <= domainMax).map((x) => ({ x, y: Number((slope * x + intercept).toFixed(2)) }));
+
+  return {
+    kind: 'linear',
+    available: true,
+    equation,
+    slope,
+    intercept,
+    domainMax,
+    rangeMax,
+    points,
+    xLabel: options.xLabel || 'VARIABLE INDEPENDIENTE (x)',
+    yLabel: options.yLabel || 'VARIABLE DEPENDIENTE (y)',
+    targetY,
+  };
+}
+
+function pickAvailableOrFallback<T extends { available: boolean }>(
+  primary: T | null,
+  secondary: T | null
+): T | null {
+  if (primary?.available) return primary;
+  if (secondary?.available) return secondary;
+  return primary ?? secondary;
+}
+
+function tryDetectDiagramFromTexts(
+  primaryText: string,
+  secondaryText: string,
+  options: DiagramBuildOptions
+): SacrintDiagramSpec | null {
+  if (!primaryText && !secondaryText) return null;
+
+  // 1. Ecuación o función cuadrática (parábola real o estado por construir si solo hay tema)
+  const quadratic = pickAvailableOrFallback(
+    tryBuildQuadraticDiagram(primaryText),
+    tryBuildQuadraticDiagram(secondaryText)
+  );
+  if (quadratic) return quadratic;
+
+  // 2. Sistema de ecuaciones lineales 2x2 (rectas secantes e intersección o estado por construir)
+  const system2x2 = pickAvailableOrFallback(
+    tryBuildSystem2x2Diagram(primaryText),
+    tryBuildSystem2x2Diagram(secondaryText)
+  );
+  if (system2x2) return system2x2;
+
+  // 3. Interés simple vs. compuesto / crecimiento exponencial
+  const exponential = pickAvailableOrFallback(
+    tryBuildExponentialDiagram(primaryText),
+    tryBuildExponentialDiagram(secondaryText)
+  );
+  if (exponential) return exponential;
+
+  // 4. Geometría plana (ángulos, triángulos, áreas y perímetros sin pendiente lineal explícita)
+  const linearDirect = parseLinearEquationModel(primaryText, secondaryText);
+  const geometry = tryBuildGeometryDiagram(primaryText) || tryBuildGeometryDiagram(secondaryText);
+  if (geometry && (!linearDirect || /tipos?\s+de\s+[aá]ngulos|pit[aá]goras/i.test(secondaryText))) {
+    return geometry;
+  }
+
+  // 5. Modelo lineal (y = mx + b o ecuación balance ax ± b = c con coeficientes auténticos)
+  if (linearDirect) {
+    return buildLinearDiagramSpec(linearDirect, options);
+  }
+
+  return null;
+}
+
+function buildMathDiagram(mission: MissionSection, options: DiagramBuildOptions): SacrintDiagramSpec {
+  if (options.session) {
+    const sessionCore = cleanSacrintText(collectSessionCoreSource(options.session));
+    const sessionFull = cleanSacrintText(collectSessionFullSource(options.session));
+    if (/sin coeficientes numéricos/i.test(sessionFull)) {
+      return buildUnavailableLinearDiagram(options);
+    }
+    const sessionMatch = tryDetectDiagramFromTexts(sessionCore, sessionFull, options);
+    if (sessionMatch) return sessionMatch;
+    if (options.allowMissionFallback === false) {
+      return buildUnavailableLinearDiagram(options);
+    }
+  }
+
+  const missionCoreSource = cleanSacrintText(
+    [
+      mission.conceptZero?.coreExplanation,
+      mission.iDoSection?.stepByStepDemo,
+      mission.conceptZero?.solvedExample?.solutionSteps?.join(' '),
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+
+  if (/sin coeficientes numéricos/i.test(missionCoreSource)) {
+    return buildUnavailableLinearDiagram(options);
+  }
+
+  const missionExtendedSource = cleanSacrintText(collectMathSource(mission, options.session));
+  return (
+    tryDetectDiagramFromTexts(missionCoreSource, missionExtendedSource, options) ||
+    buildUnavailableLinearDiagram(options)
+  );
+}
+
+function toSessionScopedMission(
+  mission: MissionSection,
+  session: SessionPlan,
+  allowMissionFallback: boolean
+): MissionSection {
+  const practiceText = (session.practica ?? [])
+    .map((p) => p.enunciado)
+    .filter(Boolean)
+    .join(' ');
+  const sessionSteps = (session.ejemploResuelto ?? '')
+    .split(/\r?\n|(?=\b\d+[.)]\s)/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (!allowMissionFallback) {
+    return {
+      ...mission,
+      title: session.objetivo || `Sesión ${session.sessionNumber}`,
+      sessionTopic: session.objetivo || '',
+      sessionFocus: session.objetivo || '',
+      phenomenonHook: {
+        story: session.motivacion || session.saberesPrevios || '',
+        detonatingQuestion: '',
+      },
+      conceptZero: {
+        physicalAnalogy: session.saberesPrevios || '',
+        coreExplanation: session.contenido || '',
+        contrastTable: [],
+        solvedExample: {
+          problemStatement: session.ejemploResuelto || '',
+          solutionSteps: sessionSteps,
+          interpretation: session.aplicacion || '',
+        },
+      },
+      iDoSection: {
+        stepByStepDemo: session.ejemploResuelto || '',
+        visualOrDiagram: '',
+      },
+      weDoSection: {
+        guidedPractice: practiceText,
+        workbookElements: [],
+      },
+      youDoSection: {
+        autonomousChallenge: session.aplicacion || session.productoIntegrador || '',
+        workbookElements: [],
+      },
+      troubleshooting: [],
+      formativeCheckpoint: {
+        question: session.autoevaluacion?.[0] || '',
+        criteriaChecklist: session.autoevaluacion ?? [],
+        reflectionPrompts: [],
+      },
+    };
+  }
+
+  return {
+    ...mission,
+    sessionTopic: session.objetivo || mission.sessionTopic,
+    sessionFocus: session.objetivo || mission.sessionFocus,
+    phenomenonHook: {
+      story: session.motivacion || session.saberesPrevios || mission.phenomenonHook?.story || '',
+      detonatingQuestion: mission.phenomenonHook?.detonatingQuestion || '',
+    },
+    conceptZero: {
+      ...mission.conceptZero,
+      coreExplanation: session.contenido || mission.conceptZero?.coreExplanation || '',
+      solvedExample: {
+        problemStatement: session.ejemploResuelto || mission.conceptZero?.solvedExample?.problemStatement || '',
+        solutionSteps:
+          sessionSteps.length > 0 ? sessionSteps : (mission.conceptZero?.solvedExample?.solutionSteps ?? []),
+        interpretation: session.aplicacion || mission.conceptZero?.solvedExample?.interpretation || '',
+      },
+    },
+    iDoSection: {
+      ...mission.iDoSection,
+      stepByStepDemo: session.ejemploResuelto || mission.iDoSection?.stepByStepDemo || '',
+    },
+    weDoSection: {
+      ...mission.weDoSection,
+      guidedPractice: practiceText || mission.weDoSection?.guidedPractice || '',
+    },
+    youDoSection: {
+      ...mission.youDoSection,
+      autonomousChallenge: session.aplicacion || mission.youDoSection?.autonomousChallenge || '',
+    },
+  };
+}
+
 export function buildSacrintDiagram(
   mission: MissionSection,
   pack: SacrintPack,
   options: DiagramBuildOptions = {}
 ): SacrintDiagramSpec {
+  const effectiveMission = options.session
+    ? toSessionScopedMission(mission, options.session, options.allowMissionFallback ?? true)
+    : mission;
+
   switch (pack.diagram) {
     case 'linear-model':
-      return buildLinearDiagram(mission, options);
+      return buildMathDiagram(mission, options);
     case 'reaction-scheme':
-      return buildReactionDiagram(mission);
+      return buildReactionDiagram(effectiveMission);
     case 'argument-map':
     case 'rhetorical-map':
-      return buildArgumentDiagram(mission);
+      return buildArgumentDiagram(effectiveMission);
     case 'word-map':
-      return buildLanguageDiagram(mission);
+      return buildLanguageDiagram(effectiveMission);
     case 'timeline':
-      return buildTimelineDiagram(mission);
+      return buildTimelineDiagram(effectiveMission);
     case 'system-map':
-      return buildSystemMapDiagram(mission);
+      return buildSystemMapDiagram(effectiveMission);
     case 'clinical-flow':
-      return buildClinicalFlowDiagram(mission);
+      return buildClinicalFlowDiagram(effectiveMission);
     case 'block-diagram':
-      return buildBlockDiagram(mission);
+      return buildBlockDiagram(effectiveMission);
     case 'sop-flow':
-      return buildSopFlowDiagram(mission);
+      return buildSopFlowDiagram(effectiveMission);
     case 'creative-cycle':
-      return buildCreativeCycleDiagram(mission);
+      return buildCreativeCycleDiagram(effectiveMission);
     case 'training-cycle':
-      return buildTrainingCycleDiagram(mission);
+      return buildTrainingCycleDiagram(effectiveMission);
     case 'regulation-flow':
-      return buildRegulationFlowDiagram(mission);
+      return buildRegulationFlowDiagram(effectiveMission);
     default:
-      return buildConceptDiagram(mission);
+      return buildConceptDiagram(effectiveMission);
   }
 }
 
@@ -774,6 +1320,90 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
           label: 'Valor inicial',
           meaning: diagram.available ? `Intersección ${diagram.intercept}` : 'Por construir',
         },
+      ];
+    case 'quadratic':
+      return [
+        {
+          symbol: 'a',
+          label: 'Concavidad',
+          meaning: diagram.available
+            ? `a = ${diagram.a} (abre hacia ${diagram.a >= 0 ? 'arriba' : 'abajo'})`
+            : 'Por construir',
+        },
+        {
+          symbol: 'V',
+          label: 'Vértice óptimo',
+          meaning: diagram.available ? `(${diagram.vertexX}, ${diagram.vertexY})` : 'Por construir',
+        },
+        {
+          symbol: 'Δ',
+          label: 'Discriminante',
+          meaning: diagram.available
+            ? `b² - 4ac = ${Number((diagram.b * diagram.b - 4 * diagram.a * diagram.c).toFixed(2))}`
+            : 'Por construir',
+        },
+        {
+          symbol: 'x₁,₂',
+          label: 'Raíces reales',
+          meaning: diagram.available
+            ? diagram.roots.length > 0
+              ? diagram.roots.join(' y ')
+              : 'Sin raíces reales'
+            : 'Por construir',
+        },
+      ];
+    case 'system-2x2':
+      return [
+        { symbol: 'L₁', label: 'Ecuación 1', meaning: diagram.available ? diagram.equation1 : 'Por construir' },
+        { symbol: 'L₂', label: 'Ecuación 2', meaning: diagram.available ? diagram.equation2 : 'Por construir' },
+        {
+          symbol: 'P*',
+          label: 'Intersección',
+          meaning: diagram.available
+            ? diagram.intersection
+              ? `x = ${diagram.intersection.x}, y = ${diagram.intersection.y}`
+              : 'Rectas paralelas'
+            : 'Por construir',
+        },
+        {
+          symbol: 'Δ',
+          label: 'Determinante',
+          meaning: diagram.available
+            ? `Δ = ${Number((diagram.a1 * diagram.b2 - diagram.a2 * diagram.b1).toFixed(2))}`
+            : 'Por construir',
+        },
+      ];
+    case 'exponential':
+      return [
+        {
+          symbol: 'C₀',
+          label: 'Capital inicial',
+          meaning: diagram.available ? `$${diagram.principal.toLocaleString('en-US')}` : 'Por construir',
+        },
+        {
+          symbol: 'r',
+          label: 'Tasa por período',
+          meaning: diagram.available ? `${(diagram.rate * 100).toFixed(0)}%` : 'Por construir',
+        },
+        {
+          symbol: 't',
+          label: 'Horizonte',
+          meaning: diagram.available ? `0 a ${diagram.periods} períodos` : 'Por construir',
+        },
+        {
+          symbol: 'M',
+          label: 'Monto compuesto',
+          meaning: diagram.available
+            ? `$${(diagram.compoundSeries[diagram.compoundSeries.length - 1]?.value ?? diagram.principal).toLocaleString('en-US')}`
+            : 'Por construir',
+        },
+      ];
+    case 'geometry':
+      return [
+        { symbol: '∠', label: 'Ángulo / Figura', meaning: clip(diagram.primaryLabel, 68) },
+        { symbol: 'R', label: 'Regla', meaning: clip(diagram.secondaryLabel, 68) },
+        { symbol: 'A', label: diagram.highlights[0]?.label ?? 'Elemento 1', meaning: clip(diagram.highlights[0]?.detail ?? '', 68) },
+        { symbol: 'B', label: diagram.highlights[1]?.label ?? 'Elemento 2', meaning: clip(diagram.highlights[1]?.detail ?? '', 68) },
       ];
     case 'reaction':
       return [
@@ -873,9 +1503,13 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
 export function diagramFormula(diagram: SacrintDiagramSpec): string {
   switch (diagram.kind) {
     case 'linear':
-      return diagram.equation;
+    case 'quadratic':
+    case 'exponential':
+    case 'geometry':
     case 'reaction':
       return diagram.equation;
+    case 'system-2x2':
+      return diagram.available ? `${diagram.equation1}  |  ${diagram.equation2}` : 'Modelo por construir';
     case 'argument':
       return 'P1 + P2 → T';
     case 'language':
@@ -905,6 +1539,14 @@ export function diagramModelLabel(diagram: SacrintDiagramSpec): string {
   switch (diagram.kind) {
     case 'linear':
       return 'Modelo lineal';
+    case 'quadratic':
+      return 'Modelo cuadrático';
+    case 'system-2x2':
+      return 'Sistema lineal 2×2';
+    case 'exponential':
+      return 'Interés simple vs. compuesto';
+    case 'geometry':
+      return 'Modelo geométrico';
     case 'reaction':
       return 'Esquema de reacción';
     case 'argument':
@@ -935,7 +1577,15 @@ export function diagramModelLabel(diagram: SacrintDiagramSpec): string {
 export function diagramSubtitle(diagram: SacrintDiagramSpec): string {
   switch (diagram.kind) {
     case 'linear':
-      return 'Del fenómeno al modelo';
+      return 'Del fenómeno al modelo lineal';
+    case 'quadratic':
+      return 'Curva parabólica, vértice y raíces';
+    case 'system-2x2':
+      return 'Intersección simultánea de rectas';
+    case 'exponential':
+      return 'Comparación lineal vs. exponencial';
+    case 'geometry':
+      return 'Propiedades métricas y angulares';
     case 'reaction':
       return 'Del fenómeno a la reacción';
     case 'argument':
@@ -967,6 +1617,14 @@ export function diagramFooterLabel(diagram: SacrintDiagramSpec): string {
   switch (diagram.kind) {
     case 'linear':
       return 'modelo · variables · decisión';
+    case 'quadratic':
+      return 'vértice · raíces · modelado';
+    case 'system-2x2':
+      return 'rectas · intersección · solución';
+    case 'exponential':
+      return 'capital · tasa · crecimiento';
+    case 'geometry':
+      return 'trazo · medida · teorema';
     case 'reaction':
       return 'reactivos · proceso · productos';
     case 'argument':

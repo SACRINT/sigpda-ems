@@ -7,6 +7,7 @@ import {
   reviewBlockMaterials,
   type MaterialReviewReport,
 } from '@/lib/guide-engine/material-review';
+import { buildSacrintDeck } from '@/lib/visual-engine/sacrint/spec';
 
 export interface BlockWorkbookLike {
   loaded?: boolean;
@@ -83,8 +84,16 @@ export function useBlockMaterialReviews(
             content_text: resolveExtraContentText(ex),
           }));
 
+        let deck;
+        try {
+          deck = buildSacrintDeck(item.workbook, { mode: 'lesson-guide' });
+        } catch {
+          deck = undefined;
+        }
+
         map[idx] = reviewBlockMaterials({
           workbook: item.workbook,
+          deck,
           blockSequence: sequenceData?.[idx] ?? null,
           uacName: planning?.uacName || s1?.uacName || '',
           component: planning?.component || s1?.component || '',

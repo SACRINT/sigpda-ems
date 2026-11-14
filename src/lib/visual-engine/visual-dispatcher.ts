@@ -427,17 +427,28 @@ export function dispatchVisual(
     const rawContext = `${topic} ${contextText || ''}`;
 
     // 1. Parábolas y Ecuaciones Cuadráticas
-    if (
+    // Evitar falso positivo cuando "vértice" refiere a ángulos, transportador o geometría plana
+    const extractedQuadratic = tryExtractQuadraticParameters(rawContext);
+    const hasExplicitQuadraticCue =
       searchText.includes('parabola') ||
+      searchText.includes('parabolic') ||
       searchText.includes('cuadrat') ||
       searchText.includes('segundo grado') ||
-      searchText.includes('trayectoria') ||
-      searchText.includes('vertice')
-    ) {
-      const extracted = tryExtractQuadraticParameters(rawContext);
-      if (extracted) {
-        return generateQuadraticGraph(extracted.a, extracted.b, extracted.c, {
-          title: extracted.title,
+      searchText.includes('discriminante') ||
+      searchText.includes('concav') ||
+      /x\s*(?:\^2|\u00b2)/i.test(rawContext);
+    const hasGeometryAngleCue =
+      /\b(?:angulo|angulos|transportador|bisectriz|suplementari[oa]?s?|complementari[oa]?s?|opuestos por el vertice|vertice del angulo|vertice comun|triangulo|poligono|cuadrilatero|pitagoras|trigonometr\w*|teorema de tales|congruencia|semejanza|circunferencia|cateto|hipotenusa)\b/.test(
+        searchText
+      );
+    const hasContextualQuadraticCue =
+      !hasGeometryAngleCue &&
+      (searchText.includes('trayectoria') || searchText.includes('vertice'));
+
+    if (extractedQuadratic || hasExplicitQuadraticCue || hasContextualQuadraticCue) {
+      if (extractedQuadratic) {
+        return generateQuadraticGraph(extractedQuadratic.a, extractedQuadratic.b, extractedQuadratic.c, {
+          title: extractedQuadratic.title,
         });
       }
 
@@ -530,7 +541,17 @@ export function dispatchVisual(
       });
     }
 
-    // 4. Triángulos, Teorema de Pitágoras y Trigonometría
+    // 4. Triángulos, Ángulos en el Plano, Teorema de Pitágoras y Trigonometría
+    const hasAngleGeometryTopic =
+      searchText.includes('angulo') ||
+      searchText.includes('transportador') ||
+      searchText.includes('bisectriz') ||
+      searchText.includes('suplementari') ||
+      searchText.includes('complementari') ||
+      searchText.includes('congruencia') ||
+      searchText.includes('semejanza') ||
+      searchText.includes('teorema de tales');
+
     if (
       searchText.includes('triangulo') ||
       searchText.includes('pitagoras') ||
@@ -540,9 +561,21 @@ export function dispatchVisual(
       searchText.includes('razon trigonometrica') ||
       searchText.includes('seno') ||
       searchText.includes('coseno') ||
-      searchText.includes('tangente')
+      searchText.includes('tangente') ||
+      hasAngleGeometryTopic
     ) {
+      const hasTriangleSpec =
+        searchText.includes('triangulo') ||
+        searchText.includes('pitagoras') ||
+        searchText.includes('trigonometr') ||
+        searchText.includes('cateto') ||
+        searchText.includes('hipotenusa');
       const mod = ((missionIndex - 1) % 3) + 1;
+      if (hasAngleGeometryTopic && !hasTriangleSpec) {
+        return generateTriangle(4, 3, 5, {
+          title: 'Geometría Plana: Vértices, Ángulos y Medición Angular',
+        });
+      }
       if (mod === 2) {
         return generateTriangle(8, 6, 10, {
           title: 'Razones Trigonométricas en Triángulo Semejante (6-8-10)',

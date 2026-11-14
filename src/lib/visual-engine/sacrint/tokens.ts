@@ -1,3 +1,5 @@
+export type SacrintThemeMode = 'dark' | 'light';
+
 export const SACRINT = {
   canvas: '#05070B',
   canvasDeep: '#02040A',
@@ -20,6 +22,47 @@ export const SACRINT = {
   amber: '#F5A524',
   white: '#FFFFFF',
 } as const;
+
+export const SACRINT_LIGHT = {
+  canvas: '#F8FAFC',
+  canvasDeep: '#F1F5F9',
+  panel: '#FFFFFF',
+  panelAlt: '#F1F5F9',
+  stroke: '#CBD5E1',
+  strokeSoft: '#E2E8F0',
+  grid: 'rgba(15,23,42,0.04)',
+  gridStrong: 'rgba(15,23,42,0.08)',
+  text: '#0F172A',
+  textSoft: '#334155',
+  muted: '#475569',
+  dim: '#64748B',
+  gold: '#B45309',
+  goldBright: '#D97706',
+  blue: '#1D4ED8',
+  cyan: '#0369A1',
+  emerald: '#047857',
+  red: '#B91C1C',
+  amber: '#B45309',
+  white: '#0F172A',
+} as const;
+
+/** Oscurece acentos luminosos de fondo oscuro para alto contraste en papel blanco (infografía imprimible). */
+export function resolveLightAccent(hex: string): string {
+  const map: Record<string, string> = {
+    '#D4AF37': '#9A6B00',
+    '#F1D27A': '#9A6B00',
+    '#007FFF': '#1D4ED8',
+    '#38BDF8': '#0369A1',
+    '#50C878': '#047857',
+    '#C084FC': '#7E22CE',
+    '#F97316': '#C2410C',
+    '#34D399': '#047857',
+    '#FBBF24': '#B45309',
+    '#F472B6': '#BE185D',
+    '#A78BFA': '#6D28D9',
+  };
+  return map[hex.toUpperCase()] ?? hex;
+}
 
 export const SACRINT_FONT = {
   display: 'Space Grotesk',

@@ -169,6 +169,25 @@ export interface FooterBranding {
 }
 
 /**
+ * Recorta etiquetas o títulos largos en frontera de palabra evitando cortar palabras a la mitad
+ * o dejar separadores/puntuación colgante (ej. `Bloque 1: Bloq` -> `Bloque 1`).
+ */
+export function truncateLabelAtWordBoundary(title: string, maxLength: number): string {
+  const clean = (title || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= maxLength) return clean;
+
+  const slice = clean.slice(0, maxLength);
+  let cut = slice;
+  if (clean.length > maxLength && !/\s/.test(clean[maxLength])) {
+    const lastSpace = slice.lastIndexOf(' ');
+    if (lastSpace >= Math.floor(maxLength * 0.4)) {
+      cut = slice.slice(0, lastSpace);
+    }
+  }
+  return cut.replace(/[\s:·,;.\-–—]+$/g, '').trim() || slice.trim();
+}
+
+/**
  * Resuelve el texto de pie de página para documentos y reportes oficiales.
  */
 export function resolveFooterBranding(
@@ -186,9 +205,10 @@ export function resolveFooterBranding(
 
   const blockNum = resolveBlockNumber(blockIndex);
   const blockSuffix = blockNum != null ? ` · Bloque ${blockNum}` : '';
+  const safeTitle = truncateLabelAtWordBoundary(title || '', 55);
   const leftText = docType === 'lesson_plan'
     ? `${getRuntimePlatformName()} · ${meta.shortLabel}${blockSuffix}`
-    : `${getRuntimePlatformName()} · ${meta.shortLabel} · ${(title || '').substring(0, 50)}`;
+    : `${getRuntimePlatformName()} · ${meta.shortLabel}${safeTitle ? ` · ${safeTitle}` : ''}`;
   const rightText = `Página ${page} de ${totalPages}`;
 
   return {

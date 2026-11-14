@@ -38,6 +38,7 @@ import {
 import { resolveHeaderBranding, type BrandingContext } from '@/lib/document-branding';
 import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
+import { parseInlineMarkdownSegments } from '@/lib/utils/inline-markdown';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
 
 // ── Paleta de Colores Institucionales DOCX (Hexadecimal sin #) ──────────────
@@ -101,7 +102,7 @@ export const BODY_LINE_SPACING: ISpacingProperties = {
 };
 
 /**
- * Parsea una cadena con formato Markdown de negritas (**texto**) y genera un array de TextRun de Word.
+ * Parsea una cadena con formato Markdown de negritas (**texto**) y cursivas (*texto*) y genera TextRun de Word.
  */
 export function parseTextRuns(
   text: string,
@@ -111,17 +112,15 @@ export function parseTextRuns(
   font = 'Arial'
 ): TextRun[] {
   if (!text) return [];
-  const parts = text.split(/\*\*([\s\S]*?)\*\*/g);
-  return parts.map((part, index) => {
-    const isBold = index % 2 === 1 || forceBold;
-    return new TextRun({
-      text: part,
-      bold: isBold,
-      size,
-      color,
-      font,
-    });
-  });
+  const segments = parseInlineMarkdownSegments(text);
+  return segments.map((seg) => new TextRun({
+    text: seg.text,
+    bold: seg.bold || forceBold,
+    italics: seg.italic || undefined,
+    size,
+    color,
+    font,
+  }));
 }
 
 export interface TableCellOptions {

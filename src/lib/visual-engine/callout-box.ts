@@ -7,6 +7,50 @@
  */
 
 import { stripMarkdown } from './content-extractor';
+import {
+  isLaboralSubject,
+  isStemSubject,
+  isTechnicalDrawingSubject,
+} from './visual-dispatcher';
+import { normalizeUnicode } from '@/lib/utils/normalize';
+
+/**
+ * Resuelve el título pedagógico del callout de demostración ("Yo Hago") según el área disciplinar.
+ * Reserva "Tip de Taller y Seguridad Operativa" únicamente para asignaturas laborales, talleres
+ * técnicos o laboratorios experimentales, evitando etiquetar matemáticas puras o humanidades como taller.
+ */
+export function resolveDemoCalloutTitle(subjectName?: string): string {
+  const raw = (subjectName || '').trim();
+  const norm = normalizeUnicode(raw);
+
+  // Evaluar matemáticas puras antes que 'taller' (p. ej. "Taller de Pensamiento Variacional")
+  if (
+    /\b(?:matematic|calculo|algebra|geometri|trigonometr|estadistic|probabilidad|variacional|aritmetic)[a-z]*\b/.test(
+      norm
+    )
+  ) {
+    return 'Estrategia Metodológica y Verificación';
+  }
+
+  if (isTechnicalDrawingSubject(raw)) {
+    return 'Tip de Trazo Técnico y Precisión';
+  }
+
+  if (
+    isLaboralSubject(raw) ||
+    /\b(?:laboratorio|quimic|biolog|ecolog|salud|enfermer|agropec|gastronom|culinar|mantenimiento|electron|mecanic|electric|soldadur|carpinter|taller\s+de\s+ciencias)[a-z]*\b/.test(
+      norm
+    )
+  ) {
+    return 'Tip de Taller y Seguridad Operativa';
+  }
+
+  if (isStemSubject(raw)) {
+    return 'Tip Metodológico y Precisión Científica';
+  }
+
+  return 'Pauta Metodológica de Resolución';
+}
 
 export interface CalloutBoxData {
   title: string;

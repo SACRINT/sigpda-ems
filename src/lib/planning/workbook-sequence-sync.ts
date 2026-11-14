@@ -22,15 +22,86 @@ function cleanText(raw: string | undefined | null): string {
     .trim();
 }
 
+const DANGLING_TRAILING_WORDS = new Set([
+  'de', 'del', 'a', 'al', 'en', 'con', 'sin', 'por', 'para', 'hacia', 'hasta',
+  'desde', 'sobre', 'entre', 'ante', 'bajo', 'tras', 'mediante', 'segun', 'según',
+  'durante', 'contra', 'y', 'e', 'o', 'u', 'ni', 'que', 'como', 'donde', 'cuando',
+  'mientras', 'el', 'la', 'los', 'las', 'lo', 'un', 'una', 'unos', 'unas',
+  'su', 'sus', 'mi', 'mis', 'tu', 'tus', 'nuestro', 'nuestra', 'nuestros', 'nuestras',
+  'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'esos', 'esas',
+  'utilizando', 'usando', 'empleando', 'aplicando', 'considerando', 'tomando', 'realizando',
+]);
+
+/**
+ * Recorta un texto largo en un límite natural (oración completa, cláusula o frontera de palabra)
+ * evitando terminar en comas colgantes, preposiciones, artículos, conjunciones o gerundios truncos.
+ */
+export function trimAtCleanBoundary(text: string, maxLen: number): string {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+
+  const stripDanglingTail = (input: string): string => {
+    const words = input.replace(/[,;:\-–—]+$/g, '').trim().split(/\s+/).filter(Boolean);
+    while (words.length > 3) {
+      const lastRaw = words[words.length - 1];
+      const lastClean = lastRaw.replace(/[,;:\-–—.!?]+$/g, '').toLowerCase();
+      if (!lastClean || DANGLING_TRAILING_WORDS.has(lastClean)) {
+        words.pop();
+        continue;
+      }
+      if (lastRaw !== lastClean && /[,;:\-–—]$/.test(lastRaw)) {
+        words[words.length - 1] = lastRaw.replace(/[,;:\-–—]+$/g, '');
+      }
+      break;
+    }
+    return words.join(' ').replace(/[,;:\-–—]+$/g, '').trim();
+  };
+
+  if (cleaned.length <= maxLen) {
+    return cleaned.replace(/[,;:\-–—]+$/g, '').trim();
+  }
+
+  const windowSlice = cleaned.slice(0, maxLen);
+
+  // 1. Preferir cierre natural de oración dentro de la ventana
+  const minSentenceIdx = Math.min(45, Math.floor(maxLen * 0.35));
+  let bestSentenceEnd = -1;
+  for (const m of windowSlice.matchAll(/[.!?](?=\s|$)/g)) {
+    if (typeof m.index === 'number' && m.index >= minSentenceIdx) {
+      bestSentenceEnd = m.index + 1;
+    }
+  }
+  if (bestSentenceEnd > 0) {
+    return windowSlice.slice(0, bestSentenceEnd).trim();
+  }
+
+  // 2. O bien un corte limpio de cláusula (coma o punto y coma suficientemente avanzado)
+  const minClauseIdx = Math.floor(maxLen * 0.55);
+  let bestClauseEnd = -1;
+  for (const m of windowSlice.matchAll(/[,;](?=\s)/g)) {
+    if (typeof m.index === 'number' && m.index >= minClauseIdx) {
+      bestClauseEnd = m.index;
+    }
+  }
+  if (bestClauseEnd > 0) {
+    return stripDanglingTail(windowSlice.slice(0, bestClauseEnd));
+  }
+
+  // 3. Corte en espacio completo y limpieza de preposiciones/conectores colgantes
+  const lastSpace = windowSlice.lastIndexOf(' ');
+  const wordCut = (lastSpace > 40 ? windowSlice.slice(0, lastSpace) : windowSlice).trim();
+  return stripDanglingTail(wordCut) || wordCut;
+}
+
 function firstSentence(raw: string | undefined | null, maxLen = 220): string {
   const cleaned = cleanText(raw);
   if (!cleaned) return '';
   const match = cleaned.match(/^.+?[.!?](?=\s|$)/);
   const sentence = match ? match[0].trim() : cleaned;
   if (sentence.length <= maxLen) return sentence;
-  const cut = sentence.slice(0, maxLen);
-  const lastSpace = cut.lastIndexOf(' ');
-  return `${(lastSpace > 60 ? cut.slice(0, lastSpace) : cut).trim()}.`;
+  const trimmed = trimAtCleanBoundary(sentence, maxLen);
+  if (!trimmed) return '';
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
 function formatObjectiveAsTitle(objetivo: string | undefined, fallbackTitle: string, sessionNum: number): string {
@@ -45,9 +116,7 @@ function formatObjectiveAsTitle(objetivo: string | undefined, fallbackTitle: str
       : `Sesión ${sessionNum}: ${fallbackTitle}`;
   }
   const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-  const concise = capitalized.length > 125
-    ? `${capitalized.slice(0, 125).replace(/\s+\S*$/, '')}`
-    : capitalized;
+  const concise = trimAtCleanBoundary(capitalized, 145).replace(/\.$/, '').trim();
   return `Sesión ${sessionNum}: ${concise}`;
 }
 

@@ -69,7 +69,7 @@ import {
   resolveExercise,
   formatRegistrationFormatText,
 } from '@/types/workbook-legacy';
-import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
+import { extractCalloutBox, resolveDemoCalloutTitle, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
 import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
@@ -4342,11 +4342,11 @@ async function buildMissionContent(
     );
   }
 
-  // Tip de Taller / Seguridad Operativa destacado
+  // Tip metodológico / seguridad contextualizado a la asignatura
   const demoCallout = extractCalloutBox(mission.iDoSection.stepByStepDemo || '', {
     missionNumber,
     defaultType: 'tip_taller',
-    defaultTitle: 'Tip de Taller y Seguridad Operativa',
+    defaultTitle: resolveDemoCalloutTitle(subjectName),
     defaultSubjectName: subjectName,
   });
   if (demoCallout) {

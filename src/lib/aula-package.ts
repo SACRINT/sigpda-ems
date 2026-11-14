@@ -9,9 +9,11 @@ import { selectAllExtrasCombined, selectExtrasForBlock } from '@/lib/planning-ex
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { getAllBlockWorkbooks } from '@/lib/db';
 import {
-  buildSacrintDeck,
+  buildSacrintDecksForWorkbook,
+  type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
 import {
@@ -302,12 +304,22 @@ export async function buildAulaPackageZip(
   // 8. Presentación PPTX
   if (hasWorkbooks) {
     try {
-      const decks = entries.flatMap((entry) => {
-        const missions = Math.max(1, (entry.workbook.missions ?? []).length);
-        return Array.from({ length: missions }, (_, missionIndex) =>
-          buildSacrintDeck(entry.workbook, { missionIndex, mode: 'classroom' })
-        );
-      });
+      const decks: SacrintDeckSpec[] = [];
+      for (const entry of entries) {
+        const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide' });
+        for (const deck of entryDecks) {
+          decks.push(deck);
+          const review = reviewBlockMaterials({
+            workbook: entry.workbook,
+            deck,
+            uacName: planning.uac_name,
+            checkFullBlockPersistence: false,
+          });
+          for (const issue of review.byMaterial.deck.issues) {
+            warnings.push(`[Bloque ${entry.blockIndex + 1} · Presentación] ${issue.code}: ${issue.message}`);
+          }
+        }
+      }
       if (decks.length > 0) {
         zip.file(
           `08_Presentacion_SACRINT_${cleanSubject}.pptx`,

@@ -1,6 +1,11 @@
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
-import { isStemSubject, isHumanitiesSubject } from '@/lib/visual-engine/visual-dispatcher';
+import {
+  isStemSubject,
+  isHumanitiesSubject,
+  isTechnicalDrawingSubject,
+  isLaboralSubject,
+} from '@/lib/visual-engine/visual-dispatcher';
 import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { buildSessionMoments } from './pedagogical-moments';
 import { auditPlanWorkbookCoherence, type CoherenceReport } from './plan-workbook-coherence';
@@ -8,6 +13,7 @@ import {
   parseMaterialTokens,
   parseMaterialTokensWithFallback,
   resolveMaterialTokensForMarkdown,
+  stripMaterialTokens,
   type ResolvedMaterial,
 } from '@/lib/materials/material-tokens';
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
@@ -562,7 +568,7 @@ function buildGuiaDelBloqueMarkdown(workbook: ActiveWorkTextbook): string {
   parts.push('Esta guía contiene las misiones prácticas, ejercicios escalonados y retos de aplicación que deberás resolver a lo largo del bloque formativo.\n');
 
   for (const mission of workbook.missions || []) {
-    parts.push(`### MISIÓN ${mission.missionIndex}: ${mission.title.toUpperCase()}`);
+    parts.push(`### MISIÓN ${mission.missionIndex}: ${stripLeadingMissionLabel(mission.title).toUpperCase()}`);
     parts.push(`*Tópico central:* ${mission.sessionTopic}`);
     parts.push(`\n**1. Situación Detonadora:**\n${mission.phenomenonHook?.story || ''}`);
     parts.push(`\n> **Pregunta Clave:** ${mission.phenomenonHook?.detonatingQuestion || ''}\n`);
@@ -682,7 +688,7 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
     isFirstMission = false;
     const sStart = mission.coveredSessions?.[0] ?? (mission.missionIndex * 3 - 2);
     const sEnd = mission.coveredSessions?.[mission.coveredSessions.length - 1] ?? (mission.missionIndex * 3);
-    parts.push(`### MISIÓN ${mission.missionIndex}: ${mission.title.toUpperCase()} (Sesiones ${sStart} a ${sEnd})`);
+    parts.push(`### MISIÓN ${mission.missionIndex}: ${stripLeadingMissionLabel(mission.title).toUpperCase()} (Sesiones ${sStart} a ${sEnd})`);
     parts.push(`*Foco instruccional:* ${mission.sessionTopic || mission.title} — ${mission.sessionFocus || 'Desarrollo de competencias situadas'}\n`);
 
     // A. Activación y preguntas detonadoras
@@ -1350,6 +1356,99 @@ function sanitizeTableCell(value: string): string {
   return value.replace(/\|/g, '/').replace(/\r?\n/g, ' ').trim();
 }
 
+const SESSION_COMMON_RESOURCES: ReadonlyArray<{ pattern: RegExp; label: string }> = [
+  { pattern: /\bcalculadora(?:\s+cient[ií]fica)?\b/i, label: 'Calculadora científica' },
+  { pattern: /\bjuego\s+de\s+geometr[ií]a\b/i, label: 'Juego de geometría' },
+  { pattern: /\btransportador(?:es)?\b/i, label: 'Transportador' },
+  { pattern: /\bcomp[aá]s\b/i, label: 'Compás' },
+  { pattern: /\bescuadras?\b/i, label: 'Escuadras' },
+  { pattern: /\bregla\s+(?:graduada|m[eé]trica|y\s+comp[aá]s)\b|\bregla\b/i, label: 'Regla graduada' },
+  { pattern: /\b(?:hojas?|papel)\s+milim[eé]tric[ao]s?\b/i, label: 'Hojas milimétricas' },
+  { pattern: /\b(?:hojas?|papel|cuaderno)\s+cuadriculad[ao]s?\b/i, label: 'Cuaderno u hojas cuadriculadas' },
+  { pattern: /\bplano\s+cartesiano\b/i, label: 'Plano cartesiano impreso' },
+  { pattern: /\bcinta\s+m[eé]trica\b|\bflex[oó]metro\b/i, label: 'Cinta métrica o flexómetro' },
+  { pattern: /\bcron[oó]metro\b/i, label: 'Cronómetro' },
+  { pattern: /\bgeogebra\b/i, label: 'GeoGebra (o trazado manual en hoja cuadriculada)' },
+  { pattern: /\bhoja\s+de\s+c[aá]lculo\b|\bexcel\b/i, label: 'Hoja de cálculo o registro tabulado' },
+  { pattern: /\bcartulina\b|\bpapel\s+bond\b/i, label: 'Cartulina o papel bond' },
+  { pattern: /\bplumones?\b|\bmarcadores?\b|\bl[aá]pices?\s+de\s+colores?\b/i, label: 'Colores o marcadores' },
+  { pattern: /\btabla\s+peri[oó]dica\b/i, label: 'Tabla periódica' },
+];
+
+function stripLeadingMissionLabel(title: string | undefined | null): string {
+  const trimmed = (title || '').trim();
+  const stripped = trimmed.replace(/^(?:misi[oó]n\s*(?:\d+|[IVXLCDM]+)?\s*[:\-–—.]\s*)+/i, '').trim();
+  return stripped || trimmed;
+}
+
+function resolveSessionMaterialsText(
+  workbook: ActiveWorkTextbook,
+  plan: PlanDeClaseDerivado,
+  bookPlan: SessionPlan | undefined,
+  tokenLabels: string[]
+): string {
+  if (tokenLabels.length > 0) {
+    return tokenLabels.map(sanitizeInline).join('; ');
+  }
+
+  // 1. Extraer estrategia dual explícita si el plan de sesión declara materiales concretos
+  const rec = stripMaterialTokens(plan.desarrollo.recursosDidacticos || '').trim();
+  const dualMarker = /Estrategia dual sin conectividad:\s*(.+)$/i;
+  const dualMatch = rec.match(dualMarker);
+  if (dualMatch && dualMatch[1]) {
+    const dualClean = sanitizeInline(dualMatch[1].replace(/\.$/, ''));
+    if (dualClean.length >= 6 && !/^cuaderno de trabajo activo/i.test(dualClean)) {
+      return dualClean;
+    }
+  }
+
+  // 2. Detectar instrumentos y recursos concretos mencionados en esta sesión
+  const sessionText = [
+    bookPlan?.objetivo,
+    bookPlan?.contenido,
+    bookPlan?.ejemploResuelto,
+    bookPlan?.aplicacion,
+    ...(bookPlan?.practica?.map((p) => `${p.enunciado} ${p.pista ?? ''}`) ?? []),
+    plan.apertura.actividadEstudiante,
+    plan.desarrollo.actividadEstudiante,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const detected: string[] = [];
+  for (const res of SESSION_COMMON_RESOURCES) {
+    if (res.pattern.test(sessionText) && !detected.includes(res.label)) {
+      detected.push(res.label);
+    }
+    if (detected.length >= 4) break;
+  }
+  if (detected.length > 0) {
+    return detected.join('; ');
+  }
+
+  // 3. Reutilizar insumos concretos del proyecto de bloque si existen
+  const projectMats = (workbook.projectSection?.requiredMaterials ?? [])
+    .map((m) => sanitizeInline(stripMaterialTokens(m)))
+    .filter((m) => m.length >= 3)
+    .slice(0, 3);
+  if (projectMats.length > 0) {
+    return projectMats.join('; ');
+  }
+
+  // 4. Baseline disciplinar concreto (cero frase de marcador genérico)
+  const subjectName = workbook.coverData?.subjectName || '';
+  if (isTechnicalDrawingSubject(subjectName)) {
+    return 'Lámina de dibujo, juego de escuadras, compás y lápiz HB/2H';
+  }
+  if (isStemSubject(subjectName)) {
+    return 'Cuaderno cuadriculado, regla graduada, lápiz y calculadora';
+  }
+  if (isLaboralSubject(subjectName)) {
+    return 'Bitácora técnica de práctica, formato de registro y equipo de seguridad escolar';
+  }
+  return 'Libro de bloque, cuaderno de trabajo, bolígrafo y bitácora de sesión';
+}
+
 function buildFichasTrabajoMarkdown(
   workbook: ActiveWorkTextbook,
   planes: PlanDeClaseDerivado[],
@@ -1392,10 +1491,7 @@ function buildFichasTrabajoMarkdown(
       '**Nombre:** ______________________________________  **Grupo:** ________  **Fecha:** ____/____/________'
     );
     parts.push(`**Propósito:** ${sanitizeInline(bookPlan?.objetivo || plan.propósitoOMeta)}`);
-    const materialesTexto =
-      materiales.length > 0
-        ? materiales.map(sanitizeInline).join('; ')
-        : 'Materiales del inventario del bloque (ver material didáctico)';
+    const materialesTexto = resolveSessionMaterialsText(workbook, plan, bookPlan, materiales);
     parts.push(`**Materiales:** ${materialesTexto}`);
     parts.push('');
 

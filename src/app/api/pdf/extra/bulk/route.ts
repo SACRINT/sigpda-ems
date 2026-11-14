@@ -15,7 +15,7 @@ import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import {
-  buildSacrintDeck,
+  buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
   type SacrintDeckSpec,
   type SacrintInfographicSpec,
@@ -421,13 +421,9 @@ async function handleBulkPdf(request: NextRequest) {
         const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
 
         if (effectiveEntries.length > 0) {
-          const sacrintDecks: SacrintDeckSpec[] = [];
-          for (const entry of effectiveEntries) {
-            const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
-            for (let m = 0; m < missionCount; m++) {
-              sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex: m, mode: 'classroom' }));
-            }
-          }
+          const sacrintDecks: SacrintDeckSpec[] = effectiveEntries.flatMap((entry) =>
+            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide' })
+          );
           if (sacrintDecks.length > 0) {
             const pptxBuf = await generateCombinedSacrintPptx(sacrintDecks, {
               title: `Presentación SACRINT completa — ${planning.uac_name}`,

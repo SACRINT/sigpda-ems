@@ -305,8 +305,31 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
   } = input;
 
   const persistedExtras = input.persistedExtras ?? input.extras;
-  const extracted =
-    input.extracted ?? extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
+  let extracted = input.extracted;
+  if (!extracted) {
+    try {
+      extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
+    } catch {
+      extracted = {
+        metadata: {
+          extractedAt: new Date(0).toISOString(),
+          blockIndex: workbook.blockIndex ?? 0,
+          blockName: workbook.blockName ?? '',
+          totalPlanesClase: 0,
+          subjectName: workbook.coverData?.subjectName ?? '',
+          schoolName: workbook.coverData?.schoolName ?? '',
+          executionTimeMs: 0,
+        },
+        planesDeClase: [],
+        guiaDelBloque: '',
+        solucionarioDocente: '',
+        instrumentosEvaluacion: '',
+        materialDidactico: '',
+        fichasTrabajo: '',
+        quiz: [],
+      };
+    }
+  }
 
   const issues: ReviewIssue[] = [];
   const pushIssue = (issue: ReviewIssue) => {
@@ -695,12 +718,14 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
   // ── S6: Presentaciones (deck), infografías y recursos gráficos ─────────────
   if (deck) {
     const slides = Array.isArray(deck.slides) ? deck.slides : [];
-    if (slides.length !== 8 && slides.length !== 4) {
+    const validLessonGuideCount =
+      deck.mode === 'lesson-guide' && slides.length >= 4 && slides.length <= 160;
+    if (!validLessonGuideCount && slides.length !== 8 && slides.length !== 4) {
       pushIssue({
         code: 'S6_INVALID_SLIDE_COUNT',
         material: 'deck',
         severity: 'error',
-        message: `El mazo de diapositivas contiene ${slides.length} láminas (se esperaban 8 en modo completo o 4 en modo aula).`,
+        message: `El mazo de diapositivas contiene ${slides.length} láminas (se esperaban 8 en modo completo, 4 en modo aula o de 4 a 160 en modo guía por clase).`,
       });
     }
     const serializedDeck = JSON.stringify(deck);

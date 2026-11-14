@@ -44,7 +44,7 @@ import {
   resolveExercise,
   formatRegistrationFormatText,
 } from '@/types/workbook-legacy';
-import { extractCalloutBox, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
+import { extractCalloutBox, resolveDemoCalloutTitle, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
 import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
@@ -3027,7 +3027,7 @@ async function drawMission(
   const demoCallout = extractCalloutBox(mission.iDoSection.stepByStepDemo || '', {
     missionNumber,
     defaultType: 'tip_taller',
-    defaultTitle: 'Tip de Taller y Seguridad Operativa',
+    defaultTitle: resolveDemoCalloutTitle(subjectName),
     defaultSubjectName: subjectName,
   });
   if (demoCallout) {

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getAllBlockWorkbooks, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildSacrintDeck, type SacrintDeckSpec } from '@/lib/visual-engine/sacrint/spec';
+import { buildSacrintDecksForWorkbook, type SacrintDeckMode, type SacrintDeckSpec } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import { reviewBlockMaterials, type ReviewIssue } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
@@ -65,7 +66,8 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const modeParam = searchParams.get('mode');
-    const deckMode = modeParam === 'full' ? 'full' : 'classroom';
+    const deckMode: SacrintDeckMode =
+      modeParam === 'full' ? 'full' : modeParam === 'classroom' ? 'classroom' : 'lesson-guide';
 
     // Restringir canónicamente a los 3 Cortes MCCEMS (0, 1, 2)
     const validBlockIndices = new Set([0, 1, 2]);
@@ -73,12 +75,41 @@ export async function GET(
     const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
 
     const sacrintDecks: SacrintDeckSpec[] = [];
+    const deckErrors: ReviewIssue[] = [];
+    const deckWarnings: ReviewIssue[] = [];
+
     for (const entry of effectiveEntries) {
-      const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
-      for (let missionIndex = 0; missionIndex < missionCount; missionIndex += 1) {
-        sacrintDecks.push(buildSacrintDeck(entry.workbook, { missionIndex, mode: deckMode }));
+      const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, { mode: deckMode });
+      for (const deck of entryDecks) {
+        sacrintDecks.push(deck);
+        const review = reviewBlockMaterials({
+          workbook: entry.workbook,
+          deck,
+          uacName: planRows[0].uac_name,
+          component: planRows[0].component || '',
+          checkFullBlockPersistence: false,
+        });
+        const issues = review.byMaterial.deck.issues;
+        deckErrors.push(...issues.filter((i) => i.severity === 'error'));
+        deckWarnings.push(...issues.filter((i) => i.severity === 'warning'));
       }
     }
+
+    if (deckErrors.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Material bloqueado por inconsistencia estructural',
+          issues: deckErrors,
+        },
+        { status: 422 }
+      );
+    }
+
+    const warningHeaders: Record<string, string> =
+      deckWarnings.length > 0
+        ? { 'X-Material-Warnings': String(deckWarnings.length) }
+        : {};
 
     const subjectName = sacrintDecks[0]?.meta.subjectName || planRows[0].uac_name || 'presentacion';
     const buffer = await generateCombinedSacrintPptx(sacrintDecks, {
@@ -98,6 +129,7 @@ export async function GET(
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'Content-Disposition': `attachment; filename="Presentacion_Todos_Bloques_${safeName}.pptx"`,
         'Cache-Control': 'no-store',
+        ...warningHeaders,
       },
     });
   } catch (error: unknown) {

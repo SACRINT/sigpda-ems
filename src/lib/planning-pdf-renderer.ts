@@ -213,14 +213,15 @@ function appendSequenceSessionsRows(
     const isAp = s.phase === 'Apertura';
     const isDes = s.phase === 'Desarrollo';
     const phaseColor = isAp ? phaseColors.apertura : isDes ? phaseColors.desarrollo : phaseColors.cierre;
+    const cleanEvidence = s.evidence ? stripMaterialTokens(s.evidence) : '';
     rows.push([
       {
         content: `S${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || sessions.length)}\n[${s.phase}]`,
         styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
       },
-      { content: s.title, styles: { fontStyle: 'bold', fontSize: 6.5 } },
-      { content: s.teachingActivity, styles: { fontSize: 6.2 } },
-      { content: `${s.learningActivity}${s.evidence ? `\n\n📌 Evidencia: ${s.evidence}` : ''}`, styles: { fontSize: 6.2 } },
+      { content: stripMaterialTokens(s.title), styles: { fontStyle: 'bold', fontSize: 6.5 } },
+      { content: stripMaterialTokens(s.teachingActivity), styles: { fontSize: 6.2 } },
+      { content: `${stripMaterialTokens(s.learningActivity)}${cleanEvidence ? `\n\n📌 Evidencia: ${cleanEvidence}` : ''}`, styles: { fontSize: 6.2 } },
     ]);
   });
 }
@@ -317,8 +318,8 @@ export async function generatePlanningPDF(
       }
     }
 
-    // 2. Jerarquía Institucional de Texto Oficial Centrado
-    currentY += 9;
+    // 2. Jerarquía Institucional de Texto Oficial Centrado (con holgura bajo el logo SEP)
+    currentY += 12;
     setFontHeading(doc);
     doc.setFontSize(8.5);
     doc.setTextColor(...NAVY);
@@ -584,19 +585,19 @@ export async function generatePlanningPDF(
     // Apertura
     macroRows.push([
       { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: `${act.apertura?.activities || 'Recuperación de conocimientos previos.'}\nMateriales: ${stripMaterialTokens(act.apertura?.materials || 'Cuaderno, pizarrón.')}` },
+      { content: `${stripMaterialTokens(act.apertura?.activities || 'Recuperación de conocimientos previos.')}\nMateriales: ${stripMaterialTokens(act.apertura?.materials || 'Cuaderno, pizarrón.')}` },
     ]);
 
     // Desarrollo
     macroRows.push([
       { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: `${act.ejecucion?.activities || 'Investigación, análisis y aplicación.'}\nMateriales: ${stripMaterialTokens(act.ejecucion?.materials || 'Guías, dispositivos.')}` },
+      { content: `${stripMaterialTokens(act.ejecucion?.activities || 'Investigación, análisis y aplicación.')}\nMateriales: ${stripMaterialTokens(act.ejecucion?.materials || 'Guías, dispositivos.')}` },
     ]);
 
     // Cierre
     macroRows.push([
       { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38 } },
-      { content: `${act.conclusion?.activities || 'Socialización de evidencias y síntesis.'}\nMateriales: ${stripMaterialTokens(act.conclusion?.materials || 'Instrumentos de evaluación.')}` },
+      { content: `${stripMaterialTokens(act.conclusion?.activities || 'Socialización de evidencias y síntesis.')}\nMateriales: ${stripMaterialTokens(act.conclusion?.materials || 'Instrumentos de evaluación.')}` },
     ]);
 
     const macroHead: RowInput[] = [];
@@ -639,11 +640,12 @@ export async function generatePlanningPDF(
         const phaseName = isAp ? 'Apertura' : isDes ? 'Desarrollo' : 'Cierre';
         const phaseColor = isAp ? PHASE_APERTURA : isDes ? PHASE_DESARROLLO : PHASE_CIERRE;
         const total = s.totalSessions ?? (totalBlockSessions || actSessions.length);
+        const cleanEvidence = s.evidence ? stripMaterialTokens(s.evidence) : '';
         return [
           { content: `S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 22, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
-          { content: s.title, styles: { fontStyle: 'bold', fontSize: 6, cellWidth: 42 } },
-          { content: s.teachingActivity, styles: { fontSize: 5.8 } },
-          { content: `${s.learningActivity}${s.evidence ? `\nEvidencia: ${s.evidence}` : ''}`, styles: { fontSize: 5.8 } },
+          { content: stripMaterialTokens(s.title), styles: { fontStyle: 'bold', fontSize: 6, cellWidth: 42 } },
+          { content: stripMaterialTokens(s.teachingActivity), styles: { fontSize: 5.8 } },
+          { content: `${stripMaterialTokens(s.learningActivity)}${cleanEvidence ? `\nEvidencia: ${cleanEvidence}` : ''}`, styles: { fontSize: 5.8 } },
         ];
       });
 
@@ -985,7 +987,7 @@ export async function generateSecuenciaPDF(
     }
   }
 
-  currentY += 9;
+  currentY += 12;
   setFontHeading(doc);
   doc.setFontSize(8.5);
   doc.setTextColor(...NAVY);
@@ -1210,15 +1212,15 @@ export async function generateSecuenciaPDF(
       // Fallback a momentos macro si no se generó secuencia micro
       rows.push([
         { content: 'Apertura (Exploración):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 38, textColor: PHASE_APERTURA } },
-        { content: act.apertura?.activities || 'Recuperación de conocimientos previos.', colSpan: 3 },
+        { content: stripMaterialTokens(act.apertura?.activities || 'Recuperación de conocimientos previos.'), colSpan: 3 },
       ]);
       rows.push([
         { content: 'Desarrollo (Construcción):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, textColor: PHASE_DESARROLLO } },
-        { content: act.ejecucion?.activities || 'Construcción y análisis.', colSpan: 3 },
+        { content: stripMaterialTokens(act.ejecucion?.activities || 'Construcción y análisis.'), colSpan: 3 },
       ]);
       rows.push([
         { content: 'Cierre (Metacognición):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, textColor: PHASE_CIERRE } },
-        { content: act.conclusion?.activities || 'Síntesis y evaluación.', colSpan: 3 },
+        { content: stripMaterialTokens(act.conclusion?.activities || 'Síntesis y evaluación.'), colSpan: 3 },
       ]);
     }
 

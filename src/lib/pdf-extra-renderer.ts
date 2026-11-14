@@ -33,10 +33,15 @@ import type { CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import {
   resolveHeaderBranding,
   resolveFooterBranding,
+  truncateLabelAtWordBoundary,
   INSTITUTIONAL_DEFAULTS,
   type BrandingContext,
 } from '@/lib/document-branding';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
+import {
+  parseInlineMarkdownSegments,
+  stripInlineMarkdownEmphasis,
+} from '@/lib/utils/inline-markdown';
 export { getExtraContentForRender };
 
 // ── Paleta institucional MCCEMS ─────────────────────────────────────────────
@@ -97,36 +102,45 @@ export function renderFormattedBlock(
   doc.setFontSize(fontSize);
   doc.setTextColor(...textColor);
 
-  // Descomponer en segmentos alternados normal / bold
-  const rawSegments = rawMarkdownLine.split(/\*\*([\s\S]*?)\*\*/g);
+  // Descomponer en segmentos tipográficos (normal, **negrita**, *cursiva*, ***ambos***)
+  // preservando operadores matemáticos (*) en expresiones algebraicas.
+  const segments = parseInlineMarkdownSegments(rawMarkdownLine);
   interface Token {
     word: string;
     bold: boolean;
+    italic: boolean;
     isSpace: boolean;
   }
 
   const tokens: Token[] = [];
-  rawSegments.forEach((seg, idx) => {
-    if (!seg) return;
-    const isBold = idx % 2 === 1;
-    const parts = seg.split(/(\s+)/);
+  for (const seg of segments) {
+    if (!seg.text) continue;
+    const parts = seg.text.split(/(\s+)/);
     for (const p of parts) {
       if (p.length > 0) {
         tokens.push({
           word: p,
-          bold: isBold,
+          bold: seg.bold,
+          italic: seg.italic,
           isSpace: /^\s+$/.test(p),
         });
       }
     }
-  });
+  }
 
   let currentX = x;
   let currentY = opts.y;
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
-    doc.setFont('helvetica', token.bold ? 'bold' : 'normal');
+    const fontStyle = token.bold && token.italic
+      ? 'bolditalic'
+      : token.bold
+        ? 'bold'
+        : token.italic
+          ? 'italic'
+          : 'normal';
+    doc.setFont('helvetica', fontStyle);
 
     if (token.isSpace && currentX === x) {
       continue; // Ignorar espacios al inicio de un nuevo renglón
@@ -327,7 +341,7 @@ export function renderExtraDocument(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...WHITE);
-    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${extra.title.substring(0, 85)}`, margin, 8);
+    doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${truncateLabelAtWordBoundary(extra.title, 85)}`, margin, 8);
     doc.setTextColor(...GOLD);
     doc.text(branding.cycle, pageWidth - margin, 8, { align: 'right' });
     y = margin + 6;
@@ -357,8 +371,11 @@ export function renderExtraDocument(
     }
     // Si todo queda vacío, conservar original
     const effectiveKeep = keepIdx.length > 0 ? keepIdx : tableHeaders.map((_, i) => i);
-    const filteredHeaders = effectiveKeep.map((i) => tableHeaders[i]);
-    const filteredData = tableData.map((row) => effectiveKeep.map((i) => row[i] ?? ''));
+    const filteredHeaders = effectiveKeep.map((i) => stripInlineMarkdownEmphasis(tableHeaders[i]));
+    const filteredRawData = tableData.map((row) => effectiveKeep.map((i) => row[i] ?? ''));
+    const filteredData = filteredRawData.map((row) =>
+      row.map((cell) => stripInlineMarkdownEmphasis(cell))
+    );
 
     const colCount = filteredHeaders.length;
     let colWidths: number[];
@@ -392,8 +409,12 @@ export function renderExtraDocument(
           styles: { fillColor: MID, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
         })),
       ],
-      body: filteredData.map((row) =>
+      body: filteredData.map((row, rowIdx) =>
         row.map((cell, cellIdx) => {
+          const rawCell = filteredRawData[rowIdx]?.[cellIdx] ?? '';
+          const isWholeBold = /^\*\*[\s\S]+\*\*$/.test(rawCell.trim());
+          const hasLeadingBoldCriterion =
+            isRubric && cellIdx === 0 && /^\*\*[^*]+\*\*/.test(rawCell.trim());
           const isCheck = cell === 'Sí' || cell === 'No' || /^\d+%$/.test(cell);
           const cellLower = cell.toLowerCase();
           const isApertura = cellIdx === 0 && cellLower.includes('apertura');
@@ -420,7 +441,7 @@ export function renderExtraDocument(
               fillColor: cellFill,
               textColor: cellText,
               halign: isCheck ? 'center' : 'left',
-              fontStyle: isCheck ? 'bold' : 'normal',
+              fontStyle: isCheck || isWholeBold || hasLeadingBoldCriterion ? 'bold' : 'normal',
             },
           };
         })
@@ -456,7 +477,7 @@ export function renderExtraDocument(
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(7.5);
           doc.setTextColor(...WHITE);
-          doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${extra.title.substring(0, 55)}`, margin, 8);
+          doc.text(`${INSTITUTIONAL_DEFAULTS.ORGANISMO} · ${branding.shortLabel} · ${truncateLabelAtWordBoundary(extra.title, 55)}`, margin, 8);
           doc.setTextColor(...GOLD);
           doc.text(branding.cycle, pageWidth - margin, 8, { align: 'right' });
         }
@@ -510,7 +531,7 @@ export function renderExtraDocument(
   const countItemLines = (text: string, width: number): number => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(smallFontSize);
-    const clean = text.replace(/\*\*/g, '');
+    const clean = stripInlineMarkdownEmphasis(text);
     const wrapped = doc.splitTextToSize(clean, Math.max(20, width * 0.96)) as string[];
     return Math.max(1, wrapped.length);
   };
@@ -587,7 +608,7 @@ export function renderExtraDocument(
     const line = raw.trim();
 
     if (line.startsWith('|')) {
-      if (/^\|[\s:-|]+$/.test(line)) continue; // Separador |---|---|
+      if (/^\|[\s:|-]+$/.test(line)) continue; // Separador |---|---| (guion al final del character class)
       const cells = line.split('|').slice(1, -1).map((c) => c.trim());
       if (!inTable) {
         inTable = true;

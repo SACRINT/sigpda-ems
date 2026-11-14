@@ -111,8 +111,11 @@ export function drawMissionBanner(doc: jsPDF, opts: MissionBannerOptions): numbe
   } = opts;
   const y = opts.y;
 
-  // Título de misión en Montserrat Bold (con límite estricto dentro de mainW)
-  const cleanTitle = sanitizePdfText(stripMarkdown(title)).toUpperCase();
+  // Título de misión en Montserrat Bold (con límite estricto dentro de mainW y sin prefijo "MISIÓN N:" duplicado)
+  const rawCleanTitle = sanitizePdfText(stripMarkdown(title)).toUpperCase();
+  const cleanTitle =
+    rawCleanTitle.replace(/^(?:MISI[OÓ]N\s*(?:\d+|[IVXLCDM]+)?\s*[:\-–—.]\s*)+/i, '').trim() ||
+    rawCleanTitle;
   const bannerTitleStr = `MISIÓN ${missionNumber}: ${cleanTitle}`;
   setFontHeading(doc);
   doc.setFontSize(10.0);
@@ -380,7 +383,8 @@ export function drawCalloutBox(
   const bgColor = (callout.bgRgb as RGB) || COLOR.DIAGNOSTIC_BG;
 
   const rawIcon = callout.icon || '';
-  const iconText = EMOJI_TO_TEXT[rawIcon] || (rawIcon ? sanitizePdfText(rawIcon) : '') || '•';
+  const rawIconText = EMOJI_TO_TEXT[rawIcon] || (rawIcon ? sanitizePdfText(rawIcon) : '') || '•';
+  const iconText = rawIconText.replace(/^\[(.*)\]$/, '$1').trim() || '•';
   const cleanTitle = sanitizePdfText(stripMarkdown(callout.title)).toUpperCase();
   const badgeLabel = `[ ${iconText} · ${cleanTitle} ]`;
 

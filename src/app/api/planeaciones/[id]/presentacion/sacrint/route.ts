@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildSacrintDeck, SACRINT_SLIDE_COUNT } from '@/lib/visual-engine/sacrint/spec';
+import { buildSacrintDeck, SACRINT_SLIDE_COUNT, type SacrintDeckMode } from '@/lib/visual-engine/sacrint/spec';
 import { renderDeckSvgs } from '@/lib/visual-engine/sacrint/slide-renderer';
 import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { renderSvgToPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
@@ -44,6 +44,9 @@ export async function GET(
     const missionPos = parseInt(searchParams.get('missionIndex') || '0', 10);
     const slidePos = parseInt(searchParams.get('slide') || '0', 10);
     const format = (searchParams.get('format') || 'json').toLowerCase();
+    const modeParam = searchParams.get('mode');
+    const deckMode: SacrintDeckMode =
+      modeParam === 'lesson-guide' ? 'lesson-guide' : modeParam === 'classroom' ? 'classroom' : 'full';
 
     if (isNaN(blockIndex) || blockIndex < 0) {
       return NextResponse.json({ error: 'blockIndex inválido' }, { status: 400 });
@@ -54,7 +57,11 @@ export async function GET(
     if (!['json', 'svg', 'png', 'pptx'].includes(format)) {
       return NextResponse.json({ error: 'format inválido (json | svg | png | pptx)' }, { status: 400 });
     }
-    if ((format === 'svg' || format === 'png') && (isNaN(slidePos) || slidePos < 0 || slidePos >= SACRINT_SLIDE_COUNT)) {
+    if (
+      deckMode !== 'lesson-guide' &&
+      (format === 'svg' || format === 'png') &&
+      (isNaN(slidePos) || slidePos < 0 || slidePos >= SACRINT_SLIDE_COUNT)
+    ) {
       return NextResponse.json({ error: `slide inválido (0-${SACRINT_SLIDE_COUNT - 1})` }, { status: 400 });
     }
 
@@ -101,7 +108,10 @@ export async function GET(
       return NextResponse.json({ error: 'La misión solicitada no existe en este bloque' }, { status: 404 });
     }
 
-    const deck = buildSacrintDeck(workbook, { missionIndex: missionPos });
+    const deck = buildSacrintDeck(workbook, { missionIndex: missionPos, mode: deckMode });
+    if ((format === 'svg' || format === 'png') && (isNaN(slidePos) || slidePos < 0 || slidePos >= deck.slides.length)) {
+      return NextResponse.json({ error: `slide inválido (0-${Math.max(0, deck.slides.length - 1)})` }, { status: 400 });
+    }
     const review = reviewBlockMaterials({
       workbook,
       deck,

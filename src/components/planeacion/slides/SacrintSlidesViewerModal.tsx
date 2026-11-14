@@ -46,6 +46,7 @@ export default function SacrintSlidesViewerModal({
   const [data, setData] = useState<SacrintSlidesPayload | null>(null);
   const [missions, setMissions] = useState<MissionOption[]>([]);
   const [missionPos, setMissionPos] = useState(0);
+  const [deckMode, setDeckMode] = useState<'lesson-guide' | 'full'>('lesson-guide');
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
@@ -58,7 +59,7 @@ export default function SacrintSlidesViewerModal({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${base}&missionIndex=${missionPos}&format=json`);
+        const res = await fetch(`${base}&missionIndex=${missionPos}&mode=${deckMode}&format=json`);
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error || 'No se pudo cargar la presentación SACRINT');
         if (!cancelled) {
@@ -72,7 +73,7 @@ export default function SacrintSlidesViewerModal({
       }
     })();
     return () => { cancelled = true; };
-  }, [base, missionPos]);
+  }, [base, missionPos, deckMode]);
 
   const total = data?.deck.slides.length ?? 8;
 
@@ -113,13 +114,13 @@ export default function SacrintSlidesViewerModal({
   }, [go, onClose, toggleFullscreen, total]);
 
   const previewSrc = data
-    ? `${base}&missionIndex=${missionPos}&slide=${index}&format=png`
+    ? `${base}&missionIndex=${missionPos}&mode=${deckMode}&slide=${index}&format=png`
     : '';
   const downloadSrc = data
-    ? `${base}&missionIndex=${missionPos}&slide=${index}&format=png&download=1`
+    ? `${base}&missionIndex=${missionPos}&mode=${deckMode}&slide=${index}&format=png&download=1`
     : '#';
   const pptxSrc = data
-    ? `${base}&missionIndex=${missionPos}&format=pptx`
+    ? `${base}&missionIndex=${missionPos}&mode=${deckMode}&format=pptx`
     : '#';
 
   const buttonStyle: React.CSSProperties = {
@@ -146,6 +147,21 @@ export default function SacrintSlidesViewerModal({
         <strong style={{ color: '#E6EEF8', fontSize: 14, marginRight: 'auto' }}>
           SACRINT · {data?.deck.meta.subjectName ?? 'Presentación'} · Misión {data?.deck.meta.missionNumber ?? missionPos + 1} — {index + 1}/{total}
         </strong>
+        <select
+          aria-label="Modo de presentación"
+          value={deckMode}
+          onChange={(event) => {
+            setDeckMode(event.target.value as 'lesson-guide' | 'full');
+            setIndex(0);
+            setLoading(true);
+            setImageLoading(true);
+            setError(null);
+          }}
+          style={{ ...buttonStyle, padding: '6px 8px', color: '#fff' }}
+        >
+          <option value="lesson-guide" style={{ color: '#000' }}>Guía expositiva por clase</option>
+          <option value="full" style={{ color: '#000' }}>Resumen de misión (8 láminas)</option>
+        </select>
         {missions.length > 1 && (
           <select
             aria-label="Misión"
@@ -169,7 +185,17 @@ export default function SacrintSlidesViewerModal({
         <button style={buttonStyle} onClick={() => go(-1)} disabled={index === 0}>◀</button>
         <button style={buttonStyle} onClick={() => go(1)} disabled={index === total - 1}>▶</button>
         <a style={{ ...buttonStyle, textDecoration: 'none' }} href={downloadSrc}>⬇ PNG</a>
-        <a style={{ ...buttonStyle, textDecoration: 'none' }} href={pptxSrc} title="Descargar las 8 diapositivas editables">⬇ PPTX</a>
+        <a
+          style={{ ...buttonStyle, textDecoration: 'none' }}
+          href={pptxSrc}
+          title={
+            deckMode === 'lesson-guide'
+              ? `Descargar presentación guía por clase (${total} diapositivas editables)`
+              : 'Descargar las 8 diapositivas editables'
+          }
+        >
+          ⬇ PPTX
+        </a>
         <button style={buttonStyle} onClick={toggleFullscreen}>⛶ Pantalla completa (F)</button>
         <button style={{ ...buttonStyle, background: '#B91C1C' }} onClick={onClose}>✕ Cerrar</button>
       </div>
