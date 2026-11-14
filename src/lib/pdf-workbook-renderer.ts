@@ -2411,10 +2411,11 @@ async function drawMission(
     try {
       const visual = dispatchVisual(effSubject || 'Formación Fundamental', topic, context, sNum);
       if (!visual) return curY;
-      const img = await svgToPngBuffer(visual.svg);
+      const sessionScopedSvg = visual.svg.replace(/\bMisi[oó]n\s+(\d+)\b/g, 'Sesión $1');
+      const img = await svgToPngBuffer(sessionScopedSvg);
       if (!img) return curY;
       // Proporción REAL del SVG (nunca forzar una altura fija: aplasta ejes y etiquetas)
-      const svgDim = extractSvgDimensions(visual.svg);
+      const svgDim = extractSvgDimensions(sessionScopedSvg);
       const imgW = Math.min(72, mainW * 0.62);
       const imgH = imgW * (svgDim.height / svgDim.width);
       let ny = checkSpace(curY, imgH + 5.0);

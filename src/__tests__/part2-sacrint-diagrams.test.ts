@@ -130,5 +130,42 @@ describe('SACRINT Part 2 — Non-Fabricated Mathematical Diagrams', () => {
     if (sysDiag.kind === 'system-2x2') {
       expect(sysDiag.intersection).toEqual({ x: 2, y: 1 });
     }
+
+    // 2-term quadratic f(x) = -2x² + 20x (c = 0)
+    const twoTermQuadSession = makeSession({
+      objetivo: 'Optimizar el área de un terreno con función cuadrática',
+      ejemploResuelto: 'f(x) = -2x² + 20x',
+    });
+    const twoTermQuad = buildSacrintDiagram(mission, pack, { session: twoTermQuadSession, allowMissionFallback: false });
+    expect(twoTermQuad.kind).toBe('quadratic');
+    expect(twoTermQuad.available).toBe(true);
+    if (twoTermQuad.kind === 'quadratic') {
+      expect(twoTermQuad.a).toBe(-2);
+      expect(twoTermQuad.b).toBe(20);
+      expect(twoTermQuad.c).toBe(0);
+      expect(twoTermQuad.vertexX).toBe(5);
+      expect(twoTermQuad.vertexY).toBe(50);
+    }
+
+    // Substitution system 2x2: x + y = 180 and x = 2y, skipping collinear equations
+    const subSysSession = makeSession({
+      objetivo: 'Resolver sistema 2x2 por sustitución',
+      ejemploResuelto: 'x + y = 180 y sabemos que x = 2y',
+    });
+    const subSysDiag = buildSacrintDiagram(mission, pack, { session: subSysSession, allowMissionFallback: false });
+    expect(subSysDiag.kind).toBe('system-2x2');
+    expect(subSysDiag.available).toBe(true);
+    if (subSysDiag.kind === 'system-2x2') {
+      expect(subSysDiag.intersection).toEqual({ x: 120, y: 60 });
+    }
+
+    // Linear cost model C(m) = 1200m + 3500 must NOT be hijacked by exponential diagram
+    const linearCostSession = makeSession({
+      objetivo: 'Modelar costo lineal acumulado con C(m) = 1,200m + 3,500',
+      contenido: 'La población de usuarios aporta una cuota mensual constante donde C(m) = 1,200m + 3,500.',
+    });
+    const linearCostDiag = buildSacrintDiagram(mission, pack, { session: linearCostSession, allowMissionFallback: false });
+    expect(linearCostDiag.kind).toBe('linear');
+    expect(linearCostDiag.available).toBe(true);
   });
 });

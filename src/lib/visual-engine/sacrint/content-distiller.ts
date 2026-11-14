@@ -23,7 +23,7 @@ const BOILERPLATE_PREFIX_RE =
   /^(?:(?:misi[oó]n|bloque|sesi[oó]n)\s*\d+\s*:\s*)+(?:optimizaci[oó]n\s+y\s+consolidaci[oó]n\s+de\s+la\s+evidencia|exploraci[oó]n\s+diagn[oó]stica\s+y\s+problematizaci[oó]n\s+situada|modelado\s+metodol[oó]gico\s+y\s+procedimientos\s+clave|evaluaci[oó]n\s+(?:de\s+logros|sumativa|diagn[oó]stica)|fundamentaci[oó]n\s+e\s+intuici[oó]n)\s*[—–\-:]\s*/i;
 
 const CHALKBOARD_VERB_LEAD_RE =
-  /^(?:en\s+esta\s+sesi[oó]n\s+|durante\s+esta\s+(?:clase|sesi[oó]n)\s+|hoy\s+)?(?:(?:vas\s+a|aprender[aá]s\s+a|lograr[aá]s|podr[aá]s|vamos\s+a)\s+)?(?:identificar|comprender|analizar|aplicar|resolver|modelar|calcular|construir|explorar|reconocer|utilizar|interpretar|evaluar|comparar|explicar|traducir|plantear|desarrollar|integrar|verificar|validar|formular|dise[ñn]ar|estructurar|realizar|ejecutar|sistematizar|sintetizar|argumentar|contrastar|deducir|inferir|estimar|medir|graficar|representar|diagnosticar|revisar|presentar|socializar|consolidar|optimizar|dominar|emplear|establecer|determinar)[a-záéíóúñ]*\s+(?:c[oó]mo\s+|qu[eé]\s+(?:es|son)\s+)?(?:el\s+concepto\s+de\s+|la\s+importancia\s+de\s+|el\s+uso\s+de\s+|la\s+aplicaci[oó]n\s+de\s+|una?\s+revisi[oó]n\s+de\s+|un[ao]?\s+|el\s+|la\s+|los\s+|las\s+)?/i;
+  /^(?:(?:en\s+esta\s+sesi[oó]n|durante\s+esta\s+(?:clase|sesi[oó]n)|hoy|al\s+finalizar\s+la\s+sesi[oó]n)\s*,?\s+)?(?:(?:vas\s+a|aprender[aá]s\s+a|lograr[aá]s|podr[aá]s|vamos\s+a|deber[aá]s)\s+)?(?:(?:aprender\s+a|comenzar\s+a|terminar\s+de|volver\s+a|continuar\s+a)\s+)?(?:(?:y|e|o)\s+)?(?:(?:identificar|comprender|analizar|aplicar|resolver|modelar|calcular|construir|explorar|reconocer|utilizar|interpretar|evaluar|comparar|explicar|traducir|plantear|desarrollar|integrar|verificar|validar|formular|dise[ñn]ar|estructurar|realizar|ejecutar|sistematizar|sintetizar|argumentar|contrastar|deducir|inferir|estimar|medir|graficar|representar|diagnosticar|revisar|presentar|socializar|consolidar|optimizar|depurar|dominar|emplear|establecer|determinar|sustentar|justificar|elaborar|redactar|exponer|defender)[a-záéíóúñ]*(?:\s*(?:,\s*|\s+(?:y|e|o)\s+|\s+a\s+)[a-záéíóúñ]+(?:ar|er|ir|rse))*\s+)+(?:(?:formativamente|colaborativamente|aut[oó]nomamente|cr[ií]ticamente|anal[ií]ticamente|rigurosamente|sistem[aá]ticamente|paso\s+a\s+paso)\s+)?(?:(?:tus|sus|los|las)\s+(?:aprendizajes|conocimientos|saberes|habilidades|competencias|procedimientos|resultados|avances)(?:\s+y\s+(?:consolidar|aplicar|validar|presentar|integrar|socializar)[a-záéíóúñ]*\s+)?)?(?:c[oó]mo\s+|qu[eé]\s+(?:es|son)\s+|cu[aá]ndo\s+)?(?:el\s+concepto\s+de\s+|la\s+importancia\s+de\s+|el\s+uso\s+de\s+|la\s+aplicaci[oó]n\s+de\s+|una?\s+revisi[oó]n\s+de\s+|un[ao]?\s+|el\s+|la\s+|los\s+|las\s+|tus\s+|sus\s+)?/i;
 
 const CHALKBOARD_PURPOSE_TAIL_RE =
   /\s*(?:,\s*)?(?:para\s+(?:que|resolver|modelar|determinar|calcular|analizar|comprender|aplicar|explicar|evaluar|comparar|tomar|fundamentar|optimizar|identificar|construir|interpretar|verificar|validar|lograr|obtener|establecer|representar)|con\s+el\s+prop[oó]sito\s+de|con\s+la\s+finalidad\s+de|a\s+fin\s+de|evaluando\s+registros|utilizando\s+datos\s+de\s+tu|en\s+situaciones\s+de\s+tu\s+entorno|como\s+una?\s+herramienta\s+[a-záéíóúñ]+\s+fundamental\s+para)\b.*$/i;
@@ -148,20 +148,64 @@ export function extractChalkboardTopicTitle(
       ' para $1'
     )
     .replace(CHALKBOARD_VERB_LEAD_RE, '')
+    .replace(CHALKBOARD_VERB_LEAD_RE, '')
+    .replace(/^(?:(?:y|e|o)\s+)?(?:formativamente|colaborativamente|aut[oó]nomamente|cr[ií]ticamente|anal[ií]ticamente)\s+(?:los\s+|las\s+|el\s+|la\s+)?/i, '')
+    .replace(/^(?:tus|sus)\s+(?:aprendizajes|conocimientos|saberes|procedimientos)(?:\s+y\s+(?:consolidar|aplicar|validar|integrar|socializar)[a-záéíóúñ]*\s+(?:el\s+|la\s+|los\s+|las\s+)?)?/i, '')
     .replace(CHALKBOARD_PURPOSE_TAIL_RE, '')
-    .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una)\s*$/i, '')
+    .replace(/\s+y\s+activar[aá]s\s+tus(?:\s+[a-záéíóúñ]+)?$/i, '')
+    .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*$/i, '')
     .replace(/[,;:\-–—]+$/, '')
     .trim();
 
   if (concise.length < 14) {
     concise = firstSentence
       .replace(CHALKBOARD_VERB_LEAD_RE, '')
+      .replace(CHALKBOARD_VERB_LEAD_RE, '')
+      .replace(/\s+y\s+activar[aá]s\s+tus(?:\s+[a-záéíóúñ]+)?$/i, '')
+      .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*$/i, '')
       .replace(/[,;:\-–—]+$/, '')
       .trim();
   }
   if (!concise) concise = base;
-  const bounded = concise.length > 68 ? trimAtCleanBoundary(concise, 68).replace(/[,;:\-–—]+$/, '').trim() : concise;
+  const bounded =
+    concise.length > 68
+      ? trimAtCleanBoundary(concise, 68)
+          .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*$/i, '')
+          .replace(/[,;:\-–—]+$/, '')
+          .trim()
+      : concise;
   return bounded.charAt(0).toUpperCase() + bounded.slice(1);
+}
+
+/**
+ * Limpia subtítulos de portada o síntesis de misión que contengan listas "Sesión 1: ... · Sesión 2: ..."
+ * o cortes de presupuesto como "... y activarás tus".
+ */
+export function cleanMissionTopicLine(
+  rawTopic: string | null | undefined,
+  fallbackTitle?: string | null
+): string {
+  const clean = cleanSacrintText(rawTopic)
+    .replace(/\s+y\s+activar[aá]s\s+tus(?:\s+[a-záéíóúñ]+)?(?=[\s·.,;:]|$)/gi, '')
+    .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*(?=·|$)/gi, '')
+    .trim();
+  if (!clean) return cleanSacrintText(fallbackTitle) || 'Síntesis curricular de la misión';
+
+  if (/sesi[oó]n\s*\d+\s*:/i.test(clean)) {
+    const parts = clean
+      .split(/\s*·\s*/)
+      .map((part) => {
+        const m = part.match(/^(sesi[oó]n\s*\d+)\s*:\s*(.+)$/i);
+        if (!m) return extractChalkboardTopicTitle(part);
+        return `${m[1]}: ${extractChalkboardTopicTitle(m[2])}`;
+      })
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return parts.slice(0, 4).join(' · ');
+    }
+  }
+
+  return distillConciseText(clean, 175, 28) || clean;
 }
 
 /**
@@ -273,6 +317,95 @@ function cleanStepLine(rawStep: string): string {
     .trim();
 }
 
+const STEP_HEADING_ONLY_RE =
+  /^(?:(?:comprensi[oó]n|identificaci[oó]n|planteamiento|traducci[oó]n|resoluci[oó]n|despeje|sustituci[oó]n|verificaci[oó]n|comprobaci[oó]n|interpretaci[oó]n|conclusi[oó]n|an[aá]lisis|c[aá]lculo|determinaci[oó]n|evaluaci[oó]n|organizaci[oó]n|aplicaci[oó]n|simplificaci[oó]n|reducci[oó]n|igualaci[oó]n|factorizaci[oó]n|graficaci[oó]n|tabulaci[oó]n|comparaci[oó]n|selecci[oó]n|definici[oó]n|modelado|formulaci[oó]n)[^.?!:=0-9]{0,65}[.:]\s*)/i;
+
+/**
+ * Sintetiza un paso de resolución asegurando que NUNCA se pierdan las ecuaciones,
+ * operaciones o datos numéricos cuando la primera oración es un subtítulo descriptivo.
+ */
+export function distillStepPreservingMath(rawStep: string, maxChars = 185): string {
+  const clean = cleanStepLine(rawStep);
+  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  if (clean.length <= maxChars) return clean;
+
+  // Quitar subtítulo inicial ("Comprensión e identificación de datos.", "Resolución paso a paso.") si después hay contenido real
+  const withoutHeading = clean.replace(STEP_HEADING_ONLY_RE, '').trim();
+  const working = withoutHeading.length >= 16 ? withoutHeading : clean;
+  if (working.length <= maxChars) return working;
+
+  const sentences = working
+    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9(¿¡\-])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length >= 2) {
+    const mathSentences = sentences.filter((s) => /[0-9=+\-*/^²³√%→]/.test(s));
+    if (mathSentences.length > 0) {
+      const joinedMath = mathSentences.join(' ');
+      if (joinedMath.length <= maxChars) {
+        if (!mathSentences.includes(sentences[0]) && sentences[0].length + joinedMath.length + 1 <= maxChars) {
+          return `${sentences[0]} ${joinedMath}`;
+        }
+        return joinedMath;
+      }
+      // Si las oraciones con matemáticas aún exceden maxChars, cortar en límite de palabra sin borrar la segunda oración en el primer punto
+      return joinedMath.slice(0, maxChars).replace(/\s+\S*$/, '').replace(/[,;:\-]+$/, '').trim();
+    }
+  }
+
+  return distillConciseText(working, maxChars);
+}
+
+/**
+ * Sintetiza un problema o ejercicio preservando íntegros los números, ecuaciones y la pregunta final.
+ * Evita que `trimAtCleanBoundary` corte en el punto de la primera oración eliminando la pregunta o los datos.
+ */
+export function distillProblemOrExerciseText(
+  rawText: string | null | undefined,
+  maxChars = 265
+): string {
+  const clean = cleanSacrintText(rawText)
+    .replace(/^(?:planteamiento|problema|enunciado|situaci[oó]n)\s*[:.\-–]\s*/i, '')
+    .trim();
+  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  if (clean.length <= maxChars) return clean;
+
+  const sentences = clean
+    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9(¿¡])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length >= 2) {
+    // Priorizar las oraciones que contienen datos numéricos, ecuaciones, signos de interrogación o verbos de consigna
+    const essential = sentences.filter(
+      (s, idx) =>
+        idx > 0 ||
+        /[0-9=¿?%$²³]/.test(s) ||
+        /\b(?:calcula|determina|encuentra|resuelve|plantea|obtiene|redacta|analiza|explica|compara|identifica|prop[oó]n|elabora|construye|eval[úu]a|cu[aá]nto|cu[aá]l|qu[eé])\b/i.test(
+          s
+        )
+    );
+    // Si la primera oración es puramente narrativa (sin números ni pregunta) y el resto sí cabe:
+    const tailWithoutIntro = sentences.slice(1).join(' ');
+    if (
+      !/[0-9=¿?%$]/.test(sentences[0]) &&
+      tailWithoutIntro.length >= 35 &&
+      tailWithoutIntro.length <= maxChars
+    ) {
+      return tailWithoutIntro;
+    }
+    const essentialJoined = essential.join(' ');
+    if (essentialJoined.length >= 35 && essentialJoined.length <= maxChars) {
+      return essentialJoined;
+    }
+  }
+
+  // Si aún excede maxChars, cortar en el último espacio antes de maxChars sin retroceder hasta el primer punto
+  const sliced = clean.slice(0, maxChars).replace(/\s+\S*$/, '').replace(/[,;:\-]+$/, '').trim();
+  return /[.?!]$/.test(sliced) ? sliced : `${sliced}.`;
+}
+
 export interface DistillOptions {
   /**
    * Cuando es `false` (ej. modo `lesson-guide`), extrae únicamente desde `session`
@@ -326,16 +459,33 @@ export function extractConceptHighlights(
     cleanSacrintText(session?.objetivo) ||
     analogyClean;
 
-  const definition = distillConciseText(definitionSource, 200, 34);
-  const rulePoolText =
-    candidateTexts.slice(1).join(' ') ||
-    candidateTexts[0] ||
-    analogyClean ||
-    (!allowMission ? cleanSacrintText(session?.saberesPrevios || session?.motivacion) : '');
-  const keyRules = extractBulletSentences(rulePoolText, 3, 130).filter((r) => r !== definition);
+  const definitionSentences = extractBulletSentences(definitionSource, 3, 185);
+  const conceptualDefSentence =
+    definitionSentences.find(
+      (s) =>
+        !/^(?:imagina|piensa|observa|recuerda|en\s+esta\s+sesi[oó]n|hoy\s+vas)/i.test(s) &&
+        s.length >= 24
+    ) || definitionSentences[0];
+  const definition = conceptualDefSentence || distillConciseText(definitionSource, 200, 34);
+
+  const rulePoolText = [
+    ...candidateTexts,
+    allowMission ? cleanSacrintText(mission.conceptZero?.coreExplanation) : '',
+    analogyClean,
+    !allowMission ? cleanSacrintText(session?.saberesPrevios || session?.motivacion) : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const allCandidateRules = extractBulletSentences(rulePoolText, 6, 155).filter(
+    (r) =>
+      r !== definition &&
+      r.length >= 25 &&
+      !/^(?:imagina\s+que|sup[oó]n\s+que|recuerda\s+cuando)\b/i.test(r)
+  );
+  const keyRules = allCandidateRules.slice(0, 3);
 
   if (keyRules.length === 0 && analogyClean) {
-    const analogyPoint = distillConciseText(analogyClean, 130, 22);
+    const analogyPoint = distillConciseText(analogyClean, 145, 25);
     if (analogyPoint && analogyPoint !== definition) keyRules.push(analogyPoint);
   }
   if (!allowMission && keyRules.length === 0) {
@@ -356,19 +506,48 @@ export function extractConceptHighlights(
   };
 }
 
-function extractExampleConclusion(rawExample: string, steps: string[]): string {
+const CONCLUSION_HEADING_PREFIX_RE =
+  /^(?:(?:verificaci[oó]n|comprobaci[oó]n|interpretaci[oó]n|conclusi[oó]n|validaci[oó]n|cierre)[^.?!:=0-9]{0,55}[.:]\s*)/i;
+
+function extractExampleConclusion(
+  rawExample: string,
+  steps: string[],
+  rawLastStep?: string
+): string {
+  // 1. Si existe un 4to paso crudo ("Paso 4: Verificación e interpretación..."), extraer su conclusión real
+  if (rawLastStep) {
+    const cleanedLast = cleanStepLine(rawLastStep).replace(CONCLUSION_HEADING_PREFIX_RE, '').trim();
+    if (cleanedLast.length >= 18) {
+      const distilled = distillStepPreservingMath(cleanedLast, 165);
+      if (distilled.length >= 15) return distilled;
+    }
+  }
+
   const clean = cleanSacrintText(rawExample);
+  // 2. Buscar etiqueta explícita con dos puntos obligatorios ("Conclusión:", "Resultado final:", "Respuesta:")
   const explicitMatch = clean.match(
-    /(?:conclusi[oó]n|interpretaci[oó]n|resultado\s+final|por\s+lo\s+tanto|en\s+conclusi[oó]n|respuesta\s+final)\s*[:\-–,]?\s*([^.?!]+[.?!]?)/i
+    /(?:conclusi[oó]n(?:\s+final|\s+pedag[oó]gica)?|interpretaci[oó]n(?:\s+del\s+resultado)?|resultado\s+final|respuesta\s+final)\s*:\s*([^.?!]+(?:\.\d+[^.?!]*)?[.?!]?)/i
   );
   if (explicitMatch && explicitMatch[1]) {
-    const candidate = distillConciseText(explicitMatch[1], 160, 26);
-    if (candidate.length >= 12) return candidate;
+    const candidate = distillConciseText(explicitMatch[1].replace(CONCLUSION_HEADING_PREFIX_RE, ''), 165, 28);
+    if (candidate.length >= 16) return candidate;
   }
+
+  // 3. Buscar oración con "Por lo tanto," o "En conclusión,"
+  const connectorMatch = clean.match(
+    /\b(?:por\s+lo\s+tanto|en\s+conclusi[oó]n)\s*,\s*([^.?!]+(?:\.\d+[^.?!]*)?[.?!]?)/i
+  );
+  if (connectorMatch && connectorMatch[1]) {
+    const candidate = distillConciseText(connectorMatch[1], 165, 28);
+    if (candidate.length >= 16) return candidate;
+  }
+
   if (steps.length >= 2) {
-    const lastStep = steps[steps.length - 1];
-    if (lastStep && lastStep.length >= 12) {
-      return distillConciseText(lastStep, 160, 26);
+    const lastStep = steps[steps.length - 1]
+      .replace(CONCLUSION_HEADING_PREFIX_RE, '')
+      .trim();
+    if (lastStep && lastStep.length >= 16) {
+      return distillConciseText(lastStep, 165, 28);
     }
   }
   return '';
@@ -390,47 +569,46 @@ export function extractWorkedExample(
     const preservedSessionExample = cleanSacrintTextPreservingLines(rawSessionExample);
     const cleanedSessionExample = cleanSacrintText(rawSessionExample);
     const parsed = parseEjemploResuelto(preservedSessionExample);
-    const statement = distillConciseText(
-      parsed.enunciado.replace(/^planteamiento\s*:\s*/i, ''),
-      210,
-      36
-    );
-    const steps = parsed.pasos
+    const statement = distillProblemOrExerciseText(parsed.enunciado, 260);
+    const cleanedRawSteps = parsed.pasos
       .map(cleanStepLine)
-      .filter((step) => step.length >= 8 && !isRubricOrBoilerplateLeak(step))
-      .map((step) => distillConciseText(step, 145, 24))
+      .filter((step) => step.length >= 8 && !isRubricOrBoilerplateLeak(step));
+    const steps = cleanedRawSteps
+      .map((step) => distillStepPreservingMath(step, 185))
+      .filter(Boolean)
       .slice(0, 4);
 
     if (steps.length > 0) {
-      const derivedConclusion = extractExampleConclusion(rawSessionExample, steps);
+      const fourthRawStep = cleanedRawSteps.length >= 4 ? cleanedRawSteps[cleanedRawSteps.length - 1] : undefined;
+      const derivedConclusion = extractExampleConclusion(rawSessionExample, steps, fourthRawStep);
       return {
         problemStatement:
           statement ||
-          (allowMission ? distillConciseText(solved?.problemStatement, 200, 34) : '') ||
+          (allowMission ? distillProblemOrExerciseText(solved?.problemStatement, 250) : '') ||
           distillConciseText(session?.objetivo, 200, 34) ||
           'Por completar en el libro: planteamiento del ejemplo.',
         steps,
         interpretation:
           derivedConclusion ||
-          (allowMission ? distillConciseText(solved?.interpretation, 160, 26) : '') ||
+          (allowMission ? distillConciseText(solved?.interpretation, 165, 28) : '') ||
           'Verifica que el resultado obtenido responda con coherencia al planteamiento inicial.',
       };
     }
 
     if (!allowMission && cleanedSessionExample) {
-      const bulletSteps = extractBulletSentences(cleanedSessionExample, 3, 145);
+      const bulletSteps = extractBulletSentences(cleanedSessionExample, 3, 175);
       const effectiveSteps =
         bulletSteps.length >= 2
           ? bulletSteps
           : [
-              distillConciseText(cleanedSessionExample, 145, 24),
+              distillStepPreservingMath(cleanedSessionExample, 175),
               'Desarrolla el procedimiento o criterio del tema conforme a la consigna.',
               'Comunica la conclusión con evidencia y verifica su coherencia.',
             ].filter(Boolean);
       return {
         problemStatement:
           statement ||
-          distillConciseText(cleanedSessionExample, 200, 34) ||
+          distillProblemOrExerciseText(cleanedSessionExample, 250) ||
           distillConciseText(session?.objetivo, 200, 34),
         steps: effectiveSteps,
         interpretation:
@@ -453,10 +631,12 @@ export function extractWorkedExample(
     };
   }
 
-  const missionSteps = (solved?.solutionSteps ?? [])
+  const rawMissionSteps = (solved?.solutionSteps ?? [])
     .map(cleanStepLine)
-    .filter((s) => s.length >= 6 && !isRubricOrBoilerplateLeak(s))
-    .map((s) => distillConciseText(s, 145, 24))
+    .filter((s) => s.length >= 6 && !isRubricOrBoilerplateLeak(s));
+  const missionSteps = rawMissionSteps
+    .map((s) => distillStepPreservingMath(s, 185))
+    .filter(Boolean)
     .slice(0, 4);
 
   const demoRaw = cleanSacrintText(mission.iDoSection?.stepByStepDemo);
@@ -464,13 +644,13 @@ export function extractWorkedExample(
 
   let derivedSteps = missionSteps;
   if (derivedSteps.length === 0 && demoIsClean) {
-    derivedSteps = extractBulletSentences(demoRaw, 4, 145);
+    derivedSteps = extractBulletSentences(demoRaw, 4, 175);
   }
   if (derivedSteps.length === 0 && mission.troubleshooting?.length) {
     derivedSteps = mission.troubleshooting
       .map((t) => cleanSacrintText(t.solution || t.solutionSteps?.[0] || t.rootCause || t.symptom))
       .filter((s) => s.length >= 8 && !isRubricOrBoilerplateLeak(s))
-      .map((s) => distillConciseText(s, 145, 24))
+      .map((s) => distillStepPreservingMath(s, 175))
       .slice(0, 4);
   }
   if (derivedSteps.length === 0) {
@@ -484,16 +664,19 @@ export function extractWorkedExample(
   }
 
   const cleanStatement =
-    distillConciseText(solved?.problemStatement, 210, 36) ||
-    (demoIsClean ? distillConciseText(demoRaw, 200, 34) : '') ||
+    distillProblemOrExerciseText(solved?.problemStatement, 260) ||
+    (demoIsClean ? distillProblemOrExerciseText(demoRaw, 240) : '') ||
     distillConciseText(mission.sessionFocus, 200, 34);
+
+  const fourthMissionStep =
+    rawMissionSteps.length >= 4 ? rawMissionSteps[rawMissionSteps.length - 1] : undefined;
 
   return {
     problemStatement: cleanStatement,
     steps: derivedSteps,
     interpretation:
-      distillConciseText(solved?.interpretation, 160, 26) ||
-      extractExampleConclusion(demoRaw, derivedSteps) ||
+      distillConciseText(solved?.interpretation, 165, 28) ||
+      extractExampleConclusion(demoRaw, derivedSteps, fourthMissionStep) ||
       'Comunica la conclusión con evidencia y contrástala con el contexto real de la situación.',
   };
 }
@@ -501,36 +684,8 @@ export function extractWorkedExample(
 /**
  * Sintetiza el enunciado de un ejercicio preservando los datos numéricos, ecuaciones y la pregunta/consigna.
  */
-function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 235): string {
-  const clean = cleanSacrintText(rawEnunciado);
-  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
-  if (clean.length <= maxChars) return clean;
-
-  const sentences = clean
-    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9(¿¡])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (sentences.length >= 2) {
-    const coreSentences = sentences.filter((s, idx) =>
-      idx > 0 &&
-      (/[0-9=¿?%]/.test(s) ||
-        /\b(?:calcula|determina|encuentra|resuelve|plantea|obtiene|redacta|analiza|explica|compara|identifica|prop[oó]n|elabora|construye|eval[úu]a|cu[aá]nto|cu[aá]l|qu[eé])\b/i.test(
-          s
-        ))
-    );
-    if (coreSentences.length > 0) {
-      const tail = coreSentences.join(' ');
-      if (tail.length <= maxChars - 45) {
-        const headBudget = Math.max(45, maxChars - tail.length - 2);
-        const head = distillConciseText(sentences[0], headBudget);
-        return `${head}. ${tail}`.replace(/\.\./g, '.').trim();
-      }
-      return distillConciseText(tail, maxChars, 40);
-    }
-  }
-
-  return distillConciseText(clean, maxChars, 40);
+function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 265): string {
+  return distillProblemOrExerciseText(rawEnunciado, maxChars);
 }
 
 /**

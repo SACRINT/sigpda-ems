@@ -294,28 +294,57 @@ type ParsedLinearModel = {
 
 function parseLinearFromText(text: string): ParsedLinearModel | null {
   if (!text) return null;
+  const normalized = text.replace(/(\d),(\d{3})(?![0-9])/g, '$1$2');
 
-  // 1. Forma pendiente-ordenada: y = mx ± b o f(x) = mx ± b (sin exponente cuadrático)
-  const slopeInterceptMatch = text.match(
-    /(?:f\(x\)|V\(t\)|y)\s*=\s*(-?\d+(?:\.\d+)?)\s*[xt]\s*([+-])\s*(\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i
+  // 1. Forma pendiente-ordenada: y = mx ± b, f(x) = mx ± b, C(m) = 1200m + 3500 (sin exponente cuadrático)
+  const slopeInterceptMatch = normalized.match(
+    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*(-?\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i
   );
   if (slopeInterceptMatch) {
     const rawM = Number(slopeInterceptMatch[1]);
-    const sign = slopeInterceptMatch[2];
-    const rawB = Number(slopeInterceptMatch[3]);
-    if (Number.isFinite(rawM) && Number.isFinite(rawB)) {
+    const varName = slopeInterceptMatch[2];
+    const sign = slopeInterceptMatch[3];
+    const rawB = Number(slopeInterceptMatch[4]);
+    if (Number.isFinite(rawM) && rawM !== 0 && Number.isFinite(rawB)) {
       const signedB = sign === '-' ? -rawB : rawB;
       return {
         slope: rawM,
         intercept: signedB,
         domainMax: 10,
-        equation: `f(x) = ${formatCoef(rawM)}x ${sign} ${formatCoef(rawB)}`,
+        equation: `f(${varName}) = ${formatCoef(rawM)}${varName} ${sign} ${formatCoef(rawB)}`,
+      };
+    }
+  }
+
+  // 1b. Ecuación lineal con incógnita en ambos miembros: ax ± b = cx ± d o (ax ± b) - cx = (cx ± d) - cx
+  const bothSidesMatch = normalized.match(
+    /\(?\s*(-?\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)?(?:\s*-\s*\d+\s*\2)?\s*=\s*\(?\s*(-?\d+(?:\.\d+)?)\s*\2\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)?/i
+  );
+  if (bothSidesMatch) {
+    const a1 = Number(bothSidesMatch[1]);
+    const varName = bothSidesMatch[2];
+    const s1 = bothSidesMatch[3] === '-' ? -1 : 1;
+    const b1 = s1 * Number(bothSidesMatch[4]);
+    const a2 = Number(bothSidesMatch[5]);
+    const s2 = bothSidesMatch[6] === '-' ? -1 : 1;
+    const b2 = s2 * Number(bothSidesMatch[7]);
+    const netA = a1 - a2;
+    if (Number.isFinite(netA) && netA !== 0 && Number.isFinite(b1) && Number.isFinite(b2)) {
+      const xSol = (b2 - b1) / netA;
+      const yAtSol = a1 * xSol + b1;
+      const boundedDom = Math.min(40, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
+      return {
+        slope: a1,
+        intercept: b1,
+        domainMax: boundedDom,
+        targetY: yAtSol > 0 ? Number(yAtSol.toFixed(2)) : undefined,
+        equation: `${formatCoef(a1)}${varName} ${bothSidesMatch[3]} ${formatCoef(Math.abs(b1))} = ${formatCoef(a2)}${varName} ${bothSidesMatch[6]} ${formatCoef(Math.abs(b2))}`,
       };
     }
   }
 
   // 2. Ecuación lineal de primer grado: ax ± b = c (conservando coeficientes reales, sin distorsionar)
-  const balanceMatch = text.match(
+  const balanceMatch = normalized.match(
     /(?<![²^0-9A-Za-z])(\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i
   );
   if (balanceMatch) {
@@ -339,8 +368,32 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     }
   }
 
+  // 2b. Ecuación lineal con término constante primero: b + ax = c (ej. 250 + 30x = 850)
+  const constFirstMatch = normalized.match(
+    /(?<![²^0-9A-Za-z])(\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)\s*([a-z])\s*=\s*(-?\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i
+  );
+  if (constFirstMatch) {
+    const bVal = Number(constFirstMatch[1]);
+    const sign = constFirstMatch[2];
+    const aRaw = Number(constFirstMatch[3]);
+    const varName = constFirstMatch[4];
+    const c = Number(constFirstMatch[5]);
+    const signedA = sign === '-' ? -aRaw : aRaw;
+    if (Number.isFinite(signedA) && signedA !== 0 && Number.isFinite(bVal) && Number.isFinite(c)) {
+      const xSol = (c - bVal) / signedA;
+      const boundedDom = Math.min(40, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
+      return {
+        slope: signedA,
+        intercept: bVal,
+        domainMax: boundedDom,
+        targetY: c > 0 ? c : undefined,
+        equation: `${formatCoef(bVal)} ${sign} ${formatCoef(aRaw)}${varName} = ${formatCoef(c)}`,
+      };
+    }
+  }
+
   // 3. Ecuación lineal con paréntesis: a(x ± b) = c
-  const parenLinearMatch = text.match(
+  const parenLinearMatch = normalized.match(
     /(?<![²^0-9A-Za-z])(\d+(?:\.\d+)?)\s*\(\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*(-?\d+(?:\.\d+)?)/i
   );
   if (parenLinearMatch) {
@@ -365,7 +418,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
 
   // 4. Ecuación lineal con dos incógnitas aislada: Ax ± By = C (cuando no es un sistema 2x2 de dos ecuaciones)
   const twoVarSingleMatches = [
-    ...text.matchAll(/(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi),
+    ...normalized.matchAll(/(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi),
   ];
   if (twoVarSingleMatches.length === 1) {
     const m = twoVarSingleMatches[0];
@@ -388,8 +441,70 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     }
   }
 
-  const coeffMatch = text.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
-  if (coeffMatch && !/cuadr[aá]tic|ax²|par[aá]bol/i.test(text)) {
+  // 5. Modelo estadístico muestral o de frecuencias con datos numéricos reales (N y n, o promedio muestral)
+  const statSampleMatch =
+    normalized.match(/\bN\s*=\s*(\d{2,6})\b[\s\S]{0,80}?\bn\s*[=≈]\s*(\d{1,5})\b/) ||
+    normalized.match(/poblaci[oó]n\s+total\s+(?:es\s+)?N\s*=\s*(\d{2,6})[\s\S]{0,120}?muestra[\s\S]{0,40}?(\d{2,5})/i);
+  if (statSampleMatch) {
+    const popN = Number(statSampleMatch[1]);
+    const sampN = Number(statSampleMatch[2]);
+    if (popN > sampN && sampN > 0) {
+      const ratio = Number((sampN / popN).toFixed(2)) || 0.2;
+      return {
+        slope: ratio,
+        intercept: 0,
+        domainMax: 10,
+        targetY: Number((ratio * 10).toFixed(2)),
+        equation: `n = ${ratio}·N  (N=${popN}, n=${sampN})`,
+      };
+    }
+  }
+
+  const statZMatch = normalized.match(/\bN\s*=\s*(\d{2,6})\b[\s\S]{0,100}?\bz\s*=\s*(1\.96|1\.645|2\.58)\b/i);
+  if (statZMatch) {
+    const popN = Number(statZMatch[1]);
+    const zVal = Number(statZMatch[2]);
+    const nEst = Math.round((popN * zVal * zVal * 0.25) / ((popN - 1) * 0.0025 + zVal * zVal * 0.25));
+    const ratio = Number((nEst / popN).toFixed(2)) || 0.24;
+    return {
+      slope: ratio,
+      intercept: 0,
+      domainMax: 10,
+      targetY: Number((ratio * 10).toFixed(2)),
+      equation: `n = ${nEst}  (N=${popN}, z=${zVal}, e=5%)`,
+    };
+  }
+
+  const statAvgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+)\s*=\s*(\d+(?:\.\d+)?)/);
+  if (statAvgMatch && /frecuencia|encuesta|muestra|promedio|media/i.test(normalized)) {
+    const sumVal = Number(statAvgMatch[1]);
+    const nVal = Number(statAvgMatch[2]);
+    const meanVal = Number(statAvgMatch[3]);
+    if (nVal > 0 && meanVal > 0) {
+      return {
+        slope: meanVal,
+        intercept: 0,
+        domainMax: Math.min(40, Math.max(10, nVal)),
+        targetY: sumVal,
+        equation: `x̄ = ${sumVal}/${nVal} = ${meanVal}`,
+      };
+    }
+  }
+
+  const pilotSurveyMatch = normalized.match(/encuesta(?:\s+piloto)?\s+aplicada\s+a\s+(\d{2,4})\s+(?:estudiantes|personas|alumnos)/i);
+  if (pilotSurveyMatch) {
+    const nPilot = Number(pilotSurveyMatch[1]);
+    return {
+      slope: 1,
+      intercept: 0,
+      domainMax: Math.min(40, Math.max(10, nPilot)),
+      targetY: nPilot,
+      equation: `Muestra piloto n = ${nPilot}`,
+    };
+  }
+
+  const coeffMatch = normalized.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
+  if (coeffMatch && !/cuadr[aá]tic|ax²|par[aá]bol/i.test(normalized)) {
     const a = Number(coeffMatch[1]) || 1;
     const bVal = Number(coeffMatch[2]) || 0;
     return {
@@ -428,10 +543,22 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
     /(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
   );
   const quadFuncMatch = source.match(
-    /(?:f\(x\)|y)\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
+    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
+  );
+  const quadTwoTermFuncMatch = source.match(
+    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x(?![0-9A-Za-z+-])/i
   );
   const quadPureMatch = source.match(
-    /(?:(?:f\(x\)|y)\s*=\s*)?(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+    /(?:(?:[A-Za-z]\([a-z]\)|y)\s*=\s*)?(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+  );
+  const quadFactoredMatch = source.match(
+    /\bx\s*\(\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*(\d+(?:\.\d+)?)/i
+  );
+  const quadExplicitCoeffMatch = source.match(
+    /\ba\s*=\s*(-?\d+(?:\.\d+)?)\s*,\s*b\s*=\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*|\s+y\s+)c\s*=\s*(-?\d+(?:\.\d+)?)/i
+  );
+  const quadSumProdMatch = source.match(
+    /multiplicados\s+den\s+(?:(menos)\s+|(-))?(\d+(?:\.\d+)?)\s+y\s+sumados\s+den\s+(?:m[aá]s\s+|(menos)\s+|([+-]))?(\d+(?:\.\d+)?)/i
   );
   const isQuadraticTopic =
     /ecuaci[oó]n(?:es)?\s+cuadr[aá]tica|funci[oó]n(?:es)?\s+cuadr[aá]tica|modelo\s+cuadr[aá]tico|par[aá]bol|segundo\s+grado|f[oó]rmula\s+general\s+cuadr[aá]tica|\bdiscriminante\b/i.test(
@@ -455,6 +582,39 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
     equation = quadEqMatch
       ? `${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`
       : `f(x) = ${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))}`;
+  } else if (quadTwoTermFuncMatch) {
+    a = quadTwoTermFuncMatch[1] ? Number(quadTwoTermFuncMatch[1]) : 1;
+    if (a === 0) a = 1;
+    b = (quadTwoTermFuncMatch[2] === '-' ? -1 : 1) * (quadTwoTermFuncMatch[3] ? Number(quadTwoTermFuncMatch[3]) : 1);
+    c = 0;
+    const signB = b >= 0 ? '+' : '-';
+    equation = `f(x) = ${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x`;
+  } else if (quadExplicitCoeffMatch && Number(quadExplicitCoeffMatch[1]) !== 0) {
+    a = Number(quadExplicitCoeffMatch[1]);
+    b = Number(quadExplicitCoeffMatch[2]);
+    c = Number(quadExplicitCoeffMatch[3]);
+    const signB = b >= 0 ? '+' : '-';
+    const signC = c >= 0 ? '+' : '-';
+    equation = c === 0
+      ? `f(x) = ${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x`
+      : `${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`;
+  } else if (quadFactoredMatch) {
+    a = 1;
+    b = (quadFactoredMatch[1] === '-' ? -1 : 1) * Number(quadFactoredMatch[2]);
+    c = -Number(quadFactoredMatch[3]);
+    const signB = b >= 0 ? '+' : '-';
+    equation = `x² ${signB} ${formatCoef(Math.abs(b))}x - ${formatCoef(Math.abs(c))} = 0`;
+  } else if (quadSumProdMatch) {
+    a = 1;
+    const prodNeg = Boolean(quadSumProdMatch[1] || quadSumProdMatch[2]);
+    const prodMag = Number(quadSumProdMatch[3]);
+    const sumNeg = Boolean(quadSumProdMatch[4] || quadSumProdMatch[5] === '-');
+    const sumMag = Number(quadSumProdMatch[6]);
+    b = sumNeg ? -sumMag : sumMag;
+    c = prodNeg ? -prodMag : prodMag;
+    const signB = b >= 0 ? '+' : '-';
+    const signC = c >= 0 ? '+' : '-';
+    equation = `x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`;
   } else if (quadPureMatch) {
     a = quadPureMatch[1] ? Number(quadPureMatch[1]) : 1;
     if (a === 0) a = 1;
@@ -543,6 +703,7 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
     );
   const twoVarEqRe = /(-?\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)?\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi;
   const parsed: Array<{ a: number; b: number; c: number; eq: string }> = [];
+  const collinearFallback: Array<{ a: number; b: number; c: number; eq: string }> = [];
 
   for (const m of source.matchAll(twoVarEqRe)) {
     const a = m[1] ? Number(m[1]) : 1;
@@ -553,10 +714,57 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
     if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c) && b !== 0) {
       const label = `${formatCoef(a)}x ${m[2]} ${formatCoef(bMag)}y = ${formatCoef(c)}`;
       if (!parsed.some((p) => p.eq === label)) {
-        parsed.push({ a, b, c, eq: label });
+        if (parsed.length === 1 && Math.abs(parsed[0].a * b - a * parsed[0].b) < 1e-6) {
+          collinearFallback.push({ a, b, c, eq: label });
+        } else {
+          parsed.push({ a, b, c, eq: label });
+        }
       }
     }
     if (parsed.length >= 2) break;
+  }
+
+  // Coeficientes explícitos tipo Cramer: a1=1, b1=1, c1=20 y a2=1, b2=-1, c2=4
+  if (parsed.length < 2) {
+    const cramerCoeffMatch = source.match(
+      /a[₁1]\s*=\s*(-?\d+(?:\.\d+)?)\s*,\s*b[₁1]\s*=\s*(-?\d+(?:\.\d+)?)\s*,\s*c[₁1]\s*=\s*(-?\d+(?:\.\d+)?)[\s\S]{0,30}?a[₂2]\s*=\s*(-?\d+(?:\.\d+)?)\s*,\s*b[₂2]\s*=\s*(-?\d+(?:\.\d+)?)\s*,\s*c[₂2]\s*=\s*(-?\d+(?:\.\d+)?)/i
+    );
+    if (cramerCoeffMatch) {
+      const a1 = Number(cramerCoeffMatch[1]);
+      const b1 = Number(cramerCoeffMatch[2]);
+      const c1 = Number(cramerCoeffMatch[3]);
+      const a2 = Number(cramerCoeffMatch[4]);
+      const b2 = Number(cramerCoeffMatch[5]);
+      const c2 = Number(cramerCoeffMatch[6]);
+      if (b1 !== 0 && b2 !== 0) {
+        parsed.length = 0;
+        parsed.push(
+          { a: a1, b: b1, c: c1, eq: `${formatCoef(a1)}x ${b1 >= 0 ? '+' : '-'} ${formatCoef(Math.abs(b1))}y = ${formatCoef(c1)}` },
+          { a: a2, b: b2, c: c2, eq: `${formatCoef(a2)}x ${b2 >= 0 ? '+' : '-'} ${formatCoef(Math.abs(b2))}y = ${formatCoef(c2)}` }
+        );
+      }
+    }
+  }
+
+  // Ecuaciones de sustitución despejadas: x = ky, y = kx, x = c - ky, y = c - kx
+  if (parsed.length === 1) {
+    const subXEqKy = source.match(/\bx\s*=\s*(-?\d+(?:\.\d+)?)?\s*y(?![0-9A-Za-z+-])/i);
+    const subYEqKx = source.match(/\by\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?![0-9A-Za-z+-])/i);
+    if (subXEqKy) {
+      const k = subXEqKy[1] ? Number(subXEqKy[1]) : 1;
+      if (k !== 0) {
+        parsed.push({ a: 1, b: -k, c: 0, eq: `x - ${formatCoef(k)}y = 0` });
+      }
+    } else if (subYEqKx) {
+      const k = subYEqKx[1] ? Number(subYEqKx[1]) : 1;
+      if (k !== 0) {
+        parsed.push({ a: k, b: -1, c: 0, eq: `${formatCoef(k)}x - y = 0` });
+      }
+    }
+  }
+
+  if (parsed.length === 1 && collinearFallback.length > 0) {
+    parsed.push(collinearFallback[0]);
   }
 
   if (parsed.length < 2) {
@@ -628,18 +836,28 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
 function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | null {
   if (
     !source ||
-    !/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+(?:exponencial|poblacional|demogr[aá]fico)|tasa\s+(?:de\s+crecimiento|anual|de\s+inter[eé]s)|P\(t\)\s*=|M\s*=\s*C/i.test(
+    !/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+(?:exponencial|poblacional|demogr[aá]fico)|tasa\s+(?:de\s+crecimiento|anual|de\s+inter[eé]s)|P\(t\)\s*=\s*P[₀0]|M\s*=\s*C[₀0]?\s*\(/i.test(
       source
     )
   ) {
     return null;
   }
+  const isExplicitExponentialTopic =
+    /inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+exponencial|funci[oó]n\s+exponencial/i.test(
+      source
+    );
   const isPopulation =
     /poblaci[oó]n|habitantes|demogr[aá]fic|P\(t\)/i.test(source) && !/inter[eé]s\s+(?:simple|compuesto)|cr[eé]dito|inversi[oó]n/i.test(source);
   const capitalMatch = source.match(
-    /(?:capital|monto\s+inicial|inversi[oó]n|poblaci[oó]n(?:\s+inicial|\s+actual|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]?\s*=|\$)\s*(?:de\s*)?\$?\s*(\d[\d,]{1,6})/i
+    /(?:capital|monto\s+inicial|inversi[oó]n|poblaci[oó]n(?:\s+inicial|\s+actual|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=|\$)\s*(?:de\s*)?\$?\s*(\d[\d,]{1,6})/i
   ) || source.match(/\b(\d{3,6})\s*(?:habitantes|personas|pesos|individuos)\b/i);
   const rateMatch = source.match(/(\d+(?:\.\d+)?)\s*%/) || source.match(/1\s*\+\s*0\.(\d{1,3})/);
+
+  // Si no hay tasa explícita (%) ni es explícitamente un tema de interés/crecimiento exponencial, no secuestrar modelos lineales
+  if (!rateMatch && !isExplicitExponentialTopic) {
+    return null;
+  }
+
   if (!capitalMatch && !rateMatch) {
     return {
       kind: 'exponential',
@@ -1381,10 +1599,30 @@ export function buildSacrintDiagram(
 
 export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVariable[] {
   switch (diagram.kind) {
-    case 'linear':
+    case 'linear': {
+      const isDefaultX = /^variable\s+independiente/i.test(diagram.xLabel);
+      const isDefaultY = /^variable\s+dependiente/i.test(diagram.yLabel);
       return [
-        { symbol: 'x', label: 'Variable independiente', meaning: diagram.xLabel },
-        { symbol: 'y', label: 'Variable dependiente', meaning: diagram.yLabel },
+        {
+          symbol: 'x',
+          label: 'Variable independiente',
+          meaning: isDefaultX
+            ? diagram.available
+              ? `Dominio [0, ${diagram.domainMax}]`
+              : 'Por construir'
+            : diagram.xLabel,
+        },
+        {
+          symbol: 'y',
+          label: 'Variable dependiente',
+          meaning: isDefaultY
+            ? diagram.available
+              ? diagram.targetY !== undefined
+                ? `Meta: y = ${diagram.targetY}`
+                : `Rango [0, ${diagram.rangeMax}]`
+              : 'Por construir'
+            : diagram.yLabel,
+        },
         {
           symbol: 'm',
           label: 'Razón de cambio',
@@ -1396,6 +1634,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
           meaning: diagram.available ? `Intersección ${diagram.intercept}` : 'Por construir',
         },
       ];
+    }
     case 'quadratic':
       return [
         {

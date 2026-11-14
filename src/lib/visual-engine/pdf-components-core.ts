@@ -84,9 +84,6 @@ export function normalizePdfEditorialText(text: string | null | undefined): stri
   });
 
   // 4. Comandos matemáticos LaTeX a notación WinAnsi legible
-  for (let i = 0; i < 2; i++) {
-    str = str.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '($1)/($2)');
-  }
   str = str
     .replace(/\\sqrt\s*\[([^\]]+)\]\s*\{([^{}]+)\}/g, 'raiz_$1($2)')
     .replace(/\\sqrt\s*\{([^{}]+)\}/g, 'raiz($1)')
@@ -111,6 +108,9 @@ export function normalizePdfEditorialText(text: string | null | undefined): stri
     .replace(/\^\{\s*3\s*\}|\^3\b/g, '³')
     .replace(/\^\{([^{}]+)\}/g, '^($1)')
     .replace(/_\{([^{}]+)\}/g, '_$1');
+  for (let i = 0; i < 3; i++) {
+    str = str.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '($1)/($2)');
+  }
 
   // 5. Delimitadores LaTeX inline $...$ (preservando montos monetarios como "$100 a $200")
   str = str.replace(/\$\$?\s*([^$\n]{1,100}?)\s*\$\$?/g, (full, inner: string) => {

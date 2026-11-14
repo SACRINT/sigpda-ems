@@ -264,4 +264,56 @@ describe('SACRINT Part 2 — Pedagogical Redesign & Diagram Authenticity', () =>
     expect(meta.width).toBe(INFOGRAPHIC.printWidth);
     expect(meta.height).toBe(3300);
   }, 60000);
+
+  it('preserves mathematical calculations in steps, full numerical data in exercises, clean conclusions, and non-duplicated titles', () => {
+    const wb = buildMultiTopicWorkbook();
+    const session = wb.missions![0]!.sessionPlans![0]!;
+    session.objetivo =
+      'Vas a aprender a contrastar tus aprendizajes y consolidar el modelo lineal para resolver problemas comunitarios.';
+    session.ejemploResuelto = [
+      'Planteamiento: En el huerto comunitario se instaló una bomba de riego con un costo fijo de instalación. La cuota de mantenimiento es de $150 fijos más $30 por hora de bombeo y el recibo total fue de $750. ¿Cuántas horas operó la bomba?',
+      'Paso 1: Comprensión e identificación de datos. Sea x las horas de operación, el costo fijo es $150, la tarifa es $30/h y el total es $750.',
+      'Paso 2: Planteamiento del modelo algebraico. Traducimos la condición a la ecuación lineal 30x + 150 = 750.',
+      'Paso 3: Resolución paso a paso de la ecuación. Restamos 150 en ambos lados: 30x = 600 y dividimos entre 30: x = 20.',
+      'Paso 4: Verificación e interpretación del resultado. Sustituimos x = 20: 30(20) + 150 = 750; por lo tanto, la bomba operó 20 horas.',
+    ].join('\n');
+    session.practica = [
+      {
+        enunciado:
+          'En la cooperativa cafetalera del municipio se adquirió una tostadora comunitaria para procesar la cosecha de otoño. Si el costo fijo de arranque es de $250 y cada costal procesado cuesta $40, ¿cuántos costales se procesaron si el gasto total fue de $1,050?',
+        pista: 'Plantea 40x + 250 = 1050 y despeja x.',
+        solucion: ['x = 20 costales'],
+      },
+    ];
+    session.productoIntegrador =
+      'Tabla comparativa de costos lineales del sistema de bombeo con registro de despejes verificados en el portafolio.';
+
+    const deck = buildSacrintDeck(wb, { mode: 'lesson-guide', sessionIndex: 0 });
+    const conceptSlide = deck.slides[1]!;
+    const practiceSlide = deck.slides[2]!;
+    expect(conceptSlide.kind).toBe('concept');
+    expect(practiceSlide.kind).toBe('practice');
+
+    if (conceptSlide.kind === 'concept') {
+      expect(conceptSlide.title).not.toMatch(/^Vas a /i);
+      expect(conceptSlide.title).not.toMatch(/^Tus aprendizajes/i);
+      expect(conceptSlide.workedExample?.problemStatement).toContain('$150');
+      expect(conceptSlide.workedExample?.problemStatement).toContain('$750');
+      expect(conceptSlide.workedExample?.steps[0]).toContain('$150');
+      expect(conceptSlide.workedExample?.steps[1]).toContain('30x + 150 = 750');
+      expect(conceptSlide.workedExample?.steps[2]).toContain('x = 20');
+      expect(conceptSlide.workedExample?.interpretation).not.toBe('del resultado.');
+      expect(conceptSlide.workedExample?.interpretation).toContain('20');
+      for (const v of conceptSlide.variables) {
+        expect(v.meaning.toLowerCase()).not.toBe(v.label.toLowerCase());
+      }
+    }
+
+    if (practiceSlide.kind === 'practice') {
+      expect(practiceSlide.activities?.[0]?.statement).toContain('$250');
+      expect(practiceSlide.activities?.[0]?.statement).toContain('$1,050');
+      expect(practiceSlide.activities?.[0]?.statement).toContain('¿cuántos costales');
+      expect(practiceSlide.artifactName).not.toBe(practiceSlide.artifactStep);
+    }
+  });
 });

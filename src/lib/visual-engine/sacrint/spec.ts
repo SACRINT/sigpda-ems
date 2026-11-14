@@ -3,9 +3,11 @@ import { resolveSacrintPack, type SacrintPack } from './discipline-packs';
 import { resolveSacrintStyle, type SacrintVisualStyle } from './visual-styles';
 import type { SacrintThemeMode } from './tokens';
 import {
+  cleanMissionTopicLine,
   cleanSacrintText,
   distillConciseText,
   distillLessonBundle,
+  distillStepPreservingMath,
   extractChalkboardTopicTitle,
   extractCleanTopicTitle,
   extractConceptHighlights,
@@ -558,9 +560,8 @@ function buildLessonGuideSlidesForSession(
     hint: bundle.activities[0]?.hint,
     applicationText: bundle.application,
     artifactName:
-      distillConciseText(cleanSacrintText(session.productoIntegrador), 70, 12) ||
       cleanSacrintText(workbook.projectSection?.artifactName) ||
-      `Evidencia sesión ${sesLabel}`,
+      `Portafolio de evidencias · Sesión ${sesLabel}`,
     artifactStep: bundle.artifactStep,
     exitChecks: bundle.exitChecks.slice(0, 2),
     facts,
@@ -592,7 +593,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     kind: 'cover',
     eyebrow: `MISIÓN ${String(meta.missionNumber).padStart(2, '0')} // ${pack.label.toLocaleUpperCase('es-MX')}`,
     title: meta.missionTitle,
-    subtitle: cleanSacrintText(mission.sessionTopic),
+    subtitle: cleanMissionTopicLine(mission.sessionTopic, meta.missionTitle),
     missionIndex: meta.missionNumber,
     metaLine: `${meta.subjectName} · SEMESTRE ${meta.semester} · BLOQUE ${meta.blockNumber}`,
     facts,
@@ -856,16 +857,16 @@ function buildSteps(
   selectedSession?: SessionPlan
 ): SacrintInfographicStep[] {
   const solved = (mission.conceptZero?.solvedExample?.solutionSteps ?? [])
-    .map(cleanSacrintText)
+    .map((s) => distillStepPreservingMath(s, 200))
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
   const sessionExample = selectedSession ? extractWorkedExample(mission, selectedSession).steps : [];
   const effectiveSolved = solved.length > 0 ? solved : sessionExample;
 
   const fallback = [
-    sanitizeField(mission.phenomenonHook?.story, '', 220, 34),
-    sanitizeField(mission.iDoSection?.stepByStepDemo, '', 220, 34),
-    sanitizeField(mission.weDoSection?.guidedPractice, '', 220, 34),
-    sanitizeField(mission.youDoSection?.autonomousChallenge, '', 220, 34),
+    sanitizeField(mission.phenomenonHook?.story, '', 200, 32),
+    sanitizeField(mission.iDoSection?.stepByStepDemo, '', 200, 32),
+    sanitizeField(mission.weDoSection?.guidedPractice, '', 200, 32),
+    sanitizeField(mission.youDoSection?.autonomousChallenge, '', 200, 32),
     'Verificar que el resultado responda con coherencia al contexto del planteamiento inicial.',
     'Integrar el procedimiento y la conclusión con evidencia en el producto del bloque.',
   ];
@@ -881,7 +882,7 @@ function buildSteps(
   return source.map((body, index) => ({
     number: index + 1,
     title: labels[index] ?? `PASO ${index + 1}`,
-    body: distillConciseText(body, 220, 34),
+    body: distillStepPreservingMath(body, 210),
   }));
 }
 
@@ -929,7 +930,7 @@ export function buildSacrintInfographic(
   const conceptHighlights = extractConceptHighlights(mission, selectedSession);
   const quickExample = extractWorkedExample(mission, selectedSession);
   const misconceptionFix = resolveMissionMisconceptionParts(mission, bundle);
-  const topicTitle = extractCleanTopicTitle(
+  const topicTitle = extractChalkboardTopicTitle(
     selectedSession?.objetivo || mission.sessionTopic || mission.title,
     meta.missionTitle
   );
@@ -946,10 +947,9 @@ export function buildSacrintInfographic(
     title: topicTitle || meta.missionTitle,
     topicTitle,
     subtitle: `${meta.subjectName} · MISIÓN ${String(meta.missionNumber).padStart(2, '0')} · BLOQUE ${meta.blockNumber}`,
-    claim: distillConciseText(
-      cleanSacrintText(mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition),
-      165,
-      26
+    claim: cleanMissionTopicLine(
+      mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
+      conceptHighlights.definition
     ),
     formula,
     formulasList: conceptHighlights.formulas.length > 0 ? conceptHighlights.formulas : [formula],
