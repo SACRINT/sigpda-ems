@@ -1,6 +1,21 @@
 import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SacrintPack } from './discipline-packs';
 import { cleanSacrintText, distillConciseText } from './content-distiller';
+import { classifyTopic, detectExponentialContext } from '@/lib/visual-engine/topic-classifier';
+
+/**
+ * Valida que una fórmula o expresión no contenga variables de plantilla sin instanciar (c1, a2, b2, a1*x + b1*y, etc.).
+ */
+export function isValidRenderableFormula(formula: string | null | undefined): boolean {
+  if (!formula) return false;
+  const trimmed = formula.trim();
+  if (trimmed.length < 3) return false;
+  if (/\b(?:a1|b1|c1|a2|b2|c2)\b/i.test(trimmed)) return false;
+  if (/\by\s*=\s*c[₁1]\b/i.test(trimmed)) return false;
+  if (/\ba[₁₂12]\s*\*\s*x\b|\bb[₁₂12]\s*\*\s*y\b/i.test(trimmed)) return false;
+  if (/\bundefined\b|\bNaN\b|\$\{/i.test(trimmed)) return false;
+  return true;
+}
 
 export interface SacrintVariable {
   symbol: string;
@@ -78,6 +93,7 @@ export interface ExponentialDiagramSpec {
   yMax: number;
   xLabel: string;
   yLabel: string;
+  context?: 'population' | 'financial';
 }
 
 export interface GeometryDiagramSpec {
@@ -504,7 +520,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
   }
 
   const coeffMatch = normalized.match(/\ba\s*=\s*(-?\d+(?:\.\d+)?)[\s,;]+b\s*=\s*(-?\d+(?:\.\d+)?)/i);
-  if (coeffMatch && !/cuadr[aá]tic|ax²|par[aá]bol/i.test(normalized)) {
+  if (coeffMatch && !/cuadr[aá]tic|ax²|par[aá]bol|pit[aá]goras|hipotenusa|cateto|tri[aá]ngulo|congruencia|semejanza/i.test(normalized)) {
     const a = Number(coeffMatch[1]) || 1;
     const bVal = Number(coeffMatch[2]) || 0;
     return {
@@ -846,11 +862,17 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     /inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+exponencial|funci[oó]n\s+exponencial/i.test(
       source
     );
-  const isPopulation =
-    /poblaci[oó]n|habitantes|demogr[aá]fic|P\(t\)/i.test(source) && !/inter[eé]s\s+(?:simple|compuesto)|cr[eé]dito|inversi[oó]n/i.test(source);
-  const capitalMatch = source.match(
-    /(?:capital|monto\s+inicial|inversi[oó]n|poblaci[oó]n(?:\s+inicial|\s+actual|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=|\$)\s*(?:de\s*)?\$?\s*(\d[\d,]{1,6})/i
-  ) || source.match(/\b(\d{3,6})\s*(?:habitantes|personas|pesos|individuos)\b/i);
+  const expContext = detectExponentialContext(source);
+  const isPopulation = expContext === 'population';
+  const capitalMatch =
+    source.match(
+      /(?:capital(?:\s+inicial)?|monto\s+inicial|inversi[oó]n(?:\s+inicial)?|pr[eé]stamo|ahorro|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=|M\s*=)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})/i
+    ) ||
+    source.match(/\$\s*(\d[\d,]{1,6})(?!\s*%)/) ||
+    source.match(/\b(\d{3,6})\s*(?:habitantes|personas|j[oó]venes|pesos|individuos)\b/i) ||
+    source.match(
+      /(?:poblaci[oó]n(?:\s+inicial|\s+actual|\s+juvenil|\s+total|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})(?!\s*(?:a|-|–)\s*\d+\s*a[ñn]os|\s*a[ñn]os\b)/i
+    );
   const rateMatch = source.match(/(\d+(?:\.\d+)?)\s*%/) || source.match(/1\s*\+\s*0\.(\d{1,3})/);
 
   // Si no hay tasa explícita (%) ni es explícitamente un tema de interés/crecimiento exponencial, no secuestrar modelos lineales
@@ -871,17 +893,18 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
       yMax: 100,
       xLabel: 'Períodos (t)',
       yLabel: isPopulation ? 'Población P(t)' : 'Monto acumulado ($)',
+      context: expContext,
     };
   }
   const principal = capitalMatch ? Math.min(100000, Math.max(50, Number(capitalMatch[1].replace(/,/g, '')))) : 1000;
   let ratePct = 10;
   if (rateMatch) {
     const rawRate = rateMatch[0].includes('1') && !rateMatch[0].includes('%')
-      ? Number(`0.${rateMatch[1]}`) * 100
-      : Number(rateMatch[1]);
-    ratePct = Math.min(50, Math.max(0.5, rawRate));
+      ? Number((Number(`0.${rateMatch[1]}`) * 100).toFixed(2))
+      : Number(Number(rateMatch[1]).toFixed(2));
+    ratePct = Number(Math.min(50, Math.max(0.5, rawRate)).toFixed(2));
   }
-  const rate = ratePct / 100;
+  const rate = Number((ratePct / 100).toFixed(6));
   const periods = 6;
   const simpleSeries: Array<{ t: number; value: number }> = [];
   const compoundSeries: Array<{ t: number; value: number }> = [];
@@ -905,18 +928,26 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     yMax: Math.ceil((maxVal * 1.1) / 50) * 50,
     xLabel: 'Períodos (t)',
     yLabel: isPopulation ? 'Población P(t)' : 'Monto acumulado ($)',
+    context: expContext,
   };
 }
 
 function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
-  const isAngle = /tipos?\s+de\s+[aá]ngulos|[aá]ngulos?\s+(?:agudo|recto|obtuso|llano|complementarios|suplementarios)|paralelas.*transversal/i.test(source);
+  const isAngle =
+    /tipos?\s+de\s+[aá]ngulos|clasificaci[oó]n\s+de\s+[aá]ngulos|[aá]ngulos?\s+(?:agudo|recto|obtuso|llano|complementarios|suplementarios|opuestos\s+por\s+el\s+v[eé]rtice|alternos|correspondientes)|transportador|paralelas.*transversal/i.test(
+      source
+    );
   const isTriangle =
     /pit[aá]goras|tri[aá]ngulo\s+rect[aá]ngulo|hipotenusa|cateto|\b(?:sen|cos|tan)\s*(?:[θ°αβ]|\d+\s*°|\([A-Za-z0-9θ°\s+-]+\))|trigonometr/i.test(
       source
     );
-  const isPolygon = /[aá]rea\s+y\s+per[ií]metro|per[ií]metro\s+del\s+rect[aá]ngulo|congruencia\s+de\s+tri[aá]ngulos/i.test(source);
+  const isCongruence =
+    /congruencia(?:\s+y\s+semejanza|\s+de\s+tri[aá]ngulos)?|semejanza\s+de\s+tri[aá]ngulos|criterios?\s+(?:LLL|LAL|ALA)|teorema\s+de\s+tales|lados\s+hom[oó]logos/i.test(
+      source
+    );
+  const isPolygon = /[aá]rea\s+y\s+per[ií]metro|per[ií]metro\s+del\s+rect[aá]ngulo/i.test(source);
 
-  if (!isAngle && !isTriangle && !isPolygon) return null;
+  if (!isAngle && !isTriangle && !isCongruence && !isPolygon) return null;
 
   if (isTriangle) {
     return {
@@ -927,9 +958,25 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
       primaryLabel: 'Catetos a, b e hipotenusa c',
       secondaryLabel: 'Ángulo recto = 90°',
       highlights: [
-        { label: 'Catetos', detail: 'Lados perpendiculares que forman 90° (a y b).' },
-        { label: 'Hipotenusa', detail: 'Lado mayor opuesto al ángulo recto (c = √(a² + b²)).' },
-        { label: 'Suma angular', detail: 'Los ángulos agudos son complementarios (90°).' },
+        { label: 'Catetos', detail: 'Forman 90° (catetos a y b).' },
+        { label: 'Hipotenusa', detail: 'Opuesta a 90°: c = √(a² + b²).' },
+        { label: 'Suma angular', detail: 'Agudos suman 90°.' },
+      ],
+    };
+  }
+
+  if (isCongruence) {
+    return {
+      kind: 'geometry',
+      variant: 'polygon',
+      available: true,
+      equation: 'Criterios LLL · LAL · ALA  |  a/a′ = b/b′ = c/c′ = k',
+      primaryLabel: 'Congruencia (≅) y Semejanza (~) de Triángulos',
+      secondaryLabel: 'Ángulos correspondientes iguales · Lados homólogos proporcionales',
+      highlights: [
+        { label: 'Congruencia (≅)', detail: 'Misma forma y tamaño (k = 1).' },
+        { label: 'Semejanza (~)', detail: 'Ángulos iguales y lados proporcionales.' },
+        { label: 'Criterios', detail: 'Validación por LLL, LAL o ALA.' },
       ],
     };
   }
@@ -943,9 +990,9 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
       primaryLabel: 'Clasificación por abertura angular',
       secondaryLabel: 'Complementarios = 90° · Suplementarios = 180°',
       highlights: [
-        { label: 'Agudo', detail: 'Abertura mayor a 0° y menor a 90°.' },
-        { label: 'Recto', detail: 'Exactamente 90° (rectas perpendiculares).' },
-        { label: 'Obtuso', detail: 'Mayor a 90° y menor a 180°.' },
+        { label: 'Agudo', detail: '0° < abertura < 90°.' },
+        { label: 'Recto', detail: '90° exactos (perpendiculares).' },
+        { label: 'Obtuso', detail: '90° < abertura < 180°.' },
       ],
     };
   }
@@ -958,9 +1005,9 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
     primaryLabel: 'Relación de dimensiones y contorno',
     secondaryLabel: 'Unidades lineales vs. cuadradas',
     highlights: [
-      { label: 'Base y altura', detail: 'Dimensiones ortogonales del espacio o polígono.' },
-      { label: 'Perímetro', detail: 'Suma total de los lados del contorno.' },
-      { label: 'Área', detail: 'Superficie interior delimitada por el perímetro.' },
+      { label: 'Base y altura', detail: 'Dimensiones ortogonales (b, h).' },
+      { label: 'Perímetro', detail: 'Contorno total de lados.' },
+      { label: 'Área', detail: 'Superficie interior delimitada.' },
     ],
   };
 }
@@ -1351,8 +1398,8 @@ function buildUnavailableLinearDiagram(options: DiagramBuildOptions): LinearDiag
     domainMax: 10,
     rangeMax: 10,
     points: [],
-    xLabel: options.xLabel || 'VARIABLE INDEPENDIENTE (x)',
-    yLabel: options.yLabel || 'VARIABLE DEPENDIENTE (y)',
+    xLabel: options.xLabel || 'Eje X',
+    yLabel: options.yLabel || 'Eje Y',
   };
 }
 
@@ -1376,8 +1423,8 @@ function buildLinearDiagramSpec(linearDirect: ParsedLinearModel, options: Diagra
     domainMax,
     rangeMax,
     points,
-    xLabel: options.xLabel || 'VARIABLE INDEPENDIENTE (x)',
-    yLabel: options.yLabel || 'VARIABLE DEPENDIENTE (y)',
+    xLabel: options.xLabel || 'Eje X',
+    yLabel: options.yLabel || 'Eje Y',
     targetY,
   };
 }
@@ -1398,12 +1445,23 @@ function tryDetectDiagramFromTexts(
 ): SacrintDiagramSpec | null {
   if (!primaryText && !secondaryText) return null;
 
+  const classification = classifyTopic({
+    topic: primaryText,
+    bodyText: secondaryText,
+  });
+
+  // Prioridad por clasificador SSoT cuando es geometría pura (ángulos, Pitágoras, congruencia)
+  if (classification.kind === 'geometry') {
+    const geometry = tryBuildGeometryDiagram(primaryText) || tryBuildGeometryDiagram(secondaryText);
+    if (geometry) return geometry;
+  }
+
   // 1. Ecuación o función cuadrática (parábola real o estado por construir si solo hay tema)
   const quadratic = pickAvailableOrFallback(
     tryBuildQuadraticDiagram(primaryText),
     tryBuildQuadraticDiagram(secondaryText)
   );
-  if (quadratic) return quadratic;
+  if (quadratic && classification.kind !== 'geometry') return quadratic;
 
   // 2. Sistema de ecuaciones lineales 2x2 (rectas secantes e intersección o estado por construir)
   const system2x2 = pickAvailableOrFallback(
@@ -1419,10 +1477,19 @@ function tryDetectDiagramFromTexts(
   );
   if (exponential) return exponential;
 
-  // 4. Geometría plana (ángulos, triángulos, áreas y perímetros sin pendiente lineal explícita)
+  // 4. Geometría plana (ángulos, triángulos, congruencia, áreas y perímetros)
   const linearDirect = parseLinearEquationModel(primaryText, secondaryText);
   const geometry = tryBuildGeometryDiagram(primaryText) || tryBuildGeometryDiagram(secondaryText);
-  if (geometry && (!linearDirect || /tipos?\s+de\s+[aá]ngulos|pit[aá]goras/i.test(secondaryText))) {
+  const hasExplicitPrimaryGeometry =
+    classification.kind === 'geometry' ||
+    /tipos?\s+de\s+[aá]ngulos|clasificaci[oó]n\s+de\s+[aá]ngulos|transportador|pit[aá]goras|congruencia\s+(?:y\s+semejanza|de\s+(?:tri[aá]ngulos|figuras)|geom[eé]trica)|criterios?\s+(?:de\s+congruencia|LLL|LAL|ALA)|semejanza\s+de\s+tri[aá]ngulos/i.test(
+      primaryText
+    );
+  if (
+    geometry &&
+    (hasExplicitPrimaryGeometry ||
+      (!linearDirect && classification.kind !== 'linear' && classification.kind !== 'exponential'))
+  ) {
     return geometry;
   }
 
@@ -1450,9 +1517,10 @@ function buildMathDiagram(mission: MissionSection, options: DiagramBuildOptions)
 
   const missionCoreSource = cleanSacrintText(
     [
-      mission.conceptZero?.coreExplanation,
+      mission.conceptZero?.solvedExample?.problemStatement,
       mission.iDoSection?.stepByStepDemo,
       mission.conceptZero?.solvedExample?.solutionSteps?.join(' '),
+      mission.conceptZero?.coreExplanation,
     ]
       .filter(Boolean)
       .join(' ')
@@ -1600,12 +1668,12 @@ export function buildSacrintDiagram(
 export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVariable[] {
   switch (diagram.kind) {
     case 'linear': {
-      const isDefaultX = /^variable\s+independiente/i.test(diagram.xLabel);
-      const isDefaultY = /^variable\s+dependiente/i.test(diagram.yLabel);
+      const isDefaultX = /^(?:eje\s+x|variable\s+independiente)/i.test(diagram.xLabel);
+      const isDefaultY = /^(?:eje\s+y|variable\s+dependiente)/i.test(diagram.yLabel);
       return [
         {
           symbol: 'x',
-          label: 'Variable independiente',
+          label: 'Eje X',
           meaning: isDefaultX
             ? diagram.available
               ? `Dominio [0, ${diagram.domainMax}]`
@@ -1614,7 +1682,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         },
         {
           symbol: 'y',
-          label: 'Variable dependiente',
+          label: 'Eje Y',
           meaning: isDefaultY
             ? diagram.available
               ? diagram.targetY !== undefined
@@ -1625,7 +1693,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         },
         {
           symbol: 'm',
-          label: 'Razón de cambio',
+          label: 'Pendiente',
           meaning: diagram.available ? `Pendiente ${diagram.slope}` : 'Por construir',
         },
         {
@@ -1687,7 +1755,34 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
             : 'Por construir',
         },
       ];
-    case 'exponential':
+    case 'exponential': {
+      const isPop = diagram.context === 'population' || /P\(t\)|Poblaci[oó]n/i.test(diagram.equation + ' ' + diagram.yLabel);
+      const ratePct = Number((diagram.rate * 100).toFixed(2));
+      const finalVal = diagram.compoundSeries[diagram.compoundSeries.length - 1]?.value ?? diagram.principal;
+      if (isPop) {
+        return [
+          {
+            symbol: 'P₀',
+            label: 'Pob. inicial',
+            meaning: diagram.available ? `${diagram.principal.toLocaleString('en-US')} hab.` : 'Por construir',
+          },
+          {
+            symbol: 'r',
+            label: 'Tasa anual',
+            meaning: diagram.available ? `${ratePct}%` : 'Por construir',
+          },
+          {
+            symbol: 't',
+            label: 'Horizonte',
+            meaning: diagram.available ? `0 a ${diagram.periods} períodos` : 'Por construir',
+          },
+          {
+            symbol: 'P(t)',
+            label: 'Pob. proyectada',
+            meaning: diagram.available ? `${finalVal.toLocaleString('en-US')} hab.` : 'Por construir',
+          },
+        ];
+      }
       return [
         {
           symbol: 'C₀',
@@ -1697,7 +1792,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         {
           symbol: 'r',
           label: 'Tasa por período',
-          meaning: diagram.available ? `${(diagram.rate * 100).toFixed(0)}%` : 'Por construir',
+          meaning: diagram.available ? `${ratePct}%` : 'Por construir',
         },
         {
           symbol: 't',
@@ -1707,17 +1802,16 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         {
           symbol: 'M',
           label: 'Monto compuesto',
-          meaning: diagram.available
-            ? `$${(diagram.compoundSeries[diagram.compoundSeries.length - 1]?.value ?? diagram.principal).toLocaleString('en-US')}`
-            : 'Por construir',
+          meaning: diagram.available ? `$${finalVal.toLocaleString('en-US')}` : 'Por construir',
         },
       ];
+    }
     case 'geometry':
       return [
-        { symbol: '90°', label: 'Ángulo / Figura', meaning: clip(diagram.primaryLabel, 68) },
-        { symbol: 'R', label: 'Regla', meaning: clip(diagram.secondaryLabel, 68) },
-        { symbol: 'A', label: diagram.highlights[0]?.label ?? 'Elemento 1', meaning: clip(diagram.highlights[0]?.detail ?? '', 68) },
-        { symbol: 'B', label: diagram.highlights[1]?.label ?? 'Elemento 2', meaning: clip(diagram.highlights[1]?.detail ?? '', 68) },
+        { symbol: '90°', label: 'Figura', meaning: clip(diagram.primaryLabel, 38) },
+        { symbol: 'R', label: 'Regla', meaning: clip(diagram.secondaryLabel, 38) },
+        { symbol: 'A', label: diagram.highlights[0]?.label ?? 'Elemento 1', meaning: clip(diagram.highlights[0]?.detail ?? '', 38) },
+        { symbol: 'B', label: diagram.highlights[1]?.label ?? 'Elemento 2', meaning: clip(diagram.highlights[1]?.detail ?? '', 38) },
       ];
     case 'reaction':
       return [
@@ -1858,7 +1952,9 @@ export function diagramModelLabel(diagram: SacrintDiagramSpec): string {
     case 'system-2x2':
       return 'Sistema lineal 2×2';
     case 'exponential':
-      return 'Interés simple vs. compuesto';
+      return diagram.context === 'population' || /P\(t\)|Poblaci[oó]n/i.test(diagram.equation + ' ' + diagram.yLabel)
+        ? 'Crecimiento exponencial'
+        : 'Interés simple vs. compuesto';
     case 'geometry':
       return 'Modelo geométrico';
     case 'reaction':
@@ -1936,7 +2032,9 @@ export function diagramFooterLabel(diagram: SacrintDiagramSpec): string {
     case 'system-2x2':
       return 'rectas · intersección · solución';
     case 'exponential':
-      return 'capital · tasa · crecimiento';
+      return diagram.context === 'population' || /P\(t\)|Poblaci[oó]n/i.test(diagram.equation + ' ' + diagram.yLabel)
+        ? 'población · tasa · proyección'
+        : 'capital · tasa · crecimiento';
     case 'geometry':
       return 'trazo · medida · teorema';
     case 'reaction':

@@ -12,6 +12,7 @@
 
 import type { ExtractedBlockMaterials, PlanDeClaseDerivado } from './material-extractor';
 import type { MaterialReviewReport, MaterialType } from './material-review';
+import { composeDocumentTitle } from '@/lib/document-branding';
 
 export type PersistenceStream =
   | 'lesson_plan'
@@ -134,7 +135,7 @@ export function buildMaterialPersistencePlan(
     deletes.push({ kind: 'types', types: ['rubric'] });
     inserts.push({
       extraType: 'rubric',
-      title: `Rúbrica Analítica de Evaluación · Bloque ${blockNum}: ${blockTitle}`,
+      title: composeDocumentTitle('Rúbrica Analítica de Evaluación', blockNum, blockTitle),
       contentText: rubricContent,
     });
     persistedStreams.push('rubric');
@@ -144,7 +145,7 @@ export function buildMaterialPersistencePlan(
     deletes.push({ kind: 'types', types: ['checklist'] });
     inserts.push({
       extraType: 'checklist',
-      title: `Lista de Cotejo Formativa · Bloque ${blockNum}: ${blockTitle}`,
+      title: composeDocumentTitle('Lista de Cotejo Formativa', blockNum, blockTitle),
       contentText: checklistContent,
     });
     persistedStreams.push('checklist');
@@ -155,7 +156,7 @@ export function buildMaterialPersistencePlan(
     deletes.push({ kind: 'material_non_visual' });
     inserts.push({
       extraType: 'material',
-      title: `Materiales Didácticos e Insumos del Docente · Bloque ${blockNum}: ${blockTitle}`,
+      title: composeDocumentTitle('Materiales Didácticos e Insumos del Docente', blockNum, blockTitle),
       contentText: extracted.materialDidactico,
     });
     persistedStreams.push('didactic_material');
@@ -165,7 +166,7 @@ export function buildMaterialPersistencePlan(
     deletes.push({ kind: 'types', types: ['practice_guide'] });
     inserts.push({
       extraType: 'practice_guide',
-      title: `Fichas de Trabajo Imprimibles · Bloque ${blockNum}: ${blockTitle}`,
+      title: composeDocumentTitle('Fichas de Trabajo Imprimibles', blockNum, blockTitle),
       contentText: extracted.fichasTrabajo,
     });
     persistedStreams.push('practice_guide');
@@ -175,7 +176,7 @@ export function buildMaterialPersistencePlan(
     deletes.push({ kind: 'types', types: ['teacher_guide'] });
     inserts.push({
       extraType: 'teacher_guide',
-      title: `Solucionario y Guía Pedagógica del Docente · Bloque ${blockNum}: ${blockTitle}`,
+      title: composeDocumentTitle('Solucionario y Guía Pedagógica del Docente', blockNum, blockTitle),
       contentText: extracted.solucionarioDocente,
     });
     persistedStreams.push('teacher_guide');

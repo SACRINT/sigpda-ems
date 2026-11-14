@@ -282,17 +282,17 @@ describe('Fase 24 — Verificación Visual de Maquetación y Badges de Sesión',
     expect(pdfText).toContain('SESION 1 (50 MIN)');
     expect(pdfText).toContain('APERTURA Y MODELADO CONCEPTUAL');
     expect(pdfText).toContain('SESION 2 (50 MIN)');
-    expect(pdfText).toContain('PRACTICA GUIADA, RETO Y CIERRE');
+    expect(pdfText).toContain('PRÁCTICA GUIADA, RETO Y CIERRE');
     expect(pdfText).toContain('SESION 3 (50 MIN)');
     expect(pdfText).toContain('SESION 4 (50 MIN)');
 
     // 6. Verificación de los 7 Badges de Acción Cognitiva WinAnsi
-    expect(pdfText).toContain('[ SITUACION REAL ]');
+    expect(pdfText).toContain('[ SITUACIÓN REAL ]');
     expect(pdfText).toContain('[ LEO Y COMPRENDO ]');
     expect(pdfText).toContain('[ MODELO DOCENTE ]');
     expect(pdfText).toContain('[ TRABAJO EN EQUIPO ]');
     expect(pdfText).toContain('[ HAGO Y RESUELVO ]');
-    expect(pdfText).toContain('[ ERROR COMUN ]');
+    expect(pdfText).toContain('[ ERROR COMÚN ]');
     expect(pdfText).toContain('[ MI ENTREGA ]');
 
     // 7. Garantía Absoluta: Cero Emojis en el Flujo jsPDF (WinAnsi Safe)

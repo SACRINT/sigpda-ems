@@ -33,13 +33,59 @@ import { GET as GET_COMBINED } from '@/app/api/planeaciones/[id]/presentacion/co
 const planningId = '11111111-1111-1111-1111-111111111111';
 const teacherId = 'teacher-1';
 
-const workbook = {
+const workbookWithoutSessions = {
   id: 'w', planningId, blockIndex: 0, blockName: 'Bloque 1', version: 1, subsystem: 'bge',
   targetPages: 1, totalPages: 1, totalWords: 1, generatedAt: '', qualityScore: 90, qualityWarning: false,
   coverData: { title: 'Pensamiento Matemático I', subtitle: '', subjectName: 'Pensamiento Matemático I', semester: 1, blockNumber: 1, teacherName: 'D', schoolName: 'E' },
   tableOfContents: [], missions: [],
   projectSection: { artifactName: '', communityUtility: '', phases: [], technicalSpecs: [], acceptanceCriteria: [] },
   evaluationSection: { source: 'generated_fresh', rubric: [], checklist: [], criticalThinkingQuiz: [], metacognitiveReflection: { prompts: [] } },
+};
+
+const workbook = {
+  ...workbookWithoutSessions,
+  missions: [
+    {
+      missionIndex: 1,
+      title: 'Misión 1: Ecuaciones lineales en presupuestos escolares',
+      coveredSessions: [1],
+      sessionTopic: 'Ecuaciones de primer grado',
+      sessionFocus: 'Despeje e interpretación de pendiente',
+      phenomenonHook: {
+        story: 'Un taller comunitario calcula costos fijos y por unidad.',
+        detonatingQuestion: '¿Cuántas piezas cubren el presupuesto base?',
+      },
+      conceptZero: {
+        physicalAnalogy: 'Balanza algebraica equilibrada.',
+        coreExplanation: 'Una ecuación lineal modela variaciones constantes.',
+      },
+      iDoSection: { stepByStepDemo: 'Para 50x + 200 = 450, resta 200 y divide entre 50: x = 5.' },
+      weDoSection: { guidedPractice: 'Resuelve 40x + 120 = 280 en equipo.', workbookElements: [] },
+      youDoSection: { autonomousChallenge: 'Calcula el punto de equilibrio del proyecto.', workbookElements: [] },
+      troubleshooting: [],
+      formativeCheckpoint: {
+        question: '¿Cómo validas la solución obtenida?',
+        reflectionPrompts: ['Sustituye el valor en la ecuación original.'],
+        criteriaChecklist: ['Plantea la igualdad correcta y comprueba unidades.'],
+      },
+      wordCount: 150,
+      sessionPlans: [
+        {
+          sessionNumber: 1,
+          objetivo: 'Modelar costos con ecuaciones lineales ax + b = c.',
+          motivacion: 'Organizar el presupuesto de materiales del semestre.',
+          saberesPrevios: 'Operaciones inversas básicas.',
+          contenido: 'La pendiente representa el costo variable unitario.',
+          ejemploResuelto: 'Con 50x + 200 = 450, despeja 50x = 250 y obtén x = 5.',
+          practica: [{ enunciado: 'Resuelve 40x + 120 = 280.', pista: 'Resta 120 primero.' }],
+          aplicacion: 'Estimar costos reales en eventos del plantel.',
+          autoevaluacion: ['Verifico que mi resultado cumpla la igualdad.'],
+          recursos: [],
+          productoIntegrador: 'Tabla de costos lineales.',
+        },
+      ],
+    },
+  ],
 };
 
 const call = (qs: string) =>
@@ -124,5 +170,22 @@ describe('H-319 — endpoint de presentación', () => {
       { params: Promise.resolve({ id: planningId }) }
     );
     expect(res.status).toBe(404);
+  });
+
+  it('422 LESSON_GUIDE_NO_SESSIONS cuando el bloque carece de sessionPlans', async () => {
+    mockGetBlockWorkbook.mockResolvedValue(workbookWithoutSessions);
+    const singleRes = await call('?blockIndex=0');
+    expect(singleRes.status).toBe(422);
+    expect((await singleRes.json()).code).toBe('LESSON_GUIDE_NO_SESSIONS');
+
+    mockGetAllBlockWorkbooks.mockResolvedValue({
+      block_0: { current: workbookWithoutSessions },
+    });
+    const combinedRes = await GET_COMBINED(
+      new NextRequest(`http://localhost:3000/api/planeaciones/${planningId}/presentacion/combinada`),
+      { params: Promise.resolve({ id: planningId }) }
+    );
+    expect(combinedRes.status).toBe(422);
+    expect((await combinedRes.json()).code).toBe('LESSON_GUIDE_NO_SESSIONS');
   });
 });

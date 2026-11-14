@@ -12,7 +12,7 @@ import { SCHOOL_YEAR } from '@/lib/config';
 import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { logger } from './logger';
 import { COLORS } from './visual-engine/design-tokens';
-import { normalizePdfEditorialText } from './visual-engine/pdf-components-core';
+import { normalizePdfEditorialText } from './editorial/text-normalization';
 import {
   loadEditorialFonts,
   setFontHeading,

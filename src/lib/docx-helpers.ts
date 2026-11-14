@@ -40,6 +40,7 @@ import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
 import { parseInlineMarkdownSegments } from '@/lib/utils/inline-markdown';
 import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
 
 // ── Paleta de Colores Institucionales DOCX (Hexadecimal sin #) ──────────────
 export const DOCX_COLORS = {
@@ -112,7 +113,8 @@ export function parseTextRuns(
   font = 'Arial'
 ): TextRun[] {
   if (!text) return [];
-  const segments = parseInlineMarkdownSegments(text);
+  const normalized = normalizeEditorialText(text);
+  const segments = parseInlineMarkdownSegments(normalized);
   return segments.map((seg) => new TextRun({
     text: seg.text,
     bold: seg.bold || forceBold,
@@ -529,7 +531,7 @@ function buildExtraDocxBody(
   context: BrandingContext | undefined,
   layout: ExtraDocxLayout
 ): ExtraDocxBody {
-  const title = extra.title || 'Recurso Didáctico Oficial';
+  const title = normalizeEditorialText(extra.title || 'Recurso Didáctico Oficial') || 'Recurso Didáctico Oficial';
   const rawContent = getExtraContentForRender(extra);
   const lines = rawContent.split('\n');
 
@@ -775,9 +777,10 @@ export async function buildCombinedExtraDocx(
 
   const layout = resolveExtraDocxLayout(extras);
   const firstBranding = resolveHeaderBranding(extras[0].type, context);
-  const docTitle =
+  const docTitle = normalizeEditorialText(
     combinedTitle ||
-    `${firstBranding.typeLabel} · ${extras.length} documentos (todos los bloques)`;
+      `${firstBranding.typeLabel} · ${extras.length} documentos (todos los bloques)`
+  );
 
   const children: (Paragraph | Table)[] = [];
 
@@ -855,7 +858,13 @@ export async function buildCombinedExtraDocx(
               shading: { type: ShadingType.CLEAR, fill: idx % 2 === 0 ? 'F9FAFB' : 'FFFFFF' },
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: extra.title || `Documento ${idx + 1}`, size: 14, font: 'Arial' })],
+                  children: [
+                    new TextRun({
+                      text: normalizeEditorialText(extra.title || `Documento ${idx + 1}`),
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                  ],
                 }),
               ],
             }),

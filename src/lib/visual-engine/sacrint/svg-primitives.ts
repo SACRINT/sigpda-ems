@@ -1462,6 +1462,9 @@ export function exponentialGraph(
 
   parts.push(rect(plotX, plotY, plotW, plotH, `fill="${tc.plotFill}" fill-opacity="${tc.plotOpacity}" rx="6"`));
 
+  const isPopulation =
+    diagram.context === 'population' || /P\(t\)|Poblaci[oó]n/i.test(`${diagram.equation} ${diagram.yLabel}`);
+  const valPrefix = isPopulation ? '' : '$';
   const yStep = niceTickStep(yMax, 5);
   for (let t = 0; t <= xMax; t++) {
     parts.push(line(sx(t), plotY, sx(t), plotY + plotH, tc.pal.strokeSoft, 1, 'stroke-opacity="0.35"'));
@@ -1469,7 +1472,7 @@ export function exponentialGraph(
   }
   for (let val = 0; val <= yMax + 1e-6; val += yStep) {
     parts.push(line(plotX, sy(val), plotX + plotW, sy(val), tc.pal.strokeSoft, 1, 'stroke-opacity="0.35"'));
-    parts.push(singleLine(`$${formatTickValue(val)}`, plotX - 10, sy(val) + 4, { fill: tc.pal.muted, fontSize: compact ? 9 : 10, anchor: 'end' }));
+    parts.push(singleLine(`${valPrefix}${formatTickValue(val)}`, plotX - 10, sy(val) + 4, { fill: tc.pal.muted, fontSize: compact ? 9 : 10, anchor: 'end' }));
   }
 
   parts.push(line(plotX, plotY, plotX, plotY + plotH, tc.pal.textSoft, 1.5));
@@ -1482,10 +1485,10 @@ export function exponentialGraph(
     return parts.join('');
   }
 
-  // Serie Interés Simple (recta)
+  // Serie Lineal (recta)
   const simpleD = diagram.simpleSeries.map((p, i) => `${i === 0 ? 'M' : 'L'} ${sx(p.t).toFixed(1)} ${sy(p.value).toFixed(1)}`).join(' ');
   parts.push(path(simpleD, `fill="none" stroke="${accent2}" stroke-width="2.5" stroke-dasharray="6 4"`));
-  // Serie Interés Compuesto (curva exponencial)
+  // Serie Exponencial (curva)
   const compD = diagram.compoundSeries.map((p, i) => `${i === 0 ? 'M' : 'L'} ${sx(p.t).toFixed(1)} ${sy(p.value).toFixed(1)}`).join(' ');
   parts.push(path(compD, `fill="none" stroke="${accent}" stroke-width="${compact ? 3 : 3.8}" stroke-linecap="round"`));
 
@@ -1496,12 +1499,12 @@ export function exponentialGraph(
     if (idx === 0 || idx === diagram.compoundSeries.length - 1) {
       const anchor = idx === 0 ? 'start' : 'end';
       const lx = idx === 0 ? px + 8 : px - 8;
-      parts.push(singleLine(`$${p.value.toLocaleString('en-US')}`, lx, Math.max(plotY + 26, py - 10), { fill: accent, fontSize: compact ? 10 : 11, weight: 'bold', anchor }));
+      parts.push(singleLine(`${valPrefix}${p.value.toLocaleString('en-US')}`, lx, Math.max(plotY + 26, py - 10), { fill: accent, fontSize: compact ? 10 : 11, weight: 'bold', anchor }));
     }
   });
 
-  parts.push(singleLine('― Interés compuesto (exponencial)', plotX + 10, plotY + 18, { fill: accent, fontSize: compact ? 9 : 11, weight: 'semibold' }));
-  parts.push(singleLine('- - Interés simple (lineal)', plotX + plotW - 10, plotY + 18, { fill: accent2, fontSize: compact ? 9 : 11, weight: 'semibold', anchor: 'end' }));
+  parts.push(singleLine(isPopulation ? '― Crecimiento exponencial' : '― Interés compuesto (exponencial)', plotX + 10, plotY + 18, { fill: accent, fontSize: compact ? 9 : 11, weight: 'semibold' }));
+  parts.push(singleLine(isPopulation ? '- - Proyección lineal' : '- - Interés simple (lineal)', plotX + plotW - 10, plotY + 18, { fill: accent2, fontSize: compact ? 9 : 11, weight: 'semibold', anchor: 'end' }));
   parts.push(singleLine(uppercaseLabel(diagram.xLabel), plotX + plotW / 2, y + height - 6, { fill: tc.pal.muted, fontSize: compact ? 10 : 11, weight: 'semibold', letterSpacing: 1.4, anchor: 'middle' }));
   return parts.join('');
 }

@@ -62,7 +62,6 @@ import {
   extractSafetyOrCriticalTip,
   buildMetacognitiveTrafficLight,
   sanitizeWorkbookNarratives,
-  type GlossaryItem,
 } from '@/lib/visual-engine/content-extractor';
 import {
   generateBookCover,
@@ -94,7 +93,8 @@ import {
   drawProcessFlowBanner,
   extractProcessFlowSteps,
 } from '@/lib/visual-engine/pdf-components';
-import { normalizePdfEditorialText } from '@/lib/visual-engine/pdf-components-core';
+import { normalizePdfEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
+import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
   ColumnFlowManager,
@@ -207,7 +207,7 @@ const WIN_ANSI_REGEX = /[^\x20-\xFF€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“�
  */
 export function sanitizePdfText(text: string | null | undefined): string {
   if (!text) return '';
-  let str = normalizePdfEditorialText(text.replace(/<!--[\s\S]*?-->/g, ''));
+  let str = toWinAnsiMathSafe(normalizePdfEditorialText(text.replace(/<!--[\s\S]*?-->/g, '')));
   for (const [emoji, replacement] of Object.entries(EMOJI_TO_TEXT)) {
     if (str.includes(emoji)) {
       str = str.split(emoji).join(replacement);
@@ -351,7 +351,7 @@ export async function renderWorkbookToPdf(
     doc.addPage();
     plantelPageNumber = doc.getNumberOfPages();
     pageContextMap.set(plantelPageNumber, { isSpecialPage: true, uacName: coverOpts.uacName });
-    drawPlantelComunidadPage(doc, workbook, planning, margin, contentWidth, pageHeight);
+    drawPlantelComunidadPage(doc, workbook, planning, margin, contentWidth);
   }
 
   // ── 3. Índice de Misiones (Páginas Reservadas para TOC Real) ───────────────────
@@ -386,10 +386,9 @@ export async function renderWorkbookToPdf(
     doc.addPage();
     const missionStartPage = doc.getNumberOfPages();
 
-    const cleanTitle = mission.title
-      .replace(/^\[.*?\]\s*/, '')
-      .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
-      .trim();
+    const cleanTitle = sanitizePdfText(stripMarkdown(
+      sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
+    ));
 
     const cov = mission.coveredSessions;
     const sessionsRange = cov && cov.length > 0
@@ -1515,8 +1514,7 @@ function drawPlantelComunidadPage(
   workbook: ActiveWorkTextbook,
   planning: Planning | null | undefined,
   margin: number,
-  contentWidth: number,
-  pageHeight: number
+  contentWidth: number
 ) {
   let y = margin + 6;
   const identidad = identidadDelLibro(workbook, planning);
@@ -1674,70 +1672,6 @@ function drawPlantelComunidadPage(
   doc.setFontSize(6);
   doc.setTextColor(...MUTED_TEXT);
   doc.text('Autorización y Resguardo Escolar', col3X + colW / 2, sigY + 6.5, { align: 'center' });
-}
-
-function drawPdfGlossaryBox(
-  doc: jsPDF,
-  terms: GlossaryItem[],
-  margin: number,
-  drawWidth: number,   // CONTRATO: debe ser mainW cuando se llama desde drawMission
-  pageHeight: number,
-  startY: number
-): number {
-  if (!terms || terms.length === 0) return startY;
-
-  const cleanTerms = terms.map((t) => ({
-    term: sanitizePdfText(stripMarkdown(t.term)),
-    definition: sanitizePdfText(stripMarkdown(t.definition)),
-  }));
-
-  // GUARDIÁN: ancho de texto clampeado
-  const safeTermW = clampTextWidth(drawWidth, drawWidth, 14);
-
-  let totalDefLines = 0;
-  for (const item of cleanTerms) {
-    const lines = doc.splitTextToSize(`${item.term}: ${item.definition}`, safeTermW);
-    totalDefLines += lines.length;
-  }
-  const boxHeight = Math.max(18, 9 + totalDefLines * 3.8);
-
-  const y = ensureVerticalSpace(doc, startY, boxHeight + 4, margin, pageHeight);
-
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'F');
-
-  doc.setFillColor(...VINO_PUEBLA);
-  doc.roundedRect(margin, y, 3.5, boxHeight, 1.2, 1.2, 'F');
-
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, drawWidth, boxHeight, 1.5, 1.5, 'S');
-
-  setFontBody(doc, 'bold');
-  doc.setFontSize(8.2);
-  doc.setTextColor(...VINO_PUEBLA);
-  doc.text('GLOSARIO CONCEPTUAL CLAVE DE LA MISION (MCCEMS):', margin + 7, y + 4.8);
-
-  let textY = y + 8.8;
-  for (const item of cleanTerms) {
-    setFontBody(doc, 'bold');
-    doc.setFontSize(7.6);
-    doc.setTextColor(...NAVY);
-    const prefix = `• ${item.term}: `;
-    doc.text(prefix, margin + 7, textY);
-    const prefixWidth = doc.getTextWidth(prefix);
-
-    setFontBody(doc, 'normal');
-    doc.setFontSize(7.4);
-    doc.setTextColor(...DARK_TEXT);
-    // GUARDIÁN: la definición nunca supera safeTermW - prefixWidth
-    const safeDefW = clampTextWidth(drawWidth, drawWidth, 14 + prefixWidth);
-    const defLines = doc.splitTextToSize(item.definition, safeDefW);
-    doc.text(defLines, margin + 7 + prefixWidth, textY);
-    textY += Math.max(4.2, defLines.length * 3.6 + 1.5);
-  }
-
-  return y + boxHeight + 4;
 }
 
 /**
@@ -2245,10 +2179,7 @@ async function drawMission(
 
   // Sanitizar título de misión
   const cleanMissionTitle = sanitizePdfText(stripMarkdown(
-    mission.title
-      .replace(/^\[.*?\]\s*/, '')
-      .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
-      .trim()
+    sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
   ));
 
   // Glosario para sidebar (extraído del coreExplanation)
@@ -2372,7 +2303,7 @@ async function drawMission(
   y = drawMissionBanner(doc, {
     missionNumber,
     title: cleanMissionTitle,
-    sessionFocus: mission.sessionFocus,
+    sessionFocus: sanitizeMissionFocus(mission.sessionFocus),
     uacLabel: subjectName || 'UAC',
     sessionsStr: mission.coveredSessions?.join(', ') || `${missionNumber * 2 - 1}-${missionNumber * 2}`,
     momentColor,
@@ -2409,13 +2340,19 @@ async function drawMission(
   //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
   const drawSessionFigure = async (sNum: number, topic: string, context: string, curY: number): Promise<number> => {
     try {
-      const visual = dispatchVisual(effSubject || 'Formación Fundamental', topic, context, sNum);
+      const visual = dispatchVisual({
+        subject: effSubject || 'Formación Fundamental',
+        topic,
+        context,
+        scope: 'session',
+        sessionNumber: sNum,
+        missionNumber,
+      });
       if (!visual) return curY;
-      const sessionScopedSvg = visual.svg.replace(/\bMisi[oó]n\s+(\d+)\b/g, 'Sesión $1');
-      const img = await svgToPngBuffer(sessionScopedSvg);
+      const img = await svgToPngBuffer(visual.svg);
       if (!img) return curY;
       // Proporción REAL del SVG (nunca forzar una altura fija: aplasta ejes y etiquetas)
-      const svgDim = extractSvgDimensions(sessionScopedSvg);
+      const svgDim = extractSvgDimensions(visual.svg);
       const imgW = Math.min(72, mainW * 0.62);
       const imgH = imgW * (svgDim.height / svgDim.width);
       let ny = checkSpace(curY, imgH + 5.0);

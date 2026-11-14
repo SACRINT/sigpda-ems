@@ -25,11 +25,13 @@ import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import {
   extractMaterialsFromWorkbook,
+  MissingWorkbookMissionsError,
   resolveBlockSessionRange,
   type BlockCurricularAnchor,
   type ExtractedBlockMaterials,
   type PlanDeClaseDerivado,
 } from './material-extractor';
+import { logger } from '@/lib/logger';
 import { detectFallbackWords } from './writers/writer-contract';
 import { validateBlockCrossContamination } from './cross-contamination-guard';
 
@@ -305,11 +307,29 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
   } = input;
 
   const persistedExtras = input.persistedExtras ?? input.extras;
+  const issues: ReviewIssue[] = [];
+  const pushIssue = (issue: ReviewIssue) => {
+    issues.push(issue);
+  };
+
   let extracted = input.extracted;
   if (!extracted) {
     try {
       extracted = extractMaterialsFromWorkbook(workbook, blockSequence, curricularAnchor);
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof MissingWorkbookMissionsError)) {
+        logger.error('[material-review] Error inesperado extrayendo materiales del bloque', {
+          error,
+          blockIndex: workbook.blockIndex,
+          blockName: workbook.blockName,
+        });
+        pushIssue({
+          code: 'S1_EXTRACTION_FAILED',
+          material: 'lesson_plan',
+          severity: 'error',
+          message: `No se pudieron extraer los materiales del bloque de forma íntegra: ${error instanceof Error ? error.message : String(error)}.`,
+        });
+      }
       extracted = {
         metadata: {
           extractedAt: new Date(0).toISOString(),
@@ -330,11 +350,6 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
       };
     }
   }
-
-  const issues: ReviewIssue[] = [];
-  const pushIssue = (issue: ReviewIssue) => {
-    issues.push(issue);
-  };
 
   const resolvedUacName =
     uacName ||
@@ -718,8 +733,12 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
   // ── S6: Presentaciones (deck), infografías y recursos gráficos ─────────────
   if (deck) {
     const slides = Array.isArray(deck.slides) ? deck.slides : [];
+    const expectedCount = deck.meta?.expectedSlideCount;
     const validLessonGuideCount =
-      deck.mode === 'lesson-guide' && slides.length >= 3 && slides.length <= 160;
+      deck.mode === 'lesson-guide' &&
+      slides.length >= 3 &&
+      slides.length <= 160 &&
+      (expectedCount == null || slides.length === expectedCount);
     if (!validLessonGuideCount && slides.length !== 8 && slides.length !== 4) {
       pushIssue({
         code: 'S6_INVALID_SLIDE_COUNT',

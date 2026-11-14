@@ -3,7 +3,11 @@ import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import { buildSlideDeck } from '@/lib/presentation-engine/slide-model';
-import { buildSacrintDecksForWorkbook, type SacrintDeckSpec } from '@/lib/visual-engine/sacrint/spec';
+import {
+  buildSacrintDecksForWorkbook,
+  LessonGuideNoSessionsError,
+  type SacrintDeckSpec,
+} from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { logger } from '@/lib/logger';
 
@@ -99,6 +103,16 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    if (error instanceof LessonGuideNoSessionsError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: error.code,
+          error: error.message,
+        },
+        { status: 422 }
+      );
+    }
     logger.error('[API /presentacion] Error:', error);
     return NextResponse.json({ error: 'Error interno al generar la presentación' }, { status: 500 });
   }

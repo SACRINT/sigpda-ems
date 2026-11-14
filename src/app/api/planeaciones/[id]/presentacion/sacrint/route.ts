@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildSacrintDeck, SACRINT_SLIDE_COUNT, type SacrintDeckMode } from '@/lib/visual-engine/sacrint/spec';
+import {
+  buildSacrintDeck,
+  LessonGuideNoSessionsError,
+  SACRINT_SLIDE_COUNT,
+  type SacrintDeckMode,
+} from '@/lib/visual-engine/sacrint/spec';
 import { renderDeckSvgs } from '@/lib/visual-engine/sacrint/slide-renderer';
 import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { renderSvgToPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
@@ -206,6 +211,16 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    if (error instanceof LessonGuideNoSessionsError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: error.code,
+          error: error.message,
+        },
+        { status: 422 }
+      );
+    }
     logger.error('[API /presentacion/sacrint] Error:', error);
     return NextResponse.json({ error: 'Error interno al generar la presentación SACRINT' }, { status: 500 });
   }

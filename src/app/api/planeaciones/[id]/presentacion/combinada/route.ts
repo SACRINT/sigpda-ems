@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getAllBlockWorkbooks, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildSacrintDecksForWorkbook, type SacrintDeckMode, type SacrintDeckSpec } from '@/lib/visual-engine/sacrint/spec';
+import {
+  buildSacrintDecksForWorkbook,
+  LessonGuideNoSessionsError,
+  type SacrintDeckMode,
+  type SacrintDeckSpec,
+} from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import {
+  extractMaterialsFromWorkbook,
+  type ExtractedBlockMaterials,
+} from '@/lib/guide-engine/material-extractor';
 import { reviewBlockMaterials, type ReviewIssue } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
@@ -79,11 +88,18 @@ export async function GET(
     const deckWarnings: ReviewIssue[] = [];
 
     for (const entry of effectiveEntries) {
+      let extracted: ExtractedBlockMaterials | undefined;
+      try {
+        extracted = extractMaterialsFromWorkbook(entry.workbook);
+      } catch {
+        extracted = undefined;
+      }
       const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, { mode: deckMode });
       for (const deck of entryDecks) {
         sacrintDecks.push(deck);
         const review = reviewBlockMaterials({
           workbook: entry.workbook,
+          extracted,
           deck,
           uacName: planRows[0].uac_name,
           component: planRows[0].component || '',
@@ -133,6 +149,16 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    if (error instanceof LessonGuideNoSessionsError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: error.code,
+          error: error.message,
+        },
+        { status: 422 }
+      );
+    }
     logger.error('[API /presentacion/combinada] Error:', error);
     return NextResponse.json({ error: 'Error interno al generar la presentación combinada' }, { status: 500 });
   }

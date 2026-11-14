@@ -347,7 +347,10 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
-  const pasoRegex = /^(?:paso\s*\d+\s*[:.\-–]?|\d+[.)\-]|[-*•])\s*(.+)$/i;
+  const hasExplicitPasoMarkers = lines.some((l) => /^paso\s*\d+\s*[:.\-–]?/i.test(l));
+  const pasoRegex = hasExplicitPasoMarkers
+    ? /^paso\s*\d+\s*[:.\-–]?\s*(.+)$/i
+    : /^(?:paso\s*\d+\s*[:.\-–]?|\d+[.)\-]|[-*•])\s*(.+)$/i;
 
   const pasos: string[] = [];
   const enunciadoLines: string[] = [];
@@ -359,7 +362,9 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
     } else if (pasos.length === 0) {
       enunciadoLines.push(line);
     } else {
-      pasos[pasos.length - 1] += ' ' + line;
+      const prev = pasos[pasos.length - 1];
+      const sep = !/[.:;?!]$/.test(prev) && /^\d+[.)]/.test(line) ? '; ' : ' ';
+      pasos[pasos.length - 1] = `${prev}${sep}${line}`;
     }
   }
 

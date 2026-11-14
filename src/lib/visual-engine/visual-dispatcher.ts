@@ -14,9 +14,11 @@ import {
   generateQuadraticGraph,
   generateLinearSystemGraph,
   generateTriangle,
+  generateAngleClassificationVisual,
   generateRectangle,
 } from './generators/stem-generator';
 import type { VisualResult } from './generators/stem-generator';
+import { classifyTopic } from './topic-classifier';
 import {
   generateTimeline,
   generateConceptMap,
@@ -211,9 +213,22 @@ export function isLaboralSubject(uacName: string): boolean {
   });
 }
 
+export interface DispatchVisualOptions {
+  scope?: 'mission' | 'session';
+  missionNumber?: number;
+  sessionNumber?: number;
+}
+
+export interface DispatchVisualRequest extends DispatchVisualOptions {
+  subject: string;
+  topic: string;
+  context?: string;
+}
+
 /**
  * Intenta extraer parámetros m y b de expresiones lineales explícitas en el texto:
- * Ejemplos: "f(x) = 2x - 3", "y = -1.5x + 4", "f(x) = -x + 2", "y = 0.5x", "y = x + 1"
+ * Ejemplos: "f(x) = 2x - 3", "y = -1.5x + 4", "f(x) = -x + 2", "y = 0.5x", "y = x + 1",
+ * o ecuaciones lineales con datos numéricos reales como "5x - 300 = 1200" / "2x + 3 = 7".
  */
 function tryExtractLinearParameters(text: string): { m: number; b: number; title: string } | null {
   const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
@@ -237,11 +252,30 @@ function tryExtractLinearParameters(text: string): { m: number; b: number; title
     }
 
     if (Math.abs(m) <= 6 && Math.abs(b) <= 6 && (m !== 0 || b !== 0)) {
-      const bSign = b >= 0 ? `+ ${b}` : `- ${Math.abs(b)}`;
+      const mFmt = m === 1 ? '' : m === -1 ? '-' : String(m);
+      const bSign = b > 0 ? `+ ${b}` : b < 0 ? `- ${Math.abs(b)}` : '';
       return {
         m,
         b,
-        title: `Modelación Gráfica: Función Lineal f(x) = ${m}x ${b !== 0 ? bSign : ''}`.trim(),
+        title: `Modelación Gráfica: Función Lineal f(x) = ${mFmt}x ${bSign}`.replace(/\s+/g, ' ').trim(),
+      };
+    }
+  }
+
+  // Ecuación de primer grado de una variable con números explícitos: ax + b = c (solo si está en rango graficable directo)
+  const singleVarMatch = clean.match(/\b([+-]?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*([+-]?\d+(?:\.\d+)?)/i);
+  if (singleVarMatch) {
+    const a = parseFloat(singleVarMatch[1]);
+    const sign = singleVarMatch[2] === '-' ? -1 : 1;
+    const bVal = sign * parseFloat(singleVarMatch[3]);
+    const cVal = parseFloat(singleVarMatch[4]);
+    const netB = Number((bVal - cVal).toFixed(2));
+    if (a !== 0 && Math.abs(a) <= 6 && Math.abs(netB) <= 6) {
+      const bSign = netB > 0 ? `+ ${netB}` : netB < 0 ? `- ${Math.abs(netB)}` : '';
+      return {
+        m: a,
+        b: netB,
+        title: `Modelación Lineal: f(x) = ${a}x ${bSign}`.replace(/\s+/g, ' ').trim(),
       };
     }
   }
@@ -250,14 +284,71 @@ function tryExtractLinearParameters(text: string): { m: number; b: number; title
 }
 
 /**
+ * Intenta extraer un sistema 2x2 real (dos ecuaciones en x, y con coeficientes numéricos explícitos).
+ */
+function tryExtractLinearSystemParameters(
+  text: string
+): { m1: number; b1: number; m2: number; b2: number; title: string } | null {
+  const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
+  const lines: Array<{ m: number; b: number }> = [];
+
+  // 1. Forma explícita y = mx + b
+  const slopeMatches = Array.from(
+    clean.matchAll(/(?:L[₁₂12]\s*:\s*)?y\s*=\s*([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x(?:\s*([+-])\s*(\d+(?:\.\d+)?))?/gi)
+  );
+  for (const m of slopeMatches) {
+    const rawM = m[1].replace(/\s+/g, '');
+    const slope = rawM === '' || rawM === '+' ? 1 : rawM === '-' ? -1 : parseFloat(rawM);
+    const intercept = m[2] && m[3] ? (m[2] === '-' ? -1 : 1) * parseFloat(m[3]) : 0;
+    if (Number.isFinite(slope) && Number.isFinite(intercept) && Math.abs(slope) <= 6 && Math.abs(intercept) <= 8) {
+      lines.push({ m: Number(slope.toFixed(2)), b: Number(intercept.toFixed(2)) });
+    }
+  }
+
+  // 2. Forma estándar Ax + By = C
+  if (lines.length < 2) {
+    const stdMatches = Array.from(
+      clean.matchAll(/([+-]?\s*\d*(?:\.\d+)?)\s*x\s*([+-])\s*(\d*(?:\.\d+)?)\s*y\s*=\s*([+-]?\s*\d+(?:\.\d+)?)/gi)
+    );
+    for (const sm of stdMatches) {
+      const aStr = sm[1].replace(/\s+/g, '');
+      const bStr = sm[3].replace(/\s+/g, '');
+      const cStr = sm[4].replace(/\s+/g, '');
+      const A = aStr === '' || aStr === '+' ? 1 : aStr === '-' ? -1 : parseFloat(aStr);
+      const signB = sm[2] === '-' ? -1 : 1;
+      const B = signB * (bStr === '' ? 1 : parseFloat(bStr));
+      const C = parseFloat(cStr);
+      if (Number.isFinite(A) && Number.isFinite(B) && Number.isFinite(C) && B !== 0) {
+        const slope = Number((-A / B).toFixed(2));
+        const intercept = Number((C / B).toFixed(2));
+        if (Math.abs(slope) <= 6 && Math.abs(intercept) <= 8) {
+          lines.push({ m: slope, b: intercept });
+        }
+      }
+    }
+  }
+
+  if (lines.length >= 2 && (lines[0].m !== lines[1].m || lines[0].b !== lines[1].b)) {
+    return {
+      m1: lines[0].m,
+      b1: lines[0].b,
+      m2: lines[1].m,
+      b2: lines[1].b,
+      title: 'Sistema de Ecuaciones 2×2: Intersección L₁ y L₂',
+    };
+  }
+  return null;
+}
+
+/**
  * Intenta extraer parámetros a, b, c de expresiones cuadráticas en el texto:
- * Ejemplos: "f(x) = x² - 4", "y = -x^2 + 4", "f(x) = 2x² - 3x + 1"
+ * Ejemplos: "f(x) = x² - 4", "y = -x^2 + 4", "f(x) = 2x² - 3x + 1", "x² - 5x + 6 = 0"
  */
 function tryExtractQuadraticParameters(text: string): { a: number; b: number; c: number; title: string } | null {
   const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
-  const quadRegex = /(?:f\s*\(\s*x\s*\)|y)\s*=\s*([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?/i;
+  const quadRegex = /(?:(?:f\s*\(\s*x\s*\)|y)\s*=\s*)?([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?(?:\s*=\s*0)?/i;
   const match = clean.match(quadRegex);
-  if (match) {
+  if (match && /(?:\^2|²)/.test(match[0])) {
     const aStr = match[1].replace(/\s+/g, '');
     let a = 1;
     if (aStr === '' || aStr === '+') a = 1;
@@ -297,6 +388,60 @@ function tryExtractQuadraticParameters(text: string): { a: number; b: number; c:
       };
     }
   }
+  return null;
+}
+
+/**
+ * Extrae lados reales de un triángulo rectángulo cuando están explícitos en el texto.
+ */
+function tryExtractTriangleParameters(
+  text: string
+): { a: number; b: number; c: number } | null {
+  const clean = text.replace(/−/g, '-');
+  const catetosMatch = clean.match(
+    /catetos?(?:\s+miden|\s+de|\s+son)?\s+(\d+(?:\.\d+)?)\s*(?:m|cm|u|metros|unidades)?\s*(?:y|,)\s*(\d+(?:\.\d+)?)/i
+  );
+  if (catetosMatch) {
+    const a = parseFloat(catetosMatch[1]);
+    const b = parseFloat(catetosMatch[2]);
+    if (a > 0 && b > 0) {
+      return { a, b, c: Number(Math.hypot(a, b).toFixed(2)) };
+    }
+  }
+  const abMatch =
+    clean.match(/\ba\s*=\s*(\d+(?:\.\d+)?)\b[^.;]{0,40}\bb\s*=\s*(\d+(?:\.\d+)?)\b/i);
+  if (abMatch) {
+    const a = parseFloat(abMatch[1]);
+    const b = parseFloat(abMatch[2]);
+    if (a > 0 && b > 0) {
+      return { a, b, c: Number(Math.hypot(a, b).toFixed(2)) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Extrae un ángulo explícito en grados sexagesimales si aparece en el texto (ej. "45°", "60 grados").
+ */
+function tryExtractAngleDegree(text: string): number | null {
+  const m = text.match(/\b(\d{1,3}(?:\.\d+)?)\s*(?:°|grados?\b)/i);
+  if (!m) return null;
+  const val = parseFloat(m[1]);
+  if (val > 0 && val <= 180) return val;
+  return null;
+}
+
+/**
+ * Extrae dimensiones reales de un rectángulo si aparecen en el texto (ej. "largo de 12 m y ancho de 8 m").
+ */
+function tryExtractRectangleParameters(text: string): { largo: number; ancho: number } | null {
+  const m =
+    text.match(/(?:largo|base)(?:\s+de|\s+es|\s*=\s*)?\s*(\d+(?:\.\d+)?)\s*(?:m|cm|u|metros)?\s*(?:y|,)\s*(?:ancho|altura)(?:\s+de|\s+es|\s*=\s*)?\s*(\d+(?:\.\d+)?)/i) ||
+    text.match(/(\d+(?:\.\d+)?)\s*(?:m|cm|metros)?\s*(?:de\s+largo|de\s+base)\s*(?:por|y)\s*(\d+(?:\.\d+)?)\s*(?:m|cm|metros)?\s*(?:de\s+ancho|de\s+altura)/i);
+  if (!m) return null;
+  const largo = parseFloat(m[1]);
+  const ancho = parseFloat(m[2]);
+  if (largo > 0 && ancho > 0) return { largo, ancho };
   return null;
 }
 
@@ -396,23 +541,41 @@ export function dispatchTechnicalDrawing(
 
 /**
  * Despacha el recurso gráfico vectorial adecuado según la asignatura, el tema,
- * el contexto completo de la misión y el índice de misión para evitar repeticiones.
+ * el contexto completo y el ámbito (misión vs. sesión).
  *
- * @param uacName Nombre de la UAC (ej: "Pensamiento Matemático III")
- * @param topic Título de la misión
- * @param contextText Texto combinado de coreExplanation + physicalAnalogy para mejor detección
- * @param missionIndex Índice de la misión (1-based) para variar parámetros y progresiones
- * @returns VisualResult con SVG + anotaciones, o null si la disciplina no tiene generador.
+ * REGLA ESTRICTA DE VERACIDAD (Phase 5):
+ * - Nunca inventa coeficientes (1,0,-4 / 1,-1,-0.5,3.5 / 1.5,1) ni triángulos 3-4-5 cuando no hay datos reales.
+ * - Nunca rotula una figura de sesión como "Misión 16"; distingue explícitamente `scope: 'session'` vs `'mission'`.
  */
 export function dispatchVisual(
-  uacName: string,
-  topic: string,
-  contextText?: string,
-  missionIndex = 1
+  uacNameOrRequest: string | DispatchVisualRequest,
+  topicArg?: string,
+  contextTextArg?: string,
+  missionIndexArg = 1,
+  optionsArg?: DispatchVisualOptions
 ): VisualResult | null {
+  const isObj = typeof uacNameOrRequest === 'object' && uacNameOrRequest !== null;
+  const uacName = isObj ? uacNameOrRequest.subject : uacNameOrRequest;
+  const topic = isObj ? uacNameOrRequest.topic : topicArg || '';
+  const contextText = isObj ? uacNameOrRequest.context : contextTextArg;
+  const scope: 'mission' | 'session' = isObj
+    ? uacNameOrRequest.scope ?? (uacNameOrRequest.sessionNumber != null ? 'session' : 'mission')
+    : optionsArg?.scope ?? 'mission';
+  const missionNumber = isObj
+    ? uacNameOrRequest.missionNumber ?? 1
+    : optionsArg?.missionNumber ?? missionIndexArg ?? 1;
+  const sessionNumber = isObj
+    ? uacNameOrRequest.sessionNumber
+    : optionsArg?.sessionNumber ?? (scope === 'session' ? missionIndexArg : undefined);
+
+  const scopeLabel =
+    scope === 'session' && sessionNumber != null
+      ? `Sesión ${sessionNumber}`
+      : `Misión ${missionNumber}`;
+
   // ── 0. DISPATCHER ESPECIALIZADO: DIBUJO TÉCNICO Y ARQUITECTURA ──────────
   if (isTechnicalDrawingSubject(uacName)) {
-    return dispatchTechnicalDrawing(topic, contextText, missionIndex);
+    return dispatchTechnicalDrawing(topic, contextText, missionNumber);
   }
 
   const isStem = isStemSubject(uacName);
@@ -425,70 +588,130 @@ export function dispatchVisual(
   // ── A. DISPATCHER ÁREA STEM / CIENCIAS EXACTAS ────────────────────────────
   if (isStem) {
     const rawContext = `${topic} ${contextText || ''}`;
+    const classification = classifyTopic({
+      title: topic,
+      topic,
+      bodyText: contextText,
+      subject: uacName,
+    });
+
+    const allowGeometryFallback = classification.kind === 'geometry' || classification.kind === 'generic';
+    const allowQuadraticFallback = classification.kind !== 'geometry' && classification.kind !== 'exponential' && classification.kind !== 'system-2x2';
 
     // 1. Parábolas y Ecuaciones Cuadráticas
-    // Evitar falso positivo cuando "vértice" refiere a ángulos, transportador o geometría plana
     const extractedQuadratic = tryExtractQuadraticParameters(rawContext);
     const hasExplicitQuadraticCue =
-      /\b(?:parabola|parabolico|ecuacion(?:es)?\s+cuadratica(?:s)?|funcion(?:es)?\s+cuadratica(?:s)?|modelo\s+cuadratico|segundo\s+grado|discriminante|concavidad|tiro\s+parabolico)\b/.test(
-        searchText
-      ) || /\b\d*x\s*(?:\^2|\u00b2)/i.test(rawContext);
-    const hasGeometryAngleCue =
-      /\b(?:angulo|angulos|transportador|bisectriz|suplementari[oa]?s?|complementari[oa]?s?|opuestos por el vertice|vertice del angulo|vertice comun|triangulo|poligono|cuadrilatero|pitagoras|trigonometr\w*|teorema de tales|congruencia|semejanza|circunferencia|cateto|hipotenusa)\b/.test(
-        searchText
-      );
-    const hasContextualQuadraticCue =
-      !hasGeometryAngleCue &&
-      /\b(?:trayectoria\s+parabolica|vertice\s+de\s+la\s+parabola|altura\s+maxima\s+del\s+proyectil)\b/.test(searchText);
+      classification.kind === 'quadratic' ||
+      (allowQuadraticFallback &&
+        !/\b(?:pitagoras|hipotenusa|cateto|angulo|transportador)\b/.test(searchText) &&
+        ((classification.kind === 'generic' &&
+          /\b(?:parabola|parabolico|ecuacion(?:es)?\s+cuadratica(?:s)?|funcion(?:es)?\s+cuadratica(?:s)?|modelo\s+cuadratico|segundo\s+grado|discriminante|concavidad|tiro\s+parabolico)\b/.test(
+            searchText
+          )) ||
+          Boolean(extractedQuadratic)));
 
-    if (extractedQuadratic || hasExplicitQuadraticCue || hasContextualQuadraticCue) {
+    if (hasExplicitQuadraticCue) {
       if (extractedQuadratic) {
         return generateQuadraticGraph(extractedQuadratic.a, extractedQuadratic.b, extractedQuadratic.c, {
           title: extractedQuadratic.title,
         });
       }
-
-      // Variación pedagógica por misión
-      const mod = ((missionIndex - 1) % 3) + 1;
-      if (mod === 2) {
-        return generateQuadraticGraph(-1, 0, 4, {
-          title: 'Tiro Parabólico y Altura Máxima: f(x) = -x² + 4',
-        });
-      }
-      if (mod === 3) {
-        return generateQuadraticGraph(1, -2, -3, {
-          title: 'Optimización y Vértice Desplazado: f(x) = x² - 2x - 3',
-        });
-      }
-      return generateQuadraticGraph(1, 0, -4, {
-        title: 'Modelación Gráfica: Función Cuadrática f(x) = x² - 4',
+      return generateCartesianPlane({
+        title: `Plano Cartesiano — Modelación Cuadrática (${scopeLabel})`,
+        subtitle: 'Modelo por construir: tabula y grafica con los datos del problema',
+        isFallback: true,
       });
     }
 
-    // 2. Sistemas de Ecuaciones Lineales (prioridad si se menciona sistema o 2x2)
+    // 2. Sistemas de Ecuaciones Lineales 2x2
+    const extractedSystem = tryExtractLinearSystemParameters(rawContext);
+    const hasSystemCue =
+      classification.kind === 'system-2x2' ||
+      ((classification.kind === 'generic' || (classification.kind === 'linear' && Boolean(extractedSystem))) &&
+        /\b(?:sistema(?:s)?\s+de\s+ecuaciones|sistema(?:s)?\s+lineal(?:es)?|ecuaciones\s+simultaneas|2x2|2×2|metodo\s+de\s+(?:sustitucion|igualacion|reduccion|eliminacion|determinantes|cramer)|regla\s+de\s+cramer|interseccion\s+de\s+rectas)\b/.test(
+          searchText
+        ));
+
+    if (hasSystemCue) {
+      if (extractedSystem) {
+        return generateLinearSystemGraph(
+          extractedSystem.m1,
+          extractedSystem.b1,
+          extractedSystem.m2,
+          extractedSystem.b2,
+          { title: `${extractedSystem.title} (${scopeLabel})` }
+        );
+      }
+      return generateCartesianPlane({
+        title: `Plano Cartesiano — Sistema de Ecuaciones 2×2 (${scopeLabel})`,
+        subtitle: 'Modelo por construir: traza L₁ y L₂ para hallar la intersección',
+        isFallback: true,
+      });
+    }
+
+    // 3. Geometría Plana: Ángulos, Triángulos, Congruencia/Semejanza, Teorema de Pitágoras y Áreas
+    const hasAngleOnlyCue =
+      (classification.kind === 'geometry' && classification.subtopic === 'angles') ||
+      (allowGeometryFallback &&
+        /\b(?:tipos?\s+de\s+angulos|clasificacion\s+de\s+angulos|angulo(?:s)?\s+(?:agudo|recto|obtuso|llano|complementario|suplementario|opuesto|interno|externo)|transportador|bisectriz|suplementari[oa]s?|complementari[oa]s?)\b/.test(
+          searchText
+        ) &&
+        !/\b(?:pitagoras|hipotenusa|cateto)\b/.test(searchText));
+
+    if (hasAngleOnlyCue) {
+      const extractedDeg = tryExtractAngleDegree(rawContext);
+      return generateAngleClassificationVisual({
+        title: `Geometría Plana: Vértices, Ángulos y Medición Angular (${scopeLabel})`,
+        angleDeg: extractedDeg,
+      });
+    }
+
     if (
-      /\b(?:sistema(?:s)?\s+de\s+ecuaciones|sistema(?:s)?\s+lineal(?:es)?|ecuaciones\s+simultaneas|2x2|metodo\s+de\s+(?:sustitucion|igualacion|reduccion|eliminacion|determinantes|cramer)|regla\s+de\s+cramer|punto\s+de\s+equilibrio|interseccion\s+de\s+rectas)\b/.test(
+      classification.kind === 'geometry' ||
+      (allowGeometryFallback &&
+        /\b(?:triangulo(?:s)?|pitagoras|trigonometria|trigonometric[oa]s?|cateto(?:s)?|hipotenusa|congruencia\s+(?:y\s+semejanza|de\s+(?:triangulos|figuras)|geometrica)|semejanza\s+de\s+triangulos|criterios?\s+(?:de\s+congruencia|LLL|LAL|ALA)|teorema\s+de\s+tales)\b/.test(
+          searchText
+        ))
+    ) {
+      if (
+        classification.subtopic === 'perimeter-area' ||
+        /\b(?:rectangulo(?:s)?|cuadrilatero(?:s)?|perimetro\s+y\s+area|area\s+del\s+(?:rectangulo|terreno))\b/.test(
+          searchText
+        )
+      ) {
+        const rectParams = tryExtractRectangleParameters(rawContext);
+        return generateRectangle(rectParams?.largo ?? null, rectParams?.ancho ?? null, {
+          title: `Geometría Aplicada: Perímetro y Área (${scopeLabel})`,
+        });
+      }
+
+      const triParams = tryExtractTriangleParameters(rawContext);
+      return generateTriangle(triParams?.a ?? null, triParams?.b ?? null, triParams?.c ?? null, {
+        title:
+          classification.subtopic === 'congruence-similarity'
+            ? `Geometría Plana: Congruencia y Semejanza de Triángulos (${scopeLabel})`
+            : `Geometría Plana: Triángulo Rectángulo y Teorema de Pitágoras (${scopeLabel})`,
+      });
+    }
+
+    // 4. Rectángulos, Polígonos, Áreas y Perímetros
+    if (
+      allowGeometryFallback &&
+      /\b(?:rectangulo(?:s)?|perimetro|poligono(?:s)?|cuadrilatero(?:s)?|area\s+(?:y\s+perimetro|del\s+(?:rectangulo|cuadrado|triangulo|poligono|terreno|circulo)))\b/.test(
         searchText
       )
     ) {
-      const mod = ((missionIndex - 1) % 3) + 1;
-      if (mod === 2) {
-        return generateLinearSystemGraph(1.5, -2, -1, 3, {
-          title: 'Punto de Equilibrio: Intersección de Oferta y Demanda',
-        });
-      }
-      if (mod === 3) {
-        return generateLinearSystemGraph(0.8, 1, -1.2, 5, {
-          title: 'Análisis Comparativo de Costos: Intersección L₁ y L₂',
-        });
-      }
-      return generateLinearSystemGraph(1, -1, -0.5, 3.5, {
-        title: 'Sistema de Ecuaciones 2x2: Intersección L₁ y L₂',
+      const rectParams = tryExtractRectangleParameters(rawContext);
+      return generateRectangle(rectParams?.largo ?? null, rectParams?.ancho ?? null, {
+        title: `Geometría Aplicada: Cálculo de Perímetro y Área (${scopeLabel})`,
       });
     }
 
-    // 3. Ecuaciones y Funciones Lineales, Balanza Algebraica y Variación
+    // 5. Ecuaciones y Funciones Lineales, Balanza Algebraica y Variación
     if (
+      classification.kind === 'linear' ||
+      classification.kind === 'exponential' ||
+      classification.kind === 'proportion' ||
       /\b(?:lineal(?:es)?|linea\s+recta|primer\s+grado|pendiente|ordenada\s+al\s+origen|funcion\s+lineal|ecuacion(?:es)?|igualdad|balanza|incognita(?:s)?|despeje|algebraic[oa]s?|proporcionalidad|interes\s+simple|interes\s+compuesto|tasa\s+de\s+crecimiento)\b/.test(
         searchText
       )
@@ -500,116 +723,18 @@ export function dispatchVisual(
         });
       }
 
-      // Si la misión es de evaluación formativa / consolidación / tabulación del mini-reto
-      if (
-        searchText.includes('evaluacion formativa') ||
-        searchText.includes('mini-reto') ||
-        searchText.includes('tabulacion') ||
-        searchText.includes('bosquejo')
-      ) {
-        return generateCartesianPlane({
-          title: `Plano Cartesiano para Tabulación y Gráfica del Mini-Reto M${missionIndex}`,
-        });
-      }
-
-      // Variación secuencial por misión para evitar repetición
-      const mod = ((missionIndex - 1) % 4) + 1;
-      if (mod === 2) {
-        return generateLinearGraph(-1, 3, {
-          title: 'Comportamiento de la Pendiente: Función Decreciente f(x) = -x + 3',
-        });
-      }
-      if (mod === 3) {
-        return generateLinearSystemGraph(1.2, -1, -0.6, 3.5, {
-          title: 'Modelación de Costos e Ingresos: Punto de Equilibrio',
-        });
-      }
-      if (mod === 4) {
-        return generateCartesianPlane({
-          title: `Plano Cartesiano para Tabulación y Bosquejo: Misión ${missionIndex}`,
-        });
-      }
-      return generateLinearGraph(1.5, 1, {
-        title: 'Modelación Gráfica: Función Lineal f(x) = 1.5x + 1',
-      });
-    }
-
-    // 4. Triángulos, Ángulos en el Plano, Teorema de Pitágoras y Trigonometría
-    const hasAngleGeometryTopic =
-      /\b(?:tipos?\s+de\s+angulos|angulo(?:s)?\s+(?:agudo|recto|obtuso|llano|complementario|suplementario|opuesto|interno|externo)|transportador|bisectriz|suplementari[oa]s?|complementari[oa]s?|congruencia\s+de\s+triangulos|semejanza\s+de\s+triangulos|teorema\s+de\s+tales)\b/.test(
-        searchText
-      );
-
-    if (
-      /\b(?:triangulo(?:s)?|pitagoras|trigonometria|trigonometric[oa]s?|cateto(?:s)?|hipotenusa|razon(?:es)?\s+trigonometrica(?:s)?|ley\s+de\s+senos|ley\s+de\s+cosenos)\b/.test(
-        searchText
-      ) ||
-      hasAngleGeometryTopic
-    ) {
-      const hasTriangleSpec =
-        /\b(?:triangulo(?:s)?|pitagoras|trigonometria|trigonometric[oa]s?|cateto(?:s)?|hipotenusa)\b/.test(searchText);
-      const mod = ((missionIndex - 1) % 3) + 1;
-      if (hasAngleGeometryTopic && !hasTriangleSpec) {
-        return generateTriangle(4, 3, 5, {
-          title: 'Geometría Plana: Vértices, Ángulos y Medición Angular',
-        });
-      }
-      if (mod === 2) {
-        return generateTriangle(8, 6, 10, {
-          title: 'Razones Trigonométricas en Triángulo Semejante (6-8-10)',
-        });
-      }
-      if (mod === 3) {
-        return generateTriangle(12, 5, 13, {
-          title: 'Teorema de Pitágoras: Cálculo de Hipotenusa (5-12-13)',
-        });
-      }
-      return generateTriangle(4, 3, 5, {
-        title: 'Geometría Plana: Triángulo Rectángulo (3-4-5) y Pitágoras',
-      });
-    }
-
-    // 5. Rectángulos, Polígonos, Áreas y Perímetros
-    if (
-      /\b(?:rectangulo(?:s)?|perimetro|poligono(?:s)?|cuadrilatero(?:s)?|area\s+(?:y\s+perimetro|del\s+(?:rectangulo|cuadrado|triangulo|poligono|terreno|circulo)))\b/.test(
-        searchText
-      )
-    ) {
-      const mod = ((missionIndex - 1) % 3) + 1;
-      if (mod === 2) {
-        return generateRectangle(10, 4, {
-          title: 'Optimización de Espacio: Terreno Rectangular (10 × 4)',
-        });
-      }
-      if (mod === 3) {
-        return generateRectangle(6, 6, {
-          title: 'Cuadrilátero Regular: Propiedades de Simetría y Área (6 × 6)',
-        });
-      }
-      return generateRectangle(8, 5, {
-        title: 'Geometría Aplicada: Cálculo de Perímetro y Área',
-      });
-    }
-
-    // 6. Por defecto en STEM: Variación didáctica según número de misión
-    const defaultMod = ((missionIndex - 1) % 4) + 1;
-    if (defaultMod === 2) {
-      return generateLinearGraph(1, 0, {
-        title: 'Función Identidad y Escala de Medición f(x) = x',
-      });
-    }
-    if (defaultMod === 3) {
-      return generateRectangle(7, 4, {
-        title: 'Espacio de Trabajo y Modelado Cuantitativo',
-      });
-    }
-    if (defaultMod === 4) {
       return generateCartesianPlane({
-        title: `Plano Cartesiano Milimétrico: Taller y Consolidación M${missionIndex}`,
+        title: `Plano Cartesiano para Tabulación y Bosquejo (${scopeLabel})`,
+        subtitle: 'Modelo por construir: registra tus valores y traza la representación gráfica',
+        isFallback: true,
       });
     }
+
+    // 6. Por defecto en STEM: Plano Cartesiano limpio (nunca inventa funciones ni dimensiones)
     return generateCartesianPlane({
-      title: 'Plano Cartesiano para Tabulación y Bosquejo de Datos',
+      title: `Plano Cartesiano para Tabulación y Bosquejo de Datos (${scopeLabel})`,
+      subtitle: 'Modelo por construir con los datos de la actividad',
+      isFallback: true,
     });
   }
 

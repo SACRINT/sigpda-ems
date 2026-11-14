@@ -169,11 +169,74 @@ export interface FooterBranding {
 }
 
 /**
+ * Limpia un título de bloque eliminando prefijos redundantes como "Bloque 1:", "Bloque 1 (Corte 1):"
+ * para evitar construcciones duplicadas ("Bloque 1: Bloque 1 (Corte 1)").
+ */
+export function normalizeBlockTitle(rawTitle: string | null | undefined, blockNum?: number | null): string {
+  const raw = (rawTitle || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+
+  // Deduplicar si ya viene repetido "Bloque 1 (Corte 1): Bloque 1 (Corte 1)" o "Bloque 1: Bloque 1 (Corte 1)"
+  const deduped = raw.replace(
+    /^(Bloque\s+(\d+))(\s*\(\s*Corte\s+\d+\s*\))?\s*[:\-–—]\s*Bloque\s+\2(\s*\(\s*Corte\s+\d+\s*\))?(?:\s*[:\-–—]\s*)?/i,
+    (_m, blockPrefix: string, _num: string, firstCorte?: string, secondCorte?: string) =>
+      `${blockPrefix}${firstCorte ?? secondCorte ?? ''}`.replace(/\s+/g, ' ').trim() + ': '
+  );
+
+  // Quitar prefijo "Bloque N (Corte M):" o "Bloque N:"
+  const stripped = deduped
+    .replace(
+      new RegExp(
+        `^Bloque\\s+${blockNum ?? '\\d+'}(?:\\s*\\(\\s*Corte\\s+\\d+\\s*\\))?\\s*(?:[:\\-–—]\\s*|$)`,
+        'i'
+      ),
+      ''
+    )
+    .trim();
+
+  if (!stripped || /^Bloque\s+\d+(?:\s*\(\s*Corte\s+\d+\s*\))?$/i.test(stripped)) {
+    const corteMatch = deduped.match(/\(\s*Corte\s+\d+\s*\)/i);
+    return corteMatch ? corteMatch[0].replace(/\s+/g, ' ') : '';
+  }
+
+  return stripped;
+}
+
+/**
+ * Construye un título documental canónico sin duplicar nunca "Bloque N: Bloque N".
+ */
+export function composeDocumentTitle(
+  docLabel: string,
+  blockNum: number,
+  rawBlockTitle?: string | null
+): string {
+  const cleanLabel = (docLabel || '').trim();
+  const normalizedBlock = normalizeBlockTitle(rawBlockTitle, blockNum);
+  if (!normalizedBlock) {
+    return `${cleanLabel} · Bloque ${blockNum}`;
+  }
+  if (/^\(\s*Corte\s+\d+\s*\)$/i.test(normalizedBlock)) {
+    return `${cleanLabel} · Bloque ${blockNum} ${normalizedBlock}`;
+  }
+  return `${cleanLabel} · Bloque ${blockNum}: ${normalizedBlock}`;
+}
+
+/**
  * Recorta etiquetas o títulos largos en frontera de palabra evitando cortar palabras a la mitad
  * o dejar separadores/puntuación colgante (ej. `Bloque 1: Bloq` -> `Bloque 1`).
  */
 export function truncateLabelAtWordBoundary(title: string, maxLength: number): string {
-  const clean = (title || '').replace(/\s+/g, ' ').trim();
+  const clean = (title || '')
+    .replace(
+      /\b(Bloque\s+(\d+))(\s*\(\s*Corte\s+\d+\s*\))?\s*[:\-–—]\s*Bloque\s+\2(\s*\(\s*Corte\s+\d+\s*\))?(?:\s*([:\-–—])\s*)?/gi,
+      (_m, blockPrefix: string, _num: string, firstCorte?: string, secondCorte?: string, trailingSep?: string) => {
+        const resolved = `${blockPrefix}${firstCorte ?? secondCorte ?? ''}`.replace(/\s+/g, ' ').trim();
+        if (!trailingSep) return resolved;
+        return trailingSep === ':' ? `${resolved}: ` : `${resolved} ${trailingSep} `;
+      }
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
   if (clean.length <= maxLength) return clean;
 
   const slice = clean.slice(0, maxLength);
@@ -184,7 +247,7 @@ export function truncateLabelAtWordBoundary(title: string, maxLength: number): s
       cut = slice.slice(0, lastSpace);
     }
   }
-  return cut.replace(/[\s:·,;.\-–—]+$/g, '').trim() || slice.trim();
+  return cut.replace(/[\s:·,;.\-–—(]+$/g, '').trim() || slice.trim();
 }
 
 /**
@@ -256,10 +319,12 @@ export function sanitizeDocFilename(
  */
 export function sanitizeDocFilenameWithBlock(title: string, maxLength = 70): string {
   const raw = (title || '').trim();
-  const m = raw.match(/^(.*?)\s*·\s*Bloque\s+(\d+)\s*:\s*(.+)$/i);
+  const m = raw.match(/^(.*?)\s*·\s*Bloque\s+(\d+)(?:\s*:\s*|\s+|$)(.*)$/i);
   if (!m) return sanitizeDocFilename(raw, maxLength);
   const slugTipo = sanitizeDocFilename(m[1], 60);
+  const tail = (m[3] || '').trim();
+  if (!tail) return `${slugTipo}_bloque_${m[2]}`.substring(0, maxLength);
   const temaBudget = Math.max(8, maxLength - slugTipo.length - `_bloque_${m[2]}`.length - 1);
-  const slugTema = sanitizeDocFilename(m[3], temaBudget);
+  const slugTema = sanitizeDocFilename(tail, temaBudget);
   return `${slugTipo}_bloque_${m[2]}${slugTema ? `_${slugTema}` : ''}`.substring(0, maxLength);
 }

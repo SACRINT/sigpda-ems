@@ -12,8 +12,10 @@ import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
-import { trimAtCleanBoundary } from '@/lib/planning/workbook-sequence-sync';
 import { parseContenidoToBloques, parseEjemploResuelto } from '@/lib/editorial/student-content-model';
+import { fitPedagogicalText, hasDanglingEnding, repairDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
+import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
+import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
 import { normalizeMathNotation } from './math-text';
 
 const RUBRIC_OR_META_LEAK_RE =
@@ -21,12 +23,6 @@ const RUBRIC_OR_META_LEAK_RE =
 
 const BOILERPLATE_PREFIX_RE =
   /^(?:(?:misi[oó]n|bloque|sesi[oó]n)\s*\d+\s*:\s*)+(?:optimizaci[oó]n\s+y\s+consolidaci[oó]n\s+de\s+la\s+evidencia|exploraci[oó]n\s+diagn[oó]stica\s+y\s+problematizaci[oó]n\s+situada|modelado\s+metodol[oó]gico\s+y\s+procedimientos\s+clave|evaluaci[oó]n\s+(?:de\s+logros|sumativa|diagn[oó]stica)|fundamentaci[oó]n\s+e\s+intuici[oó]n)\s*[—–\-:]\s*/i;
-
-const CHALKBOARD_VERB_LEAD_RE =
-  /^(?:(?:en\s+esta\s+sesi[oó]n|durante\s+esta\s+(?:clase|sesi[oó]n)|hoy|al\s+finalizar\s+la\s+sesi[oó]n)\s*,?\s+)?(?:(?:vas\s+a|aprender[aá]s\s+a|lograr[aá]s|podr[aá]s|vamos\s+a|deber[aá]s)\s+)?(?:(?:aprender\s+a|comenzar\s+a|terminar\s+de|volver\s+a|continuar\s+a)\s+)?(?:(?:y|e|o)\s+)?(?:(?:identificar|comprender|analizar|aplicar|resolver|modelar|calcular|construir|explorar|reconocer|utilizar|interpretar|evaluar|comparar|explicar|traducir|plantear|desarrollar|integrar|verificar|validar|formular|dise[ñn]ar|estructurar|realizar|ejecutar|sistematizar|sintetizar|argumentar|contrastar|deducir|inferir|estimar|medir|graficar|representar|diagnosticar|revisar|presentar|socializar|consolidar|optimizar|depurar|dominar|emplear|establecer|determinar|sustentar|justificar|elaborar|redactar|exponer|defender)[a-záéíóúñ]*(?:\s*(?:,\s*|\s+(?:y|e|o)\s+|\s+a\s+)[a-záéíóúñ]+(?:ar|er|ir|rse))*\s+)+(?:(?:formativamente|colaborativamente|aut[oó]nomamente|cr[ií]ticamente|anal[ií]ticamente|rigurosamente|sistem[aá]ticamente|paso\s+a\s+paso)\s+)?(?:(?:tus|sus|los|las)\s+(?:aprendizajes|conocimientos|saberes|habilidades|competencias|procedimientos|resultados|avances)(?:\s+y\s+(?:consolidar|aplicar|validar|presentar|integrar|socializar)[a-záéíóúñ]*\s+)?)?(?:c[oó]mo\s+|qu[eé]\s+(?:es|son)\s+|cu[aá]ndo\s+)?(?:el\s+concepto\s+de\s+|la\s+importancia\s+de\s+|el\s+uso\s+de\s+|la\s+aplicaci[oó]n\s+de\s+|una?\s+revisi[oó]n\s+de\s+|un[ao]?\s+|el\s+|la\s+|los\s+|las\s+|tus\s+|sus\s+)?/i;
-
-const CHALKBOARD_PURPOSE_TAIL_RE =
-  /\s*(?:,\s*)?(?:para\s+(?:que|resolver|modelar|determinar|calcular|analizar|comprender|aplicar|explicar|evaluar|comparar|tomar|fundamentar|optimizar|identificar|construir|interpretar|verificar|validar|lograr|obtener|establecer|representar)|con\s+el\s+prop[oó]sito\s+de|con\s+la\s+finalidad\s+de|a\s+fin\s+de|evaluando\s+registros|utilizando\s+datos\s+de\s+tu|en\s+situaciones\s+de\s+tu\s+entorno|como\s+una?\s+herramienta\s+[a-záéíóúñ]+\s+fundamental\s+para)\b.*$/i;
 
 export interface DistilledExample {
   problemStatement: string;
@@ -95,6 +91,30 @@ function cleanSacrintTextPreservingLines(value: string | null | undefined): stri
     .join('\n');
 }
 
+export function sanitizePedagogicalMetaPhrases(value: string | null | undefined): string {
+  if (!value) return '';
+  let out = value
+    .replace(
+      /(?:(?:la|una|tu|su)\s+)?versi[oó]n\s+depurada(?:\s+y\s+validada)?\s+(?:de\s+(?:tu\s+|la\s+|su\s+)?)?/gi,
+      ''
+    )
+    .replace(/\bversi[oó]n\s+depurada(?:\s+y\s+validada)?\b/gi, 'síntesis final')
+    .replace(/\b(?:tu|la|su|una)\s+evidencia\s+formativa\b/gi, 'el producto de aprendizaje')
+    .replace(/\bevidencia\s+formativa\b/gi, 'producto de aprendizaje')
+    .replace(
+      /\b(?:mediante|con(?:\s+base\s+en)?|seg[uú]n|usando|a\s+trav[eé]s\s+de)\s+(?:una\s+)?(?:escala\s+estimativa|lista\s+de\s+cotejo|r[uú]brica\s+anal[ií]tica)(?:\s*(?:y|,)\s*(?:una\s+)?(?:escala\s+estimativa|lista\s+de\s+cotejo|r[uú]brica\s+anal[ií]tica))?\b/gi,
+      'con criterios de clase'
+    )
+    .replace(/\b(?:escala\s+estimativa|lista\s+de\s+cotejo|r[uú]brica\s+anal[ií]tica)\b/gi, 'pauta de logro')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[.,;:\s]+/, '')
+    .trim();
+  if (out) {
+    out = out.charAt(0).toUpperCase() + out.slice(1);
+  }
+  return out;
+}
+
 /** Detecta fragmentos de rúbricas de evaluación o instrucciones de prompt filtradas en campos de contenido. */
 export function isRubricOrBoilerplateLeak(value: string | null | undefined): boolean {
   const cleaned = cleanSacrintText(value);
@@ -134,47 +154,15 @@ export function extractCleanTopicTitle(
  */
 export function extractChalkboardTopicTitle(
   rawObjectiveOrTitle: string | null | undefined,
-  fallbackTopic?: string | null
+  fallbackTopic?: string | null,
+  extraContext?: string | null
 ): string {
-  const base = extractCleanTopicTitle(rawObjectiveOrTitle, fallbackTopic)
-    .replace(/^(?:sesi[oó]n|clase)\s*\d+\s*[:.\-–—]\s*/i, '')
-    .trim();
-  if (!base) return 'Concepto central de la clase';
-
-  const firstSentence = base.split(/(?<=[.?!])\s+/)[0] || base;
-  let concise = firstSentence
-    .replace(
-      /\s+como\s+una?\s+herramienta\s+[a-záéíóúñ\s]+?\s+para\s+([a-záéíóúñ]+(?:ar|er|ir))\b/i,
-      ' para $1'
-    )
-    .replace(CHALKBOARD_VERB_LEAD_RE, '')
-    .replace(CHALKBOARD_VERB_LEAD_RE, '')
-    .replace(/^(?:(?:y|e|o)\s+)?(?:formativamente|colaborativamente|aut[oó]nomamente|cr[ií]ticamente|anal[ií]ticamente)\s+(?:los\s+|las\s+|el\s+|la\s+)?/i, '')
-    .replace(/^(?:tus|sus)\s+(?:aprendizajes|conocimientos|saberes|procedimientos)(?:\s+y\s+(?:consolidar|aplicar|validar|integrar|socializar)[a-záéíóúñ]*\s+(?:el\s+|la\s+|los\s+|las\s+)?)?/i, '')
-    .replace(CHALKBOARD_PURPOSE_TAIL_RE, '')
-    .replace(/\s+y\s+activar[aá]s\s+tus(?:\s+[a-záéíóúñ]+)?$/i, '')
-    .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*$/i, '')
-    .replace(/[,;:\-–—]+$/, '')
-    .trim();
-
-  if (concise.length < 14) {
-    concise = firstSentence
-      .replace(CHALKBOARD_VERB_LEAD_RE, '')
-      .replace(CHALKBOARD_VERB_LEAD_RE, '')
-      .replace(/\s+y\s+activar[aá]s\s+tus(?:\s+[a-záéíóúñ]+)?$/i, '')
-      .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*$/i, '')
-      .replace(/[,;:\-–—]+$/, '')
-      .trim();
-  }
-  if (!concise) concise = base;
-  const bounded =
-    concise.length > 68
-      ? trimAtCleanBoundary(concise, 68)
-          .replace(/\s+(?:de|del|en|con|por|para|mediante|utilizando|como|y|o|el|la|los|las|un|una|tus|sus)\s*$/i, '')
-          .replace(/[,;:\-–—]+$/, '')
-          .trim()
-      : concise;
-  return bounded.charAt(0).toUpperCase() + bounded.slice(1);
+  return resolveChalkboardTopicTitle({
+    conceptosClave: extraContext ?? null,
+    sessionObjective: rawObjectiveOrTitle,
+    missionSessionTopic: fallbackTopic,
+    missionTitle: fallbackTopic,
+  });
 }
 
 /**
@@ -183,7 +171,9 @@ export function extractChalkboardTopicTitle(
  */
 export function cleanMissionTopicLine(
   rawTopic: string | null | undefined,
-  fallbackTitle?: string | null
+  fallbackTitle?: string | null,
+  maxChars = 175,
+  maxWords = 28
 ): string {
   const clean = cleanSacrintText(rawTopic)
     .replace(/\s+y\s+activar[aá]s\s+tus(?:\s+[a-záéíóúñ]+)?(?=[\s·.,;:]|$)/gi, '')
@@ -201,35 +191,32 @@ export function cleanMissionTopicLine(
       })
       .filter(Boolean);
     if (parts.length > 0) {
-      return parts.slice(0, 4).join(' · ');
+      const joined = parts.slice(0, 4).join(' · ');
+      return fitPedagogicalText(joined, { maxChars, maxWords, role: 'concept', ensurePeriod: false }) || joined;
     }
   }
 
-  return distillConciseText(clean, 175, 28) || clean;
+  return distillConciseText(clean, maxChars, maxWords) || clean;
 }
 
 /**
- * Sintetiza texto denso a un límite legible en proyector o tarjeta manteniendo oraciones completas.
+ * Sintetiza texto denso a un límite legible en proyector o tarjeta manteniendo oraciones completas
+ * y sin cortes abruptos a mitad de frase o ecuación.
  */
 export function distillConciseText(
   value: string | null | undefined,
   maxChars: number,
   maxWords?: number
 ): string {
-  const clean = cleanSacrintText(value);
+  const clean = sanitizePedagogicalMetaPhrases(cleanSacrintText(value));
   if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
 
-  let bounded = clean;
-  if (maxWords && maxWords > 0) {
-    const words = clean.split(' ');
-    if (words.length > maxWords) {
-      bounded = trimAtCleanBoundary(words.slice(0, maxWords + 8).join(' '), maxChars);
-    }
-  }
-  if (bounded.length > maxChars) {
-    bounded = trimAtCleanBoundary(bounded, maxChars);
-  }
-  return bounded.replace(/[,;:\-]+$/, '').trim();
+  const fitted = fitPedagogicalText(clean, {
+    maxChars,
+    maxWords,
+    role: 'general',
+  });
+  return fitted || clean;
 }
 
 /** Divide un párrafo largo en puntos clave breves para proyección en aula. */
@@ -281,22 +268,32 @@ function sanitizeExtractedFormula(rawCandidate: string): string {
     rhs = rhs.slice(0, proseMatch.index).trim();
   }
 
-  // Strip trailing operators or unbalanced punctuation
-  rhs = rhs.replace(/[+\-*/^.,;:\s]+$/, '').trim();
-  const openParens = (rhs.match(/\(/g) || []).length;
-  const closeParens = (rhs.match(/\)/g) || []).length;
-  if (closeParens > openParens) {
-    rhs = rhs.replace(/\)+$/, '');
+  // Strip trailing operators, dangling opening delimiters, or unbalanced punctuation
+  rhs = rhs.replace(/[+\-*/^.,;:(\[{\s]+$/, '').trim();
+  let openParens = (rhs.match(/\(/g) || []).length;
+  let closeParens = (rhs.match(/\)/g) || []).length;
+  while (closeParens > openParens && /\)$/.test(rhs)) {
+    rhs = rhs.replace(/\)+$/, '').trim();
+    openParens = (rhs.match(/\(/g) || []).length;
+    closeParens = (rhs.match(/\)/g) || []).length;
+  }
+  while (openParens > closeParens) {
+    const lastOpen = rhs.lastIndexOf('(');
+    if (lastOpen < 0) break;
+    rhs = rhs.slice(0, lastOpen).replace(/[+\-*/^.,;:(\[{\s]+$/, '').trim();
+    openParens = (rhs.match(/\(/g) || []).length;
+    closeParens = (rhs.match(/\)/g) || []).length;
   }
   if (!lhs || !rhs) return '';
 
   const formula = `${lhs} = ${rhs}`;
   // Require at least one digit, math operator, superscript, or explicit function/Greek symbol
   if (!/[0-9+\-*/^²³√()Δπθ°]/.test(formula)) return '';
+  if (!isValidRenderableFormula(formula)) return '';
   return formula;
 }
 
-/** Extrae fórmulas o ecuaciones relevantes presentes en teoría o ejemplos sin fragmentos de prosa. */
+/** Extrae fórmulas o ecuaciones relevantes presentes en teoría o ejemplos sin fragmentos de prosa ni variables de plantilla. */
 export function extractFormulasFromText(text: string, limit = 3): string[] {
   const clean = cleanSacrintText(text);
   if (!clean) return [];
@@ -317,93 +314,522 @@ function cleanStepLine(rawStep: string): string {
     .trim();
 }
 
-const STEP_HEADING_ONLY_RE =
-  /^(?:(?:comprensi[oó]n|identificaci[oó]n|planteamiento|traducci[oó]n|resoluci[oó]n|despeje|sustituci[oó]n|verificaci[oó]n|comprobaci[oó]n|interpretaci[oó]n|conclusi[oó]n|an[aá]lisis|c[aá]lculo|determinaci[oó]n|evaluaci[oó]n|organizaci[oó]n|aplicaci[oó]n|simplificaci[oó]n|reducci[oó]n|igualaci[oó]n|factorizaci[oó]n|graficaci[oó]n|tabulaci[oó]n|comparaci[oó]n|selecci[oó]n|definici[oó]n|modelado|formulaci[oó]n)[^.?!:=0-9]{0,65}[.:]\s*)/i;
+function shortenStepHeading(head: string): string {
+  const words = head.trim().split(/\s+/).slice(0, 4);
+  while (
+    words.length > 1 &&
+    /^(?:el|la|los|las|un|una|de|del|al|a|en|con|por|para|y|o|su|sus)$/i.test(words[words.length - 1])
+  ) {
+    words.pop();
+  }
+  return words.join(' ');
+}
 
-/**
- * Sintetiza un paso de resolución asegurando que NUNCA se pierdan las ecuaciones,
- * operaciones o datos numéricos cuando la primera oración es un subtítulo descriptivo.
- */
-export function distillStepPreservingMath(rawStep: string, maxChars = 185): string {
-  const clean = cleanStepLine(rawStep);
-  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
-  if (clean.length <= maxChars) return clean;
+function splitBalancedTopLevelEquations(body: string): string[] {
+  const tokens = body.trim().split(/\s+/);
+  const equations: string[] = [];
+  let current: string[] = [];
+  let parenDepth = 0;
+  let seenEqInCurrent = false;
 
-  // Quitar subtítulo inicial ("Comprensión e identificación de datos.", "Resolución paso a paso.") si después hay contenido real
-  const withoutHeading = clean.replace(STEP_HEADING_ONLY_RE, '').trim();
-  const working = withoutHeading.length >= 16 ? withoutHeading : clean;
-  if (working.length <= maxChars) return working;
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    const nextTok = tokens[i + 1] ?? '';
+    const isNewLhsStart =
+      parenDepth === 0 &&
+      seenEqInCurrent &&
+      current.length >= 3 &&
+      !/[=+\-*/(]$/.test(current[current.length - 1]) &&
+      (/^[A-Za-z0-9(]/.test(tok) && (tok.includes('=') || nextTok === '=' || /^-\d+[A-Za-z]/.test(tok) || /^\d+\(/.test(tok)));
 
-  const sentences = working
-    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9(¿¡\-])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (sentences.length >= 2) {
-    const mathSentences = sentences.filter((s) => /[0-9=+\-*/^²³√%→]/.test(s));
-    if (mathSentences.length > 0) {
-      const joinedMath = mathSentences.join(' ');
-      if (joinedMath.length <= maxChars) {
-        if (!mathSentences.includes(sentences[0]) && sentences[0].length + joinedMath.length + 1 <= maxChars) {
-          return `${sentences[0]} ${joinedMath}`;
-        }
-        return joinedMath;
+    if (isNewLhsStart && (tok.includes('=') || nextTok === '=' || tokens.slice(i, i + 4).some((t) => t === '=' || t.endsWith('=')))) {
+      const candidate = current.join(' ').trim();
+      if (candidate.includes('=')) {
+        equations.push(candidate);
+        current = [];
+        seenEqInCurrent = false;
       }
-      // Si las oraciones con matemáticas aún exceden maxChars, cortar en límite de palabra sin borrar la segunda oración en el primer punto
-      return joinedMath.slice(0, maxChars).replace(/\s+\S*$/, '').replace(/[,;:\-]+$/, '').trim();
+    }
+
+    current.push(tok);
+    for (const ch of tok) {
+      if (ch === '(') parenDepth += 1;
+      else if (ch === ')' && parenDepth > 0) parenDepth -= 1;
+    }
+    if (tok.includes('=')) seenEqInCurrent = true;
+  }
+
+  const tail = current.join(' ').trim();
+  if (tail) equations.push(tail);
+  return equations;
+}
+
+function compactChalkboardMathStep(step: string, rawStep?: string): string {
+  const words = step.split(/\s+/);
+  if (words.length <= 18) return step;
+
+  // 0. Si el paso crudo viene separado por líneas con múltiples ecuaciones, tomar cabecera + primera ecuación + resultado final
+  if (rawStep && rawStep.includes('\n')) {
+    const rawLines = rawStep
+      .split(/\r?\n/)
+      .map((ln) => sanitizePedagogicalMetaPhrases(cleanStepLine(ln)))
+      .filter((ln) => ln.length > 0 && !isRubricOrBoilerplateLeak(ln));
+    const eqLines = rawLines.filter((ln) => ln.includes('='));
+    if (eqLines.length >= 4 && rawLines[0] && !rawLines[0].includes('=')) {
+      const head = shortenStepHeading(rawLines[0].replace(/[:.]+$/, ''));
+      const firstEq = eqLines[0].replace(/\.$/, '').trim();
+      // Preferir el último resultado limpio antes de subtítulos largos secundarios ("Sustituye 'y'...") o el último '=' final
+      const primaryBreakIdx = rawLines.findIndex(
+        (ln, idx) => idx > 1 && !ln.includes('=') && /^[A-ZÁÉÍÓÚÑ]/.test(ln) && ln.endsWith(':')
+      );
+      const targetPool =
+        primaryBreakIdx > 2
+          ? rawLines.slice(1, primaryBreakIdx).filter((ln) => ln.includes('='))
+          : eqLines;
+      const rawLast = (targetPool[targetPool.length - 1] ?? eqLines[eqLines.length - 1]).trim();
+      const shortLast = rawLast
+        .replace(/\s*\([^)]{5,45}\)\.?$/i, '')
+        .replace(/^(?:.+?=\s*)+(?=[^=]{1,22}$)/, (m) => {
+          const lhsMatch = m.match(/^([a-zA-Z0-9₀₁₂()]+)\s*=/);
+          return lhsMatch ? `${lhsMatch[1]} = ` : '';
+        })
+        .replace(/\.$/, '')
+        .trim();
+      if (firstEq && shortLast && firstEq !== shortLast) {
+        return `${head}: ${firstEq} ⇒ ${shortLast}.`;
+      }
     }
   }
 
-  return distillConciseText(working, maxChars);
+  let out = step;
+
+  // 1. Compactar sistemas de ecuaciones paralelos "Ecuación 1: ... Ecuación 2: ..."
+  const sysMatch = out.match(
+    /^(?:[^:=]{12,}:\s*)?(?:De\s+la\s+)?Ecuaci[oó]n\s*1\s*:\s*([^]+?)\s+(?:De\s+la\s+)?Ecuaci[oó]n\s*2\s*:\s*([^]+)$/i
+  );
+  if (sysMatch) {
+    const cond = (part: string) => {
+      const arrows = part.split(/\s*(?:=>|⇒|->)\s*/);
+      return arrows.length > 1 ? arrows[arrows.length - 1].trim() : part.trim();
+    };
+    const e1 = cond(sysMatch[1]).replace(/\.$/, '');
+    const e2 = cond(sysMatch[2]).replace(/\.$/, '');
+    const isDespeje = /despej|=>|⇒|->/i.test(out);
+    return isDespeje ? `Despeje: Ec. 1 ⇒ ${e1}; Ec. 2 ⇒ ${e2}.` : `Sistema: Ec. 1: ${e1}; Ec. 2: ${e2}.`;
+  }
+
+  // 2. Acortar preámbulo verbal largo (>26 chars sin '=') antes de ecuaciones después de ':' sin cortar artículos colgantes
+  const colonIdx = out.indexOf(':');
+  if (colonIdx >= 26) {
+    const head = out.slice(0, colonIdx).trim();
+    const tail = out.slice(colonIdx + 1).trim();
+    if (!head.includes('=') && tail.includes('=')) {
+      out = `${shortenStepHeading(head)}: ${tail}`;
+    }
+  }
+
+  // 3. Condensar pasos explicativos con múltiples resultados intermedios ("Luego multiplicamos ... Como hablamos de personas ...: N.")
+  const chainThenNote = out.match(
+    /^([^:]{6,35}:)?\s*([^=≈]+(?:=|≈)[^A-ZÁÉÍÓÚÑ\n]{4,28})\s+Luego\s+[^:=]{8,55}:\s*([^≈=]+(?:=|≈)\s*[\d.,]+)\s+Como\s+[^:]{10,120}:\s*([^.]+)\.?$/i
+  );
+  if (chainThenNote) {
+    const label = chainThenNote[1] ? `${chainThenNote[1].trim()} ` : '';
+    const first = chainThenNote[2].trim();
+    const finalAns = chainThenNote[4].trim();
+    return `${label}${first} ⇒ ${finalAns}.`;
+  }
+
+  // 4. Si persiste una cadena larga de >= 4 igualdades en la misma línea, dividir respetando paréntesis balanceados
+  const eqCount = (out.match(/=/g) || []).length;
+  if (eqCount >= 4 && out.split(/\s+/).length > 18) {
+    const firstColon = out.indexOf(':');
+    const prefix = firstColon > 0 && firstColon < 36 ? `${out.slice(0, firstColon + 1)} ` : '';
+    const body = firstColon > 0 && firstColon < 36 ? out.slice(firstColon + 1).trim() : out;
+    const segments = splitBalancedTopLevelEquations(body);
+    if (segments.length >= 3) {
+      const firstEq = segments[0].replace(/\.$/, '');
+      const lastEq = segments[segments.length - 1].replace(/\s*\([^)]{5,45}\)\.?$/, '').replace(/\.$/, '');
+      const balancedParens = (s: string) => (s.match(/\(/g) || []).length === (s.match(/\)/g) || []).length;
+      if (firstEq !== lastEq && balancedParens(firstEq) && balancedParens(lastEq)) {
+        return `${prefix}${firstEq} ⇒ ${lastEq}.`;
+      }
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Sintetiza un paso de resolución asegurando que NUNCA se pierdan las ecuaciones,
+ * operaciones o datos numéricos ni se corte una igualdad a mitad (`x +`, `30 - 8 =`, `x = 50 +`).
+ */
+export function distillStepPreservingMath(rawStep: string, maxChars = 185, maxWords?: number): string {
+  const clean = sanitizePedagogicalMetaPhrases(cleanStepLine(rawStep));
+  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  const fitted = fitPedagogicalText(clean, {
+    maxChars,
+    maxWords,
+    role: 'step',
+  });
+  if (maxWords !== undefined && maxWords <= 12) {
+    return compactChalkboardMathStep(fitted, rawStep);
+  }
+  return fitted;
 }
 
 /**
  * Sintetiza un problema o ejercicio preservando íntegros los números, ecuaciones y la pregunta final.
- * Evita que `trimAtCleanBoundary` corte en el punto de la primera oración eliminando la pregunta o los datos.
+ * Evita cualquier corte a mitad de frase o con conectores/operadores colgantes.
  */
 export function distillProblemOrExerciseText(
   rawText: string | null | undefined,
-  maxChars = 265
+  maxChars = 265,
+  maxWords?: number
 ): string {
-  const clean = cleanSacrintText(rawText)
-    .replace(/^(?:planteamiento|problema|enunciado|situaci[oó]n)\s*[:.\-–]\s*/i, '')
-    .trim();
+  const clean = sanitizePedagogicalMetaPhrases(
+    cleanSacrintText(rawText)
+      .replace(/^(?:planteamiento|problema|enunciado|situaci[oó]n)\s*[:.\-–]\s*/i, '')
+      .trim()
+  );
   if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
-  if (clean.length <= maxChars) return clean;
+  return fitPedagogicalText(clean, {
+    maxChars,
+    maxWords,
+    role: 'problem',
+  });
+}
 
-  const sentences = clean
-    .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9(¿¡])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+/**
+ * Garantiza que un texto de lámina expositiva (`08`) no contenga ninguna secuencia de 6 palabras
+ * consecutivas idéntica a la teoría del libro (`Nuevos conceptos`).
+ */
+export function preventSixGramTheoryOverlap(
+  text: string,
+  theorySources: Array<string | null | undefined>
+): string {
+  if (!text) return '';
+  const toAsciiLower = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
 
-  if (sentences.length >= 2) {
-    // Priorizar las oraciones que contienen datos numéricos, ecuaciones, signos de interrogación o verbos de consigna
-    const essential = sentences.filter(
-      (s, idx) =>
-        idx > 0 ||
-        /[0-9=¿?%$²³]/.test(s) ||
-        /\b(?:calcula|determina|encuentra|resuelve|plantea|obtiene|redacta|analiza|explica|compara|identifica|prop[oó]n|elabora|construye|eval[úu]a|cu[aá]nto|cu[aá]l|qu[eé])\b/i.test(
-          s
-        )
-    );
-    // Si la primera oración es puramente narrativa (sin números ni pregunta) y el resto sí cabe:
-    const tailWithoutIntro = sentences.slice(1).join(' ');
-    if (
-      !/[0-9=¿?%$]/.test(sentences[0]) &&
-      tailWithoutIntro.length >= 35 &&
-      tailWithoutIntro.length <= maxChars
-    ) {
-      return tailWithoutIntro;
+  const normalizeWord = (w: string) =>
+    toAsciiLower(w).replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+
+  const theorySixGrams = new Set<string>();
+  for (const src of theorySources) {
+    const cleanSrc = cleanSacrintText(src);
+    if (!cleanSrc) continue;
+    const words = cleanSrc.split(/\s+/).map(normalizeWord).filter(Boolean);
+    for (let i = 0; i <= words.length - 6; i++) {
+      theorySixGrams.add(words.slice(i, i + 6).join(' '));
     }
-    const essentialJoined = essential.join(' ');
-    if (essentialJoined.length >= 35 && essentialJoined.length <= maxChars) {
-      return essentialJoined;
+    const subWords = toAsciiLower(cleanSrc).split(/[^a-z0-9]+/).filter(Boolean);
+    for (let i = 0; i <= subWords.length - 6; i++) {
+      theorySixGrams.add(subWords.slice(i, i + 6).join(' '));
     }
   }
+  if (theorySixGrams.size === 0) return text;
 
-  // Si aún excede maxChars, cortar en el último espacio antes de maxChars sin retroceder hasta el primer punto
-  const sliced = clean.slice(0, maxChars).replace(/\s+\S*$/, '').replace(/[,;:\-]+$/, '').trim();
-  return /[.?!]$/.test(sliced) ? sliced : `${sliced}.`;
+  const TIER_1_SYNONYMS: Record<string, string> = {
+    identificar: 'distinguir',
+    comprender: 'asimilar',
+    analizar: 'examinar',
+    resolver: 'solucionar',
+    calcular: 'estimar',
+    determinar: 'precisar',
+    aplicar: 'emplear',
+    utilizar: 'usar',
+    utilizando: 'usando',
+    mediante: 'con ayuda de',
+    permite: 'facilita',
+    permiten: 'facilitan',
+    representa: 'expresa',
+    situacion: 'circunstancia',
+    situaciones: 'circunstancias',
+    informacion: 'referencia',
+    comunidad: 'localidad',
+    comunitario: 'local',
+    comunitaria: 'local',
+    escolar: 'del plantel',
+    cotidiana: 'diaria',
+    cotidianas: 'diarias',
+    cotidiano: 'diario',
+    diferentes: 'diversos',
+    distintos: 'variados',
+    relaciones: 'nexos',
+    relacion: 'nexo',
+    cantidades: 'magnitudes',
+    cantidad: 'magnitud',
+    valores: 'cifras',
+    valor: 'cifra',
+    resultado: 'desenlace',
+    resultados: 'desenlaces',
+    procedimiento: 'metodo',
+    procedimientos: 'metodos',
+    ambos: 'los dos',
+    lados: 'extremos',
+    miembros: 'costados',
+    aislar: 'separar',
+    despejar: 'aislar',
+    termino: 'componente',
+    terminos: 'componentes',
+    graficar: 'trazar',
+    papel: 'pliego',
+    milimetrico: 'cuadriculado',
+    puntos: 'pares',
+    coordenadas: 'ubicaciones',
+    presupuesto: 'capital',
+    cumpliendo: 'atendiendo',
+    estandares: 'criterios',
+    rigor: 'exactitud',
+    viabilidad: 'factibilidad',
+    espacios: 'areas',
+    recreativos: 'de esparcimiento',
+    jovenes: 'estudiantes',
+    poligono: 'sector',
+    academico: 'educativo',
+    entorno: 'contexto',
+    disponible: 'libre',
+    unitario: 'individual',
+    costo: 'importe',
+    costos: 'importes',
+    gasto: 'desembolso',
+    ingreso: 'entrada',
+    ahorro: 'reserva',
+    boletos: 'entradas',
+    integrantes: 'participantes',
+    equipo: 'grupo',
+    evento: 'jornada',
+    proyecto: 'iniciativa',
+    saberes: 'conocimientos',
+    previos: 'anteriores',
+    diagnostico: 'inicial',
+    cuestionario: 'guia',
+    construye: 'arma',
+    plantea: 'formula',
+    calcula: 'estima',
+    determina: 'precisa',
+    resuelve: 'soluciona',
+    explica: 'expone',
+    analiza: 'examina',
+    verifica: 'comprueba',
+    identifica: 'distingue',
+    asignar: 'distribuir',
+    asignacion: 'distribucion',
+    optimizar: 'mejorar',
+    consolidar: 'afianzar',
+    depurar: 'afinar',
+    integrar: 'unir',
+    visualizar: 'observar',
+    considerando: 'tomando en cuenta',
+    herramienta: 'recurso',
+    actividad: 'dinamica',
+    actividades: 'dinamicas',
+    evidencia: 'producto',
+    criterios: 'pautas',
+    estrategia: 'ruta',
+    cambio: 'variacion',
+    crecimiento: 'incremento',
+    analisis: 'estudio',
+    afecta: 'impacta',
+    afectan: 'impactan',
+    bienestar: 'desarrollo',
+    psicosocial: 'socioemocional',
+    rendimiento: 'aprovechamiento',
+    educativo: 'formativo',
+    educativa: 'formativa',
+    educativos: 'formativos',
+    educativas: 'formativas',
+    juveniles: 'estudiantiles',
+    juvenil: 'estudiantil',
+    reporte: 'informe',
+    tecnico: 'metodológico',
+    tecnica: 'metodológica',
+    companero: 'par',
+    companeros: 'pares',
+    companera: 'colega',
+    companeras: 'colegas',
+    contextualizacion: 'ambientación',
+    estandar: 'canónica',
+    cartesiano: 'coordenado',
+    cartesiana: 'coordenada',
+    grafica: 'visualización',
+    tabulacion: 'tabla',
+    expresion: 'fórmula',
+    cuya: 'donde su',
+    cuyo: 'donde su',
+    suma: 'adición',
+    total: 'global',
+    propiedad: 'característica',
+    obtenida: 'hallada',
+    obtenido: 'hallado',
+    constante: 'invariable',
+    constantes: 'invariables',
+    ruta: 'guía',
+    trabajo: 'labor',
+    bitacora: 'libreta',
+    personal: 'propia',
+    reflexion: 'análisis',
+    metacognitiva: 'crítica',
+    decisiones: 'elecciones',
+    informadas: 'fundadas',
+    diseno: 'trazo',
+    resolucion: 'solución',
+    comunitarios: 'locales',
+    coevaluacion: 'revisión mutua',
+    registro: 'control',
+    cumple: 'aplica',
+    cumplen: 'aplican',
+    juego: 'estuche',
+    compas: 'trazador',
+    equipar: 'habilitar',
+    centro: 'núcleo',
+    problematica: 'dificultad',
+  };
+
+  const TIER_2_SYNONYMS: Record<string, string> = {
+    problema: 'caso',
+    problemas: 'casos',
+    ecuacion: 'igualdad',
+    ecuaciones: 'igualdades',
+    igualdad: 'equivalencia',
+    variable: 'incognita',
+    variables: 'incognitas',
+    incognita: 'desconocida',
+    incognitas: 'desconocidas',
+    modelo: 'esquema',
+    modelos: 'esquemas',
+    elementos: 'partes',
+    elemento: 'parte',
+    tasa: 'razon',
+    poblacion: 'demografia',
+    algebraico: 'simbolico',
+    algebraica: 'simbolica',
+    sobre: 'acerca de',
+    para: 'a fin de',
+    formula: 'regla',
+    formulas: 'reglas',
+    general: 'completa',
+    coeficiente: 'factor',
+    coeficientes: 'factores',
+    miembro: 'lado',
+    lado: 'costado',
+    compuesto: 'capitalizable',
+    compuestos: 'capitalizables',
+    interes: 'rédito',
+    intereses: 'réditos',
+    simple: 'lineal',
+    simples: 'lineales',
+    calculo: 'cómputo',
+    congruencia: 'correspondencia exacta',
+    triangulo: 'figura de tres lados',
+    triangulos: 'figuras de tres lados',
+    teorema: 'propiedad',
+    recta: 'línea',
+    rectas: 'líneas',
+    interseccion: 'cruce',
+    eje: 'trazo',
+    forma: 'estructura',
+    modela: 'describe',
+    area: 'superficie',
+    terreno: 'predio',
+  };
+
+  const TIER_3_SYNONYMS: Record<string, string> = {
+    en: 'dentro de',
+    es: 'equivale a',
+    del: 'de dicho',
+  };
+
+  let tokens = text.split(/\s+/);
+  const replacedWords = new Set<string>();
+  for (let pass = 0; pass < 24; pass++) {
+    let changed = false;
+    const normTokens = tokens.map(normalizeWord);
+
+    const tryReplaceWindow = (candidateIndices: number[]): boolean => {
+      for (const dictionary of [TIER_1_SYNONYMS, TIER_2_SYNONYMS, TIER_3_SYNONYMS]) {
+        for (const k of candidateIndices) {
+          const nw = normTokens[k];
+          if (nw && dictionary[nw] && !replacedWords.has(`${k}:${dictionary[nw]}`)) {
+            const orig = tokens[k];
+            const punctMatch = orig.match(/([,.;:?!)]+)$/);
+            const suffix = punctMatch ? punctMatch[1] : '';
+            const rep = dictionary[nw];
+            const repWords = rep.split(/\s+/);
+            const firstRepNorm = normalizeWord(repWords[0]);
+            const lastRepNorm = normalizeWord(repWords[repWords.length - 1]);
+            if (nw === 'grafica' && k > 0 && normTokens[k - 1] === 'representacion') {
+              continue;
+            }
+            if (
+              (k > 0 && normTokens[k - 1] === firstRepNorm) ||
+              (k + 1 < normTokens.length && normTokens[k + 1] === lastRepNorm)
+            ) {
+              continue;
+            }
+            const firstFormatted = /^[A-ZÁÉÍÓÚÑ]/.test(orig)
+              ? repWords[0].charAt(0).toUpperCase() + repWords[0].slice(1)
+              : repWords[0];
+            repWords[0] = firstFormatted;
+            repWords[repWords.length - 1] = repWords[repWords.length - 1] + suffix;
+            tokens.splice(k, 1, ...repWords);
+            replacedWords.add(`${k}:${repWords[0].toLowerCase()}`);
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    for (let i = 0; i <= tokens.length - 6; i++) {
+      const windowNorm = normTokens.slice(i, i + 6).filter(Boolean);
+      if (windowNorm.length < 6) continue;
+      if (theorySixGrams.has(windowNorm.join(' '))) {
+        if (tryReplaceWindow([i + 2, i + 3, i + 1, i + 4, i, i + 5])) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    if (!changed) {
+      const subEntries: Array<{ sub: string; tokenIdx: number }> = [];
+      tokens.forEach((tok, idx) => {
+        const subs = toAsciiLower(tok).split(/[^a-z0-9]+/).filter(Boolean);
+        for (const sub of subs) subEntries.push({ sub, tokenIdx: idx });
+      });
+      for (let i = 0; i <= subEntries.length - 6; i++) {
+        const key = subEntries
+          .slice(i, i + 6)
+          .map((e) => e.sub)
+          .join(' ');
+        if (theorySixGrams.has(key)) {
+          const rawIndices = [
+            subEntries[i + 2].tokenIdx,
+            subEntries[i + 3].tokenIdx,
+            subEntries[i + 1].tokenIdx,
+            subEntries[i + 4].tokenIdx,
+            subEntries[i].tokenIdx,
+            subEntries[i + 5].tokenIdx,
+          ];
+          const uniqueIndices = Array.from(new Set(rawIndices));
+          if (tryReplaceWindow(uniqueIndices)) {
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!changed) break;
+    tokens = tokens.join(' ').split(/\s+/);
+  }
+
+  const out = tokens.join(' ').trim();
+  return hasDanglingEnding(out) ? repairDanglingEnding(out, /[.?!]$/.test(out)) : out;
 }
 
 export interface DistillOptions {
@@ -413,6 +839,8 @@ export interface DistillOptions {
    * Por defecto `true` (para mazos `full`/`classroom` e infografías misionales).
    */
   allowMissionFallback?: boolean;
+  /** Fuentes teóricas adicionales del bloque/libro para prevenir traslape de 6-gramas en `lesson-guide`. */
+  extraTheorySources?: Array<string | null | undefined>;
 }
 
 /**
@@ -433,7 +861,7 @@ export function extractConceptHighlights(
     const cleaned = cleanSacrintText(block.texto);
     if (!cleaned || isRubricOrBoilerplateLeak(cleaned)) continue;
     if (block.tipo === 'formula') {
-      if (!formulas.includes(cleaned)) formulas.push(cleaned);
+      if (isValidRenderableFormula(cleaned) && !formulas.includes(cleaned)) formulas.push(cleaned);
       continue;
     }
     if (block.tipo === 'definicion' && candidateTexts.length === 0) {
@@ -442,14 +870,14 @@ export function extractConceptHighlights(
       candidateTexts.push(cleaned);
     }
     for (const eq of extractFormulasFromText(cleaned, 3)) {
-      if (!formulas.includes(eq)) formulas.push(eq);
+      if (isValidRenderableFormula(eq) && !formulas.includes(eq)) formulas.push(eq);
     }
   }
 
   const rawExampleSource =
     session?.ejemploResuelto || (allowMission ? mission.conceptZero?.solvedExample?.problemStatement : '') || '';
   for (const eq of extractFormulasFromText(rawExampleSource, 2)) {
-    if (!formulas.includes(eq)) formulas.push(eq);
+    if (isValidRenderableFormula(eq) && !formulas.includes(eq)) formulas.push(eq);
   }
 
   const analogyClean = allowMission ? cleanSacrintText(mission.conceptZero?.physicalAnalogy) : '';
@@ -501,7 +929,7 @@ export function extractConceptHighlights(
 
   return {
     definition: definition || fallbackDefinition,
-    formulas: formulas.slice(0, 3),
+    formulas: formulas.filter(isValidRenderableFormula).slice(0, 3),
     keyRules: keyRules.slice(0, 3),
   };
 }
@@ -512,24 +940,30 @@ const CONCLUSION_HEADING_PREFIX_RE =
 function extractExampleConclusion(
   rawExample: string,
   steps: string[],
-  rawLastStep?: string
+  rawLastStep?: string,
+  maxChars = 155,
+  maxWords?: number
 ): string {
   // 1. Si existe un 4to paso crudo ("Paso 4: Verificación e interpretación..."), extraer su conclusión real
   if (rawLastStep) {
-    const cleanedLast = cleanStepLine(rawLastStep).replace(CONCLUSION_HEADING_PREFIX_RE, '').trim();
+    const cleanedLast = sanitizePedagogicalMetaPhrases(cleanStepLine(rawLastStep).replace(CONCLUSION_HEADING_PREFIX_RE, '').trim());
     if (cleanedLast.length >= 18) {
-      const distilled = distillStepPreservingMath(cleanedLast, 165);
+      const distilled = fitPedagogicalText(cleanedLast, { maxChars, maxWords, role: 'conclusion' });
       if (distilled.length >= 15) return distilled;
     }
   }
 
-  const clean = cleanSacrintText(rawExample);
+  const clean = sanitizePedagogicalMetaPhrases(cleanSacrintText(rawExample));
   // 2. Buscar etiqueta explícita con dos puntos obligatorios ("Conclusión:", "Resultado final:", "Respuesta:")
   const explicitMatch = clean.match(
     /(?:conclusi[oó]n(?:\s+final|\s+pedag[oó]gica)?|interpretaci[oó]n(?:\s+del\s+resultado)?|resultado\s+final|respuesta\s+final)\s*:\s*([^.?!]+(?:\.\d+[^.?!]*)?[.?!]?)/i
   );
   if (explicitMatch && explicitMatch[1]) {
-    const candidate = distillConciseText(explicitMatch[1].replace(CONCLUSION_HEADING_PREFIX_RE, ''), 165, 28);
+    const candidate = fitPedagogicalText(explicitMatch[1].replace(CONCLUSION_HEADING_PREFIX_RE, ''), {
+      maxChars,
+      maxWords,
+      role: 'conclusion',
+    });
     if (candidate.length >= 16) return candidate;
   }
 
@@ -538,7 +972,11 @@ function extractExampleConclusion(
     /\b(?:por\s+lo\s+tanto|en\s+conclusi[oó]n)\s*,\s*([^.?!]+(?:\.\d+[^.?!]*)?[.?!]?)/i
   );
   if (connectorMatch && connectorMatch[1]) {
-    const candidate = distillConciseText(connectorMatch[1], 165, 28);
+    const candidate = fitPedagogicalText(connectorMatch[1], {
+      maxChars,
+      maxWords,
+      role: 'conclusion',
+    });
     if (candidate.length >= 16) return candidate;
   }
 
@@ -547,7 +985,7 @@ function extractExampleConclusion(
       .replace(CONCLUSION_HEADING_PREFIX_RE, '')
       .trim();
     if (lastStep && lastStep.length >= 16) {
-      return distillConciseText(lastStep, 165, 28);
+      return fitPedagogicalText(lastStep, { maxChars, maxWords, role: 'conclusion' });
     }
   }
   return '';
@@ -564,55 +1002,69 @@ export function extractWorkedExample(
   const allowMission = options.allowMissionFallback ?? true;
   const solved = allowMission ? mission.conceptZero?.solvedExample : undefined;
   const rawSessionExample = session?.ejemploResuelto?.trim();
+  const stmtBudget = allowMission ? 245 : 78;
+  const stmtWords = allowMission ? undefined : 12;
+  const stepBudget = allowMission ? 180 : 62;
+  const stepWords = allowMission ? undefined : 9;
+  const interpBudget = allowMission ? 155 : 60;
+  const interpWords = allowMission ? undefined : 9;
 
   if (rawSessionExample && !isRubricOrBoilerplateLeak(rawSessionExample)) {
     const preservedSessionExample = cleanSacrintTextPreservingLines(rawSessionExample);
     const cleanedSessionExample = cleanSacrintText(rawSessionExample);
     const parsed = parseEjemploResuelto(preservedSessionExample);
-    const statement = distillProblemOrExerciseText(parsed.enunciado, 260);
+    const statement = distillProblemOrExerciseText(parsed.enunciado, stmtBudget, stmtWords);
     const cleanedRawSteps = parsed.pasos
       .map(cleanStepLine)
       .filter((step) => step.length >= 8 && !isRubricOrBoilerplateLeak(step));
     const steps = cleanedRawSteps
-      .map((step) => distillStepPreservingMath(step, 185))
+      .map((step) => distillStepPreservingMath(step, stepBudget, stepWords))
       .filter(Boolean)
-      .slice(0, 4);
+      .slice(0, allowMission ? 4 : 3);
 
     if (steps.length > 0) {
       const fourthRawStep = cleanedRawSteps.length >= 4 ? cleanedRawSteps[cleanedRawSteps.length - 1] : undefined;
-      const derivedConclusion = extractExampleConclusion(rawSessionExample, steps, fourthRawStep);
+      const derivedConclusion = extractExampleConclusion(rawSessionExample, steps, fourthRawStep, interpBudget, interpWords);
       return {
         problemStatement:
           statement ||
-          (allowMission ? distillProblemOrExerciseText(solved?.problemStatement, 250) : '') ||
-          distillConciseText(session?.objetivo, 200, 34) ||
+          (allowMission ? distillProblemOrExerciseText(solved?.problemStatement, stmtBudget, stmtWords) : '') ||
+          distillConciseText(session?.objetivo, 90, 14) ||
           'Por completar en el libro: planteamiento del ejemplo.',
         steps,
         interpretation:
           derivedConclusion ||
-          (allowMission ? distillConciseText(solved?.interpretation, 165, 28) : '') ||
-          'Verifica que el resultado obtenido responda con coherencia al planteamiento inicial.',
+          (allowMission ? distillConciseText(solved?.interpretation, interpBudget, interpWords ?? 26) : '') ||
+          'Verifica que el resultado obtenido responda al planteamiento.',
       };
     }
 
     if (!allowMission && cleanedSessionExample) {
-      const bulletSteps = extractBulletSentences(cleanedSessionExample, 3, 175);
+      const bulletSteps = extractBulletSentences(cleanedSessionExample, 3, stepBudget)
+        .map((bullet) =>
+          fitPedagogicalText(bullet, {
+            maxChars: stepBudget,
+            maxWords: stepWords,
+            role: 'step',
+          })
+        )
+        .filter(Boolean);
       const effectiveSteps =
         bulletSteps.length >= 2
           ? bulletSteps
           : [
-              distillStepPreservingMath(cleanedSessionExample, 175),
-              'Desarrolla el procedimiento o criterio del tema conforme a la consigna.',
-              'Comunica la conclusión con evidencia y verifica su coherencia.',
+              distillStepPreservingMath(cleanedSessionExample, stepBudget, stepWords),
+              'Desarrolla el procedimiento o criterio conforme a la consigna.',
+              'Comunica la conclusión con respaldo y coherencia.',
             ].filter(Boolean);
       return {
         problemStatement:
           statement ||
-          distillProblemOrExerciseText(cleanedSessionExample, 250) ||
-          distillConciseText(session?.objetivo, 200, 34),
+          distillProblemOrExerciseText(cleanedSessionExample, stmtBudget, stmtWords) ||
+          distillConciseText(session?.objetivo, 72, 11),
         steps: effectiveSteps,
         interpretation:
-          extractExampleConclusion(rawSessionExample, effectiveSteps) ||
+          extractExampleConclusion(rawSessionExample, effectiveSteps, undefined, interpBudget, interpWords) ||
           'Verifica que el resultado responda con coherencia al planteamiento.',
       };
     }
@@ -684,8 +1136,18 @@ export function extractWorkedExample(
 /**
  * Sintetiza el enunciado de un ejercicio preservando los datos numéricos, ecuaciones y la pregunta/consigna.
  */
-function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 265): string {
-  return distillProblemOrExerciseText(rawEnunciado, maxChars);
+function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 220, maxWords?: number): string {
+  const clean = sanitizePedagogicalMetaPhrases(
+    cleanSacrintText(rawEnunciado)
+      .replace(/^(?:planteamiento|problema|enunciado|situaci[oó]n)\s*[:.\-–]\s*/i, '')
+      .trim()
+  );
+  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  return fitPedagogicalText(clean, {
+    maxChars,
+    maxWords,
+    role: 'activity',
+  });
 }
 
 /**
@@ -697,13 +1159,23 @@ export function extractPracticeActivities(
   options: DistillOptions = {}
 ): DistilledPracticeActivity[] {
   const allowMission = options.allowMissionFallback ?? true;
+  const stmtMax = allowMission ? 225 : 84;
+  const stmtWords = allowMission ? undefined : 13;
+  const hintMax = allowMission ? 135 : 52;
+  const hintWords = allowMission ? undefined : 8;
+  const maxItems = allowMission ? 3 : 2;
   const fromSession = (session?.practica ?? [])
     .filter((item) => cleanSacrintText(item.enunciado).length >= 10 && !isRubricOrBoilerplateLeak(item.enunciado))
-    .slice(0, 3)
+    .slice(0, maxItems)
     .map((item, idx) => ({
       label: `Actividad ${idx + 1}`,
-      statement: distillExerciseStatement(item.enunciado, 235),
-      hint: distillConciseText(item.pista, 145, 25) || 'Revisa la consigna y apóyate en el ejemplo trabajado en clase.',
+      statement: distillExerciseStatement(item.enunciado, stmtMax, stmtWords),
+      hint:
+        fitPedagogicalText(sanitizePedagogicalMetaPhrases(cleanSacrintText(item.pista)), {
+          maxChars: hintMax,
+          maxWords: hintWords,
+          role: 'hint',
+        }) || 'Apóyate en el ejemplo trabajado en clase.',
     }));
 
   if (fromSession.length > 0) return fromSession;
@@ -714,7 +1186,7 @@ export function extractPracticeActivities(
       {
         label: 'Actividad 1',
         statement: `Por completar en el libro: actividad práctica${sessionLabel}.`,
-        hint: 'Revisa la consigna en tu libro de trabajo y comunica la conclusión con evidencia.',
+        hint: 'Revisa la consigna en tu libro de trabajo.',
       },
     ];
   }
@@ -753,6 +1225,13 @@ export function extractApplicationAndExit(
 ): { application: string; artifactStep: string; exitChecks: string[] } {
   const allowMission = options.allowMissionFallback ?? true;
   const sessionLabel = session?.sessionNumber ? ` de la sesión ${session.sessionNumber}` : '';
+  const appMax = allowMission ? 200 : 68;
+  const appWords = allowMission ? undefined : 10;
+  const artMax = allowMission ? 165 : 58;
+  const artWords = allowMission ? undefined : 9;
+  const checkMax = allowMission ? 125 : 52;
+  const checkWords = allowMission ? undefined : 8;
+
   const rawApp = allowMission
     ? session?.aplicacion ||
       mission.realLifeConnection?.householdApplication ||
@@ -761,7 +1240,11 @@ export function extractApplicationAndExit(
       mission.sessionFocus
     : session?.aplicacion;
   const application =
-    distillConciseText(rawApp, 210, 36) ||
+    fitPedagogicalText(sanitizePedagogicalMetaPhrases(cleanSacrintText(rawApp)), {
+      maxChars: appMax,
+      maxWords: appWords,
+      role: 'application',
+    }) ||
     (allowMission
       ? 'Vincula el aprendizaje con situaciones reales y decisiones cotidianas de tu comunidad.'
       : `Por completar en el libro: aplicación situada${sessionLabel}.`);
@@ -772,32 +1255,38 @@ export function extractApplicationAndExit(
       mission.formativeCheckpoint?.question
     : session?.productoIntegrador;
   const artifactStep =
-    distillConciseText(rawArtifact, 175, 28) ||
+    fitPedagogicalText(sanitizePedagogicalMetaPhrases(cleanSacrintText(rawArtifact)), {
+      maxChars: artMax,
+      maxWords: artWords,
+      role: 'application',
+    }) ||
     (allowMission
       ? 'Integra el procedimiento desarrollado y su conclusión con evidencia en la bitácora del bloque.'
-      : `Por completar en el libro: avance del producto integrador${sessionLabel}.`);
+      : `Por completar en el libro: avance del producto${sessionLabel}.`);
 
   const checksFromSession = (session?.autoevaluacion ?? [])
-    .map(cleanSacrintText)
+    .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
     .filter((item) => item.length >= 8 && !isRubricOrBoilerplateLeak(item))
-    .map((item) => distillConciseText(item, 130, 22));
+    .map((item) => distillConciseText(item, checkMax, checkWords ?? 18));
 
   const checksFromMission = allowMission
     ? [
         ...(mission.formativeCheckpoint?.criteriaChecklist ?? []),
         ...(mission.formativeCheckpoint?.reflectionPrompts ?? []),
       ]
-        .map(cleanSacrintText)
+        .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
         .filter((item) => item.length >= 8 && !isRubricOrBoilerplateLeak(item))
-        .map((item) => distillConciseText(item, 130, 22))
+        .map((item) => distillConciseText(item, checkMax, checkWords ?? 18))
     : [];
 
-  const exitChecks = (checksFromSession.length > 0 ? checksFromSession : checksFromMission).slice(0, 3);
+  const exitChecks = (checksFromSession.length > 0 ? checksFromSession : checksFromMission).slice(
+    0,
+    allowMission ? 3 : 2
+  );
   if (exitChecks.length === 0) {
     exitChecks.push(
-      'Explico con mis palabras el concepto central y cuándo se aplica.',
-      'Identifico la información relevante de la consigna y aplico el procedimiento o criterio del tema.',
-      'Comunico la conclusión con evidencia y verifico que sea coherente con la situación.'
+      'Explico el concepto central y cuándo aplicarlo.',
+      'Identifico datos clave de la consigna y valido la conclusión.'
     );
   }
 
@@ -810,7 +1299,7 @@ function extractQuestionFromSession(session?: SessionPlan): string {
     .filter(Boolean);
   for (const text of candidates) {
     const match = text.match(/¿[^?]{8,140}\?/);
-    if (match) return distillConciseText(match[0], 150, 24);
+    if (match) return distillConciseText(match[0], 96, 15);
   }
   return '';
 }
@@ -828,50 +1317,108 @@ export function distillLessonBundle(
     session?.objetivo ||
     (allowMission ? mission.sessionTopic || mission.title : session?.contenido || fallbackSessionTitle);
   const topicTitle = session
-    ? extractChalkboardTopicTitle(
-        session.objetivo || session.contenido || fallbackSessionTitle,
-        allowMission ? mission.sessionTopic || mission.title : fallbackSessionTitle
-      )
+    ? resolveChalkboardTopicTitle({
+        conceptosClave: session.contenido,
+        sessionObjective: session.objetivo,
+        missionSessionTopic: allowMission ? mission.sessionTopic : null,
+        missionFocus: allowMission ? mission.sessionFocus : null,
+        missionTitle: allowMission ? mission.title : fallbackSessionTitle,
+        maxChars: allowMission ? 68 : 52,
+      })
     : extractCleanTopicTitle(
         mission.sessionTopic || mission.title,
         allowMission ? mission.sessionTopic || mission.title : fallbackSessionTitle
       );
-  const objective =
-    distillConciseText(session?.objetivo || (allowMission ? topicSource : ''), 165, 28) ||
+
+  const rawObjectiveSource =
+    !allowMission && session?.objetivo
+      ? cleanSacrintText(session.objetivo)
+          .replace(/^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|lograr[aá]s\s+)/i, '')
+          .trim()
+      : session?.objetivo || (allowMission ? topicSource : '');
+  const formattedObjSource =
+    rawObjectiveSource && /^[a-z]/.test(rawObjectiveSource)
+      ? rawObjectiveSource.charAt(0).toUpperCase() + rawObjectiveSource.slice(1)
+      : rawObjectiveSource;
+  const objBudget = allowMission ? 165 : 50;
+  const objWords = allowMission ? 28 : 8;
+  const objectiveRaw =
+    distillConciseText(formattedObjSource, objBudget, objWords) ||
     (allowMission
       ? extractCleanTopicTitle(mission.title)
       : `Por completar en el libro: propósito de la sesión ${sessionNumber ?? 1}.`);
 
+  const actBudget = allowMission ? 185 : 54;
+  const actWords = allowMission ? 32 : 8;
   const activationRaw =
     session?.saberesPrevios || session?.motivacion || (allowMission ? mission.phenomenonHook?.story : '');
-  const activation =
-    distillConciseText(activationRaw, 185, 32) ||
+  const activationBase =
+    distillConciseText(activationRaw, actBudget, actWords) ||
     (allowMission
       ? distillConciseText(mission.sessionFocus, 175, 30)
-      : `Por completar en el libro: activación diagnóstica de la sesión ${sessionNumber ?? 1}.`);
+      : `Por completar en el libro: activación de la sesión ${sessionNumber ?? 1}.`);
 
   const sessionQuestion = extractQuestionFromSession(session);
-  const question =
+  const rawQuestionBase =
     sessionQuestion ||
     (allowMission ? distillConciseText(mission.phenomenonHook?.detonatingQuestion, 150, 24) : '') ||
-    `¿Cómo aplicar ${topicTitle.toLowerCase()} para analizar una situación de esta sesión?`;
+    `¿Cómo aplicar ${topicTitle.toLowerCase()} en esta sesión?`;
+  const questionBase = allowMission
+    ? rawQuestionBase
+    : distillConciseText(rawQuestionBase, 66, 10) || rawQuestionBase;
 
   const concepts = extractConceptHighlights(mission, session, options);
   const example = extractWorkedExample(mission, session, options);
   const activities = extractPracticeActivities(mission, session, options);
   const { application, artifactStep, exitChecks } = extractApplicationAndExit(mission, session, options);
 
+  if (!allowMission) {
+    const theorySources = [
+      session?.contenido,
+      mission.conceptZero?.coreExplanation,
+      mission.conceptZero?.narrativeExplanation,
+      ...(options.extraTheorySources ?? []),
+    ];
+    const cleanField = (text: string) =>
+      preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(text), theorySources);
+    return {
+      sessionNumber,
+      topicTitle: cleanField(topicTitle),
+      objective: cleanField(objectiveRaw),
+      activation: cleanField(activationBase),
+      question: cleanField(questionBase),
+      concepts: {
+        definition: cleanField(concepts.definition),
+        formulas: concepts.formulas,
+        keyRules: concepts.keyRules.map(cleanField),
+      },
+      example: {
+        problemStatement: cleanField(example.problemStatement),
+        steps: example.steps.map(cleanField),
+        interpretation: cleanField(example.interpretation),
+      },
+      activities: activities.map((act) => ({
+        ...act,
+        statement: cleanField(act.statement),
+        hint: cleanField(act.hint),
+      })),
+      application: cleanField(application),
+      artifactStep: cleanField(artifactStep),
+      exitChecks: exitChecks.map(cleanField),
+    };
+  }
+
   return {
     sessionNumber,
-    topicTitle,
-    objective,
-    activation,
-    question,
+    topicTitle: sanitizePedagogicalMetaPhrases(topicTitle),
+    objective: sanitizePedagogicalMetaPhrases(objectiveRaw),
+    activation: sanitizePedagogicalMetaPhrases(activationBase),
+    question: sanitizePedagogicalMetaPhrases(questionBase),
     concepts,
     example,
     activities,
-    application,
-    artifactStep,
-    exitChecks,
+    application: sanitizePedagogicalMetaPhrases(application),
+    artifactStep: sanitizePedagogicalMetaPhrases(artifactStep),
+    exitChecks: exitChecks.map((c) => sanitizePedagogicalMetaPhrases(c)),
   };
 }

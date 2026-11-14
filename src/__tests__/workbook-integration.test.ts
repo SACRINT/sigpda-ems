@@ -448,15 +448,15 @@ describe('Workbook Engine — Test de Integración End-to-End (renderWorkbookToP
     expect(pdfData.text).toContain('SESION 1 (50 MIN)');
     expect(pdfData.text).toContain('APERTURA Y MODELADO CONCEPTUAL');
     expect(pdfData.text).toContain('SESION 2 (50 MIN)');
-    expect(pdfData.text).toContain('PRACTICA GUIADA, RETO Y CIERRE');
+    expect(pdfData.text).toContain('PRÁCTICA GUIADA, RETO Y CIERRE');
 
     // 2. Verificación de badges cognitivos en ribbons
-    expect(pdfData.text).toContain('[ SITUACION REAL ]');
+    expect(pdfData.text).toContain('[ SITUACIÓN REAL ]');
     expect(pdfData.text).toContain('[ LEO Y COMPRENDO ]');
     expect(pdfData.text).toContain('[ MODELO DOCENTE ]');
     expect(pdfData.text).toContain('[ TRABAJO EN EQUIPO ]');
     expect(pdfData.text).toContain('[ HAGO Y RESUELVO ]');
-    expect(pdfData.text).toContain('[ ERROR COMUN ]');
+    expect(pdfData.text).toContain('[ ERROR COMÚN ]');
     expect(pdfData.text).toContain('[ MI ENTREGA ]');
 
     // 3. Garantizar ausencia de emojis en el render de jsPDF (solo WinAnsi)

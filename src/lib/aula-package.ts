@@ -9,10 +9,16 @@ import { selectAllExtrasCombined, selectExtrasForBlock } from '@/lib/planning-ex
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { getAllBlockWorkbooks } from '@/lib/db';
 import {
-  buildSacrintDecksForWorkbook,
+  buildSacrintDeck,
+  collectWorkbookTheorySources,
+  LessonGuideNoSessionsError,
   type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import {
+  extractMaterialsFromWorkbook,
+  type ExtractedBlockMaterials,
+} from '@/lib/guide-engine/material-extractor';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { logger } from '@/lib/logger';
@@ -302,31 +308,83 @@ export async function buildAulaPackageZip(
   }
 
   // 8. Presentación PPTX
+  const sacrintFileName = `08_Presentacion_SACRINT_${cleanSubject}.pptx`;
   if (hasWorkbooks) {
     try {
       const decks: SacrintDeckSpec[] = [];
+      let excludedCount = 0;
+      const allTheorySources = entries.flatMap((entry) => collectWorkbookTheorySources(entry.workbook));
+
       for (const entry of entries) {
-        const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide' });
-        for (const deck of entryDecks) {
-          decks.push(deck);
-          const review = reviewBlockMaterials({
-            workbook: entry.workbook,
-            deck,
-            uacName: planning.uac_name,
-            checkFullBlockPersistence: false,
-          });
-          for (const issue of review.byMaterial.deck.issues) {
-            warnings.push(`[Bloque ${entry.blockIndex + 1} · Presentación] ${issue.code}: ${issue.message}`);
+        let extracted: ExtractedBlockMaterials | undefined;
+        try {
+          extracted = extractMaterialsFromWorkbook(entry.workbook);
+        } catch {
+          extracted = undefined;
+        }
+
+        const missionCount = Math.max(1, entry.workbook.missions?.length ?? 0);
+        for (let missionIndex = 0; missionIndex < missionCount; missionIndex++) {
+          const missionNumber =
+            entry.workbook.missions?.[missionIndex]?.missionIndex || missionIndex + 1;
+          try {
+            const deck = buildSacrintDeck(entry.workbook, {
+              mode: 'lesson-guide',
+              missionIndex,
+              extraTheorySources: allTheorySources,
+            });
+            const review = reviewBlockMaterials({
+              workbook: entry.workbook,
+              extracted,
+              deck,
+              uacName: planning.uac_name,
+              checkFullBlockPersistence: false,
+            });
+            const deckIssues = review.byMaterial.deck.issues;
+            const blockingErrors = deckIssues.filter((issue) => issue.severity === 'error');
+            const deckWarnings = deckIssues.filter((issue) => issue.severity === 'warning');
+
+            for (const warnIssue of deckWarnings) {
+              warnings.push(
+                `[Bloque ${entry.blockIndex + 1} · Misión ${missionNumber} · ${sacrintFileName}] ${warnIssue.code}: ${warnIssue.message}`
+              );
+            }
+
+            if (blockingErrors.length > 0) {
+              excludedCount++;
+              for (const errIssue of blockingErrors) {
+                warnings.push(
+                  `[Bloque ${entry.blockIndex + 1} · Misión ${missionNumber} · ${sacrintFileName} excluido por error S6] ${errIssue.code}: ${errIssue.message}`
+                );
+              }
+              continue;
+            }
+
+            decks.push(deck);
+          } catch (missionError) {
+            if (missionError instanceof LessonGuideNoSessionsError) {
+              excludedCount++;
+              warnings.push(
+                `[Bloque ${entry.blockIndex + 1} · Misión ${missionNumber} · ${sacrintFileName} excluido] ${missionError.code}: ${missionError.message}`
+              );
+              continue;
+            }
+            throw missionError;
           }
         }
       }
+
       if (decks.length > 0) {
         zip.file(
-          `08_Presentacion_SACRINT_${cleanSubject}.pptx`,
+          sacrintFileName,
           await generateCombinedSacrintPptx(decks, {
             title: `Presentación SACRINT — ${planning.uac_name}`,
             subjectName: planning.uac_name || 'presentacion',
           })
+        );
+      } else if (excludedCount > 0) {
+        warnings.push(
+          `[Presentación · ${sacrintFileName}] Se excluyeron ${excludedCount} deck(s) por errores estructurales S6 o falta de sesiones en modo guía por clase; se omitió el archivo ${sacrintFileName} sin usar plantilla genérica.`
         );
       } else {
         zip.file(`08_Presentacion_de_Clase_${cleanSubject}.pptx`, await generateFallbackPptx(content, meta));

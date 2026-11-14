@@ -13,6 +13,8 @@ import {
   extractConceptHighlights,
   extractWorkedExample,
   isRubricOrBoilerplateLeak,
+  preventSixGramTheoryOverlap,
+  sanitizePedagogicalMetaPhrases,
   type DistilledExample,
   type DistilledLessonBundle,
   type DistilledPracticeActivity,
@@ -26,6 +28,33 @@ import {
   type SacrintDiagramSpec,
   type SacrintVariable,
 } from './diagrams';
+import { classifyTopic } from '@/lib/visual-engine/topic-classifier';
+import {
+  isEvaluationOrClosureObjective,
+  resolveInfographicConceptTitle,
+  sanitizeWorkbookTocTitle,
+} from '@/lib/editorial/topic-title-resolver';
+import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
+import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
+
+export const LESSON_GUIDE_NO_SESSIONS_CODE = 'LESSON_GUIDE_NO_SESSIONS';
+
+export class LessonGuideNoSessionsError extends Error {
+  readonly code = LESSON_GUIDE_NO_SESSIONS_CODE;
+  readonly blockNumber: number;
+  readonly missionNumber: number;
+  readonly missionTitle: string;
+
+  constructor(blockNumber: number, missionNumber: number, missionTitle: string) {
+    super(
+      `[LESSON_GUIDE_NO_SESSIONS] La Misión ${missionNumber} (${missionTitle}) del Bloque ${blockNumber} no cuenta con sesiones (sessionPlans) para generar la guía expositiva de pizarrón.`
+    );
+    this.name = 'LessonGuideNoSessionsError';
+    this.blockNumber = blockNumber;
+    this.missionNumber = missionNumber;
+    this.missionTitle = missionTitle;
+  }
+}
 
 export type {
   ArgumentDiagramSpec,
@@ -90,6 +119,7 @@ export interface SacrintMissionMeta {
   schoolName: string;
   cct?: string;
   paecProjectName?: string;
+  expectedSlideCount?: number;
 }
 
 interface SacrintSlideBase {
@@ -250,6 +280,8 @@ export interface SacrintBuildOptions {
   yLabel?: string;
   mode?: SacrintDeckMode;
   theme?: SacrintThemeMode;
+  /** Fuentes teóricas adicionales (p. ej. de otros bloques del mismo libro) para prevenir traslape de 6-gramas. */
+  extraTheorySources?: Array<string | null | undefined>;
 }
 
 function splitLabeledItems(value: string | null | undefined, label: 'PASO' | 'Instrucción', max: number): string[] {
@@ -305,15 +337,24 @@ function missionMeta(workbook: ActiveWorkTextbook, mission: MissionSection, pack
   const cover = workbook.coverData;
   const dedupedBlockName = (workbook.blockName || `Bloque ${(workbook.blockIndex ?? 0) + 1}`)
     .replace(/^(Bloque\s+\d+\s*\(Corte\s*\d+\))\s*:\s*\1$/i, '$1');
-  const rawMissionTitle = stripMissionPrefix(mission.title);
-  const cleanedTopic = extractCleanTopicTitle(rawMissionTitle, mission.sessionTopic);
+  const rawMissionTitle = sanitizePedagogicalMetaPhrases(
+    sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
+  );
+  const cleanedTopic = sanitizePedagogicalMetaPhrases(
+    extractCleanTopicTitle(rawMissionTitle, mission.sessionTopic)
+  );
   return {
     subjectName: cleanSacrintText(cover?.subjectName || pack.label),
     blockName: cleanSacrintText(dedupedBlockName),
     blockNumber: cover?.blockNumber ?? (workbook.blockIndex ?? 0) + 1,
     semester: cover?.semester ?? 1,
     missionNumber: mission.missionIndex || 1,
-    missionTitle: rawMissionTitle || cleanedTopic || `Misión ${mission.missionIndex || 1}`,
+    missionTitle: fitPedagogicalText(rawMissionTitle || cleanedTopic || `Misión ${mission.missionIndex || 1}`, {
+      maxChars: 74,
+      maxWords: 11,
+      role: 'concept',
+      ensurePeriod: false,
+    }),
     sessions: sessionsLabel(mission),
     teacherName: cleanSacrintText(cover?.teacherName || 'Docente'),
     schoolName: cleanSacrintText(cover?.schoolName || 'Plantel EMS'),
@@ -393,66 +434,63 @@ function resolveMissionMisconceptionParts(
     }
   }
 
-  const contextText = (
-    allowMission
-      ? [
-          bundle?.topicTitle,
-          mission.title,
-          mission.sessionTopic,
-          mission.conceptZero?.coreExplanation,
-          mission.iDoSection?.stepByStepDemo,
-        ]
-      : [
-          bundle?.topicTitle,
-          bundle?.objective,
-          options.session?.contenido,
-          options.session?.ejemploResuelto,
-        ]
-  )
-    .filter(Boolean)
-    .join(' ');
+  const classifierInput = allowMission
+    ? {
+        title: mission.title,
+        topic: mission.sessionTopic,
+        objective: bundle?.objective,
+        concepts: mission.conceptZero?.coreExplanation,
+        example: mission.iDoSection?.stepByStepDemo,
+        bodyText: bundle?.topicTitle,
+      }
+    : {
+        title: bundle?.topicTitle,
+        topic: bundle?.objective,
+        objective: options.session?.objetivo,
+        concepts: options.session?.contenido,
+        example: options.session?.ejemploResuelto,
+      };
+  const contextText = Object.values(classifierInput).filter(Boolean).join(' ').trim();
 
-  if (/inter[eé]s\s+(?:simple|compuesto)|capitalizaci[oó]n|crecimiento\s+(?:exponencial|poblacional)|P\(t\)\s*=/i.test(contextText)) {
+  const classification = classifyTopic(classifierInput);
+
+  if (classification.kind === 'exponential') {
     return {
       error: 'Multiplicar la tasa por el número de periodos como si fuera crecimiento lineal.',
       correction: 'Aplicar la potencia (1 + r)ᵗ sobre el valor acumulado en cada periodo.',
     };
   }
-  if (/muestra\s+estad[ií]stica|tama[ñn]o\s+de\s+muestra|encuesta|poblaci[oó]n\s+finita|nivel\s+de\s+confianza/i.test(contextText)) {
+  if (classification.kind === 'statistics') {
     return {
       error: 'Usar el porcentaje de margen de error sin convertirlo a decimal al sustituir en la fórmula.',
       correction: 'Convertir porcentajes a decimales (ej. 5% = 0.05) y respetar los paréntesis del denominador.',
     };
   }
-  if (
-    /ecuaci[oó]n(?:es)?\s+cuadr[aá]tica|funci[oó]n(?:es)?\s+cuadr[aá]tica|modelo\s+cuadr[aá]tico|par[aá]bola|ecuaci[oó]n(?:es)?\s+de\s+segundo\s+grado|\bax\s*(?:²|\^2)|\bdiscriminante\b/i.test(
-      contextText
-    )
-  ) {
+  if (classification.kind === 'quadratic') {
     return {
       error: 'Omitir el signo del coeficiente lineal o descartar raíces sin evaluar el discriminante.',
       correction: 'Evaluar b² - 4ac y verificar ambas raíces en el contexto real del problema.',
     };
   }
-  if (/sistema[s]?\s+de\s+ecuaciones|dos\s+inc[oó]gnitas|2\s*[x×]\s*2|punto\s+de\s+equilibrio/i.test(contextText)) {
+  if (classification.kind === 'system-2x2') {
     return {
       error: 'Sustituir la variable despejada en la misma ecuación origen sin cruzar con la segunda.',
       correction: 'Sustituir en la ecuación complementaria y comprobar el par (x, y) en ambas.',
     };
   }
-  if (/raz[oó]n|proporci[oó]n|porcentaje|regla\s+de\s+tres/i.test(contextText)) {
-    return {
-      error: 'Confundir variación proporcional directa con inversa o sumar porcentajes de forma directa.',
-      correction: 'Verificar si las magnitudes crecen juntas o inversamente antes de plantear la razón.',
-    };
-  }
-  if (/geometr|[áa]ngulo|tri[áa]ngulo|teorema|per[ií]metro|[áa]rea/i.test(contextText)) {
+  if (classification.kind === 'geometry') {
     return {
       error: 'Aplicar fórmulas de área o ángulos sin comprobar congruencia o perpendicularidad.',
       correction: 'Identificar dimensiones base y propiedades geométricas antes de resolver.',
     };
   }
-  if (/ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal/i.test(contextText)) {
+  if (classification.kind === 'proportion') {
+    return {
+      error: 'Confundir variación proporcional directa con inversa o sumar porcentajes de forma directa.',
+      correction: 'Verificar si las magnitudes crecen juntas o inversamente antes de plantear la razón.',
+    };
+  }
+  if (classification.kind === 'linear' || /ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal/i.test(contextText)) {
     return {
       error: 'Confundir el término independiente con la razón de cambio o despejar un solo miembro.',
       correction: 'Aplicar operaciones inversas simétricas en ambos lados de la igualdad.',
@@ -502,15 +540,41 @@ function sanitizeField(value: string | null | undefined, fallback: string, maxCh
   return distillConciseText(cleaned, maxChars, maxWords) || fallback;
 }
 
+function pushTheoryStrings(out: string[], value: unknown): void {
+  if (typeof value === 'string') {
+    if (value.trim()) out.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) pushTheoryStrings(out, item);
+  } else if (value && typeof value === 'object') {
+    for (const nested of Object.values(value)) pushTheoryStrings(out, nested);
+  }
+}
+
+export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): string[] {
+  const sources: string[] = [];
+  for (const m of workbook.missions ?? []) {
+    if (m.conceptZero) pushTheoryStrings(sources, m.conceptZero);
+    if (m.phenomenonHook?.story) sources.push(m.phenomenonHook.story);
+    for (const s of m.sessionPlans ?? []) {
+      if (s.contenido) sources.push(s.contenido);
+    }
+  }
+  return sources;
+}
+
 function buildLessonGuideSlidesForSession(
   workbook: ActiveWorkTextbook,
   mission: MissionSection,
   pack: SacrintPack,
   meta: SacrintMissionMeta,
   session: SessionPlan,
-  options: SacrintBuildOptions
+  options: SacrintBuildOptions,
+  workbookTheorySources: string[] = collectWorkbookTheorySources(workbook)
 ): SacrintSlide[] {
-  const bundle = distillLessonBundle(mission, session, { allowMissionFallback: false });
+  const bundle = distillLessonBundle(mission, session, {
+    allowMissionFallback: false,
+    extraTheorySources: workbookTheorySources,
+  });
   const sesLabel = String(bundle.sessionNumber ?? session.sessionNumber).padStart(2, '0');
   const diagram = buildSacrintDiagram(mission, pack, {
     ...options,
@@ -520,15 +584,51 @@ function buildLessonGuideSlidesForSession(
   const variables = buildDiagramVariables(diagram);
   const formula = diagramFormula(diagram);
   const facts = baseFacts(meta, mission, bundle.sessionNumber);
-  const misconception = resolveMissionMisconception(mission, true, bundle, {
+  const misconceptionParts = resolveMissionMisconceptionParts(mission, bundle, {
     session,
     allowMissionFallback: false,
   });
+  const combinedMisconception = `${misconceptionParts.error} → ${misconceptionParts.correction}`;
+  const rawMisconception =
+    combinedMisconception.split(/\s+/).length <= 14
+      ? combinedMisconception
+      : fitPedagogicalText(sanitizePedagogicalMetaPhrases(misconceptionParts.error), {
+          maxChars: 92,
+          maxWords: 14,
+          role: 'hint',
+        });
+  const misconception = preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
+
+  const rawArtifactTitle = sanitizePedagogicalMetaPhrases(
+    cleanSacrintText(workbook.projectSection?.artifactName) || `Producto de la sesión ${sesLabel}`
+  );
+  const deOverlappedArtifact = preventSixGramTheoryOverlap(rawArtifactTitle, workbookTheorySources);
+  const fittedArtifactTitle =
+    fitPedagogicalText(deOverlappedArtifact, {
+      maxChars: 54,
+      maxWords: 8,
+      role: 'concept',
+      ensurePeriod: false,
+    }) || `Producto de la sesión ${sesLabel}`;
+  let artifactName = fittedArtifactTitle;
+  if (artifactName === bundle.artifactStep) {
+    artifactName = `${artifactName} · Sesión ${sesLabel}`;
+  }
+
+  const fittedTopicTitle =
+    bundle.topicTitle.length > 140
+      ? fitPedagogicalText(bundle.topicTitle, {
+          maxChars: 140,
+          maxWords: 16,
+          role: 'concept',
+          ensurePeriod: false,
+        }) || bundle.topicTitle.slice(0, 140).replace(/\s+\S*$/, '')
+      : bundle.topicTitle;
 
   const conceptSlide: SacrintConceptSlide = {
     kind: 'concept',
     eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 1/2 · CONOCIMIENTO NUEVO Y EJEMPLO`,
-    title: bundle.topicTitle,
+    title: fittedTopicTitle,
     subtitle: bundle.objective,
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
@@ -549,8 +649,8 @@ function buildLessonGuideSlidesForSession(
   const practiceSlide: SacrintPracticeSlide = {
     kind: 'practice',
     eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 2/2 · EJERCICIOS Y APLICACIÓN`,
-    title: `Guía de actividades y aplicación · Sesión ${sesLabel}`,
-    subtitle: bundle.topicTitle,
+    title: `Ejercicios y aplicación · Sesión ${sesLabel}`,
+    subtitle: preventSixGramTheoryOverlap(fittedTopicTitle, workbookTheorySources),
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
     isLessonGuide: true,
@@ -559,9 +659,7 @@ function buildLessonGuideSlidesForSession(
     checkpoints: bundle.activities.map((item) => `${item.label}: ${item.statement}`),
     hint: bundle.activities[0]?.hint,
     applicationText: bundle.application,
-    artifactName:
-      cleanSacrintText(workbook.projectSection?.artifactName) ||
-      `Portafolio de evidencias · Sesión ${sesLabel}`,
+    artifactName,
     artifactStep: bundle.artifactStep,
     exitChecks: bundle.exitChecks.slice(0, 2),
     facts,
@@ -580,34 +678,105 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     typeof options.sessionIndex === 'number'
       ? sessionPlans[Math.max(0, Math.min(options.sessionIndex, sessionPlans.length - 1))]
       : sessionPlans[0];
+  const workbookTheorySources: string[] =
+    mode === 'lesson-guide'
+      ? [
+          ...collectWorkbookTheorySources(workbook),
+          ...(options.extraTheorySources ?? []).filter(
+            (s): s is string => typeof s === 'string' && s.trim().length > 0
+          ),
+        ]
+      : [];
 
   const topicsCovered = sessionPlans
-    .map(
-      (session) =>
-        `S${String(session.sessionNumber).padStart(2, '0')}: ${extractChalkboardTopicTitle(session.objetivo, mission.sessionTopic)}`
-    )
+    .map((session) => {
+      const rawTopic = extractChalkboardTopicTitle(
+        session.objetivo,
+        mission.sessionTopic,
+        session.contenido
+      );
+      if (mode !== 'lesson-guide') {
+        return `S${String(session.sessionNumber).padStart(2, '0')}: ${rawTopic}`;
+      }
+      const cleanTopic = fitPedagogicalText(sanitizePedagogicalMetaPhrases(rawTopic), {
+        maxChars: 48,
+        maxWords: 7,
+        role: 'concept',
+        ensurePeriod: false,
+      });
+      return `S${String(session.sessionNumber).padStart(2, '0')}: ${preventSixGramTheoryOverlap(cleanTopic || rawTopic, workbookTheorySources)}`;
+    })
     .slice(0, 6);
 
   const facts = baseFacts(meta, mission);
+  const rawCoverFooter = meta.paecProjectName
+    ? `PAEC: ${
+        mode === 'lesson-guide'
+          ? fitPedagogicalText(
+              preventSixGramTheoryOverlap(
+                sanitizePedagogicalMetaPhrases(meta.paecProjectName),
+                workbookTheorySources
+              ),
+              {
+                maxChars: 54,
+                maxWords: 8,
+                role: 'general',
+                ensurePeriod: false,
+              }
+            )
+          : meta.paecProjectName
+      }`
+    : meta.schoolName;
+  const coverSubtitleRaw = cleanMissionTopicLine(
+    mission.sessionTopic,
+    meta.missionTitle,
+    mode === 'lesson-guide' ? 68 : 175,
+    mode === 'lesson-guide' ? 10 : 28
+  );
+
+  const rawCoverTitle =
+    mode === 'lesson-guide'
+      ? preventSixGramTheoryOverlap(meta.missionTitle, workbookTheorySources)
+      : meta.missionTitle;
+  const coverTitle =
+    mode === 'lesson-guide' && rawCoverTitle.length > 140
+      ? fitPedagogicalText(rawCoverTitle, {
+          maxChars: 140,
+          maxWords: 16,
+          role: 'concept',
+          ensurePeriod: false,
+        }) || rawCoverTitle.slice(0, 140).replace(/\s+\S*$/, '')
+      : rawCoverTitle;
+
   const cover: SacrintCoverSlide = {
     kind: 'cover',
     eyebrow: `MISIÓN ${String(meta.missionNumber).padStart(2, '0')} // ${pack.label.toLocaleUpperCase('es-MX')}`,
-    title: meta.missionTitle,
-    subtitle: cleanMissionTopicLine(mission.sessionTopic, meta.missionTitle),
+    title: coverTitle,
+    subtitle:
+      mode === 'lesson-guide'
+        ? preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(coverSubtitleRaw), workbookTheorySources)
+        : coverSubtitleRaw,
     missionIndex: meta.missionNumber,
     metaLine: `${meta.subjectName} · SEMESTRE ${meta.semester} · BLOQUE ${meta.blockNumber}`,
     facts,
     topicsCovered: topicsCovered.length > 0 ? topicsCovered : undefined,
-    footerNote: meta.paecProjectName ? `PAEC: ${meta.paecProjectName}` : meta.schoolName,
+    footerNote:
+      mode === 'lesson-guide'
+        ? preventSixGramTheoryOverlap(rawCoverFooter, workbookTheorySources)
+        : rawCoverFooter,
   };
 
-  // Modo Guía Expositiva por Clase: 1 Portada de Misión + 4 láminas pedagógicas por cada sesión del libro
-  if (mode === 'lesson-guide' && sessionPlans.length > 0) {
+  // Modo Guía Expositiva por Clase: 1 Portada de Misión + 2 láminas de pizarrón por cada sesión del libro
+  if (mode === 'lesson-guide') {
+    if (sessionPlans.length === 0) {
+      throw new LessonGuideNoSessionsError(meta.blockNumber, meta.missionNumber, meta.missionTitle);
+    }
     const targetSessions =
       typeof options.sessionIndex === 'number' && selectedSession ? [selectedSession] : sessionPlans;
     const sessionSlides = targetSessions.flatMap((session) =>
-      buildLessonGuideSlidesForSession(workbook, mission, pack, meta, session, options)
+      buildLessonGuideSlidesForSession(workbook, mission, pack, meta, session, options, workbookTheorySources)
     );
+    meta.expectedSlideCount = 1 + 2 * targetSessions.length;
     return {
       meta,
       pack,
@@ -830,7 +999,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     meta,
     pack,
     style: resolveSacrintStyle(pack.id),
-    mode: mode === 'lesson-guide' ? 'classroom' : mode,
+    mode,
     theme: options.theme ?? 'dark',
     slides,
   };
@@ -871,10 +1040,11 @@ function buildSteps(
     'Integrar el procedimiento y la conclusión con evidencia en el producto del bloque.',
   ];
 
+  const prioritizedFallback = [...fallback.slice(effectiveSolved.length), ...fallback];
   const source =
     effectiveSolved.length >= 4
       ? effectiveSolved.slice(0, 4)
-      : [...effectiveSolved, ...fallback]
+      : [...effectiveSolved, ...prioritizedFallback]
           .filter((item, index, items) => Boolean(item) && !isRubricOrBoilerplateLeak(item) && items.indexOf(item) === index)
           .slice(0, 4);
 
@@ -891,7 +1061,7 @@ function buildRubric(workbook: ActiveWorkTextbook): SacrintRubricItem[] {
   if (rubric.length > 0) {
     return rubric
       .map((item) => ({
-        label: cleanSacrintText(item.criterion),
+        label: sanitizePedagogicalMetaPhrases(cleanSacrintText(item.criterion)),
         weight: item.weightPercent,
       }))
       .filter((item) => Boolean(item.label) && !isRubricOrBoilerplateLeak(item.label))
@@ -899,7 +1069,7 @@ function buildRubric(workbook: ActiveWorkTextbook): SacrintRubricItem[] {
   }
   const checklist = workbook.evaluationSection?.checklist ?? [];
   return checklist
-    .map((item) => ({ label: cleanSacrintText(item.item) }))
+    .map((item) => ({ label: sanitizePedagogicalMetaPhrases(cleanSacrintText(item.item)) }))
     .filter((item) => Boolean(item.label) && !isRubricOrBoilerplateLeak(item.label))
     .slice(0, 4);
 }
@@ -923,20 +1093,43 @@ export function buildSacrintInfographic(
   const diagram = buildSacrintDiagram(mission, pack, { ...options, session: selectedSession });
   const formula = diagramFormula(diagram);
   const criteria = (mission.formativeCheckpoint?.criteriaChecklist ?? [])
-    .map(cleanSacrintText)
+    .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
   const project = workbook.projectSection;
 
   const conceptHighlights = extractConceptHighlights(mission, selectedSession);
   const quickExample = extractWorkedExample(mission, selectedSession);
-  const misconceptionFix = resolveMissionMisconceptionParts(mission, bundle);
-  const topicTitle = extractChalkboardTopicTitle(
-    selectedSession?.objetivo || mission.sessionTopic || mission.title,
-    meta.missionTitle
+  const misconceptionFixRaw = resolveMissionMisconceptionParts(mission, bundle);
+  const misconceptionFix = {
+    error: sanitizePedagogicalMetaPhrases(misconceptionFixRaw.error),
+    correction: sanitizePedagogicalMetaPhrases(misconceptionFixRaw.correction),
+  };
+  const nonClosureSessionObjective = sessionPlans
+    .map((s) => s.objetivo)
+    .find((obj) => Boolean(obj) && !isEvaluationOrClosureObjective(obj));
+  const topicTitle = sanitizePedagogicalMetaPhrases(
+    resolveInfographicConceptTitle({
+      conceptosClave: selectedSession?.contenido || mission.conceptZero?.coreExplanation,
+      sessionObjective: selectedSession?.objetivo,
+      missionSessionTopic: mission.sessionTopic,
+      missionFocus: mission.sessionFocus || nonClosureSessionObjective,
+      missionTitle: meta.missionTitle,
+    })
   );
-  const applicationSummary =
+  const applicationSummary = sanitizePedagogicalMetaPhrases(
     bundle?.application ||
-    sanitizeField(mission.youDoSection?.autonomousChallenge, 'Aplica el concepto en situaciones reales del proyecto.', 170, 26);
+      sanitizeField(mission.youDoSection?.autonomousChallenge, 'Aplica el concepto en situaciones reales del proyecto.', 170, 26)
+  );
+
+  const validFormulas = conceptHighlights.formulas.filter(isValidRenderableFormula);
+  const cleanTitle = sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle);
+  const cleanClaim = sanitizePedagogicalMetaPhrases(
+    cleanMissionTopicLine(
+      mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
+      conceptHighlights.definition
+    )
+  );
+  const rawKeyConcepts = conceptHighlights.keyRules.length > 0 ? conceptHighlights.keyRules : [conceptHighlights.definition];
 
   return {
     format,
@@ -944,28 +1137,35 @@ export function buildSacrintInfographic(
     meta,
     pack,
     style: resolveSacrintStyle(pack.id),
-    title: topicTitle || meta.missionTitle,
-    topicTitle,
+    title: cleanTitle,
+    topicTitle: cleanTitle,
     subtitle: `${meta.subjectName} · MISIÓN ${String(meta.missionNumber).padStart(2, '0')} · BLOQUE ${meta.blockNumber}`,
-    claim: cleanMissionTopicLine(
-      mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
-      conceptHighlights.definition
-    ),
+    claim: cleanClaim,
     formula,
-    formulasList: conceptHighlights.formulas.length > 0 ? conceptHighlights.formulas : [formula],
-    keyConcepts: conceptHighlights.keyRules.length > 0 ? conceptHighlights.keyRules : [conceptHighlights.definition],
-    quickExample,
+    formulasList: validFormulas.length > 0 ? validFormulas : [formula],
+    keyConcepts: rawKeyConcepts.map((c) => sanitizePedagogicalMetaPhrases(c)),
+    quickExample: {
+      problemStatement: sanitizePedagogicalMetaPhrases(quickExample.problemStatement),
+      steps: quickExample.steps.map((s) => sanitizePedagogicalMetaPhrases(s)),
+      interpretation: sanitizePedagogicalMetaPhrases(quickExample.interpretation),
+    },
     variables: buildDiagramVariables(diagram),
     diagram,
-    steps: buildSteps(mission, pack, selectedSession),
+    steps: buildSteps(mission, pack, selectedSession).map((step) => ({
+      ...step,
+      title: sanitizePedagogicalMetaPhrases(step.title),
+      body: sanitizePedagogicalMetaPhrases(step.body),
+    })),
     misconception: `${misconceptionFix.error} → ${misconceptionFix.correction}`,
     misconceptionFix,
     applicationSummary,
     criteria,
     rubric: buildRubric(workbook),
     project: {
-      artifactName: cleanSacrintText(project?.artifactName) || 'Producto integrador',
-      communityUtility: sanitizeField(project?.communityUtility, 'Utilidad comunitaria por definir.', 170, 26),
+      artifactName: sanitizePedagogicalMetaPhrases(cleanSacrintText(project?.artifactName)) || 'Producto integrador',
+      communityUtility: sanitizePedagogicalMetaPhrases(
+        sanitizeField(project?.communityUtility, 'Utilidad comunitaria por definir.', 170, 26)
+      ),
     },
     facts,
   };

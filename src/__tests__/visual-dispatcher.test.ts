@@ -1,46 +1,41 @@
 // src/__tests__/visual-dispatcher.test.ts
 /**
  * Test unitario para visual-dispatcher.ts
- * Valida la variación dinámica de gráficas matemáticas STEM entre misiones
- * y la extracción de parámetros matemáticos explícitos.
+ * Valida la extracción auténtica de parámetros matemáticos STEM,
+ * ausencia de modelos inventados cuando solo hay tema sin datos,
+ * y distinción explícita entre scope: 'mission' y scope: 'session'.
  */
 
 import { describe, it, expect } from 'vitest';
 import { dispatchVisual, isStemSubject } from '@/lib/visual-engine/visual-dispatcher';
 
-describe('visual-dispatcher.ts — Despacho dinámico y variación STEM', () => {
+describe('visual-dispatcher.ts — Despacho auténtico y distinción misión/sesión', () => {
   it('detecta asignaturas STEM correctamente', () => {
     expect(isStemSubject('Pensamiento Matemático III')).toBe(true);
     expect(isStemSubject('Física I')).toBe(true);
     expect(isStemSubject('Lengua y Comunicación I')).toBe(false);
   });
 
-  it('varía la gráfica lineal entre diferentes números de misión (evita duplicados)', () => {
+  it('no inventa coeficientes cuando solo hay tema sin datos reales y respeta scope mission vs session', () => {
     const uac = 'Pensamiento Matemático III';
     const topic = 'Modelación de Ecuaciones Lineales y Rectas en el Comercio Local';
     const context = 'Costos y producción de cítricos';
 
-    const m1 = dispatchVisual(uac, topic, context, 1);
-    const m2 = dispatchVisual(uac, topic, context, 2);
-    const m3 = dispatchVisual(uac, topic, context, 3);
-    const m4 = dispatchVisual(uac, topic, context, 4);
+    const m1 = dispatchVisual({ subject: uac, topic, context, scope: 'mission', missionNumber: 1 });
+    const s16 = dispatchVisual({ subject: uac, topic, context, scope: 'session', sessionNumber: 16, missionNumber: 4 });
 
     expect(m1).not.toBeNull();
-    expect(m2).not.toBeNull();
-    expect(m3).not.toBeNull();
-    expect(m4).not.toBeNull();
+    expect(s16).not.toBeNull();
 
-    // Misión 1: Función lineal creciente
-    expect(m1?.annotations.some((a) => a.text.includes('1.5x'))).toBe(true);
+    // Sin datos numéricos, devuelve plano cartesiano por construir (no inventa 1.5x + 1)
+    expect(m1?.metadata?.isFallback).toBe(true);
+    expect(m1?.annotations.some((a) => a.text.includes('1.5x'))).toBe(false);
+    expect(m1?.annotations.some((a) => a.text.includes('Misión 1'))).toBe(true);
 
-    // Misión 2: Función decreciente con pendiente negativa
-    expect(m2?.annotations.some((a) => a.text.includes('-x'))).toBe(true);
-
-    // Misión 3: Sistema 2x2 / Intersección de costos e ingresos
-    expect(m3?.annotations.some((a) => a.text.includes('Punto de Equilibrio') || a.text.includes('L₁') || a.text.includes('L₂'))).toBe(true);
-
-    // Misión 4: Plano cartesiano para tabulación y consolidación
-    expect(m4?.annotations.some((a) => a.text.includes('Plano Cartesiano') || a.text.includes('Tabulación'))).toBe(true);
+    // En ámbito de sesión (ej. Sesión 16 de Misión 4), rotula "Sesión 16" y NUNCA "Misión 16"
+    const s16Texts = s16!.annotations.map((a) => a.text).join(' ');
+    expect(s16Texts).toContain('Sesión 16');
+    expect(s16Texts).not.toContain('Misión 16');
   });
 
   it('extrae parámetros explícitos de f(x) = mx + b cuando se especifican en el texto', () => {
@@ -50,6 +45,7 @@ describe('visual-dispatcher.ts — Despacho dinámico y variación STEM', () => 
 
     const res = dispatchVisual(uac, topic, context, 1);
     expect(res).not.toBeNull();
+    expect(res?.metadata?.isFallback).toBe(false);
     expect(res?.annotations.some((a) => a.text.includes('2x - 3'))).toBe(true);
   });
 
@@ -60,6 +56,7 @@ describe('visual-dispatcher.ts — Despacho dinámico y variación STEM', () => 
 
     const res = dispatchVisual(uac, topic, context, 1);
     expect(res).not.toBeNull();
+    expect(res?.metadata?.isFallback).toBe(false);
     expect(res?.annotations.some((a) => a.text.includes('-x² + 4'))).toBe(true);
   });
 });

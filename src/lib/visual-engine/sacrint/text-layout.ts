@@ -121,29 +121,51 @@ export function fitText(text: string, maxWidth: number, options: FitTextOptions)
   const minFontSize = options.minFontSize ?? 12;
   let best: FittedText = { lines: [], fontSize: minFontSize, lineHeight: Math.round(minFontSize * lineHeightRatio), width: 0, height: 0 };
 
-  for (let fontSize = Math.round(options.maxFontSize); fontSize >= minFontSize; fontSize -= 1) {
+  for (let fontSize = Math.round(options.maxFontSize); fontSize >= minFontSize; fontSize -= 0.5) {
     const lines = wrapText(text, maxWidth, fontSize, family, weight, letterSpacing);
     const width = Math.max(0, ...lines.map((line) => measureText(line, fontSize, family, weight, letterSpacing)));
     if (lines.length <= options.maxLines) {
       return {
         lines,
         fontSize,
-        lineHeight: Math.round(fontSize * lineHeightRatio),
+        lineHeight: Math.round(fontSize * lineHeightRatio * 10) / 10,
         width,
-        height: lines.length * Math.round(fontSize * lineHeightRatio),
+        height: Math.round(lines.length * fontSize * lineHeightRatio),
       };
     }
     best = {
       lines,
       fontSize,
-      lineHeight: Math.round(fontSize * lineHeightRatio),
+      lineHeight: Math.round(fontSize * lineHeightRatio * 10) / 10,
       width,
-      height: lines.length * Math.round(fontSize * lineHeightRatio),
+      height: Math.round(lines.length * fontSize * lineHeightRatio),
     };
   }
 
+  // Si truncate === false, seguir reduciendo tipografía hasta 7.5px antes de recortar líneas
+  if (options.truncate === false) {
+    const emergencyMinFont = Math.max(7.5, minFontSize - 4.5);
+    for (let fontSize = minFontSize - 0.5; fontSize >= emergencyMinFont; fontSize -= 0.5) {
+      const compactRatio = Math.max(1.08, lineHeightRatio - 0.08);
+      const lines = wrapText(text, maxWidth, fontSize, family, weight, letterSpacing);
+      const width = Math.max(0, ...lines.map((line) => measureText(line, fontSize, family, weight, letterSpacing)));
+      best = {
+        lines,
+        fontSize,
+        lineHeight: Math.round(fontSize * compactRatio * 10) / 10,
+        width,
+        height: Math.round(lines.length * fontSize * compactRatio),
+      };
+      if (lines.length <= options.maxLines) {
+        return best;
+      }
+    }
+    // Conservar todas las líneas sin truncar para no cortar ecuaciones, datos ni preguntas
+    return best;
+  }
+
   const lines = best.lines.slice(0, options.maxLines);
-  if (options.truncate !== false && lines.length > 0) {
+  if (lines.length > 0) {
     lines[lines.length - 1] = ellipsize(lines[lines.length - 1], maxWidth, best.fontSize, family, weight, letterSpacing);
   }
   return {

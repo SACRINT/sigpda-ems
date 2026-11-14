@@ -13,6 +13,7 @@ import { buildPlanningActivityHeading } from '@/lib/planning-activity-labels';
 import { getSessionsForActivity } from '@/lib/planning-session-partitioner';
 import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
 import type { SecuenciaBloque, SecuenciaSesion } from '@/types/planning';
+import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
 
 // ── Color palette (MCCEMS institutional) ─────────────────────────────────────────────
 const C = {
@@ -57,7 +58,7 @@ function tc(
     children: [new Paragraph({
       alignment: align,
       spacing: { before: 50, after: 50 },
-      children: [new TextRun({ text, bold, italics, size, color, font: 'Arial' })],
+      children: [new TextRun({ text: normalizeEditorialText(text), bold, italics, size, color, font: 'Arial' })],
     })],
   });
 }
@@ -87,14 +88,14 @@ function secHeading(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 300, after: 120 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: C.accent, space: 1 } },
-    children: [new TextRun({ text, bold: true, size: 26, color: C.dark, font: 'Arial' })],
+    children: [new TextRun({ text: normalizeEditorialText(text), bold: true, size: 26, color: C.dark, font: 'Arial' })],
   });
 }
 
 function subH(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 200, after: 80 },
-    children: [new TextRun({ text, bold: true, size: 22, color: C.mid, font: 'Arial' })],
+    children: [new TextRun({ text: normalizeEditorialText(text), bold: true, size: 22, color: C.mid, font: 'Arial' })],
   });
 }
 
@@ -109,7 +110,7 @@ function pb(): Paragraph {
 function noteP(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 60, after: 80 },
-    children: [new TextRun({ text: `📌 ${text}`, italics: true, size: 16, color: '555555', font: 'Arial' })],
+    children: [new TextRun({ text: `📌 ${normalizeEditorialText(text)}`, italics: true, size: 16, color: '555555', font: 'Arial' })],
   });
 }
 
@@ -126,10 +127,13 @@ function multiCell(
     borders: bdr(),
     margins: CELLMRG,
     verticalAlign: VerticalAlign.TOP,
-    children: items.map(item => new Paragraph({
-      spacing: { before: 28, after: 28 },
-      children: [new TextRun({ text: item.startsWith('•') ? item : `• ${item}`, size: 18, font: 'Arial', color: C.text })],
-    })),
+    children: items.map(item => {
+      const normalized = normalizeEditorialText(item);
+      return new Paragraph({
+        spacing: { before: 28, after: 28 },
+        children: [new TextRun({ text: normalized.startsWith('•') ? normalized : `• ${normalized}`, size: 18, font: 'Arial', color: C.text })],
+      });
+    }),
   });
 }
 
@@ -390,9 +394,9 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
     return new TableRow({
       children: [
         new TableCell({ columnSpan: 1, width: { size: cols[0], type: WidthType.DXA }, shading: { fill: color, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 80, bottom: 80, left: 80, right: 80 }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: name, bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
-        new TableCell({ columnSpan: 1, width: { size: cols[1], type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.TOP, children: stripMaterialTokens(phase.activities).split('\n').map(line => new Paragraph({ spacing: { before: 28, after: 28 }, children: [new TextRun({ text: line, size: 18, font: 'Arial', color: C.text })] })) }),
-        new TableCell({ columnSpan: 1, width: { size: cols[2], type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.TOP, children: stripMaterialTokens(phase.processes).split('\n').map(line => new Paragraph({ spacing: { before: 28, after: 28 }, children: [new TextRun({ text: line ? `• ${line}` : '', size: 18, font: 'Arial', color: C.text })] })) }),
-        new TableCell({ columnSpan: 1, width: { size: cols[3], type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.TOP, children: stripMaterialTokens(phase.materials).split('\n').map(line => new Paragraph({ spacing: { before: 28, after: 28 }, children: [new TextRun({ text: line ? `• ${line}` : '', size: 18, font: 'Arial', color: C.text })] })) }),
+        new TableCell({ columnSpan: 1, width: { size: cols[1], type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.TOP, children: normalizeEditorialText(stripMaterialTokens(phase.activities)).split('\n').map(line => new Paragraph({ spacing: { before: 28, after: 28 }, children: [new TextRun({ text: line, size: 18, font: 'Arial', color: C.text })] })) }),
+        new TableCell({ columnSpan: 1, width: { size: cols[2], type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.TOP, children: normalizeEditorialText(stripMaterialTokens(phase.processes)).split('\n').map(line => new Paragraph({ spacing: { before: 28, after: 28 }, children: [new TextRun({ text: line ? `• ${line}` : '', size: 18, font: 'Arial', color: C.text })] })) }),
+        new TableCell({ columnSpan: 1, width: { size: cols[3], type: WidthType.DXA }, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.TOP, children: normalizeEditorialText(stripMaterialTokens(phase.materials)).split('\n').map(line => new Paragraph({ spacing: { before: 28, after: 28 }, children: [new TextRun({ text: line ? `• ${line}` : '', size: 18, font: 'Arial', color: C.text })] })) }),
       ],
     });
   }
@@ -409,7 +413,7 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
       rows.push(new TableRow({
         children: [
           new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: isProgresiones ? 'Progresión:' : 'Tema / Contenido:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
-          new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: topicText, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })
+          new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(topicText), bold: true, size: 18, font: 'Arial', color: C.dark })] })] })
         ]
       }));
     }
@@ -419,7 +423,7 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
         rows.push(new TableRow({
           children: [
             new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Metas / Categorías / Subcategorías:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }),
-            new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: metaCatText, size: 17, font: 'Arial', color: C.text })] })] })
+            new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(metaCatText), size: 17, font: 'Arial', color: C.text })] })] })
           ]
         }));
       }
@@ -437,26 +441,26 @@ function buildActivityTable(activity: GeneratedPlanningContent['sectionIV']['act
       new TableRow({
         children: [
           new TableCell({ columnSpan: 1, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 40, bottom: 40, left: 60, right: 60 }, children: [new Paragraph({ children: [new TextRun({ text: 'Saber (Teórico):', bold: true, size: 17, font: 'Arial', color: C.dark })] })] }),
-          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.saberes.saber || 'N/A', size: 18, font: 'Arial', color: C.text })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(activity.saberes.saber || 'N/A'), size: 18, font: 'Arial', color: C.text })] })] }),
         ]
       }),
       new TableRow({
         children: [
           new TableCell({ columnSpan: 1, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 40, bottom: 40, left: 60, right: 60 }, children: [new Paragraph({ children: [new TextRun({ text: 'Saber Hacer (Práctico):', bold: true, size: 17, font: 'Arial', color: C.dark })] })] }),
-          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.saberes.saberHacer || 'N/A', size: 18, font: 'Arial', color: C.text })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(activity.saberes.saberHacer || 'N/A'), size: 18, font: 'Arial', color: C.text })] })] }),
         ]
       }),
       new TableRow({
         children: [
           new TableCell({ columnSpan: 1, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 40, bottom: 40, left: 60, right: 60 }, children: [new Paragraph({ children: [new TextRun({ text: 'Saber Ser (Actitudinal):', bold: true, size: 17, font: 'Arial', color: C.dark })] })] }),
-          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.saberes.saberSer || 'N/A', size: 18, font: 'Arial', color: C.text })] })] }),
+          new TableCell({ columnSpan: 3, shading: { fill: C.white, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(activity.saberes.saberSer || 'N/A'), size: 18, font: 'Arial', color: C.text })] })] }),
         ]
       })
     );
   }
 
   rows.push(
-    new TableRow({ children: [new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Metodología:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }), new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: activity.methodology, bold: true, size: 18, font: 'Arial', color: C.dark })] })] })] }),
+    new TableRow({ children: [new TableCell({ columnSpan: 1, shading: { fill: C.mid, type: ShadingType.CLEAR }, borders: bdr(), margins: { top: 60, bottom: 60, left: 80, right: 80 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Metodología:', bold: true, size: 17, color: C.white, font: 'Arial' })] })] }), new TableCell({ columnSpan: 3, shading: { fill: C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(activity.methodology), bold: true, size: 18, font: 'Arial', color: C.dark })] })] })] }),
     new TableRow({ children: [tcM('Fase /\nMomento', { w: cols[0], align: AlignmentType.CENTER }), tcM('Actividades del Estudiante\n(Metodologías Activas)', { w: cols[1] }), tcM('Procesos de Pensamiento /\nConstrucción o Resignificación', { w: cols[2] }), tcM('Materiales /\nRecursos Didácticos', { w: cols[3] })] }),
     phaseRow('APER-\nTURA', C.apertura, activity.apertura),
     phaseRow('DESA-\nRROLLO', C.ejecucion, activity.ejecucion),
@@ -508,11 +512,11 @@ function buildSectionIV(content: GeneratedPlanningContent, sequenceJson?: Record
         new TableCell({ width: { size: sc[0], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, verticalAlign: VerticalAlign.CENTER, children: [
           new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${s.phase.charAt(0)} ${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || actSessions.length)}`, bold: true, size: 14, font: 'Arial', color: phaseColor[s.phase] || C.ejecucion })] }),
         ] }),
-        new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: stripMaterialTokens(s.title), bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
-        new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: stripMaterialTokens(s.teachingActivity), size: 14, font: 'Arial', color: C.text })] })] }),
+        new TableCell({ width: { size: sc[1], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(stripMaterialTokens(s.title)), bold: true, size: 15, font: 'Arial', color: C.text })] })] }),
+        new TableCell({ width: { size: sc[2], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(stripMaterialTokens(s.teachingActivity)), size: 14, font: 'Arial', color: C.text })] })] }),
         new TableCell({ width: { size: sc[3], type: WidthType.DXA }, shading: { fill: si % 2 === 0 ? C.white : C.alt, type: ShadingType.CLEAR }, borders: bdr(), margins: CELLMRG, children: [
-          new Paragraph({ children: [new TextRun({ text: stripMaterialTokens(s.learningActivity), size: 14, font: 'Arial', color: C.text })] }),
-          ...(s.evidence ? [new Paragraph({ spacing: { before: 40 }, children: [new TextRun({ text: `Evidencia: ${stripMaterialTokens(s.evidence)}`, italics: true, size: 13, font: 'Arial', color: '64748b' })] })] : []),
+          new Paragraph({ children: [new TextRun({ text: normalizeEditorialText(stripMaterialTokens(s.learningActivity)), size: 14, font: 'Arial', color: C.text })] }),
+          ...(s.evidence ? [new Paragraph({ spacing: { before: 40 }, children: [new TextRun({ text: `Evidencia: ${normalizeEditorialText(stripMaterialTokens(s.evidence))}`, italics: true, size: 13, font: 'Arial', color: '64748b' })] })] : []),
         ] }),
       ] })),
     ];
@@ -593,7 +597,7 @@ function buildSectionV(content: GeneratedPlanningContent): (Paragraph | Table)[]
     elements.push(subH('Acuerdo de Acreditación / Evaluación'));
     elements.push(new Paragraph({
       spacing: { before: 60, after: 120 },
-      children: [new TextRun({ text: s.evaluationAgreement, size: 18, font: 'Arial', italics: true })],
+      children: [new TextRun({ text: normalizeEditorialText(s.evaluationAgreement), size: 18, font: 'Arial', italics: true })],
     }));
     elements.push(sp());
   }
@@ -616,7 +620,7 @@ function buildSectionV(content: GeneratedPlanningContent): (Paragraph | Table)[]
         spacing: { before: 40, after: 40 },
         children: [
           new TextRun({ text: `${label}: `, bold: true, size: 18, font: 'Arial', color: C.dark }),
-          new TextRun({ text: value || 'No especificado', size: 18, font: 'Arial', color: C.text }),
+          new TextRun({ text: normalizeEditorialText(value || 'No especificado'), size: 18, font: 'Arial', color: C.text }),
         ],
       }));
     }
@@ -754,7 +758,7 @@ export async function generateDocx(
           children: [new Paragraph({
             spacing: { before: 0, after: 60 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 1 } },
-            children: [new TextRun({ text: `MCCEMS ${SCHOOL_YEAR} | ${content.sectionI.uacName} | ${content.sectionI.semester}° Semestre`, size: 14, color: '777777', font: 'Arial' })],
+            children: [new TextRun({ text: normalizeEditorialText(`MCCEMS ${SCHOOL_YEAR} | ${content.sectionI.uacName} | ${content.sectionI.semester}° Semestre`), size: 14, color: '777777', font: 'Arial' })],
           })],
         }),
       },

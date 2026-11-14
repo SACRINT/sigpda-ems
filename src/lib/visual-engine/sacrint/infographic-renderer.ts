@@ -1,5 +1,6 @@
 import type { SacrintInfographicSpec, SacrintRubricItem } from './spec';
 import { diagramModelLabel } from './diagrams';
+import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
 import { INFOGRAPHIC, SACRINT, SACRINT_LIGHT, resolveLightAccent, type SacrintThemeMode } from './tokens';
 import { fitText, singleLine, textBlock, uppercaseLabel } from './text-layout';
 import {
@@ -70,7 +71,9 @@ function formulaPanel(
   height: number,
   fontSize: number
 ): string {
-  const extraFormulas = (spec.formulasList ?? []).filter((f) => f !== spec.formula).slice(0, 1);
+  const extraFormulas = (spec.formulasList ?? [])
+    .filter((f) => isValidRenderableFormula(f) && f !== spec.formula)
+    .slice(0, 1);
   const formulaFit = fitText(spec.formula, width - 56, {
     family: 'display',
     weight: 'bold',
@@ -262,14 +265,14 @@ function renderWide(spec: SacrintInfographicSpec): string {
     parts.push(panel(x, y, stepW, stepH, { fill: p.cardSoftFill, radius: 14, stroke: p.stroke }));
     parts.push(singleLine(String(step.number).padStart(2, '0'), x + 18, y + 36, { fill: p.accent, fontSize: 25, family: 'display', weight: 'bold' }));
     parts.push(singleLine(uppercaseLabel(step.title), x + 60, y + 30, { fill: p.pal.muted, fontSize: 10, weight: 'semibold', letterSpacing: 1.4 }));
-    const body = textBlock(step.body, stepW - 36, {
+    const body = textBlock(step.body, stepW - 44, {
       x: x + 18,
-      y: y + 60,
+      y: y + 58,
       fill: p.pal.textSoft,
-      maxFontSize: 16,
-      minFontSize: 11,
+      maxFontSize: 15,
+      minFontSize: 10.5,
       maxLines: 5,
-      lineHeightRatio: 1.3,
+      lineHeightRatio: 1.24,
       truncate: false,
     });
     parts.push(body.svg);

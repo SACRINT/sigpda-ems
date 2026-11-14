@@ -33,6 +33,11 @@ import {
 } from './font-loader';
 import { stripMarkdown, type GlossaryItem } from './content-extractor';
 import { sanitizePdfText } from './pdf-components-core';
+import {
+  fitPedagogicalText,
+  hasDanglingEnding,
+  repairDanglingEnding,
+} from '@/lib/editorial/pedagogical-text-fitter';
 import type { DetectedObject } from './object-extractor';
 import type { DigitalTool } from './digital-tools-registry';
 
@@ -280,6 +285,35 @@ export function drawGlossaryWidget(
   return sy + 3;
 }
 
+function fitSidebarWidgetLines(
+  doc: jsPDF,
+  rawText: string,
+  maxWidth: number,
+  maxLines: number
+): string[] {
+  let clean = sanitizePdfText(stripMarkdown(rawText));
+  if (!clean) return [];
+  if (hasDanglingEnding(clean)) {
+    clean = sanitizePdfText(repairDanglingEnding(clean, true));
+  }
+  let lines = doc.splitTextToSize(clean, maxWidth) as string[];
+  if (lines.length <= maxLines) return lines;
+
+  const wordCount = clean.split(/\s+/).length;
+  for (const ratio of [0.82, 0.68, 0.54, 0.42]) {
+    const fitted = fitPedagogicalText(clean, {
+      maxChars: Math.max(48, Math.floor(clean.length * ratio)),
+      maxWords: Math.max(8, Math.floor(wordCount * ratio)),
+      role: 'general',
+    });
+    if (!fitted) continue;
+    const candidate = doc.splitTextToSize(sanitizePdfText(fitted), maxWidth) as string[];
+    if (candidate.length <= maxLines) return candidate;
+    lines = candidate;
+  }
+  return lines.slice(0, maxLines);
+}
+
 export function drawRealLifeWidget(
   doc: jsPDF,
   connection: { conceptName?: string; householdApplication: string; localExample?: string },
@@ -291,12 +325,18 @@ export function drawRealLifeWidget(
   let sy = startY;
   if (!connection || sy + 22 >= sideBottom) return sy;
 
-  const bodyText = sanitizePdfText(stripMarkdown(connection.householdApplication));
   setFontBody(doc, 'normal');
   doc.setFontSize(5.8);
-  const bodyLines = doc.splitTextToSize(bodyText, sideW - 4);
+  const maxLines = sy + 35 < sideBottom ? 6 : 4;
+  const bodyLines = fitSidebarWidgetLines(
+    doc,
+    connection.householdApplication,
+    Math.max(20, sideW - 6),
+    maxLines
+  );
+  if (bodyLines.length === 0) return sy;
   const headerH = 5.5;
-  const cardH = headerH + Math.min(4, bodyLines.length) * 3.2 + 8;
+  const cardH = headerH + bodyLines.length * 3.2 + 8;
 
   if (sy + cardH < sideBottom) {
     doc.setFillColor(...COLOR.GOLD_LIGHT);
@@ -316,10 +356,10 @@ export function drawRealLifeWidget(
     setFontBody(doc, 'normal');
     doc.setFontSize(5.8);
     doc.setTextColor(...COLOR.TEXT_PRIMARY);
-    bodyLines.slice(0, 4).forEach((bl: string, i: number) => {
+    bodyLines.forEach((bl: string, i: number) => {
       if (sy + 3.2 < sideBottom) doc.text(bl, sideXAbs + 4, sy + i * 3.2);
     });
-    sy += Math.min(4, bodyLines.length) * 3.2 + 3;
+    sy += bodyLines.length * 3.2 + 3;
   }
 
   return sy;
@@ -336,11 +376,12 @@ export function drawSafetyWidget(
   let sy = startY;
   if (!tip || sy + 18 >= sideBottom) return sy;
 
-  const tipText = sanitizePdfText(stripMarkdown(tip));
   setFontBody(doc, 'normal');
   doc.setFontSize(5.8);
-  const tipLines = doc.splitTextToSize(tipText, sideW - 4);
-  const tipCardH = 5.5 + Math.min(4, tipLines.length) * 3.2 + 5;
+  const maxLines = sy + 32 < sideBottom ? 6 : 4;
+  const tipLines = fitSidebarWidgetLines(doc, tip, Math.max(20, sideW - 6), maxLines);
+  if (tipLines.length === 0) return sy;
+  const tipCardH = 5.5 + tipLines.length * 3.2 + 5;
 
   if (sy + tipCardH < sideBottom) {
     doc.setFillColor(...COLOR.SAFETY_BG);
@@ -357,10 +398,10 @@ export function drawSafetyWidget(
     setFontBody(doc, 'normal');
     doc.setFontSize(5.8);
     doc.setTextColor(...COLOR.TEXT_PRIMARY);
-    tipLines.slice(0, 4).forEach((tl: string, i: number) => {
+    tipLines.forEach((tl: string, i: number) => {
       if (sy + 3.2 < sideBottom) doc.text(tl, sideXAbs + 4, sy + i * 3.2);
     });
-    sy += Math.min(4, tipLines.length) * 3.2 + 3;
+    sy += tipLines.length * 3.2 + 3;
   }
 
   return sy;

@@ -745,8 +745,10 @@ function addExponentialDiagram(slide: PptxGenJS.Slide, diagram: ExponentialDiagr
     addLine(slide, xToPx(p1.t), yToPx(p1.value), xToPx(p2.t), yToPx(p2.value), accent, 2.3);
   }
 
-  addText(slide, 'Interés compuesto', plotX + 12, plotY + 6, 220, 18, { fontSize: pt(13), bold: true, color: accent });
-  addText(slide, 'Referencia lineal', plotX + 240, plotY + 6, 220, 18, { fontSize: pt(13), bold: true, color: accent2 });
+  const isPopulation =
+    diagram.context === 'population' || /P\(t\)|Poblaci[oó]n/i.test(`${diagram.equation} ${diagram.yLabel}`);
+  addText(slide, isPopulation ? 'Crecimiento exponencial' : 'Interés compuesto', plotX + 12, plotY + 6, 220, 18, { fontSize: pt(13), bold: true, color: accent });
+  addText(slide, isPopulation ? 'Proyección lineal' : 'Referencia lineal', plotX + 240, plotY + 6, 220, 18, { fontSize: pt(13), bold: true, color: accent2 });
 
   const last = diagram.compoundSeries[diagram.compoundSeries.length - 1];
   if (last) {
@@ -1481,7 +1483,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     const exResult = spec.workedExample?.interpretation;
 
     addPanel(slide, 80, 344, 700, 332, { fill: C.panel, transparency: 10 });
-    addLabel(slide, 'Ejemplo resuelto para explicar en pizarrón', 104, 364, 560, 18, accent, 9);
+    addLabel(slide, 'Ejemplo resuelto', 104, 364, 560, 18, accent, 9);
     addText(slide, exStatement, 104, 390, 652, 64, {
       fontSize: pt(14.5),
       color: C.white,
@@ -1490,13 +1492,13 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
       maxLines: 3,
     });
     exSteps.forEach((step, idx) => {
-      const sy = 462 + idx * 52;
+      const sy = 460 + idx * 52;
       addText(slide, `0${idx + 1}`, 104, sy, 32, 22, { fontSize: pt(11), bold: true, color: accent2 });
-      addText(slide, step, 140, sy - 2, 616, 44, { fontSize: pt(13.5), color: C.textSoft, maxLines: 2 });
+      addText(slide, step, 140, sy - 2, 616, 48, { fontSize: pt(12.5), color: C.textSoft, maxLines: 3 });
     });
     if (exResult) {
       addText(slide, `Conclusión: ${exResult}`, 104, 622, 652, 42, {
-        fontSize: pt(13),
+        fontSize: pt(12.5),
         color: C.emerald,
         bold: true,
         maxLines: 2,
@@ -1504,12 +1506,12 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     }
 
     addPanel(slide, 80, 688, 700, 100, { fill: '1E080C', transparency: 32, stroke: C.red });
-    addLabel(slide, 'Error común a prevenir en el grupo', 104, 704, 520, 18, C.red, 8);
-    addText(slide, spec.misconception, 104, 728, 652, 50, {
-      fontSize: pt(13.5),
+    addLabel(slide, 'Error común', 104, 704, 520, 18, C.red, 8);
+    addText(slide, spec.misconception, 104, 726, 652, 54, {
+      fontSize: pt(12.5),
       color: C.textSoft,
-      lineSpacingMultiple: 1.05,
-      maxLines: 2,
+      lineSpacingMultiple: 1.04,
+      maxLines: 3,
     });
   } else {
     addPanel(slide, 80, 354, 700, 232, { fill: C.panel, transparency: 12 });
@@ -1704,8 +1706,8 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
     : spec.checkpoints.map((cp, idx) => ({ label: `Actividad ${idx + 1}`, statement: cp, hint: '' }));
 
   if (isGuide) {
-    addLabel(slide, 'Guía de ejercicios del libro para explicar al grupo', 80, 326, 760, 18, accent2, 9);
-    const visibleActivities = activityItems.slice(0, 3);
+    addLabel(slide, 'Ejercicios del libro', 80, 326, 760, 18, accent2, 9);
+    const visibleActivities = activityItems.slice(0, 2);
     const actStride = visibleActivities.length >= 3 ? 192 : 276;
     visibleActivities.forEach((act, index) => {
       const y = 356 + index * actStride;
@@ -1714,12 +1716,12 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
       addLabel(slide, act.label, 104, y + 16, 320, 18, accent2, 8);
       addText(slide, act.statement, 104, y + 40, 892, cardH - 86, { fontSize: pt(15.5), color: C.text, maxLines: 4 });
       if (act.hint) {
-        addText(slide, `Pista docente: ${act.hint}`, 104, y + cardH - 40, 892, 28, { fontSize: pt(12.5), color: C.amber, maxLines: 2 });
+        addText(slide, `Pista: ${act.hint}`, 104, y + cardH - 40, 892, 28, { fontSize: pt(12.5), color: C.amber, maxLines: 2 });
       }
     });
 
     addPanel(slide, 1056, 326, 784, 214, { fill: C.panel, transparency: 12 });
-    addLabel(slide, '¿Dónde se aplica este conocimiento?', 1080, 348, 520, 18, accent, 9);
+    addLabel(slide, 'Aplicación real', 1080, 348, 520, 18, accent, 9);
     addText(slide, spec.applicationText || spec.practiceText, 1080, 380, 736, 142, {
       fontSize: pt(16),
       color: C.text,
@@ -1728,7 +1730,7 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
     });
 
     addPanel(slide, 1056, 558, 784, 174, { fill: '061410', transparency: 28, stroke: C.emerald });
-    addLabel(slide, 'Evidencia y entregable de la sesión', 1080, 580, 520, 18, C.emerald, 8);
+    addLabel(slide, 'Evidencia de la sesión', 1080, 580, 520, 18, C.emerald, 8);
     addText(slide, spec.artifactName || 'Evidencia de clase', 1080, 606, 736, 32, {
       fontFace: FONT_DISPLAY,
       fontSize: pt(17),
@@ -1745,7 +1747,7 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
     const checks = (spec.exitChecks ?? []).slice(0, 2);
     if (checks.length > 0) {
       addPanel(slide, 1056, 750, 784, 166, { fill: C.panel, transparency: 18, stroke: C.strokeSoft });
-      addLabel(slide, 'Verificación rápida de cierre', 1080, 770, 520, 18, accent2, 8);
+      addLabel(slide, 'Cierre rápido', 1080, 770, 520, 18, accent2, 8);
       checks.forEach((chk, idx) => {
         addText(slide, `• ${chk}`, 1080, 800 + idx * 52, 736, 46, {
           fontSize: pt(13.5),

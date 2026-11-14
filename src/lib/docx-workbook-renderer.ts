@@ -105,6 +105,8 @@ import {
   generateToolQrPng,
   type DigitalTool,
 } from '@/lib/visual-engine/digital-tools-registry';
+import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
 
 function rgbToHex(rgb: [number, number, number]): string {
   return rgb.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -207,7 +209,7 @@ function cell(
       new Paragraph({
         alignment: align,
         spacing: { before: 70, after: 70, line: 300 },
-        children: [new TextRun({ text, bold, size, color, font })],
+        children: [new TextRun({ text: normalizeEditorialText(text), bold, size, color, font })],
       }),
     ],
   });
@@ -1683,10 +1685,10 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
     });
 
   tocItems.forEach((item) => {
-    const cleanTitle = stripMarkdown(stripWorkbookTags(item.title))
-      .replace(/^\[.*?\]\s*/, '')
-      .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
-      .trim();
+    const matchedMission = workbook.missions.find((m) => m.missionIndex === item.missionIndex);
+    const cleanTitle = stripMarkdown(stripWorkbookTags(
+      sanitizeWorkbookTocTitle(item.title, matchedMission?.sessionTopic)
+    ));
     rows.push(
       new TableRow({
         children: [
@@ -3565,10 +3567,9 @@ async function buildMissionContent(
 ): Promise<(Paragraph | Table)[]> {
   const elements: (Paragraph | Table)[] = [];
 
-  const cleanMissionTitle = stripMarkdown(stripWorkbookTags(mission.title || ''))
-    .replace(/^\[.*?\]\s*/, '')
-    .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
-    .trim();
+  const cleanMissionTitle = stripMarkdown(stripWorkbookTags(
+    sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
+  ));
 
   // Encabezado de la Misión (banner de color a ancho completo, paridad con drawMissionBanner del PDF)
   const missionSessionsStr = mission.coveredSessions?.join(', ') || `${missionNumber * 2 - 1}-${missionNumber * 2}`;
@@ -3628,7 +3629,7 @@ async function buildMissionContent(
                   spacing: { before: 0, after: 20 },
                   children: [
                     new TextRun({
-                      text: `Sesiones ${missionSessionsStr} · Enfoque: ${mission.sessionFocus || 'Desarrollo de competencias situadas'}`,
+                      text: `Sesiones ${missionSessionsStr} · Enfoque: ${sanitizeMissionFocus(mission.sessionFocus)}`,
                       size: 18,
                       color: 'FFFFFF',
                       font: 'Calibri',
@@ -3670,7 +3671,14 @@ async function buildMissionContent(
     context: string
   ): Promise<void> => {
     try {
-      const visual = dispatchVisual(subjectName || 'Formación Fundamental', topic, context, sNum);
+      const visual = dispatchVisual({
+        subject: subjectName || 'Formación Fundamental',
+        topic,
+        context,
+        scope: 'session',
+        sessionNumber: sNum,
+        missionNumber,
+      });
       if (!visual) return;
       const img = await svgToPngBuffer(visual.svg);
       if (!img) return;

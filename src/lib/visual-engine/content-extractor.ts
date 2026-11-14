@@ -33,6 +33,8 @@ import type {
 import type { ImageAsset } from '@/types/planning';
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
 import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
+import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
 
 const STAT_COLORS = ['#2563eb', '#d97706', '#059669', '#7c3aed', '#dc2626', '#0284c7'];
 const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
@@ -627,8 +629,7 @@ export function extractRealLifeConnection(
 
   // Si no detecta aplicaciones concretas, generar desde el contexto de la UAC
   const uacClean = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim();
-  const contextStr = contextSentences[0] ||
-    clean.slice(0, 120).replace(/\s+\S*$/, '') + '...';
+  const contextStr = contextSentences[0] || clean;
 
   const appStr = appSentences[0] || null;
   if (!appStr || appStr.length < 15) return null;
@@ -637,9 +638,9 @@ export function extractRealLifeConnection(
   const communityImpact = `Aplica los conceptos de ${uacClean} para identificar, diagnosticar o mejorar una situación real en tu colonia, escuela o comunidad local.`;
 
   return {
-    context: contextStr.slice(0, 180),
-    householdApplication: appStr.slice(0, 200),
-    communityImpact: communityImpact.slice(0, 200),
+    context: fitPedagogicalText(contextStr, { maxChars: 180, role: 'general', ensurePeriod: true }),
+    householdApplication: fitPedagogicalText(appStr, { maxChars: 195, role: 'application', ensurePeriod: true }),
+    communityImpact: fitPedagogicalText(communityImpact, { maxChars: 195, role: 'application', ensurePeriod: true }),
   };
 }
 
@@ -716,7 +717,7 @@ export function extractSafetyOrCriticalTip(
   for (const sent of sentences) {
     const hasSafety = safetyPatterns.some(p => p.test(sent));
     if (hasSafety && sent.trim().length >= 30) {
-      return sent.trim().slice(0, 200);
+      return fitPedagogicalText(sent.trim(), { maxChars: 195, role: 'general', ensurePeriod: true });
     }
   }
 
@@ -760,12 +761,12 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
 
   const cleanReq = (text: string | null | undefined): string => {
     if (!text) return '';
-    return stripMarkdown(stripWorkbookTags(text));
+    return normalizeEditorialText(stripMarkdown(stripWorkbookTags(text)));
   };
 
   const cleanOpt = (text: string | null | undefined): string | undefined => {
     if (text === undefined || text === null) return undefined;
-    const cleaned = stripMarkdown(stripWorkbookTags(text));
+    const cleaned = normalizeEditorialText(stripMarkdown(stripWorkbookTags(text)));
     return cleaned || undefined;
   };
 
@@ -897,6 +898,27 @@ export function sanitizeWorkbookNarratives(wb: ActiveWorkTextbook): ActiveWorkTe
               }
             : undefined,
           safetyOrWorkshopTip: cleanOpt(m.safetyOrWorkshopTip),
+          sessionPlans: Array.isArray(m.sessionPlans)
+            ? m.sessionPlans.map((sp) => ({
+                ...sp,
+                objetivo: cleanReq(sp.objetivo),
+                motivacion: cleanReq(sp.motivacion),
+                saberesPrevios: cleanReq(sp.saberesPrevios),
+                contenido: cleanReq(sp.contenido),
+                ejemploResuelto: cleanReq(sp.ejemploResuelto),
+                practica: Array.isArray(sp.practica)
+                  ? sp.practica.map((pg) => ({
+                      ...pg,
+                      enunciado: cleanReq(pg.enunciado),
+                      pista: cleanReq(pg.pista),
+                      ...(Array.isArray(pg.solucion) ? { solucion: cleanArray(pg.solucion) } : {}),
+                    }))
+                  : sp.practica,
+                aplicacion: cleanReq(sp.aplicacion),
+                autoevaluacion: cleanArray(sp.autoevaluacion),
+                productoIntegrador: cleanReq(sp.productoIntegrador),
+              }))
+            : m.sessionPlans,
         };
       })
     : wb.missions;

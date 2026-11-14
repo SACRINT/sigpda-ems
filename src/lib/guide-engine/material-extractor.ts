@@ -19,6 +19,17 @@ import {
 import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-catalog';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { normalizeBlockTitle } from '@/lib/document-branding';
+import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+
+function formatExtractedBlockName(rawBlockName: string | undefined, blockNum: number): string {
+  const normalized = normalizeBlockTitle(rawBlockName, blockNum);
+  if (!normalized) return `Bloque ${blockNum}`;
+  if (/^\(\s*Corte\s+\d+\s*\)$/i.test(normalized)) {
+    return normalizeEditorialText(`Bloque ${blockNum} ${normalized}`);
+  }
+  return normalizeEditorialText(`Bloque ${blockNum}: ${normalized}`);
+}
 
 /**
  * Anclaje curricular oficial del bloque (MCC 2025, 1º-4º semestre).
@@ -349,7 +360,7 @@ export function extractMaterialsFromWorkbook(
     metadata: {
       extractedAt: new Date().toISOString(),
       blockIndex: blockNum,
-      blockName: workbook.blockName || `Bloque ${blockNum}`,
+      blockName: formatExtractedBlockName(workbook.blockName, blockNum),
       totalPlanesClase: planesDeClase.length,
       subjectName: workbook.coverData?.subjectName || '',
       schoolName: workbook.coverData?.schoolName || '',
@@ -1472,7 +1483,7 @@ function buildFichasTrabajoMarkdown(
   if (workbook.coverData?.schoolName) {
     parts.push(`**Plantel:** ${sanitizeInline(workbook.coverData.schoolName)}`);
   }
-  parts.push(`**Bloque:** ${sanitizeInline(workbook.blockName || `Bloque ${blockNum}`)}`);
+  parts.push(`**Bloque:** ${sanitizeInline(formatExtractedBlockName(workbook.blockName, blockNum))}`);
   parts.push(
     '**Instrucciones generales:** Resuelve cada ficha en el espacio indicado. Escribe tu procedimiento completo, no solo el resultado. Puedes apoyarte en tu Libro de Bloque para consultar la teoría y el ejemplo resuelto.'
   );

@@ -24,8 +24,8 @@ import {
   drawSectionRibbon,
   drawCalloutBox,
   sanitizePdfText,
-  normalizePdfEditorialText,
 } from '@/lib/visual-engine/pdf-components-core';
+import { normalizePdfEditorialText } from '@/lib/editorial/text-normalization';
 import {
   loadEditorialFonts,
   areEditorialFontsLoaded,
