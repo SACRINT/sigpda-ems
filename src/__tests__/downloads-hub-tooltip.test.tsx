@@ -37,7 +37,7 @@ describe('PlanningDownloadsHub tooltips de paquete consolidado', () => {
     expect(html).toContain('9 entregables consolidados');
     expect(html).not.toContain('10 entregables');
     expect(screen.getByTitle(/Descargar los 9 entregables consolidados.*Word/i)).toBeTruthy();
-    expect(screen.getByTitle(/Descargar 01–05,07–09/i)).toBeTruthy();
+    expect(screen.getByTitle(/Descargar los 9 entregables consolidados.*PDF/i)).toBeTruthy();
   });
 });
 
