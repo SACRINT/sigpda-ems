@@ -14,6 +14,7 @@ import {
   generateQuadraticGraph,
   generateLinearSystemGraph,
   generateTriangle,
+  generateNapoleonTriangleVisual,
   generateAngleClassificationVisual,
   generateRectangle,
 } from './generators/stem-generator';
@@ -300,7 +301,7 @@ function tryExtractLinearSystemParameters(
     const rawM = m[1].replace(/\s+/g, '');
     const slope = rawM === '' || rawM === '+' ? 1 : rawM === '-' ? -1 : parseFloat(rawM);
     const intercept = m[2] && m[3] ? (m[2] === '-' ? -1 : 1) * parseFloat(m[3]) : 0;
-    if (Number.isFinite(slope) && Number.isFinite(intercept) && Math.abs(slope) <= 6 && Math.abs(intercept) <= 8) {
+    if (Number.isFinite(slope) && Number.isFinite(intercept) && Math.abs(slope) <= 100 && Math.abs(intercept) <= 2000) {
       lines.push({ m: Number(slope.toFixed(2)), b: Number(intercept.toFixed(2)) });
     }
   }
@@ -321,7 +322,7 @@ function tryExtractLinearSystemParameters(
       if (Number.isFinite(A) && Number.isFinite(B) && Number.isFinite(C) && B !== 0) {
         const slope = Number((-A / B).toFixed(2));
         const intercept = Number((C / B).toFixed(2));
-        if (Math.abs(slope) <= 6 && Math.abs(intercept) <= 8) {
+        if (Math.abs(slope) <= 100 && Math.abs(intercept) <= 2000) {
           lines.push({ m: slope, b: intercept });
         }
       }
@@ -346,9 +347,9 @@ function tryExtractLinearSystemParameters(
  */
 function tryExtractQuadraticParameters(text: string): { a: number; b: number; c: number; title: string } | null {
   const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
-  const quadRegex = /(?:(?:f\s*\(\s*x\s*\)|y)\s*=\s*)?([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?(?:\s*=\s*0)?/i;
-  const match = clean.match(quadRegex);
-  if (match && /(?:\^2|²)/.test(match[0])) {
+  const quadRegex = /(?:(?:f\s*\(\s*x\s*\)|y)\s*=\s*)?([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?(?:\s*=\s*0)?/gi;
+  for (const match of clean.matchAll(quadRegex)) {
+    if (!/(?:\^2|²)/.test(match[0])) continue;
     const aStr = match[1].replace(/\s+/g, '');
     let a = 1;
     if (aStr === '' || aStr === '+') a = 1;
@@ -376,7 +377,7 @@ function tryExtractQuadraticParameters(text: string): { a: number; b: number; c:
       if (!isNaN(parsedC)) c = sign * parsedC;
     }
 
-    if (Math.abs(a) <= 4 && Math.abs(b) <= 6 && Math.abs(c) <= 6 && a !== 0) {
+    if (Math.abs(a) <= 100 && Math.abs(b) <= 1000 && Math.abs(c) <= 10000 && a !== 0) {
       const eqSignB = b >= 0 ? `+ ${b}x` : `- ${Math.abs(b)}x`;
       const eqSignC = c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`;
       const eqStr = `f(x) = ${a === 1 ? '' : a === -1 ? '-' : a}x² ${b !== 0 ? eqSignB : ''} ${c !== 0 ? eqSignC : ''}`.trim();
@@ -686,6 +687,18 @@ export function dispatchVisual(
         const rectParams = tryExtractRectangleParameters(rawContext);
         return generateRectangle(rectParams?.largo ?? null, rectParams?.ancho ?? null, {
           title: `Geometría Aplicada: Perímetro y Área (${scopeLabel})`,
+        });
+      }
+
+      const isNapoleonOrCongruence =
+        classification.subtopic === 'congruence-similarity' ||
+        /\b(?:napole[oó]n|congruencia|equil[aá]teros?\s+externos|baricentros?)\b/.test(searchText);
+      if (isNapoleonOrCongruence && !/\b(?:pitagoras|hipotenusa)\b/.test(searchText)) {
+        return generateNapoleonTriangleVisual({
+          isNapoleon: /napole[oó]n|equil[aá]teros?\s+externos|baricentros?/i.test(searchText),
+          title: /napole[oó]n/i.test(searchText)
+            ? `Geometría Plana: Teorema de Napoleón (${scopeLabel})`
+            : `Geometría Plana: Congruencia y Semejanza de Triángulos (${scopeLabel})`,
         });
       }
 

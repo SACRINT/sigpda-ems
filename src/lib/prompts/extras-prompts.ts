@@ -477,7 +477,7 @@ ESTRUCTURA OBLIGATORIA DEL DOCUMENTO:
 - Formas de relacionar la práctica con la problemática del PAEC (${paecProblem}).
 
 ## 2. RESOLUCIONES MODELO Y CLAVE DE RESPUESTAS
-- Procedimiento analítico, matemático, algorítmico o experimental paso a paso.
+- Procedimiento analítico, matemático, algorítmico o experimental paso a paso con fórmulas explícitas y sustituciones numéricas completas (PROHIBIDO entregar resúmenes genéricos como "Reporte técnico..." o "Modelo matemático validado" sin cálculo ni valor final verificable).
 - Resultados esperados, tolerancias de medición y magnitudes estándar.
 - Código, diagramas o esquemas técnicos correctos para cotejo inmediato.
 

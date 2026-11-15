@@ -367,7 +367,18 @@ export async function resolveVisualForMission(
     return null;
   }
 
-  const caption = `Figura M${missionIndex}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+  const annotationTitle = vectorResult.annotations?.find(
+    (annotation) =>
+      annotation.bold === true &&
+      annotation.fontSize >= 9 &&
+      !/^[xy0]$/i.test(annotation.text.trim())
+  )?.text;
+  const rawTitle = (annotationTitle || missionTitle || 'Esquema conceptual')
+    .replace(/^(?:sesi[oó]n|misi[oó]n)\s*\d+\s*[:·\-–—]\s*/i, '')
+    .trim();
+  const cleanCaptionTitle =
+    rawTitle.length > 78 ? `${rawTitle.slice(0, 75).replace(/\s+\S*$/, '')}` : rawTitle;
+  const caption = `Figura M${missionIndex}.1 — ${cleanCaptionTitle}`;
 
   return {
     type: 'vector_svg',

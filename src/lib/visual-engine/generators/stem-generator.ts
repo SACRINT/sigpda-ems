@@ -92,6 +92,17 @@ class CoordinateMapper {
   }
 }
 
+function niceStemStep(span: number, targetTicks = 6): number {
+  const safeSpan = Math.max(1e-3, Math.abs(span));
+  const raw = safeSpan / Math.max(2, targetTicks);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  if (norm <= 1.2) return Math.max(1, mag);
+  if (norm <= 2.4) return Math.max(1, 2 * mag);
+  if (norm <= 5.5) return Math.max(1, 5 * mag);
+  return Math.max(1, 10 * mag);
+}
+
 /**
  * Base interna para dibujar el plano cartesiano (sin cerrar </svg>, sin texto).
  * Retorna SVG sin texto + anotaciones para dibujar en PDF.
@@ -102,6 +113,13 @@ function buildCartesianPlaneBase(options: StemVisualOptions = {}): { svg: string
   const h = mapper.height;
   const originX = mapper.toSvgX(0);
   const originY = mapper.toSvgY(0);
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const axisX = clamp(originX, mapper.padding, w - mapper.padding);
+  const axisY = clamp(originY, mapper.padding, h - mapper.padding);
+  const xStep = niceStemStep(mapper.xMax - mapper.xMin, 6);
+  const yStep = niceStemStep(mapper.yMax - mapper.yMin, 6);
+  const xTickStart = Math.ceil(mapper.xMin / xStep) * xStep;
+  const yTickStart = Math.ceil(mapper.yMin / yStep) * yStep;
   const annotations: VisualAnnotation[] = [];
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="100%" height="100%">
@@ -116,15 +134,15 @@ function buildCartesianPlaneBase(options: StemVisualOptions = {}): { svg: string
     });
   }
 
-  // 1. Cuadrícula (Grid) — solo líneas, sin texto
+  // 1. Cuadrícula (Grid) — escalada proporcionalmente al rango real
   svg += `<g stroke="${COLOR_GRID}" stroke-width="1" stroke-dasharray="2,2">`;
-  for (let x = Math.ceil(mapper.xMin); x <= Math.floor(mapper.xMax); x++) {
-    if (x === 0) continue;
+  for (let x = xTickStart; x <= mapper.xMax + 1e-6; x += xStep) {
+    if (Math.abs(x) < 1e-6) continue;
     const sx = mapper.toSvgX(x);
     svg += `<line x1="${sx}" y1="${mapper.padding}" x2="${sx}" y2="${h - mapper.padding}" />`;
   }
-  for (let y = Math.ceil(mapper.yMin); y <= Math.floor(mapper.yMax); y++) {
-    if (y === 0) continue;
+  for (let y = yTickStart; y <= mapper.yMax + 1e-6; y += yStep) {
+    if (Math.abs(y) < 1e-6) continue;
     const sy = mapper.toSvgY(y);
     svg += `<line x1="${mapper.padding}" y1="${sy}" x2="${w - mapper.padding}" y2="${sy}" />`;
   }
@@ -132,32 +150,33 @@ function buildCartesianPlaneBase(options: StemVisualOptions = {}): { svg: string
 
   // 2. Ejes principales X e Y
   svg += `<g stroke="${COLOR_NAVY}" stroke-width="1.8">
-    <line x1="${mapper.padding - 10}" y1="${originY}" x2="${w - mapper.padding + 10}" y2="${originY}" />
-    <line x1="${originX}" y1="${h - mapper.padding + 10}" x2="${originX}" y2="${mapper.padding - 10}" />
+    <line x1="${mapper.padding - 10}" y1="${axisY}" x2="${w - mapper.padding + 10}" y2="${axisY}" />
+    <line x1="${axisX}" y1="${h - mapper.padding + 10}" x2="${axisX}" y2="${mapper.padding - 10}" />
   </g>`;
 
   // Flechas directrices de los ejes
-  svg += `<polygon points="${w - mapper.padding + 14},${originY} ${w - mapper.padding + 6},${originY - 3.5} ${w - mapper.padding + 6},${originY + 3.5}" fill="${COLOR_NAVY}"/>`;
-  svg += `<polygon points="${originX},${mapper.padding - 14} ${originX - 3.5},${mapper.padding - 6} ${originX + 3.5},${mapper.padding - 6}" fill="${COLOR_NAVY}"/>`;
+  svg += `<polygon points="${w - mapper.padding + 14},${axisY} ${w - mapper.padding + 6},${axisY - 3.5} ${w - mapper.padding + 6},${axisY + 3.5}" fill="${COLOR_NAVY}"/>`;
+  svg += `<polygon points="${axisX},${mapper.padding - 14} ${axisX - 3.5},${mapper.padding - 6} ${axisX + 3.5},${mapper.padding - 6}" fill="${COLOR_NAVY}"/>`;
 
   // Rótulos de los ejes — como anotaciones para el PDF
-  annotations.push({ text: 'x', svgX: w - mapper.padding + 20, svgY: originY + 4, fontSize: 11, bold: true, color: COLOR_NAVY });
-  annotations.push({ text: 'y', svgX: originX - 4, svgY: mapper.padding - 18, fontSize: 11, bold: true, color: COLOR_NAVY, align: 'center' });
+  annotations.push({ text: 'x', svgX: w - mapper.padding + 20, svgY: axisY + 4, fontSize: 11, bold: true, color: COLOR_NAVY });
+  annotations.push({ text: 'y', svgX: axisX - 4, svgY: mapper.padding - 18, fontSize: 11, bold: true, color: COLOR_NAVY, align: 'center' });
 
   // 3. Ticks numéricos — líneas en SVG, números como anotaciones
-  for (let x = Math.ceil(mapper.xMin); x <= Math.floor(mapper.xMax); x++) {
-    if (x === 0) continue;
+  const fmtTick = (val: number) => (Math.abs(val) >= 1000 ? `${Math.round(val)}` : Number(val.toFixed(1)).toString());
+  for (let x = xTickStart; x <= mapper.xMax + 1e-6; x += xStep) {
+    if (Math.abs(x) < 1e-6) continue;
     const sx = mapper.toSvgX(x);
-    svg += `<line x1="${sx}" y1="${originY - 3}" x2="${sx}" y2="${originY + 3}" stroke="${COLOR_NAVY}" stroke-width="1.2"/>`;
-    annotations.push({ text: String(x), svgX: sx, svgY: originY + 12, fontSize: 8.5, color: '#64748b', align: 'center' });
+    svg += `<line x1="${sx}" y1="${axisY - 3}" x2="${sx}" y2="${axisY + 3}" stroke="${COLOR_NAVY}" stroke-width="1.2"/>`;
+    annotations.push({ text: fmtTick(x), svgX: sx, svgY: axisY + 12, fontSize: 8, color: '#64748b', align: 'center' });
   }
-  for (let y = Math.ceil(mapper.yMin); y <= Math.floor(mapper.yMax); y++) {
-    if (y === 0) continue;
+  for (let y = yTickStart; y <= mapper.yMax + 1e-6; y += yStep) {
+    if (Math.abs(y) < 1e-6) continue;
     const sy = mapper.toSvgY(y);
-    svg += `<line x1="${originX - 3}" y1="${sy}" x2="${originX + 3}" y2="${sy}" stroke="${COLOR_NAVY}" stroke-width="1.2"/>`;
-    annotations.push({ text: String(y), svgX: originX - 10, svgY: sy + 3, fontSize: 8.5, color: '#64748b', align: 'end' });
+    svg += `<line x1="${axisX - 3}" y1="${sy}" x2="${axisX + 3}" y2="${sy}" stroke="${COLOR_NAVY}" stroke-width="1.2"/>`;
+    annotations.push({ text: fmtTick(y), svgX: axisX - 8, svgY: sy + 3, fontSize: 8, color: '#64748b', align: 'end' });
   }
-  annotations.push({ text: '0', svgX: originX - 7, svgY: originY + 11, fontSize: 8, color: '#64748b' });
+  annotations.push({ text: '0', svgX: axisX - 7, svgY: axisY + 11, fontSize: 8, color: '#64748b' });
 
   return { svg, mapper, annotations };
 }
@@ -238,26 +257,48 @@ export function generateQuadraticGraph(a = 1, b = 0, c = -4, options: StemVisual
   if (c !== 0) eqParts.push(c > 0 ? `+ ${c}` : `- ${Math.abs(c)}`);
   const eqStr = eqParts.join(' ');
 
+  const vh = -b / (2 * a);
+  const vk = a * vh * vh + b * vh + c;
+  const disc = b * b - 4 * a * c;
+  const roots =
+    disc >= 0
+      ? [(-b - Math.sqrt(disc)) / (2 * a), (-b + Math.sqrt(disc)) / (2 * a)].sort((p, q) => p - q)
+      : [];
+  const halfSpanX = roots.length === 2 ? Math.max(5, Math.abs(roots[1]! - roots[0]!) * 0.72) : 6;
+  const xMinAuto = Math.floor(Math.min(vh - halfSpanX, roots[0] ?? vh - 4, -2));
+  const xMaxAuto = Math.ceil(Math.max(vh + halfSpanX, roots[roots.length - 1] ?? vh + 4, 2));
+  const endY1 = a * xMinAuto * xMinAuto + b * xMinAuto + c;
+  const endY2 = a * xMaxAuto * xMaxAuto + b * xMaxAuto + c;
+  const yCandidates = [0, vk, c, endY1, endY2];
+  const yRawMin = Math.min(...yCandidates);
+  const yRawMax = Math.max(...yCandidates);
+  const yPad = Math.max(3, (yRawMax - yRawMin) * 0.14);
+
   const { svg: baseSvg, mapper, annotations } = buildCartesianPlaneBase({
+    xMin: options.xMin ?? xMinAuto,
+    xMax: options.xMax ?? xMaxAuto,
+    yMin: options.yMin ?? Math.floor(yRawMin - yPad),
+    yMax: options.yMax ?? Math.ceil(yRawMax + yPad),
     ...options,
     title: options.title || `Función Cuadrática: ${eqStr}`,
   });
   let svg = baseSvg;
 
-  // 1. Muestreo de puntos de la parábola
-  const step = 0.1;
+  // 1. Muestreo de puntos de la parábola (120 muestras adaptativas al dominio real)
+  const step = Math.max(0.05, (mapper.xMax - mapper.xMin) / 120);
   const points: { x: number; y: number }[] = [];
-  for (let x = mapper.xMin; x <= mapper.xMax; x += step) {
+  for (let x = mapper.xMin; x <= mapper.xMax + step * 0.1; x += step) {
     const y = a * x * x + b * x + c;
     points.push({ x, y });
   }
 
   let pathD = '';
   let inBounds = false;
+  const ySpan = Math.max(1, mapper.yMax - mapper.yMin);
   for (const pt of points) {
     const sx = mapper.toSvgX(pt.x);
     const sy = mapper.toSvgY(pt.y);
-    if (pt.y >= mapper.yMin - 3 && pt.y <= mapper.yMax + 3) {
+    if (pt.y >= mapper.yMin - ySpan * 0.08 && pt.y <= mapper.yMax + ySpan * 0.08) {
       if (!inBounds) { pathD += `M ${sx.toFixed(1)} ${sy.toFixed(1)} `; inBounds = true; }
       else { pathD += `L ${sx.toFixed(1)} ${sy.toFixed(1)} `; }
     } else { inBounds = false; }
@@ -265,8 +306,6 @@ export function generateQuadraticGraph(a = 1, b = 0, c = -4, options: StemVisual
   svg += `<path d="${pathD}" fill="none" stroke="${COLOR_AMBER}" stroke-width="2.5" stroke-linecap="round"/>`;
 
   // 2. Vértice
-  const vh = -b / (2 * a);
-  const vk = a * vh * vh + b * vh + c;
   if (vh >= mapper.xMin && vh <= mapper.xMax && vk >= mapper.yMin && vk <= mapper.yMax) {
     const vSx = mapper.toSvgX(vh);
     const vSy = mapper.toSvgY(vk);
@@ -276,11 +315,8 @@ export function generateQuadraticGraph(a = 1, b = 0, c = -4, options: StemVisual
   }
 
   // 3. Raíces
-  const disc = b * b - 4 * a * c;
-  if (disc >= 0) {
-    const r1 = (-b - Math.sqrt(disc)) / (2 * a);
-    const r2 = (-b + Math.sqrt(disc)) / (2 * a);
-    [r1, r2].forEach((r, idx) => {
+  if (roots.length > 0) {
+    roots.forEach((r, idx) => {
       if (r >= mapper.xMin && r <= mapper.xMax) {
         const rSx = mapper.toSvgX(r);
         const rSy = mapper.toSvgY(0);
@@ -291,9 +327,9 @@ export function generateQuadraticGraph(a = 1, b = 0, c = -4, options: StemVisual
   }
 
   // Caja informativa
-  svg += `<rect x="${mapper.padding + 10}" y="${mapper.padding + 8}" width="150" height="38" fill="#fffbeb" rx="4" stroke="${COLOR_AMBER}" stroke-width="1"/>`;
-  annotations.push({ text: eqStr, svgX: mapper.padding + 18, svgY: mapper.padding + 22, fontSize: 9, bold: true, color: COLOR_NAVY });
-  annotations.push({ text: `Vértice: (${vh.toFixed(1)}, ${vk.toFixed(1)}) | V. Min/Max`, svgX: mapper.padding + 18, svgY: mapper.padding + 35, fontSize: 7.5, color: '#64748b' });
+  svg += `<rect x="${mapper.padding + 10}" y="${mapper.padding + 8}" width="175" height="38" fill="#fffbeb" rx="4" stroke="${COLOR_AMBER}" stroke-width="1"/>`;
+  annotations.push({ text: eqStr, svgX: mapper.padding + 18, svgY: mapper.padding + 22, fontSize: 8.5, bold: true, color: COLOR_NAVY });
+  annotations.push({ text: `Vértice: (${vh.toFixed(1)}, ${vk.toFixed(1)})`, svgX: mapper.padding + 18, svgY: mapper.padding + 35, fontSize: 7.5, color: '#64748b' });
 
   return {
     svg: svg + `</svg>`,
@@ -314,7 +350,20 @@ export function generateLinearSystemGraph(
   m2 = -0.5, b2 = 3.5,
   options: StemVisualOptions = {}
 ): VisualResult {
+  const hasInter = Math.abs(m1 - m2) > 1e-6;
+  const interX = hasInter ? (b2 - b1) / (m1 - m2) : 0;
+  const interY = hasInter ? m1 * interX + b1 : 0;
+  const xMinAuto = Math.floor(Math.min(-2, interX - 4));
+  const xMaxAuto = Math.ceil(Math.max(6, interX + 4));
+  const yPts = [0, b1, b2, interY, m1 * xMinAuto + b1, m1 * xMaxAuto + b1, m2 * xMinAuto + b2, m2 * xMaxAuto + b2].filter(Number.isFinite);
+  const yMinAuto = Math.floor(Math.min(-2, Math.min(...yPts) - 1));
+  const yMaxAuto = Math.ceil(Math.max(8, Math.max(...yPts) + 1));
+
   const { svg: baseSvg, mapper, annotations } = buildCartesianPlaneBase({
+    xMin: options.xMin ?? xMinAuto,
+    xMax: options.xMax ?? xMaxAuto,
+    yMin: options.yMin ?? yMinAuto,
+    yMax: options.yMax ?? yMaxAuto,
     ...options,
     title: options.title || `Sistema de Ecuaciones: Intersección de Rectas`,
   });
@@ -354,6 +403,78 @@ export function generateLinearSystemGraph(
     metadata: {
       type: 'stem-linear-system-graph',
       realItemCount: 4,
+      isFallback: false,
+    },
+  };
+}
+
+/**
+ * D2. Teorema de Napoleón y Congruencia de Triángulos (triángulos equiláteros externos + triángulo interior de baricentros)
+ */
+export function generateNapoleonTriangleVisual(
+  options: { width?: number; height?: number; title?: string; isNapoleon?: boolean } = {}
+): VisualResult {
+  const w = options.width || 500;
+  const h = options.height || 310;
+  const annotations: VisualAnnotation[] = [
+    {
+      text: options.title || (options.isNapoleon ? 'Teorema de Napoleón: Equiláteros sobre lados' : 'Criterios de Congruencia (LLL · LAL · ALA)'),
+      svgX: w / 2,
+      svgY: 16,
+      fontSize: 11.5,
+      bold: true,
+      color: COLOR_NAVY,
+      align: 'center',
+    },
+  ];
+
+  // Triángulo base ABC centrado y 3 triángulos equiláteros exteriores aproximados + baricentros
+  const ax = 195; const ay = 195;
+  const bx = 305; const by = 205;
+  const cx = 240; const cy = 115;
+
+  const outwardApex = (x1: number, y1: number, x2: number, y2: number, sign: number) => {
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const k = (Math.sqrt(3) / 2) * sign;
+    return { x: mx - dy * k, y: my + dx * k };
+  };
+
+  const pAB = outwardApex(ax, ay, bx, by, 1);
+  const pBC = outwardApex(bx, by, cx, cy, 1);
+  const pCA = outwardApex(cx, cy, ax, ay, 1);
+
+  const cAB = { x: (ax + bx + pAB.x) / 3, y: (ay + by + pAB.y) / 3 };
+  const cBC = { x: (bx + cx + pBC.x) / 3, y: (by + cy + pBC.y) / 3 };
+  const cCA = { x: (cx + ax + pCA.x) / 3, y: (cy + ay + pCA.y) / 3 };
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="100%" height="100%">
+    <rect width="${w}" height="${h}" fill="${COLOR_BG}" rx="6" stroke="#cbd5e1" stroke-width="1"/>
+    <polygon points="${ax},${ay} ${bx},${by} ${pAB.x.toFixed(1)},${pAB.y.toFixed(1)}" fill="#fef3c7" fill-opacity="0.65" stroke="${COLOR_AMBER}" stroke-width="1.5"/>
+    <polygon points="${bx},${by} ${cx},${cy} ${pBC.x.toFixed(1)},${pBC.y.toFixed(1)}" fill="#dbeafe" fill-opacity="0.65" stroke="${COLOR_BLUE}" stroke-width="1.5"/>
+    <polygon points="${cx},${cy} ${ax},${ay} ${pCA.x.toFixed(1)},${pCA.y.toFixed(1)}" fill="#dcfce7" fill-opacity="0.65" stroke="#059669" stroke-width="1.5"/>
+    <polygon points="${ax},${ay} ${bx},${by} ${cx},${cy}" fill="#ffffff" stroke="${COLOR_NAVY}" stroke-width="2.2"/>
+    <polygon points="${cAB.x.toFixed(1)},${cAB.y.toFixed(1)} ${cBC.x.toFixed(1)},${cBC.y.toFixed(1)} ${cCA.x.toFixed(1)},${cCA.y.toFixed(1)}" fill="none" stroke="${COLOR_RED}" stroke-width="2" stroke-dasharray="5,3"/>
+    <circle cx="${cAB.x.toFixed(1)}" cy="${cAB.y.toFixed(1)}" r="4" fill="${COLOR_RED}"/>
+    <circle cx="${cBC.x.toFixed(1)}" cy="${cBC.y.toFixed(1)}" r="4" fill="${COLOR_RED}"/>
+    <circle cx="${cCA.x.toFixed(1)}" cy="${cCA.y.toFixed(1)}" r="4" fill="${COLOR_RED}"/>
+  </svg>`;
+
+  annotations.push(
+    { text: 'A', svgX: ax - 10, svgY: ay + 4, fontSize: 9, bold: true, color: COLOR_NAVY },
+    { text: 'B', svgX: bx + 6, svgY: by + 4, fontSize: 9, bold: true, color: COLOR_NAVY },
+    { text: 'C', svgX: cx, svgY: cy - 8, fontSize: 9, bold: true, color: COLOR_NAVY, align: 'center' },
+    { text: 'Triángulo de Napoleón (equilátero entre baricentros)', svgX: w / 2, svgY: h - 14, fontSize: 8.5, bold: true, color: COLOR_RED, align: 'center' }
+  );
+
+  return {
+    svg,
+    annotations,
+    metadata: {
+      type: 'stem-napoleon-geometry',
+      realItemCount: 3,
       isFallback: false,
     },
   };

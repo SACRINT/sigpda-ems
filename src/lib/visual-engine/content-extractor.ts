@@ -33,8 +33,9 @@ import type {
 import type { ImageAsset } from '@/types/planning';
 import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
 import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
-import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import { extractDisciplinaryConceptPhrase } from '@/lib/editorial/topic-title-resolver';
 import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
+import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
 import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
 
 const STAT_COLORS = ['#2563eb', '#d97706', '#059669', '#7c3aed', '#dc2626', '#0284c7'];
@@ -745,13 +746,22 @@ export function buildMetacognitiveTrafficLight(
   missionTitle: string,
   uacName: string
 ): { green: string; yellow: string; red: string } {
-  const titleClean = missionTitle.replace(/^misi[oó]n\s*\d+\s*:\s*/i, '').trim().slice(0, 50);
-  const uacClean = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim().slice(0, 40);
+  const cleanPhrase =
+    extractDisciplinaryConceptPhrase(missionTitle) ||
+    missionTitle.replace(/^(?:misi[oó]n|sesi[oó]n)\s*\d+\s*:\s*/i, '').trim();
+  const titleClean =
+    fitPedagogicalText(cleanPhrase, { maxChars: 42, maxWords: 6, ensurePeriod: false }) ||
+    cleanPhrase.slice(0, 42).replace(/\s+\S*$/, '').trim() ||
+    'este tema';
+  const rawUac = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim();
+  const uacClean =
+    fitPedagogicalText(rawUac, { maxChars: 38, maxWords: 6, ensurePeriod: false }) ||
+    rawUac;
 
   return {
-    green: `Comprendo ${titleClean} con claridad. Puedo explicarlo y aplicarlo en situaciones reales de mi comunidad o trabajo sin ayuda.`,
-    yellow: `Entiendo los conceptos principales de ${uacClean}, pero necesito más práctica o un ejemplo adicional para aplicarlos con confianza.`,
-    red: `Tengo dudas sobre ${titleClean}. Requiero asesoría del docente, revisar el Concepto Cero o practicar con un compañero antes de continuar.`,
+    green: `Comprendo ${titleClean} y puedo aplicarlo en situaciones de mi entorno.`,
+    yellow: `Comprendo ${uacClean}, pero requiero un ejemplo adicional para aplicarlo.`,
+    red: `Tengo dudas sobre ${titleClean}; repasaré Concepto Cero con apoyo docente.`,
   };
 }
 

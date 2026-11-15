@@ -14,6 +14,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import {
   COLORS,
   resolveLevel4FillRgb,
@@ -25,7 +26,12 @@ import {
   drawCalloutBox,
   sanitizePdfText,
 } from '@/lib/visual-engine/pdf-components-core';
-import { formatSolvedExampleBlocks, normalizePdfEditorialText } from '@/lib/editorial/text-normalization';
+import {
+  formatSolvedExampleBlocks,
+  normalizeEditorialText,
+  normalizeExtraTitle,
+  repairExtraPedagogicalArtifacts,
+} from '@/lib/editorial/text-normalization';
 import {
   loadEditorialFonts,
   areEditorialFontsLoaded,
@@ -35,9 +41,13 @@ import {
   resolveHeaderBranding,
   resolveFooterBranding,
   truncateLabelAtWordBoundary,
+  DOC_TYPE_CONFIG,
   INSTITUTIONAL_DEFAULTS,
   type BrandingContext,
 } from '@/lib/document-branding';
+import { resolveBlockNumber } from '@/lib/curricular-blocks';
+import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
+import { logger } from '@/lib/logger';
 import { getExtraContentForRender } from '@/lib/materials/material-tokens';
 import {
   parseInlineMarkdownSegments,
@@ -105,7 +115,7 @@ export function renderFormattedBlock(
 
   // Descomponer en segmentos tipográficos (normal, **negrita**, *cursiva*, ***ambos***)
   // preservando operadores matemáticos (*) en expresiones algebraicas.
-  const segments = parseInlineMarkdownSegments(normalizePdfEditorialText(rawMarkdownLine));
+  const segments = parseInlineMarkdownSegments(normalizeEditorialText(rawMarkdownLine, { target: 'winansi' }));
   interface Token {
     word: string;
     bold: boolean;
@@ -241,6 +251,10 @@ function drawLevel4Box(
   return y + height;
 }
 
+export interface ExtraRenderOptions {
+  suppressPageFooter?: boolean;
+}
+
 /**
  * Renderiza el documento completo de un recurso didáctico (Extra) en jsPDF.
  */
@@ -248,8 +262,10 @@ export function renderExtraDocument(
   doc: jsPDF,
   extra: ExtraInput,
   context?: BrandingContext,
-  densityOverride?: ExtraDensity
+  densityOverride?: ExtraDensity,
+  renderOptions?: ExtraRenderOptions
 ): jsPDF {
+  const normalizedTitle = normalizeExtraTitle(extra.title);
   // H-056 / H-058: Asegurar fuentes editoriales si no fueron inicializadas por el llamador
   if (!areEditorialFontsLoaded(doc)) {
     loadEditorialFonts(doc);
@@ -260,7 +276,7 @@ export function renderExtraDocument(
   const typeLabel = branding.typeLabel;
   const hasTopSup = Boolean(branding.topSup);
 
-  const isRubric = extra.type === 'rubric' || (extra.type === 'evaluation' && /r[uú]brica|matriz|escala|gu[ií]a|bit[aá]cora/i.test(extra.title));
+  const isRubric = extra.type === 'rubric' || (extra.type === 'evaluation' && /r[uú]brica|matriz|escala|gu[ií]a|bit[aá]cora/i.test(normalizedTitle));
   // Ajuste inteligente de densidad: el plan de clase (29-30 renglones) debe caber en
   // una sola hoja sin sacrificar legibilidad; el resto de extras conserva su métrica normal.
   const density: ExtraDensity =
@@ -287,7 +303,7 @@ export function renderExtraDocument(
 
   // La métrica del título se calcula YA con el tamaño con el que se dibuja (9 pt):
   // con el tamaño previo de la pila jsPDF (16 pt) se sobreestimaba el alto de cabecera.
-  const cleanExtraTitle = sanitizePdfText(extra.title);
+  const cleanExtraTitle = sanitizePdfText(normalizedTitle);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   const titleLines = doc.splitTextToSize(cleanExtraTitle, contentW - 10) as string[];
@@ -350,8 +366,13 @@ export function renderExtraDocument(
   };
 
   // ── Parsing de líneas y componentes ───────────────────────────────────────
-  const contentToParse = normalizePdfEditorialText(
-    formatSolvedExampleBlocks(getExtraContentForRender(extra))
+  const repairedContent = repairExtraPedagogicalArtifacts(getExtraContentForRender(extra), {
+    type: extra.type,
+    title: normalizedTitle,
+  });
+  const contentToParse = normalizeEditorialText(
+    formatSolvedExampleBlocks(repairedContent),
+    { target: 'winansi' }
   );
   const lines = contentToParse.split('\n');
   let inTable = false;
@@ -846,11 +867,12 @@ export function renderExtraDocument(
     const numMatch = line.match(/^(\d+)\.\s*(.*)/);
     if (numMatch) {
       const num = numMatch[1];
-      const content = numMatch[2];
-      if (y > pageHeight - bottomReserve) { addNewPage(); }
+      const content = numMatch[2].trim();
+      if (!content) continue;
+      if (y + bodyLineHeight > pageHeight - bottomReserve) { addNewPage(); }
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.8);
+      doc.setFontSize(smallFontSize);
       doc.setTextColor(...MID);
       doc.text(`${num}.`, margin + 2, y);
       const numWidth = doc.getTextWidth(`${num}. `);
@@ -897,24 +919,26 @@ export function renderExtraDocument(
   }
 
   // ── Pie de página uniforme en todas las páginas compiladas ───────────────────
-  const totalPages = doc.getNumberOfPages();
-  for (let p = 1; p <= totalPages; p++) {
-    doc.setPage(p);
-    const footer = resolveFooterBranding(extra.type, extra.title, context, p, totalPages, extra.keyIndex);
+  if (!renderOptions?.suppressPageFooter) {
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      const footer = resolveFooterBranding(extra.type, normalizedTitle, context, p, totalPages, extra.keyIndex);
 
-    doc.setDrawColor(...footer.dividerColor);
-    doc.setLineWidth(0.5);
-    doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+      doc.setDrawColor(...footer.dividerColor);
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...footer.textColor);
-    doc.text(
-      `${footer.leftText}  —  ${footer.rightText}`,
-      pageWidth / 2,
-      pageHeight - 5.5,
-      { align: 'center' }
-    );
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...footer.textColor);
+      doc.text(
+        `${footer.leftText}  —  ${footer.rightText}`,
+        pageWidth / 2,
+        pageHeight - 5.5,
+        { align: 'center' }
+      );
+    }
   }
 
   return doc;
@@ -934,7 +958,7 @@ export function resolveExtraDensity(
 
   const fitsOnePage = (density: ExtraDensity): boolean => {
     const probe = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-    renderExtraDocument(probe, extra, context, density);
+    renderExtraDocument(probe, extra, context, density, { suppressPageFooter: true });
     return probe.getNumberOfPages() === 1;
   };
 
@@ -948,7 +972,8 @@ export function resolveExtraDensity(
  */
 export function generateExtraPdfDocument(
   extra: ExtraInput,
-  context?: BrandingContext
+  context?: BrandingContext,
+  renderOptions?: ExtraRenderOptions
 ): jsPDF {
   const isRubric = extra.type === 'rubric' || (extra.type === 'evaluation' && /r[uú]brica|matriz|escala|gu[ií]a|bit[aá]cora/i.test(extra.title));
   const orientation = isRubric ? 'landscape' : 'portrait';
@@ -957,6 +982,100 @@ export function generateExtraPdfDocument(
     unit: 'mm',
     format: 'letter',
   });
-  return renderExtraDocument(doc, extra, context, resolveExtraDensity(extra, context));
+  return renderExtraDocument(doc, extra, context, resolveExtraDensity(extra, context), renderOptions);
+}
+
+export interface CompiledMergeExtraItem {
+  id: string;
+  title: string;
+  type: string;
+  content_text: string;
+  key_index?: number | null;
+  keyIndex?: number | null;
+}
+
+/**
+ * Compila múltiples extras en un solo PDF con paginación unificada continua ("Página P de N"),
+ * eliminando pies locales fragmentados ("Página 1 de 1" o "Página 1 de 2") en archivos compilados.
+ */
+export async function mergeCompiledExtrasPdf(
+  items: CompiledMergeExtraItem[],
+  context?: BrandingContext,
+  options?: { compiledLabel?: string }
+): Promise<Buffer | null> {
+  if (!items || items.length === 0) return null;
+  try {
+    const mergedPdf = await PDFDocument.create();
+    let count = 0;
+
+    for (const extra of items) {
+      try {
+        const rawKey = extra.keyIndex ?? extra.key_index ?? null;
+        const resolvedBlock = rawKey !== null && rawKey !== undefined ? resolveBlockNumber(rawKey) : null;
+        const canonicalKeyIndex = resolvedBlock !== null ? resolvedBlock - 1 : rawKey;
+        const pdfDoc = generateExtraPdfDocument(
+          {
+            id: extra.id,
+            title: extra.title,
+            type: extra.type,
+            content_text: extra.content_text,
+            keyIndex: canonicalKeyIndex,
+          },
+          context,
+          { suppressPageFooter: true }
+        );
+        const indPdf = await PDFDocument.load(Buffer.from(pdfDoc.output('arraybuffer')));
+        const copiedPages = await mergedPdf.copyPages(indPdf, indPdf.getPageIndices());
+        for (const page of copiedPages) {
+          mergedPdf.addPage(page);
+        }
+        count++;
+      } catch (err) {
+        logger.warn(`Error rendering individual PDF for extra ${extra.id}:`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    if (count === 0) return null;
+
+    const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+    const firstType = items[0]?.type || 'extra';
+    const metaLabel = DOC_TYPE_CONFIG[firstType]?.shortLabel || 'DOCUMENTO COMPILADO';
+    const defaultLeft = `${getRuntimePlatformName()} · ${options?.compiledLabel || metaLabel}`;
+    const pages = mergedPdf.getPages();
+    const totalPages = pages.length;
+    const MM_TO_PT = 72 / 25.4;
+    const marginPt = 13 * MM_TO_PT;
+    const lineY = 10 * MM_TO_PT;
+    const textY = 5.5 * MM_TO_PT;
+
+    for (let i = 0; i < totalPages; i++) {
+      const page = pages[i];
+      const { width } = page.getSize();
+      page.drawLine({
+        start: { x: marginPt, y: lineY },
+        end: { x: width - marginPt, y: lineY },
+        thickness: 0.5,
+        color: rgb(230 / 255, 81 / 255, 0),
+      });
+      const footerText = `${defaultLeft}  —  Página ${i + 1} de ${totalPages}`;
+      const textWidth = font.widthOfTextAtSize(footerText, 6.5);
+      page.drawText(footerText, {
+        x: Math.max(marginPt, (width - textWidth) / 2),
+        y: textY,
+        size: 6.5,
+        font,
+        color: rgb(120 / 255, 120 / 255, 120 / 255),
+      });
+    }
+
+    return Buffer.from(await mergedPdf.save());
+  } catch (err) {
+    logger.warn('Error merging extras to PDF:', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
 }
 

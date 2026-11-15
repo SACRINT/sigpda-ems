@@ -360,10 +360,14 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     }
   }
 
-  // 1b. Ecuación lineal con incógnita en ambos miembros: ax ± b = cx ± d o (ax ± b) - cx = (cx ± d) - cx
-  const bothSidesMatch = normalized.match(
-    /\(?\s*(-?\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)?(?:\s*-\s*\d+\s*\2)?\s*=\s*\(?\s*(-?\d+(?:\.\d+)?)\s*\2\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)?/i
-  );
+  // 1b. Ecuación lineal con incógnita en ambos miembros: ax ± b = cx ± d (preferir forma limpia sin resta paso-intermedio)
+  const cleanBothSidesRe =
+    /(?<![²^0-9A-Za-z(])(-?\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)\s*\2\s*([+-])\s*(\d+(?:\.\d+)?)(?![0-9A-Za-z²])/i;
+  const bothSidesMatch =
+    normalized.match(cleanBothSidesRe) ||
+    normalized.match(
+      /\(?\s*(-?\d+(?:\.\d+)?)\s*([a-z])\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)?(?:\s*-\s*\d+\s*\2)?\s*=\s*\(?\s*(-?\d+(?:\.\d+)?)\s*\2\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)?(?:\s*-\s*\d+\s*\2)?/i
+    );
   if (bothSidesMatch) {
     const a1 = Number(bothSidesMatch[1]);
     const varName = bothSidesMatch[2];
@@ -376,7 +380,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     if (Number.isFinite(netA) && netA !== 0 && Number.isFinite(b1) && Number.isFinite(b2)) {
       const xSol = (b2 - b1) / netA;
       const yAtSol = a1 * xSol + b1;
-      const boundedDom = Math.min(40, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
+      const boundedDom = Math.min(10000, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
       return {
         slope: a1,
         intercept: b1,
@@ -401,7 +405,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
       const signedB = sign === '-' ? -bRaw : bRaw;
       const xSol = (c - signedB) / a;
       const niceDom = xSol > 0 ? Math.max(8, Math.ceil((xSol * 1.35) / 2) * 2) : 10;
-      const boundedDom = Math.min(40, Math.max(8, niceDom));
+      const boundedDom = Math.min(10000, Math.max(8, niceDom));
       return {
         slope: a,
         intercept: signedB,
@@ -425,7 +429,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     const signedA = sign === '-' ? -aRaw : aRaw;
     if (Number.isFinite(signedA) && signedA !== 0 && Number.isFinite(bVal) && Number.isFinite(c)) {
       const xSol = (c - bVal) / signedA;
-      const boundedDom = Math.min(40, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
+      const boundedDom = Math.min(10000, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
       return {
         slope: signedA,
         intercept: bVal,
@@ -449,7 +453,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     if (Number.isFinite(a) && a !== 0 && Number.isFinite(bRaw) && Number.isFinite(c)) {
       const expandedB = (sign === '-' ? -1 : 1) * a * bRaw;
       const xSol = (c - expandedB) / a;
-      const boundedDom = Math.min(40, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
+      const boundedDom = Math.min(10000, Math.max(8, xSol > 0 ? Math.ceil((xSol * 1.35) / 2) * 2 : 10));
       return {
         slope: a,
         intercept: expandedB,
@@ -475,7 +479,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
       const slope = Number((-aCoef / bCoef).toFixed(2));
       const intercept = Number((cCoef / bCoef).toFixed(2));
       const xInt = cCoef / aCoef;
-      const boundedDom = Math.min(40, Math.max(8, xInt > 0 ? Math.ceil((xInt * 1.2) / 2) * 2 : 12));
+      const boundedDom = Math.min(10000, Math.max(8, xInt > 0 ? Math.ceil((xInt * 1.2) / 2) * 2 : 12));
       return {
         slope,
         intercept,
@@ -528,7 +532,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
       return {
         slope: meanVal,
         intercept: 0,
-        domainMax: Math.min(40, Math.max(10, nVal)),
+        domainMax: Math.min(1000, Math.max(10, nVal)),
         targetY: sumVal,
         equation: `x̄ = ${sumVal}/${nVal} = ${meanVal}`,
       };
@@ -541,7 +545,7 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     return {
       slope: 1,
       intercept: 0,
-      domainMax: Math.min(40, Math.max(10, nPilot)),
+      domainMax: Math.min(1000, Math.max(10, nPilot)),
       targetY: nPilot,
       equation: `Muestra piloto n = ${nPilot}`,
     };
@@ -790,8 +794,8 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
     }
   }
 
-  // Ecuaciones de sustitución despejadas: x = ky, y = kx, x = c - ky, y = c - kx
-  if (parsed.length === 1) {
+  // Ecuaciones de sustitución despejadas SOLO cuando hay tema explícito de sistemas 2x2
+  if (sysTopic && parsed.length === 1) {
     const subXEqKy = source.match(/\bx\s*=\s*([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*y(?![0-9A-Za-z+-])/i);
     const subYEqKx = source.match(/\by\s*=\s*([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x(?![0-9A-Za-z+-])/i);
     if (subXEqKy) {
@@ -901,7 +905,13 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     source.match(
       /(?:poblaci[oó]n(?:\s+inicial|\s+actual|\s+juvenil|\s+total|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})(?!\s*(?:a|-|–)\s*\d+\s*a[ñn]os|\s*a[ñn]os\b)/i
     );
-  const rateMatch = source.match(/(\d+(?:\.\d+)?)\s*%/) || source.match(/1\s*\+\s*0\.(\d{1,3})/);
+  const contextualRateMatch =
+    source.match(/(?:tasa(?:\s+de)?(?:\s+inter[eé]s|\s+crecimiento|\s+anual)?|inter[eé]s(?:\s+anual|\s+simple|\s+compuesto)?|capitalizable[^.]{0,30}|rendimiento(?:\s+anual)?|\br\s*=)\s*(?:es\s*)?(?:de(?:l)?\s*)?(\d+(?:\.\d+)?)\s*%/i) ||
+    source.match(/(\d+(?:\.\d+)?)\s*%\s*(?:anual|semestral|trimestral|bimestral|mensual|capitalizable|de\s+inter[eé]s|de\s+crecimiento)/i);
+  const rateMatch =
+    contextualRateMatch ||
+    source.match(/(\d+(?:\.\d+)?)\s*%/) ||
+    source.match(/1\s*\+\s*0\.(\d{1,3})/);
 
   // Si no hay tasa explícita (%) ni es explícitamente un tema de interés/crecimiento exponencial, no secuestrar modelos lineales
   if (!rateMatch && !isExplicitExponentialTopic) {
@@ -925,15 +935,61 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     };
   }
   const principal = capitalMatch ? Math.min(100000, Math.max(50, Number(capitalMatch[1].replace(/,/g, '')))) : 1000;
-  let ratePct = 10;
+  let annualOrPeriodRatePct = 10;
   if (rateMatch) {
-    const rawRate = rateMatch[0].includes('1') && !rateMatch[0].includes('%')
+    const rawRate = rateMatch[0].includes('1 + 0.') && !rateMatch[0].includes('%')
       ? Number((Number(`0.${rateMatch[1]}`) * 100).toFixed(2))
       : Number(Number(rateMatch[1]).toFixed(2));
-    ratePct = Number(Math.min(50, Math.max(0.5, rawRate)).toFixed(2));
+    annualOrPeriodRatePct = Number(Math.min(50, Math.max(0.5, rawRate)).toFixed(2));
   }
+
+  // Detectar capitalización subanual y horizonte temporal exacto (años, semestres, trimestres, meses)
+  let compoundingFreq = 1;
+  let periodUnit = 'Períodos (t)';
+  if (/capitalizable\s+semestral|semestral(?:mente)?/i.test(source)) {
+    compoundingFreq = 2;
+    periodUnit = 'Semestres (n)';
+  } else if (/capitalizable\s+trimestral|trimestral(?:mente)?/i.test(source)) {
+    compoundingFreq = 4;
+    periodUnit = 'Trimestres (n)';
+  } else if (/capitalizable\s+cuatrimestral|cuatrimestral(?:mente)?/i.test(source)) {
+    compoundingFreq = 3;
+    periodUnit = 'Cuatrimestres (n)';
+  } else if (/capitalizable\s+bimestral|bimestral(?:mente)?/i.test(source)) {
+    compoundingFreq = 6;
+    periodUnit = 'Bimestres (n)';
+  } else if (/capitalizable\s+mensual|mensual(?:mente)?/i.test(source)) {
+    compoundingFreq = 12;
+    periodUnit = 'Meses (n)';
+  }
+
+  const horizonMatch =
+    source.match(/(?:durante|por|a(?:\s+un)?\s+plazo\s+de|en\s+un\s+lapso\s+de|al\s+cabo\s+de|en)\s+(\d+)\s+(a[ñn]os?|semestres?|trimestres?|bimestres?|cuatrimestres?|meses?)\b/i) ||
+    source.match(/(\d+)\s+(a[ñn]os?|semestres?|trimestres?|bimestres?|cuatrimestres?|meses?)\b/i) ||
+    source.match(/\bt\s*=\s*(\d+)\b/i);
+
+  let periods = 6;
+  if (horizonMatch) {
+    const rawN = Number(horizonMatch[1]);
+    const unit = (horizonMatch[2] || '').toLowerCase();
+    if (Number.isFinite(rawN) && rawN >= 1) {
+      if (unit.startsWith('año') || unit.startsWith('ano')) {
+        periods = compoundingFreq > 1 ? rawN * compoundingFreq : rawN;
+        if (compoundingFreq === 1) periodUnit = 'Años (t)';
+      } else {
+        periods = rawN;
+      }
+      periods = Math.max(2, Math.min(24, Math.round(periods)));
+    }
+  }
+
+  const rateIsAnnual =
+    compoundingFreq > 1 &&
+    (/anual/i.test(source) || /capitalizable/i.test(source));
+  const ratePct = rateIsAnnual
+    ? Number((annualOrPeriodRatePct / compoundingFreq).toFixed(2))
+    : annualOrPeriodRatePct;
   const rate = Number((ratePct / 100).toFixed(6));
-  const periods = 6;
   const simpleSeries: Array<{ t: number; value: number }> = [];
   const compoundSeries: Array<{ t: number; value: number }> = [];
 
@@ -942,19 +998,20 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     compoundSeries.push({ t, value: Math.round(principal * Math.pow(1 + rate, t)) });
   }
   const maxVal = Math.max(...compoundSeries.map((p) => p.value));
+  const rateSuffix = rateIsAnnual ? `%/${periodUnit.slice(0, 3).toLowerCase()}` : '%';
   return {
     kind: 'exponential',
     available: true,
     equation: isPopulation
-      ? `P(t) = P₀(1 + r)ᵗ  (P₀=${principal}, r=${ratePct}%)`
-      : `M = C₀(1 + r)ᵗ  (C₀=${principal}, r=${ratePct}%)`,
+      ? `P(t) = P₀(1 + r)ᵗ  (P₀=${principal}, r=${ratePct}${rateSuffix}, n=${periods})`
+      : `M = C₀(1 + r)ⁿ  (C₀=${principal}, r=${ratePct}${rateSuffix}, n=${periods})`,
     principal,
     rate,
     periods,
     simpleSeries,
     compoundSeries,
     yMax: Math.ceil((maxVal * 1.1) / 50) * 50,
-    xLabel: 'Períodos (t)',
+    xLabel: periodUnit,
     yLabel: isPopulation ? 'Población P(t)' : 'Monto acumulado ($)',
     context: expContext,
   };
@@ -970,12 +1027,28 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
       source
     );
   const isCongruence =
-    /congruencia(?:\s+y\s+semejanza|\s+de\s+tri[aá]ngulos)?|semejanza\s+de\s+tri[aá]ngulos|criterios?\s+(?:LLL|LAL|ALA)|teorema\s+de\s+tales|lados\s+hom[oó]logos/i.test(
+    /congruencia\s+(?:y\s+semejanza|de\s+(?:tri[aá]ngulos|figuras|lados|piezas)|geom[eé]trica|estructural)|semejanza\s+de\s+tri[aá]ngulos|criterios?\s+(?:de\s+congruencia|LLL|LAL|ALA)|teorema\s+de\s+(?:tales|napole[oó]n)|lados\s+hom[oó]logos/i.test(
       source
     );
   const isPolygon = /[aá]rea\s+y\s+per[ií]metro|per[ií]metro\s+del\s+rect[aá]ngulo/i.test(source);
 
   if (!isAngle && !isTriangle && !isCongruence && !isPolygon) return null;
+
+  if (isCongruence && (!isTriangle || /criterios\s+de\s+congruencia|napole[oó]n/i.test(source))) {
+    return {
+      kind: 'geometry',
+      variant: 'polygon',
+      available: true,
+      equation: 'Criterios LLL · LAL · ALA  |  a/a′ = b/b′ = c/c′ = k',
+      primaryLabel: 'Congruencia (≅) y Semejanza (~) de Triángulos',
+      secondaryLabel: 'Ángulos correspondientes iguales · Lados homólogos proporcionales',
+      highlights: [
+        { label: 'Congruencia (≅)', detail: 'Misma forma y tamaño (k = 1).' },
+        { label: 'Semejanza (~)', detail: 'Ángulos iguales y lados proporcionales.' },
+        { label: 'Criterios', detail: 'Validación por LLL, LAL o ALA.' },
+      ],
+    };
+  }
 
   if (isTriangle) {
     return {
@@ -1493,12 +1566,20 @@ function tryDetectDiagramFromTexts(
   );
   if (quadratic && classification.kind !== 'geometry') return quadratic;
 
-  // 2. Sistema de ecuaciones lineales 2x2 (rectas secantes e intersección o estado por construir)
-  const system2x2 = pickAvailableOrFallback(
-    tryBuildSystem2x2Diagram(primaryText),
-    tryBuildSystem2x2Diagram(secondaryText)
-  );
-  if (system2x2) return system2x2;
+  // 2. Sistema de ecuaciones lineales 2x2: evitar secuestrar ecuaciones de 1 incógnita si NO es tema explícito de sistemas
+  const linearPrimary = parseLinearEquationModel(primaryText, primaryText);
+  const isExplicit2x2Topic =
+    classification.kind === 'system-2x2' ||
+    /sistema[s]?\s+(?:de\s+ecuaciones|lineal(?:es)?(?:\s*2x2)?)|\b2x2\b|m[eé]todo\s+de\s+(?:igualaci[oó]n|sustituci[oó]n|reducci[oó]n|eliminaci[oó]n|cramer|determinantes)/i.test(
+      primaryText
+    );
+  const system2x2 = isExplicit2x2Topic
+    ? pickAvailableOrFallback(
+        tryBuildSystem2x2Diagram(primaryText),
+        secondaryText !== primaryText ? tryBuildSystem2x2Diagram(secondaryText) : null
+      )
+    : tryBuildSystem2x2Diagram(primaryText);
+  if (system2x2 && (isExplicit2x2Topic || !linearPrimary)) return system2x2;
 
   // 3. Interés simple vs. compuesto / crecimiento exponencial
   const exponential = pickAvailableOrFallback(
@@ -1508,7 +1589,7 @@ function tryDetectDiagramFromTexts(
   if (exponential) return exponential;
 
   // 4. Geometría plana (ángulos, triángulos, congruencia, áreas y perímetros)
-  const linearDirect = parseLinearEquationModel(primaryText, secondaryText);
+  const linearDirect = linearPrimary || parseLinearEquationModel(primaryText, secondaryText);
   const geometry = tryBuildGeometryDiagram(primaryText) || tryBuildGeometryDiagram(secondaryText);
   const hasExplicitPrimaryGeometry =
     classification.kind === 'geometry' ||
@@ -1534,12 +1615,27 @@ function tryDetectDiagramFromTexts(
 function buildMathDiagram(mission: MissionSection, options: DiagramBuildOptions): SacrintDiagramSpec {
   if (options.session) {
     const sessionCore = cleanSacrintText(collectSessionCoreSource(options.session));
+    if (/sin coeficientes numéricos/i.test(sessionCore)) {
+      return buildUnavailableLinearDiagram(options);
+    }
+    const coreMatch = tryDetectDiagramFromTexts(sessionCore, sessionCore, options);
+    if (coreMatch?.available) return coreMatch;
+
+    // Aislamiento estricto por ejercicio: probar cada actividad práctica por separado sin mezclar ecuaciones entre sí
+    for (const item of options.session.practica ?? []) {
+      const singlePractice = cleanSacrintText(`${options.session.objetivo || ''} ${item.enunciado || ''}`);
+      if (!singlePractice) continue;
+      const practiceMatch = tryDetectDiagramFromTexts(singlePractice, singlePractice, options);
+      if (practiceMatch?.available) return practiceMatch;
+    }
+
+    if (coreMatch) return coreMatch;
     const sessionFull = cleanSacrintText(collectSessionFullSource(options.session));
     if (/sin coeficientes numéricos/i.test(sessionFull)) {
       return buildUnavailableLinearDiagram(options);
     }
-    const sessionMatch = tryDetectDiagramFromTexts(sessionCore, sessionFull, options);
-    if (sessionMatch) return sessionMatch;
+    const fallbackMatch = tryDetectDiagramFromTexts(sessionCore || sessionFull, sessionCore || sessionFull, options);
+    if (fallbackMatch) return fallbackMatch;
     if (options.allowMissionFallback === false) {
       return buildUnavailableLinearDiagram(options);
     }
@@ -1788,7 +1884,7 @@ export function buildSacrintDiagram(
   const built = ((): SacrintDiagramSpec => {
     switch (pack.diagram) {
       case 'linear-model':
-        return buildMathDiagram(mission, options);
+        return buildMathDiagram(effectiveMission, options);
       case 'reaction-scheme':
         return buildReactionDiagram(effectiveMission);
       case 'argument-map':
@@ -2205,7 +2301,7 @@ export function diagramFooterLabel(diagram: SacrintDiagramSpec): string {
   }
 }
 
-export function stepLabelsForPack(pack: SacrintPack): string[] {
+export function stepLabelsForPack(pack: SacrintPack, contextText?: string): string[] {
   switch (pack.id) {
     case 'quimica':
       return ['EL FENÓMENO', 'LA REACCIÓN', 'EL BALANCE', 'EL IMPACTO'];
@@ -2214,8 +2310,17 @@ export function stepLabelsForPack(pack: SacrintPack): string[] {
       return ['LA PREGUNTA', 'LA TESIS', 'LA OBJECIÓN', 'LA CONCLUSIÓN'];
     case 'ingles':
       return ['EL CONTEXTO', 'LA FORMA', 'LA PRÁCTICA', 'LA PRODUCCIÓN'];
-    case 'matematicas':
-      return ['EL FENÓMENO', 'LA TABULACIÓN', 'EL MODELO', 'EL IMPACTO'];
+    case 'matematicas': {
+      const needsTable =
+        contextText &&
+        /tabul|tabla\s+de\s+valores|muestra|frecuencia|inter[eé]s|capital|poblaci[oó]n/i.test(contextText) &&
+        !/congruen|napole[oó]n|pit[aá]goras|suplementar|complementar|f[oó]rmula\s+general|factoriz/i.test(contextText);
+      return contextText
+        ? needsTable
+          ? ['EL FENÓMENO', 'LA TABULACIÓN', 'EL MODELO', 'LA APLICACIÓN']
+          : ['EL PLANTEAMIENTO', 'EL ANÁLISIS', 'EL MODELO', 'LA VERIFICACIÓN']
+        : ['EL FENÓMENO', 'LA TABULACIÓN', 'EL MODELO', 'EL IMPACTO'];
+    }
     case 'historia':
       return ['EL ANTECEDENTE', 'EL PROCESO', 'LA CONSECUENCIA', 'LA DECISIÓN'];
     case 'biologia':

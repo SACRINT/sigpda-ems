@@ -1,9 +1,8 @@
 import JSZip from 'jszip';
-import { PDFDocument } from 'pdf-lib';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { generateDocx, generateSecuenciaDocx } from '@/lib/docx-generator';
 import { buildCombinedExtraDocx } from '@/lib/docx-helpers';
-import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
+import { mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
 import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import { selectAllExtrasCombined, selectExtrasForBlock } from '@/lib/planning-extras-for-block';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
@@ -42,30 +41,10 @@ export interface AulaPackageResult {
 
 async function mergeExtraPdfs(
   items: ExtraRow[],
-  brandingCtx?: BrandingContext
+  brandingCtx?: BrandingContext,
+  compiledLabel?: string
 ): Promise<Buffer | null> {
-  if (items.length === 0) return null;
-  try {
-    const merged = await PDFDocument.create();
-    let count = 0;
-    for (const extra of items) {
-      try {
-        const pdfDoc = generateExtraPdfDocument(extra, brandingCtx);
-        const bytes = Buffer.from(pdfDoc.output('arraybuffer'));
-        const individual = await PDFDocument.load(bytes);
-        const pages = await merged.copyPages(individual, individual.getPageIndices());
-        pages.forEach((page) => merged.addPage(page));
-        count++;
-      } catch (error) {
-        logger.warn(`[AulaPackage] No se pudo renderizar extra ${extra.id}:`, { error });
-      }
-    }
-    if (count === 0) return null;
-    return Buffer.from(await merged.save());
-  } catch (error) {
-    logger.warn('[AulaPackage] Error fusionando PDFs de extras:', { error });
-    return null;
-  }
+  return mergeCompiledExtrasPdf(items, brandingCtx, compiledLabel ? { compiledLabel } : undefined);
 }
 
 function evaluationExtras(extras: ExtraRow[], content: GeneratedPlanningContent | null): ExtraRow[] {
@@ -212,7 +191,7 @@ export async function buildAulaPackageZip(
     'lesson_plan'
   );
   if (lessonPlans.length > 0) {
-    const lessonPdf = await mergeExtraPdfs(lessonPlans, brandingCtx);
+    const lessonPdf = await mergeExtraPdfs(lessonPlans, brandingCtx, 'PLANES DE CLASE COMPILADOS');
     if (lessonPdf) zip.file(`03_Planes_de_Clase_Compilado_${cleanSubject}.pdf`, lessonPdf);
     try {
       zip.file(
@@ -234,7 +213,7 @@ export async function buildAulaPackageZip(
     'teacher_guide'
   );
   if (teacherGuides.length > 0) {
-    const guidePdf = await mergeExtraPdfs(teacherGuides, brandingCtx);
+    const guidePdf = await mergeExtraPdfs(teacherGuides, brandingCtx, 'SOLUCIONARIO DOCENTE COMPILADO');
     if (guidePdf) zip.file(`04_Solucionario_Docente_Compilado_${cleanSubject}.pdf`, guidePdf);
     try {
       zip.file(
@@ -254,7 +233,7 @@ export async function buildAulaPackageZip(
     'practice_guide'
   );
   if (practiceGuides.length > 0) {
-    const practicePdf = await mergeExtraPdfs(practiceGuides, brandingCtx);
+    const practicePdf = await mergeExtraPdfs(practiceGuides, brandingCtx, 'GUÍAS DE PRÁCTICA COMPILADAS');
     if (practicePdf) zip.file(`05_Fichas_de_Trabajo_${cleanSubject}.pdf`, practicePdf);
     try {
       zip.file(
@@ -291,7 +270,7 @@ export async function buildAulaPackageZip(
   // 7. Instrumentos de evaluación
   const evaluations = evaluationExtras(extras, content);
   if (evaluations.length > 0) {
-    const evalPdf = await mergeExtraPdfs(evaluations, brandingCtx);
+    const evalPdf = await mergeExtraPdfs(evaluations, brandingCtx, 'INSTRUMENTOS DE EVALUACIÓN COMPILADOS');
     if (evalPdf) zip.file(`07_Instrumentos_de_Evaluacion_${cleanSubject}.pdf`, evalPdf);
     try {
       zip.file(

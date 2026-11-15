@@ -59,6 +59,13 @@ const DANGLING_WORDS_SET = new Set([
   'multiplicando', 'dividiendo', 'despejando', 'sustituyendo', 'asciende', 'equivale',
   'supera', 'excede', 'cobra', 'cuesta', 'midiendo', 'construye', 'describe',
   'revisar', 'preparar', 'contrastar', 'delimitar', 'recuperar',
+  'recopilar', 'consolidar', 'integrar', 'validar', 'optimizar', 'modelar',
+  'graficar', 'tabular', 'presentar', 'defender', 'socializar', 'redactar',
+  'elaborar', 'organizar', 'explicar', 'comparar', 'interpretar', 'sustituir',
+  'eliminar', 'transponer', 'factorizar', 'clasificar', 'medir', 'evaluar',
+  'garantizar', 'asegurar', 'demostrar', 'verificar', 'determinar', 'obtener',
+  'mantener', 'facilitar', 'desarrollar', 'establecer', 'lograr', 'encontrar',
+  'visualizar', 'identificar', 'analizar', 'comprender',
   'indica', 'indican', 'señala', 'señalan', 'identifica', 'muestra', 'demuestra', 'analiza',
   // Sustantivos relacionales o verbos futuros transitivos colgados observados en truncamientos
   'base', 'tipos', 'dos', 'aplicaras', 'aplicarás', 'analitica', 'analítica',
@@ -467,6 +474,11 @@ export function compressPedagogicalText(raw: string, role: PedagogicalTextRole =
     .replace(/\bPara\s+garantizar\s+que\s+un\s+(?:modelo|esquema)\s+matem[aá]tico\s+represente[^,]{10,140},\s*es\s+indispensable\s+dominar\s+/gi, 'Conviene dominar ')
     .replace(/\b(\d+)\s+entradas\s+generales\s+m[aá]s\s+(\d+)\s+entradas\s+VIP\s+cuestan\s+\$(\d[\d.,]*)\s+pesos\b/gi, (_m, a: string, b: string, p: string) => `${a} generales + ${b} VIP = $${p}`)
     .replace(/\bEl\s+(?:costo|precio)\s+de\s+cada\s+([a-záéíóúñ]+)\s+es\s+de\s+\$?(\d[\d.,]*)(?:\s+pesos)?\b/gi, (_m, item: string, p: string) => `Cada ${item} cuesta $${p}`)
+    .replace(
+      /\b(\d+)\s+([a-záéíóúñ]+)\s+y\s+(\d+)\s+([a-záéíóúñ]+)\s+cuestan\s+\$?(\d[\d.,]*)(?:\s+pesos)?;\s*(\d+)\s+([a-záéíóúñ]+)\s+y\s+(\d+)\s+([a-záéíóúñ]+)\s+cuestan\s+\$?(\d[\d.,]*)(?:\s+pesos)?/gi,
+      (_m, a: string, b: string, c: string, d: string, p1: string, e: string, f: string, g: string, h: string, p2: string) =>
+        `$${p1}: ${a} ${b} + ${c} ${d}; $${p2}: ${e} ${f} + ${g} ${h}`
+    )
     .replace(/,\s*y\s+que\s+(?=\d)/gi, '; ')
     .replace(/\bRealiza\s+la\s+verificaci[oó]n\s+num[eé]rica\s+sustituyendo\s+/gi, 'Verifica con ')
     .replace(/\bpara\s+la\s+compra\s+de\s+material\s+recreativo\b/gi, 'en material')
@@ -522,7 +534,8 @@ export function compressPedagogicalText(raw: string, role: PedagogicalTextRole =
         return `${cleanA.charAt(0).toUpperCase()}${cleanA.slice(1)} (${x}) y ${cleanB} (${y}):`;
       }
     )
-    .replace(/(?<!\$)\b(\d[\d,.]*)\s+pesos\b/gi, (_m, n: string) => `$${n}`)
+    .replace(/\$(\d[\d,]*),\$/g, (_m, prefix: string) => `$${prefix},`)
+    .replace(/(?<![\d.,$])\b(\d[\d,.]*)\s+pesos\b/gi, (_m, n: string) => `$${n}`)
     .replace(/\$(\d[\d,.]*)\s+pesos\b/gi, (_m, n: string) => `$${n}`);
 
   if (role === 'hint') {
@@ -604,6 +617,46 @@ function breaksNumericOrTupleList(prefix: string, suffix: string): boolean {
 }
 
 /**
+ * Último guardián de presupuesto: recorta por frontera de palabra y repara la cola.
+ * Evita que una sola oración larga ignore maxChars/maxWords y desborde la tarjeta.
+ */
+function hardTrimToBudget(
+  text: string,
+  maxChars: number,
+  maxWords: number | undefined,
+  ensurePeriod: boolean
+): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  const effectiveMaxChars = Math.max(1, maxChars - (ensurePeriod ? 1 : 0));
+  let out = '';
+
+  for (const word of words) {
+    const next = out ? `${out} ${word}` : word;
+    if (next.length > effectiveMaxChars) break;
+    if (maxWords !== undefined && next.split(/\s+/).length > maxWords) break;
+    out = next;
+  }
+
+  if (!out) {
+    const firstWord = words[0] ?? '';
+    if (!firstWord || firstWord.length > effectiveMaxChars) return '';
+    out = firstWord;
+  }
+
+  let repaired = repairDanglingEnding(out, ensurePeriod);
+  if (repaired.length > maxChars) {
+    let fallback = '';
+    for (const word of repaired.split(/\s+/).filter(Boolean)) {
+      const next = fallback ? `${fallback} ${word}` : word;
+      if (next.length > maxChars) break;
+      fallback = next;
+    }
+    repaired = repairDanglingEnding(fallback, ensurePeriod);
+  }
+  return repaired;
+}
+
+/**
  * Ajusta semánticamente un texto pedagógico a su presupuesto sin usar cortes ciegos `.slice(0, maxChars)`.
  */
 export function fitPedagogicalText(
@@ -612,11 +665,23 @@ export function fitPedagogicalText(
 ): string {
   const role = options.role ?? 'general';
   const maxChars = options.maxChars ?? 220;
-  const maxWords = options.maxWords;
+  let maxWords = options.maxWords;
   const ensurePeriod = options.ensurePeriod ?? true;
 
   const normalized = normalizeEditorialText(raw).replace(/\s+/g, ' ').trim();
   if (!normalized) return '';
+
+  const hasMultipleNumericClauses =
+    (normalized.match(/\$/g) || []).length >= 2 ||
+    (normalized.match(/=/g) || []).length >= 2 ||
+    (normalized.match(/\b\d[\d.,]*\s*(?:pesos|m²|m|cm|%|años|horas|unidades)\b/gi) || []).length >= 2;
+  if (
+    hasMultipleNumericClauses &&
+    maxWords !== undefined &&
+    (role === 'problem' || role === 'activity' || role === 'step')
+  ) {
+    maxWords = Math.min(22, Math.max(maxWords, maxWords + 6));
+  }
 
   // Si ya cabe y no tiene final colgado, devolver limpio
   if (
@@ -659,9 +724,10 @@ export function fitPedagogicalText(
   }
 
   // Paso 2: Selección de oraciones por relevancia pedagógica (solo omitir apertura si las demás tienen datos y la 2.ª no depende por anáfora)
+  // En 'hint', la primera oración suele contener la acción prioritaria ("Calcula primero...", "Multiplica..."), nunca relleno.
   const anaphoraPattern = /\b(?:sus?|est[ea]s?|es[oa]s?|aquel(?:la)?s?|dich[oa]s?|mism[oa]s?|ah[ií]|all[ií])\b/i;
   const sentences = splitSpanishSentences(compressed);
-  if (sentences.length > 1 && role !== 'application' && compressed.length > maxChars) {
+  if (sentences.length > 1 && role !== 'application' && role !== 'hint' && compressed.length > maxChars) {
     const firstHasData = /\d|[=<>]/.test(sentences[0]);
     const restText = sentences.slice(1).join(' ').trim();
     const restHasData = /\d|[=<>]/.test(restText);
@@ -895,8 +961,20 @@ export function fitPedagogicalText(
     }
   }
 
-  // Paso 5: Garantizar que jamás quede un final colgado o incompleto
-  return repairDanglingEnding(compressed, ensurePeriod);
+  // Paso 5: Límite duro de presupuesto incluso si una sola oración no tiene cláusulas seguras
+  if (
+    compressed.length > maxChars ||
+    (maxWords !== undefined && compressed.split(/\s+/).length > maxWords)
+  ) {
+    compressed = hardTrimToBudget(compressed, maxChars, maxWords, ensurePeriod);
+  }
+
+  // Paso 6: Garantizar que jamás quede un final colgado o incompleto
+  const repaired = repairDanglingEnding(compressed, ensurePeriod);
+  if (/[?¿]/.test(normalized) && !/\?$/.test(repaired)) {
+    return `${repaired.replace(/[.!]+$/, '')}?`;
+  }
+  return repaired;
 }
 
 /**

@@ -500,33 +500,52 @@ export class ColumnFlowManager {
     let py = startPY;
 
     if (parseParagraphs) {
-      const rawText = stripMarkdown(text || '');
-      // Pre-proceso: forzar separación de párrafo (\n\n) antes de pasos numerados, listas y viñetas
-      const stepProtected = rawText
-        .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
-        .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
-        .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
+      const cleanedTags = (text || '').replace(/(?:<!--\s*(?:workbook)?\s*:[a-z_]+(?::[^>]*)?-->|:[a-z_]+:cols=\d+[^>\n]*-->)/gi, '');
+      // Restaurar filas de tablas Markdown serializadas en una sola línea ("| col | | :--- | | val |")
+      const tableProtected = cleanedTags
+        .replace(/\|\s+\|(?=(?:[^|\n]*\|){1,})/g, '|\n|')
+        .replace(/([^\n])\s*(\|[^\n|]+\|[^\n]*\n\|[\s\-:|]+\|)/g, '$1\n\n$2')
+        .replace(/(\|[^\n]+\|)\s+(?=[^|\s\n])/g, '$1\n\n');
 
-      // Normalizar saltos simples \n a espacio (el texto de IA rara vez usa \n\n)
-      // pero preservar los \n\n reales y forzados como separadores de párrafo.
-      const normalized = stepProtected
-        .replace(/\r?\n\r?\n+/g, '\u0000')  // Proteger dobles saltos
-        .replace(/\r?\n/g, ' ')           // Colapsar saltos simples a espacio
-        .replace(/\u0000/g, '\n\n')        // Restaurar dobles saltos
-        .replace(/  +/g, ' ');            // Normalizar espacios múltiples
+      const rawText = tableProtected
+        .split(/\r?\n\r?\n+/)
+        .map((blk) => (/^\|[^\n]+\|\r?\n\|[\s\-:|]+\|/m.test(blk.trim()) ? blk.trim() : stripMarkdown(blk)))
+        .join('\n\n');
 
-      let rawParagraphs = normalized.split(/\n\n/).map((p) => sanitizePdfText(p.trim())).filter(Boolean);
-
-      // Si solo hay 1 párrafo grande (muro de texto), auto-chunking por oraciones (máx 3 por párrafo)
-      if (rawParagraphs.length <= 1 && (rawParagraphs[0] || '').length > 280) {
-        const sentenceRegex = /[^.!?:]+(?:[.!?](?!\s*\d)|[:][^.!?:]{0,30}(?=[A-Z]|$))+/g;
-        const sentences = normalized.match(sentenceRegex) || [normalized];
-        const chunks: string[] = [];
-        for (let si = 0; si < sentences.length; si += 3) {
-          const chunk = sentences.slice(si, si + 3).join(' ').trim();
-          if (chunk) chunks.push(chunk);
+      // Pre-proceso: forzar separación de párrafo (\n\n) antes de pasos numerados, listas y viñetas sin romper tablas Markdown
+      const rawParagraphs: string[] = [];
+      for (const preBlock of rawText.split(/\r?\n\r?\n+/)) {
+        const trimmedBlk = preBlock.trim();
+        if (!trimmedBlk) continue;
+        if (/^\|[^\n]+\|\r?\n\|[\s\-:|]+\|/m.test(trimmedBlk)) {
+          rawParagraphs.push(trimmedBlk);
+          continue;
         }
-        rawParagraphs = chunks.length > 1 ? chunks : [normalized];
+        const stepProtected = trimmedBlk
+          .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
+          .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
+          .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
+
+        const normalized = stepProtected
+          .replace(/\r?\n\r?\n+/g, '\u0000')
+          .replace(/\r?\n/g, ' ')
+          .replace(/\u0000/g, '\n\n')
+          .replace(/  +/g, ' ');
+
+        for (const subP of normalized.split(/\n\n/)) {
+          const cleanP = sanitizePdfText(subP.trim());
+          if (!cleanP) continue;
+          if (rawParagraphs.length === 0 && normalized.length > 280 && subP === normalized) {
+            const sentenceRegex = /[^.!?:]+(?:[.!?](?!\s*\d)|[:][^.!?:]{0,30}(?=[A-Z]|$))+/g;
+            const sentences = normalized.match(sentenceRegex) || [normalized];
+            for (let si = 0; si < sentences.length; si += 3) {
+              const chunk = sanitizePdfText(sentences.slice(si, si + 3).join(' ').trim());
+              if (chunk) rawParagraphs.push(chunk);
+            }
+          } else {
+            rawParagraphs.push(cleanP);
+          }
+        }
       }
 
       for (let pIdx = 0; pIdx < rawParagraphs.length; pIdx++) {

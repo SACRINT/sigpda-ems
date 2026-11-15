@@ -175,7 +175,10 @@ export function formatWorkbookTagsForPreview(markdown: string): string {
  */
 export function stripWorkbookTags(text: string | null | undefined): string {
   if (!text) return '';
-  return text.replace(new RegExp(WORKBOOK_TAG_REGEX.source, 'gi'), '').trim();
+  return text
+    .replace(new RegExp(WORKBOOK_TAG_REGEX.source, 'gi'), '')
+    .replace(/(?:<!--\s*(?:workbook)?\s*:[a-z_]+(?::[^>]*)?-->|:[a-z_]+:cols=\d+[^>\n]*-->)/gi, '')
+    .trim();
 }
 
 /**

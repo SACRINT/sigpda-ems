@@ -142,7 +142,7 @@ export function drawMetacognitiveLight(
   drawWidth: number,
   y: number
 ): number {
-  const semBoxH = 34;
+  const semBoxH = 38;
   const colW3 = Math.floor((drawWidth - 6) / 3);
 
   // Contenedor principal suave
@@ -164,7 +164,7 @@ export function drawMetacognitiveLight(
   const colH = semBoxH - 9.5;
 
   setFontBody(doc, 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(5.5);
   const greenLines = doc.splitTextToSize(sanitizePdfText(stripMarkdown(trafficLight.green)), colW3 - 4);
   const yellowLines = doc.splitTextToSize(sanitizePdfText(stripMarkdown(trafficLight.yellow)), colW3 - 4);
   const redLines = doc.splitTextToSize(sanitizePdfText(stripMarkdown(trafficLight.red)), colW3 - 4);
@@ -211,12 +211,12 @@ export function drawMetacognitiveLight(
 
     // Descripción del criterio en Lato Regular
     setFontBody(doc, 'normal');
-    doc.setFontSize(5.8);
+    doc.setFontSize(5.5);
     doc.setTextColor(...COLOR.TEXT_PRIMARY);
-    let ly = colTop + 12;
-    col.lines.slice(0, 3).forEach((line: string) => {
+    let ly = colTop + 11.4;
+    col.lines.slice(0, 4).forEach((line: string) => {
       doc.text(line, col.x + colW3 / 2, ly, { align: 'center' });
-      ly += 3.0;
+      ly += 2.65;
     });
 
     // Casilla de verificación de autoevaluación

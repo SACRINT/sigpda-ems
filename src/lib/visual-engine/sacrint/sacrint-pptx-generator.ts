@@ -583,11 +583,14 @@ function addPointMarker(
 }
 
 function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: string, accent2: string) {
+  const endYRaw = diagram.slope * diagram.domainMax + diagram.intercept;
+  const rawMinY = Math.min(0, diagram.intercept, endYRaw);
+  const yMin = rawMinY < 0 ? Math.floor(rawMinY / 5) * 5 : 0;
   const { plotX, plotY, plotW, plotH, xToPx, yToPx } = drawCartesianFrame(
     slide,
     0,
     diagram.domainMax,
-    0,
+    yMin,
     diagram.rangeMax,
     diagram.xLabel,
     diagram.yLabel
@@ -598,26 +601,34 @@ function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: st
     return;
   }
 
-  if (typeof diagram.targetY === 'number' && diagram.targetY > 0 && diagram.targetY <= diagram.rangeMax) {
+  const renderedPoints = diagram.points.slice(0, 4).map((point) => ({
+    point,
+    px: Math.max(plotX, Math.min(plotX + plotW - 92, xToPx(point.x))),
+    py: Math.max(plotY + 8, Math.min(plotY + plotH - 8, yToPx(point.y))),
+  }));
+
+  if (typeof diagram.targetY === 'number' && diagram.targetY > yMin && diagram.targetY <= diagram.rangeMax) {
     const ty = yToPx(diagram.targetY);
     addLine(slide, plotX, ty, plotX + plotW, ty, C.amber, 1, 'dash');
-    addText(slide, `Meta: ${formatTickLabel(diagram.targetY)}`, plotX + 12, ty - 20, 140, 18, {
+    const rightBusy = renderedPoints.some((rp) => rp.px >= plotX + plotW - 220 && Math.abs(rp.py - ty) <= 44);
+    const metaX = rightBusy ? plotX + 10 : plotX + plotW - 156;
+    const preferBelow = ty - 22 < plotY + 6 || renderedPoints.some((rp) => Math.abs(rp.px - metaX) < 160 && rp.py >= ty - 34 && rp.py <= ty + 8);
+    const metaY = preferBelow ? Math.min(plotY + plotH - 22, ty + 6) : Math.max(plotY + 6, ty - 22);
+    addText(slide, `Meta: ${formatTickLabel(diagram.targetY)}`, metaX, metaY, 148, 18, {
       fontSize: pt(12),
       bold: true,
       color: C.amber,
+      align: rightBusy ? 'left' : 'right',
     });
   }
 
   const startX = xToPx(0);
-  const startY = yToPx(Math.max(0, Math.min(diagram.rangeMax, diagram.intercept)));
-  const endYRaw = diagram.slope * diagram.domainMax + diagram.intercept;
+  const startY = yToPx(Math.max(yMin, Math.min(diagram.rangeMax, diagram.intercept)));
   const endX = xToPx(diagram.domainMax);
-  const endY = yToPx(Math.max(0, Math.min(diagram.rangeMax, endYRaw)));
+  const endY = yToPx(Math.max(yMin, Math.min(diagram.rangeMax, endYRaw)));
   addLine(slide, startX, startY, endX, endY, accent, 2.2);
 
-  for (const point of diagram.points.slice(0, 4)) {
-    const px = Math.max(plotX, Math.min(plotX + plotW - 92, xToPx(point.x)));
-    const py = Math.max(plotY + 8, Math.min(plotY + plotH - 8, yToPx(point.y)));
+  for (const { point, px, py } of renderedPoints) {
     addPointMarker(
       slide,
       px,
@@ -701,7 +712,7 @@ function addSystem2x2Diagram(slide: PptxGenJS.Slide, diagram: System2x2DiagramSp
   clipSegment(diagram.a2, diagram.b2, diagram.c2, accent2);
 
   addText(slide, `L1: ${diagram.equation1}`, plotX + 12, plotY + 6, 360, 18, { fontSize: pt(13), bold: true, color: accent });
-  addText(slide, `L2: ${diagram.equation2}`, plotX + 380, plotY + 6, 360, 18, { fontSize: pt(13), bold: true, color: accent2 });
+  addText(slide, `L2: ${diagram.equation2}`, plotX + 380, plotY + 6, 360, 18, { fontSize: pt(13), bold: true, color: accent2, align: 'right' });
 
   if (diagram.intersection) {
     const px = Math.max(plotX + 8, Math.min(plotX + plotW - 120, xToPx(diagram.intersection.x)));
@@ -775,12 +786,28 @@ function addGeometryDiagram(slide: PptxGenJS.Slide, diagram: GeometryDiagramSpec
     addLine(slide, bx, by, cx, cy, accent2, 2.4);
     addText(slide, diagram.primaryLabel, figX + 130, figY + 262, 180, 20, { fontSize: pt(14), color: accent, bold: true });
     addText(slide, diagram.secondaryLabel, figX + 190, figY + 110, 180, 20, { fontSize: pt(14), color: accent2, bold: true });
+  } else if (diagram.variant === 'angles') {
+    addPanel(slide, figX + 12, figY + 14, 344, 256, { fill: C.panelAlt, stroke: accent, strokeWidth: 2 });
+    const vx = figX + 184;
+    const vy = figY + 168;
+    addLine(slide, figX + 42, vy, figX + 326, vy, accent, 2.4);
+    addLine(slide, vx, vy, vx + 86, vy - 106, accent2, 2.4);
+    addText(slide, 'α + β = 180°', figX + 42, figY + 24, 284, 24, { fontSize: pt(14), bold: true, color: accent2, align: 'center' });
+    addText(slide, diagram.primaryLabel, figX + 26, figY + 190, 316, 32, { fontSize: pt(14), bold: true, color: accent, align: 'center', maxLines: 2 });
+    addText(slide, diagram.secondaryLabel, figX + 26, figY + 224, 316, 34, { fontSize: pt(12), color: C.textSoft, align: 'center', maxLines: 2 });
   } else {
-    addPanel(slide, figX + 20, figY + 20, 320, 240, { fill: C.panelAlt, stroke: accent, strokeWidth: 2 });
-    addLine(slide, figX + 40, figY + 70, figX + 94, figY + 70, accent2, 1.8);
-    addLine(slide, figX + 40, figY + 70, figX + 78, figY + 34, accent2, 1.8, 'dash');
-    addText(slide, diagram.primaryLabel, figX + 36, figY + 102, 288, 44, { fontSize: pt(18), bold: true, color: accent, align: 'center', maxLines: 2 });
-    addText(slide, diagram.secondaryLabel, figX + 36, figY + 152, 288, 56, { fontSize: pt(15), color: accent2, align: 'center', maxLines: 2 });
+    addPanel(slide, figX + 12, figY + 14, 344, 256, { fill: C.panelAlt, stroke: accent, strokeWidth: 2 });
+    // Triángulo 1 (ABC)
+    addLine(slide, figX + 34, figY + 150, figX + 154, figY + 150, accent, 2.2);
+    addLine(slide, figX + 34, figY + 150, figX + 86, figY + 52, accent, 2.2);
+    addLine(slide, figX + 86, figY + 52, figX + 154, figY + 150, accent, 2.2);
+    // Triángulo 2 (A'B'C')
+    addLine(slide, figX + 206, figY + 150, figX + 326, figY + 150, accent2, 2.2);
+    addLine(slide, figX + 206, figY + 150, figX + 258, figY + 52, accent2, 2.2);
+    addLine(slide, figX + 258, figY + 52, figX + 326, figY + 150, accent2, 2.2);
+    addText(slide, '≅ / ~', figX + 154, figY + 90, 52, 24, { fontSize: pt(16), bold: true, color: C.emerald, align: 'center' });
+    addText(slide, diagram.primaryLabel, figX + 26, figY + 168, 316, 40, { fontSize: pt(15), bold: true, color: accent, align: 'center', maxLines: 2 });
+    addText(slide, diagram.secondaryLabel, figX + 26, figY + 212, 316, 44, { fontSize: pt(12.5), color: accent2, align: 'center', maxLines: 2 });
   }
 
   diagram.highlights.slice(0, 3).forEach((node, index) => {
@@ -1580,9 +1607,9 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     addPanel(slide, 80, leftTopY, 712, conceptBoxH, { fill: C.panel, transparency: 12 });
     addLabel(slide, 'Conocimiento nuevo', 102, leftTopY + 14, 520, 18, accent2, 9);
     addText(slide, spec.explanation, 102, leftTopY + 40, 668, conceptBoxH - 52, {
-      fontSize: pt(19),
+      fontSize: pt(18),
       color: C.text,
-      lineSpacingMultiple: 1.14,
+      lineSpacingMultiple: 1.12,
       maxLines: 4,
     });
 
@@ -1591,7 +1618,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     addPanel(slide, 80, exBoxY, 712, exBoxH, { fill: C.panel, transparency: 10 });
     addLabel(slide, 'Ejemplo resuelto', 102, exBoxY + 14, 560, 18, accent, 9);
     addText(slide, exStatement, 102, exBoxY + 40, 668, 60, {
-      fontSize: pt(19),
+      fontSize: pt(18),
       color: C.white,
       bold: true,
       lineSpacingMultiple: 1.08,
@@ -1600,11 +1627,11 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     exSteps.forEach((step, idx) => {
       const sy = exBoxY + 108 + idx * 62;
       addText(slide, `0${idx + 1}`, 102, sy, 32, 24, { fontSize: pt(16), bold: true, color: accent2, maxLines: 1 });
-      addText(slide, step, 138, sy - 2, 632, 54, { fontSize: pt(17), color: C.textSoft, maxLines: 3 });
+      addText(slide, step, 138, sy - 2, 632, 54, { fontSize: pt(16.5), color: C.textSoft, maxLines: 3 });
     });
     if (exResult) {
       addText(slide, `Conclusión: ${exResult}`, 102, exBoxY + exBoxH - 54, 668, 44, {
-        fontSize: pt(17),
+        fontSize: pt(16),
         color: C.emerald,
         bold: true,
         maxLines: 2,

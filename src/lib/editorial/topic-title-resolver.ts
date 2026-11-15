@@ -9,7 +9,10 @@
  * Prioridad 4: missionTitle limpio.
  */
 
-import { normalizeEditorialText } from './text-normalization';
+import {
+  normalizeEditorialText,
+  normalizeSessionDescriptorTense,
+} from './text-normalization';
 import {
   finalizeVisibleText,
   fitPedagogicalText,
@@ -28,7 +31,15 @@ export interface TopicTitleInput {
 }
 
 const INVALID_TITLE_START_RE =
-  /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b)/i;
+  /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|vamos\s+a\b|aprender[aá]s\b|evaluar[aá]s\b|integrar[aá]s\b|optimizar[aá]s\b|representar[aá]s\b|gr[aá]ficamente\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b)/i;
+
+const PAEC_ARTIFACT_TITLE_RE =
+  /^(?:proyecto\s+['"«]|dossier\s+t[eé]cnico|evidencia\s+(?:formativa|final)|desarrollo\s+del\s+producto|demostraci[oó]n\s+de\s+aprendizajes|reporte\s+t[eé]cnico|prototipo\s+t[eé]cnico|matriz\s+de\s+contextualizaci[oó]n|revisi[oó]n\s+cruzada|avance\s+estructurado|modelo\s+geom[eé]trico-algebraico\s+de\s+viabilidad|paec\b)/i;
+
+export function isPaecProjectOrArtifactTitle(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return PAEC_ARTIFACT_TITLE_RE.test(text.trim());
+}
 
 const STRUCTURAL_HEADING_ONLY_RE =
   /^(?:sesi[oó]n|misi[oó]n|bloque|corte|fase|momento|apertura|desarrollo|cierre|actividad|ejemplo(?:\s+resuelto)?|ejercicio|concepto(?:\s+clave)?|fundamentaci[oó]n\s+te[oó]rica|pr[aá]ctica(?:\s+guiada)?)\s*(?:n[uú]mero\s*)?\d*$/i;
@@ -93,12 +104,24 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     text = evidenciaMatch[1].trim();
   }
 
-  // Eliminar arranques verbales y muletillas pedagógicas en cascada
-  for (let pass = 0; pass < 4; pass++) {
+  // Eliminar arranques verbales y muletillas pedagógicas en cascada (sin exigir doble espacio tras sub-verbos)
+  for (let pass = 0; pass < 5; pass++) {
     const prev = text;
     text = text
       .replace(
-        /^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|vamos\s+a\s+|el\s+estudiante\s+|lograr[aá]s\s+)?(?:recuperar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|optimizar,\s*depurar\s+y\s+validar(?:\s+tu\s+evidencia\s+formativa\s+(?:sobre|de))?|optimizar\s+y\s+consolidar(?:\s+tu\s+evidencia\s+formativa\s+(?:mediante|integrando|sobre|de))?|evaluar(?:[aá]s)?\s+(?:formativamente\s+(?:los\s+|las\s+|el\s+|la\s+)?|tus\s+(?:conocimientos|aprendizajes)\s+(?:sobre|de)\s+|tu\s+aprendizaje\s+mediante\s+(?:la\s+aplicaci[oó]n\s+de\s+)?)|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?\s+mediante\s+(?:la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?\s+)?)?|aprender(?:[aá]s)?\s+a\s+|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?\s+|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?\s+|visualizar(?:[aá]s)?\s+|representar(?:[aá]s)?\s+|graficar(?:[aá]s)?\s+|tabular(?:[aá]s)?\s+|modelar(?:[aá]s)?\s+|calcular(?:[aá]s)?\s+|determinar(?:[aá]s)?\s+|clasificar(?:[aá]s)?\s+|medir(?:[aá]s)?\s+|verificar(?:[aá]s)?\s+|argumentar(?:[aá]s)?\s+|elaborar(?:[aá]s)?\s+|dise[ñn]ar(?:[aá]s)?\s+|interpretar(?:[aá]s)?\s+|sintetizar(?:[aá]s)?\s+|presentar(?:[aá]s)?\s+|socializar(?:[aá]s)?\s+|exponer(?:[aá]s)?\s+|trabajar(?:[aá]s)?\s+|comparar(?:[aá]s)?\s+|identificar(?:[aá]s)?\s+|comprender(?:[aá]s)?\s+|analizar(?:[aá]s)?\s+|aplicar(?:[aá]s)?\s+|resolver(?:[aá]s)?\s+|construir(?:[aá]s)?\s+y\s+analizar(?:[aá]s)?\s+|construir(?:[aá]s)?\s+|estructurar(?:[aá]s)?\s+|dominar(?:[aá]s)?\s+|contrastar(?:[aá]s)?\s+|delimitar(?:[aá]s)?\s+|explorar(?:[aá]s)?\s+|consolidar(?:[aá]s)?\s+|reflexionar(?:[aá]s)?\s+sobre(?:\s+tus\s+aprendizajes\s+de)?\s+|realizar(?:[aá]s)?\s+)/i,
+        /^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|vamos\s+a\s+|el\s+estudiante\s+(?:va\s+a\s+|lograr[aá]\s+)?|lograr[aá]s\s+)/i,
+        ''
+      )
+      .replace(
+        /^(?:recuperar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|integrar(?:[aá]s)?(?:,\s*depurar)?(?:\s+y\s+(?:validar|evaluar|consolidar))?(?:\s+(?:los\s+conocimientos|los\s+modelos|las\s+soluciones))?(?:\s+(?:sobre|de|en))?|optimizar(?:[aá]s)?(?:,\s*depurar)?(?:\s+y\s+(?:validar|consolidar|depurar))?(?:\s+(?:la\s+versi[oó]n\s+depurada\s+y\s+validada\s+de\s+)?(?:tu\s+evidencia\s+formativa|los\s+modelos(?:\s+matem[aá]ticos)?)\s*(?:mediante|integrando|sobre|de)?)?|depurar(?:[aá]s)?(?:\s+y\s+validar(?:[aá]s)?)?|validar(?:[aá]s)?|evaluar(?:[aá]s)?(?:\s+formativamente(?:\s+(?:los|las|el|la))?|\s+tus\s+(?:conocimientos|aprendizajes)(?:\s+y\s+consolidar(?:\s+tu\s+dominio)?)?(?:\s+(?:sobre|de|del|en|mediante))?|\s+tu\s+aprendizaje\s+mediante(?:\s+la\s+aplicaci[oó]n\s+de)?)?|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?(?:\s+mediante(?:\s+la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?)?)?)?|aprender(?:[aá]s)?\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|Tabular|tabular))?|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|visualizar(?:[aá]s)?(?:\s+gr[aá]ficamente)?|representar(?:[aá]s)?(?:\s+gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?)?|graficar(?:[aá]s)?(?:\s+y\s+tabular(?:[aá]s)?)?|tabular(?:[aá]s)?|modelar(?:[aá]s)?(?:\s+matem[aá]ticamente|\s+algebraicamente)?|calcular(?:[aá]s)?|determinar(?:[aá]s)?|clasificar(?:[aá]s)?(?:\s+y\s+medir(?:[aá]s)?)?|medir(?:[aá]s)?|verificar(?:[aá]s)?|argumentar(?:[aá]s)?|elaborar(?:[aá]s)?|dise[ñn]ar(?:[aá]s)?|interpretar(?:[aá]s)?|sintetizar(?:[aá]s)?|presentar(?:[aá]s)?|socializar(?:[aá]s)?(?:\s+tus\s+hallazgos(?:\s+de)?|\s+hallazgos)?|exponer(?:[aá]s)?|trabajar(?:[aá]s)?|comparar(?:[aá]s)?|identificar(?:[aá]s)?|comprender(?:[aá]s)?|analizar(?:[aá]s)?(?:\s+y\s+modelar(?:[aá]s)?(?:\s+matem[aá]ticamente)?)?|aplicar(?:[aá]s)?|resolver(?:[aá]s)?(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|construir(?:[aá]s)?(?:\s+y\s+analizar(?:[aá]s)?)?|estructurar(?:[aá]s)?|dominar(?:[aá]s)?|contrastar(?:[aá]s)?|delimitar(?:[aá]s)?|explorar(?:[aá]s)?|consolidar(?:[aá]s)?|reflexionar(?:[aá]s)?(?:\s+sobre(?:\s+tus\s+aprendizajes\s+de)?)?|realizar(?:[aá]s)?)\s+/i,
+        ''
+      )
+      .replace(
+        /^(?:(?:tu|su)\s+evidencia\s+formativa\s+(?:de|sobre)\s+|el\s+avance\s+estructurado\s+de(?:l)?\s+(?:tu\s+)?(?:producto\s+o\s+)?reporte\s+t[eé]cnico\s+(?:de\s+la\s+unidad\s+)?(?:aplicando|sobre|mediante)\s+|una\s+revisi[oó]n\s+cruzada(?:\s+y\s+(?:coevaluaci[oó]n|retroalimentaci[oó]n(?:\s+constructiva)?))?(?:\s+(?:de|entre\s+pares))?(?:\s+(?:sobre|aplicando|de))?\s+)/i,
+        ''
+      )
+      .replace(
+        /^(?:utilizando|mediante|usando)\s+(?:una?\s+)?(?:r[uú]brica(?:\s+anal[ií]tica)?|lista\s+de\s+cotejo|pauta(?:\s+de\s+logro)?|herramienta|instrumento)[^.,;:]*[,;:\s]+(?:evaluando\s+[^.,;:]*[,;:\s]+)?(?:y\s+(?:aplicando|realizando)\s+(?:correcciones(?:\s+rigurosas)?\s+)?(?:a|de|sobre)\s+(?:los\s+)?)?/i,
         ''
       )
       .replace(
@@ -106,13 +129,19 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
         ''
       )
       .replace(
-        /^(?:el\s+concepto\s+(?:fundamental\s+)?de\s+|los\s+conceptos\s+fundamentales\s+de\s+|(?:la\s+)?fundamentaci[oó]n\s+te[oó]rica(?:\s*(?:,|y|sobre|de)\s*(?:el\s+procedimiento(?:\s+(?:algebraico|gr[aá]fico|matem[aá]tico))?(?:\s+para)?\s*)?)?|(?:el|los)\s+procedimientos?\s+(?:algebraicos?\s+|gr[aá]ficos?\s+)?para\s+|el\s+m[eé]todo\s+de\s+|los\s+m[eé]todos\s+de\s+)/i,
+        /^(?:el\s+concepto\s+(?:fundamental\s+)?de\s+|los\s+conceptos\s+fundamentales\s+de\s+|(?:la\s+)?fundamentaci[oó]n\s+te[oó]rica(?:\s*(?:,|y|sobre|de)\s*(?:el\s+procedimiento(?:\s+(?:algebraico|gr[aá]fico|matem[aá]tico))?(?:\s+para)?\s*)?)?|fundamentos\s+te[oó]ricos\s+de(?:l|\s+la|\s+los|\s+las)?\s+|(?:el|los)\s+procedimientos?\s+(?:algebraicos?\s+|gr[aá]ficos?\s+)?para\s+|el\s+m[eé]todo\s+(?:anal[ií]tico\s+)?de\s+|los\s+m[eé]todos\s+de\s+)/i,
         ''
       )
       .replace(/^(?:y\s+|e\s+|o\s+|sobre\s+|de\s+|del\s+|en\s+|con\s+|para\s+|por\s+|mediante\s+)/i, '')
       .replace(/^(?:el\s+|la\s+|los\s+|las\s+|un\s+|una\s+|tu\s+|tus\s+|su\s+|sus\s+)/i, '')
       .trim();
     if (text === prev) break;
+  }
+
+  // Última salvaguarda ante verbos en segunda persona del futuro residuales
+  text = text.replace(/\s+y\s+(?:aprender[áa]s|resolver[áa]s|contrastar[áa]s|presentar[áa]s|validar[áa]s|tabular[áa]s|delimitar[áa]s)\b.*$/i, '').trim();
+  if (/^(?:Aprender[áa]s|Evaluar[áa]s|Vas\s+a)\b/i.test(text)) {
+    text = normalizeSessionDescriptorTense(text);
   }
 
   // Cortar colas circunstanciales o administrativas que no son parte del concepto disciplinar
@@ -129,9 +158,16 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     .replace(/[.;:,]+$/, '')
     .trim();
 
-  // Si aún empieza con palabra inválida ("Y ", "Sobre ", "Tu ", etc.), limpiar de nuevo
+  // Si aún empieza con palabra inválida ("Y ", "Sobre ", "Tu ", etc.) o cola adverbial/institucional, limpiar de nuevo
   text = text
-    .replace(/^(?:y\s+|sobre\s+|tu\s+|tus\s+|su\s+|sus\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)/i, '')
+    .replace(
+      /^(?:gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?\s+|anal[ií]ticamente\s+|algebraicamente\s+|conceptos\s+(?:diagn[oó]sticos|fundamentales|b[aá]sicos)\s+(?:de(?:l)?|sobre)\s+|los\s+principios\s+de\s+|situaciones\s+modeladas\s+por\s+|matriz\s+de\s+contextualizaci[oó]n(?:\s+y\s+(?:una\s+)?ruta\s+de\s+trabajo\s+aplicando|\s+para\s+identificar)?\s+|y\s+|sobre\s+|tu\s+|tus\s+|su\s+|sus\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)/i,
+      ''
+    )
+    .replace(
+      /^(?:conceptos\s+(?:diagn[oó]sticos|fundamentales|b[aá]sicos)\s+(?:de(?:l)?|sobre)\s+|principios\s+de\s+(?:la\s+|los\s+|el\s+|las\s+)?|situaciones\s+modeladas\s+por\s+|tus\s+aprendizajes\s+(?:de|sobre)\s+)/i,
+      ''
+    )
     .trim();
 
   // Si después de limpiar sigue excediendo el presupuesto de título (ej. > 68 chars),
@@ -154,6 +190,7 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
   if (STRUCTURAL_HEADING_ONLY_RE.test(text)) return '';
 
   if (text.length > 0) {
+    text = normalizeSessionDescriptorTense(text);
     text = text.charAt(0).toUpperCase() + text.slice(1);
   }
 
@@ -179,7 +216,8 @@ function extractSectionHeadingFromConceptos(conceptosClave: string | null | unde
     if (
       candidate.length >= 6 &&
       !STRUCTURAL_HEADING_ONLY_RE.test(candidate) &&
-      !isEvaluationOrClosureObjective(candidate)
+      !isEvaluationOrClosureObjective(candidate) &&
+      !isPaecProjectOrArtifactTitle(candidate)
     ) {
       return candidate;
     }
@@ -202,9 +240,17 @@ export function resolveChalkboardTopicTitle(input: TopicTitleInput): string {
     input.missionTitle ? extractDisciplinaryConceptPhrase(input.missionTitle) : '',
   ].filter(Boolean);
 
-  // Priorizar candidatos que NO sean meras etiquetas de evaluación/cierre si hay un tema disciplinar disponible
+  // Priorizar candidatos que NO sean etiquetas de cierre ni wrappers de producto PAEC si hay tema disciplinar disponible
+  const pureDisciplinaryCandidates = candidates.filter(
+    (c) => !isEvaluationOrClosureObjective(c) && !isPaecProjectOrArtifactTitle(c)
+  );
   const disciplinaryCandidates = candidates.filter((c) => !isEvaluationOrClosureObjective(c));
-  const pool = disciplinaryCandidates.length > 0 ? disciplinaryCandidates : candidates;
+  const pool =
+    pureDisciplinaryCandidates.length > 0
+      ? pureDisciplinaryCandidates
+      : disciplinaryCandidates.length > 0
+      ? disciplinaryCandidates
+      : candidates;
 
   for (const candidate of pool) {
     if (isValidResolvedTitle(candidate, maxChars)) {
@@ -248,30 +294,35 @@ export function resolveInfographicConceptTitle(input: TopicTitleInput): string {
       ]
     : [
         input.sectionTitle,
+        input.sessionObjective,
         extractSectionHeadingFromConceptos(input.conceptosClave),
         input.missionSessionTopic,
-        input.sessionObjective,
         input.missionFocus,
         input.missionTitle,
       ];
 
-  for (const raw of orderedRaw) {
-    if (!raw) continue;
-    const candidate = extractDisciplinaryConceptPhrase(raw);
-    if (
-      isValidResolvedTitle(candidate, maxChars) &&
-      !isEvaluationOrClosureObjective(candidate) &&
-      !/^evaluaci[oó]n\s+y\s+cierre$/i.test(candidate)
-    ) {
-      // Enriquecer títulos de 2–3 palabras muy cortos en cierre (ej. "Tipos de ángulos" -> "Tipos de ángulos y geometría plana" si el contexto lo respalda)
-      if (/^tipos\s+de\s+[aá]ngulos$/i.test(candidate)) {
-        return 'Tipos de ángulos y geometría plana';
-      }
-      if (/^forma\s+general$/i.test(candidate) && /cuadr[aá]tic/i.test(`${input.sessionObjective || ''} ${input.conceptosClave || ''}`)) {
-        return 'Forma general de la ecuación cuadrática';
-      }
-      return candidate;
+  const resolvedCandidates = orderedRaw
+    .map((raw) => (raw ? extractDisciplinaryConceptPhrase(raw) : ''))
+    .filter(
+      (candidate) =>
+        isValidResolvedTitle(candidate, maxChars) &&
+        !isEvaluationOrClosureObjective(candidate) &&
+        !/^evaluaci[oó]n\s+y\s+cierre$/i.test(candidate)
+    );
+
+  const nonPaec = resolvedCandidates.filter((c) => !isPaecProjectOrArtifactTitle(c));
+  const finalCandidates = nonPaec.length > 0 ? nonPaec : resolvedCandidates;
+
+  if (finalCandidates.length > 0) {
+    const candidate = finalCandidates[0]!;
+    // Enriquecer títulos de 2–3 palabras muy cortos en cierre (ej. "Tipos de ángulos" -> "Tipos de ángulos y geometría plana" si el contexto lo respalda)
+    if (/^tipos\s+de\s+[aá]ngulos$/i.test(candidate)) {
+      return 'Tipos de ángulos y geometría plana';
     }
+    if (/^forma\s+general$/i.test(candidate) && /cuadr[aá]tic/i.test(`${input.sessionObjective || ''} ${input.conceptosClave || ''}`)) {
+      return 'Forma general de la ecuación cuadrática';
+    }
+    return candidate;
   }
 
   return resolveChalkboardTopicTitle({ ...input, maxChars });

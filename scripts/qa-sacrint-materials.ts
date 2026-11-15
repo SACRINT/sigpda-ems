@@ -82,6 +82,8 @@ function collectPatternMatches(text: string, regex: RegExp, limit = 10): string[
   return results;
 }
 
+const FUTURE_TITLE_RE = /\b(?:Aprender[áa]s|Evaluar[áa]s|Integrar[áa]s|Optimizar[áa]s|Representar[áa]s|Dominar[áa]s|Identificar[áa]s|Resolver[áa]s|Aplicar[áa]s|Visualizar[áa]s|Calcular[áa]s|Construir[áa]s|Comprender[áa]s|Clasificar[áa]s|Medir[áa]s|Analizar[áa]s|Recuperar[áa]s|Presentar[áa]s|Delimitar[áa]s|Validar[áa]s|Consolidar[áa]s|Vas\s+a\s+[a-záéíóúñ]+r)\b/i;
+
 export function scanEditorialDefects(text: string): Record<string, string[]> {
   const findings: Record<string, string[]> = {};
   const rules: Array<[string, RegExp]> = [
@@ -94,6 +96,20 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['glued_paso_inline', /[^\n.?!][ \t]+\d+\)[ \t]+[^\n.?!]{3,60}[ \t]+Paso[ \t]+\d+[ \t]*:|[=x0-9)][ \t]+Paso[ \t]+\d+[ \t]*:/i],
     ['uninterpolated_template', /\$\{[A-Za-z0-9_.]+\}|\[\[(?:material|img|tag):[^\]]+\]\]/],
     ['meta_boilerplate', /\b(?:Cálculos y mediciones en aula|Paso\s+1:\s+Comprensi[oó]n\s+e\s+identificaci[oó]n\s+de\s+datos)\b|\ben aula(?=\s*[.]?\s*$)/i],
+    ['malformed_currency', /\$\d{1,3},\$\d/],
+    ['literal_x_v', /\bx_v\b/],
+    ['raw_not_equal', /!=/],
+    ['misconception_vas_a', /\bVas\s+a\s+(?!aprender\b)[a-záéíóúüñ]+:/i],
+    ['literal_ok_marker', /\[OK\]/],
+    ['raw_markdown_table', /\|[\s]*:?-{3,}:?[\s]*\|/],
+    ['generic_figure_caption', /Representaci[oó]n\s+gr[áa]fica\s+conceptual\s+y\s+espacio/i],
+    ['semaforo_truncated_word', /\b(?:Identi|Expl|Optimi|Compr|Clasif|Analiz)\s+con\b/i],
+    ['meta_conclusion_instruction', /(?:Conclusi[oó]n\s*:\s*|^[ \t]*)Redacta\s+la\s+conclusi[oó]n\s+t[ée]cnica\s*\./im],
+    ['exercise_dot_colon', /\bEjercicio\s+\d+\.\s*:/],
+    ['generic_ej6_report', /Reporte\s+t[ée]cnico\s+justificando\s+que\s+el\s+terreno\s+propuesto\s+es\s+geom[ée]tricamente\s+imposible/i],
+    ['orphan_paso_number', /(?:^|\n)[ \t]*\d+\.\s*\n+[ \t]*Paso\s+\d+\s*:/i],
+    ['truncated_quadratic_formula', /(?:MODELO Y F[ÓO]RMULA CENTRAL|F[ÓO]RMULA CENTRAL)\s*\n?\s*c\s*=\s*0\b/i],
+    ['truncated_angles_formula', /(?:^|[:•])\s*\(2x\s*\+\s*20\)\s*=\s*180/i],
   ];
 
   for (const [key, re] of rules) {
@@ -101,6 +117,83 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     if (hits.length > 0) findings[key] = hits;
   }
   return findings;
+}
+
+function appendPdfSemanticFindings(
+  fileName: string,
+  fullText: string,
+  pageTexts: string[],
+  findings: Record<string, string[]>
+): void {
+  const pushFinding = (key: string, msg: string) => {
+    findings[key] = (findings[key] || []).concat(msg).slice(0, 12);
+  };
+
+  if (/^0[3457]_/.test(fileName)) {
+    const p1Matches = [...fullText.matchAll(/P[áa]gina\s+1\s+de\s+(\d+)/gi)];
+    if (p1Matches.some((m) => m[1] === '1') || p1Matches.length > 1) {
+      pushFinding('fragmented_compiled_footer', `${fileName}: ${p1Matches.length} pies "Página 1 de N" detectados`);
+    }
+  }
+
+  if (fileName.startsWith('03_')) {
+    const repHits = collectPatternMatches(fullText, /Recuperar insumos previos y organizar mesa de trabajo colaborativa/gi, 100);
+    if (repHits.length > 1) {
+      pushFinding('repeated_lesson_opening', `${repHits.length} repeticiones de apertura genérica`);
+    }
+    pageTexts.forEach((pTxt, idx) => {
+      const sesM = /Sesi[oó]n\s*(\d+)\s*[:·\-–—]/i.exec(pTxt);
+      const sesNum = sesM ? Number(sesM[1]) : null;
+      if (sesNum !== null && sesNum !== 4 && /(?:"|·\s*)Sesi[oó]n\s*4\s*:/i.test(pTxt)) {
+        pushFinding('cross_session_4_leak', `Pág. ${idx + 1} (Sesión ${sesNum}) cita "Sesión 4:"`);
+      }
+      const planHdr = /Plan\s+de\s+Clase:\s*Sesi[oó]n\s*\d+\s*·[^|]{4,140}/i.exec(pTxt);
+      if (planHdr && FUTURE_TITLE_RE.test(planHdr[0])) {
+        pushFinding('future_tense_heading', `Pág. ${idx + 1}: "${planHdr[0].slice(0, 80)}"`);
+      }
+    });
+    const titleFieldHits = collectPatternMatches(
+      fullText,
+      new RegExp(`(?:T[ií]tulo\\s+de\\s+la\\s+Sesi[oó]n|Plan\\s+de\\s+Clase\\s*:\\s*Sesi[oó]n\\s*\\d+\\s*·)\\s*[^\\n]*${FUTURE_TITLE_RE.source}[^\\n]*`, 'gi')
+    );
+    for (const h of titleFieldHits) pushFinding('future_tense_heading', h);
+  }
+
+  if (fileName.startsWith('04_')) {
+    const lines = fullText.split('\n');
+    const orphanCount = lines.filter((l) => /^\s*[1-9]\d*\.\s*$/.test(l)).length;
+    if (orphanCount > 0) {
+      pushFinding('orphan_numbered_lines', `${orphanCount} líneas huérfanas con número solo (ej. "1.")`);
+    }
+    if (/x\s*=\s*12\.5\s*metros/i.test(fullText) && !/312\.5/.test(fullText)) {
+      pushFinding('missing_vertex_max_area', 'Ejercicio con vértice x = 12.5 m omite Área máxima = 312.5 m²');
+    }
+  }
+
+  if (fileName.startsWith('05_')) {
+    const headHits = collectPatternMatches(
+      fullText,
+      new RegExp(`FICHA DE TRABAJO\\s*·\\s*SESI[ÓO]N\\s*\\d+\\s*:[^\\n]*${FUTURE_TITLE_RE.source}`, 'gi')
+    );
+    for (const h of headHits) pushFinding('future_tense_heading', h);
+  }
+
+  if (fileName.startsWith('09_')) {
+    pageTexts.forEach((pTxt, idx) => {
+      if (/\bV\s*\(\s*2\.5\s*,\s*\)/.test(pTxt)) {
+        pushFinding('incomplete_vertex_pair', `Pág. ${idx + 1}: vértice incompleto V(2.5, )`);
+      }
+      if (/y\s*=\s*-x(?:²|\^2)/i.test(pTxt) && /\b1x(?:²|\^2)/i.test(pTxt)) {
+        pushFinding('negative_quadratic_sign_bug', `Pág. ${idx + 1}: -x² impreso como 1x²`);
+      }
+      if (/Concepto\s+Clave/i.test(pTxt)) {
+        const headerPart = pTxt.split('\n').slice(0, 8).join(' ');
+        if (FUTURE_TITLE_RE.test(headerPart)) {
+          pushFinding('future_tense_heading', `Pág. ${idx + 1}: título en futuro`);
+        }
+      }
+    });
+  }
 }
 
 export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
@@ -121,6 +214,7 @@ export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
 
   let fullPageRasterCount = 0;
   let totalImagePaintOps = 0;
+  const pageTexts: string[] = [];
   const globalObj = globalThis as { pdfjsWorker?: unknown };
   const pdfParseWorker = globalObj.pdfjsWorker;
   try {
@@ -143,10 +237,11 @@ export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
       }
       // If a page in 09_ has very little selectable text (< 120 chars) and >= 1 raster image, it's raster-bound
       const tc = await page.getTextContent();
-      const pageTextLen = tc.items
+      const pageStr = tc.items
         .map((it) => ('str' in it ? it.str : ''))
-        .join('')
-        .replace(/\s+/g, '').length;
+        .join(' ');
+      pageTexts.push(pageStr);
+      const pageTextLen = pageStr.replace(/\s+/g, '').length;
       if (fileName.startsWith('09_') && pageImgs >= 1 && pageTextLen < 120) {
         fullPageRasterCount++;
       }
@@ -167,6 +262,7 @@ export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
   if (fileName.startsWith('09_') && /RUTA\s+DE\s+APRENDIZAJE/i.test(text)) {
     findings['legacy_ruta_aprendizaje'] = ['RUTA DE APRENDIZAJE encontrada en 09_'];
   }
+  appendPdfSemanticFindings(fileName, text, pageTexts, findings);
 
   return {
     file: fileName,
@@ -348,6 +444,101 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
     if (/y\s*=\s*-x(?:²|\^2)/i.test(allSlideText) && /\b1x(?:²|\^2)/i.test(allSlideText)) {
       findings['negative_quadratic_sign_bug'] = findings['negative_quadratic_sign_bug'] || [];
       findings['negative_quadratic_sign_bug'].push(`Slide ${slideNumber}: -x² mostrado como 1x²`);
+    }
+
+    const pushSlideFinding = (key: string, detail: string) => {
+      findings[key] = (findings[key] || []).concat(`S${slideNumber}: ${detail}`).slice(0, 15);
+    };
+
+    // Semantic checks on PIZARRÓN DOCENTE (1/2) & (2/2)
+    if (allSlideText.includes('PIZARRÓN DOCENTE')) {
+      const titleBox = shapes.find((s) => s.hasText && s.y >= 0.45 && s.y <= 1.2 && s.x < 9.5 && s.fontSizePt >= 16);
+      if (titleBox && FUTURE_TITLE_RE.test(titleBox.text)) {
+        pushSlideFinding('future_tense_slide_title', titleBox.text.slice(0, 80));
+      }
+    }
+
+    if (allSlideText.includes('PIZARRÓN DOCENTE (1/2)')) {
+      const cnHeader = shapes.find(
+        (s) => s.hasText && /^CONOCIMIENTO NUEVO$/i.test(s.text) && s.x >= 0.3 && s.x <= 1.2 && s.y >= 1.0 && s.y <= 2.5
+      );
+      const cnBox = cnHeader
+        ? shapes.find(
+            (s) =>
+              s.hasText &&
+              s.x >= cnHeader.x - 0.1 &&
+              s.x <= cnHeader.x + 1.0 &&
+              s.y > cnHeader.y &&
+              s.y <= cnHeader.y + 0.5 &&
+              !/^CONOCIMIENTO NUEVO|EJEMPLO|ERROR COM[UÚ]N$/i.test(s.text)
+          )
+        : undefined;
+      if (!cnBox || cnBox.text.replace(/\s+/g, ' ').trim().length < 55) {
+        pushSlideFinding('weak_conocimiento_nuevo', cnBox ? cnBox.text : 'sin cuerpo de concepto');
+      }
+      const conclBox = shapes.find((s) => s.hasText && /Conclusi[oó]n\s*:/i.test(s.text));
+      if (conclBox) {
+        const after = conclBox.text.replace(/^[\s\S]*?Conclusi[oó]n\s*:\s*/i, '').trim();
+        if (
+          after.length < 15 ||
+          /Redacta la conclusi[oó]n|F[oó]rmula\/valor pendiente|Por determinar|(?:Analizar|Evaluar|Revisar|Comprobar)\s+la\s+coherencia\s+del\s+resultado/i.test(after)
+        ) {
+          pushSlideFinding('empty_or_meta_conclusion', conclBox.text.slice(0, 80));
+        }
+      }
+      if (/3\s*a[ñn]os/i.test(allSlideText) && /\bsemestral\b/i.test(allSlideText) && /\b6\s*per[íi]odos\b/i.test(allSlideText)) {
+        pushSlideFinding('exp_period_rate_mismatch', '3 años semestral inconsistente con 6 períodos');
+      }
+    }
+
+    if (allSlideText.includes('PIZARRÓN DOCENTE (2/2)')) {
+      const actHeaders = shapes
+        .filter((s) => s.hasText && s.x < 5.5 && s.y >= 1.8 && s.y <= 5.0 && /^ACTIVIDAD\s*[12]$/i.test(s.text))
+        .sort((a, b) => a.y - b.y);
+      for (let aIdx = 0; aIdx < actHeaders.length; aIdx++) {
+        const hdr = actHeaders[aIdx]!;
+        const bodyBox = shapes.find(
+          (s) =>
+            s.hasText &&
+            s.x < 5.5 &&
+            s.y > hdr.y &&
+            s.y <= hdr.y + 0.35 &&
+            !/^ACTIVIDAD\s*[12]$|^Pista:/i.test(s.text)
+        );
+        const txt = bodyBox?.text.trim() ?? '';
+        const hasTaskOrQuestion =
+          txt.includes('?') ||
+          /\b(?:resuelve|calcula|determina|encuentra|halla|plantea|construye|verifica|comprueba|analiza|transforma|convierte|grafica|traza|dibuja|explica|revisa|identifica|modela|estima|proyecta|dise[ñn]a|elabora|aplica|eval[uú]a|indica|compara|justifica)\b/i.test(
+            txt
+          );
+        const isTruncated =
+          txt.length < 55 ||
+          !hasTaskOrQuestion ||
+          (txt.length < 72 && !txt.includes('=') && !txt.includes('?')) ||
+          txt.endsWith('...') ||
+          /(?:,|\b(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si))\s*$/i.test(txt);
+        if (isTruncated) {
+          pushSlideFinding('weak_or_truncated_activity', `Act ${aIdx + 1} (${txt.length}c): "${txt.slice(0, 90)}"`);
+        }
+      }
+      const appHeader = shapes.find((s) => s.hasText && s.x >= 5.0 && /^APLICACI[ÓO]N REAL$/i.test(s.text));
+      const appBody = appHeader
+        ? shapes.find((s) => s.hasText && s.x >= appHeader.x - 0.1 && s.y > appHeader.y && s.y <= appHeader.y + 0.35)
+        : undefined;
+      if (appBody && appBody.text.trim().length < 36) {
+        pushSlideFinding('weak_or_truncated_activity', `Aplicación corta (${appBody.text.trim().length}c): "${appBody.text.trim()}"`);
+      }
+      const hintBoxes = shapes
+        .filter((s) => s.hasText && s.x < 5.5 && s.y >= 2.3 && s.y <= 5.2 && /^Pista:/i.test(s.text))
+        .map((s) => s.text.replace(/^Pista:\s*/i, '').trim().toLowerCase());
+      if (hintBoxes.length >= 2 && hintBoxes[0] === hintBoxes[1]) {
+        pushSlideFinding('duplicate_activity_hint', hintBoxes[0]!.slice(0, 80));
+      }
+      for (const h of hintBoxes) {
+        if (/^luego,\s*plantea\s+una\s+ecuaci[oó]n\.?$/i.test(h) || h.length < 18) {
+          pushSlideFinding('weak_or_truncated_activity', `Pista débil: "${h}"`);
+        }
+      }
     }
 
     const slideDefects = scanEditorialDefects(allSlideText);

@@ -194,35 +194,40 @@ function appendSequenceSessionsRows(
   sessions: SecuenciaSesion[],
   totalBlockSessions: number,
   phaseColors: { apertura: [number, number, number]; desarrollo: [number, number, number]; cierre: [number, number, number] },
-  headerFill: [number, number, number]
+  headerFill: [number, number, number],
+  blockNum?: number,
+  activityLabel?: string
 ): void {
+  const bannerPrefix = activityLabel ? `${activityLabel} · ` : '';
   rows.push([
     {
-      content: `Sesiones Programadas (${sessions.length} sesiones de 50 minutos) — Enfoque por Momentos Formativos`,
+      content: `${bannerPrefix}Sesiones Programadas (${sessions.length} sesiones de 50 minutos) — Enfoque por Momentos Formativos`,
       colSpan: 4,
       styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
     },
   ]);
   rows.push([
-    { content: 'Sesión / Fase', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 24, halign: 'center' } },
-    { content: 'Título / Tema Situado', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 42 } },
+    { content: 'Sesión / Fase', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 26, halign: 'center' } },
+    { content: 'Título / Tema Situado', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 40 } },
     { content: 'Actividades del Docente (Enseñanza)', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellWidth: 60 } },
     { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fillColor: headerFill, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 } },
   ]);
 
+  const blockPrefix = blockNum ? `B${blockNum} · ` : '';
   sessions.forEach((s) => {
     const isAp = s.phase === 'Apertura';
     const isDes = s.phase === 'Desarrollo';
     const phaseColor = isAp ? phaseColors.apertura : isDes ? phaseColors.desarrollo : phaseColors.cierre;
     const cleanEvidence = s.evidence ? normalizePdfEditorialText(stripMaterialTokens(s.evidence)) : '';
+    const total = s.totalSessions ?? (totalBlockSessions || sessions.length);
     rows.push([
       {
-        content: `S${s.sessionNum}/${s.totalSessions ?? (totalBlockSessions || sessions.length)}\n[${s.phase}]`,
+        content: `${blockPrefix}S${s.sessionNum}/${total}\n[${s.phase}]`,
         styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'center', textColor: phaseColor },
       },
       { content: normalizePdfEditorialText(stripMaterialTokens(s.title)), styles: { fontStyle: 'bold', fontSize: 6.5 } },
       { content: normalizePdfEditorialText(stripMaterialTokens(s.teachingActivity)), styles: { fontSize: 6.2 } },
-      { content: `${normalizePdfEditorialText(stripMaterialTokens(s.learningActivity))}${cleanEvidence ? `\n\n📌 Evidencia: ${cleanEvidence}` : ''}`, styles: { fontSize: 6.2 } },
+      { content: `${normalizePdfEditorialText(stripMaterialTokens(s.learningActivity))}${cleanEvidence ? `\n\nEvidencia: ${cleanEvidence}` : ''}`, styles: { fontSize: 6.2 } },
     ]);
   });
 }
@@ -542,7 +547,17 @@ export async function generatePlanningPDF(
       ? 'Saberes curriculares vinculados a la progresión'
       : 'Saberes curriculares vinculados al contenido formativo';
 
+  let prevMacroBlockIndex: number | null = null;
   activities.forEach((act, idx) => {
+    const partition = getSessionsForActivity(idx, activities, sequenceData);
+    const { sessions: actSessions, totalBlockSessions, blockIndex } = partition;
+    const blockChanged = prevMacroBlockIndex !== null && blockIndex !== prevMacroBlockIndex;
+    if (idx > 0 && ((blockChanged && currentY > margin + 20) || currentY > pageHeight - 72)) {
+      doc.addPage();
+      currentY = margin;
+    }
+    prevMacroBlockIndex = blockIndex;
+    const actHeading = buildPlanningActivityHeading(act, idx, activities, { isProgresiones });
     const macroRows: RowInput[] = [];
 
     macroRows.push([
@@ -633,8 +648,12 @@ export async function generatePlanningPDF(
     currentY = doc.lastAutoTable!.finalY;
 
     // Micro-Sesiones de 50 min (Tabla independiente de 4 columnas con sus propios títulos)
-    const { sessions: actSessions, totalBlockSessions } = getSessionsForActivity(idx, activities, sequenceData);
     if (actSessions.length > 0) {
+      if (currentY > pageHeight - 52) {
+        doc.addPage();
+        currentY = margin;
+      }
+      const blockNum = blockIndex + 1;
       const sessionRows: RowInput[] = actSessions.map((s) => {
         const isAp = s.phase === 'Apertura';
         const isDes = s.phase === 'Desarrollo';
@@ -643,8 +662,8 @@ export async function generatePlanningPDF(
         const total = s.totalSessions ?? (totalBlockSessions || actSessions.length);
         const cleanEvidence = s.evidence ? normalizePdfEditorialText(stripMaterialTokens(s.evidence)) : '';
         return [
-          { content: `S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 22, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
-          { content: normalizePdfEditorialText(stripMaterialTokens(s.title)), styles: { fontStyle: 'bold', fontSize: 6, cellWidth: 42 } },
+          { content: `B${blockNum} · S${s.sessionNum}/${total}\n[${phaseName}]`, styles: { fontStyle: 'bold', cellWidth: 25, fontSize: 5.8, textColor: phaseColor, halign: 'center' } },
+          { content: normalizePdfEditorialText(stripMaterialTokens(s.title)), styles: { fontStyle: 'bold', fontSize: 6, cellWidth: 40 } },
           { content: normalizePdfEditorialText(stripMaterialTokens(s.teachingActivity)), styles: { fontSize: 5.8 } },
           { content: `${normalizePdfEditorialText(stripMaterialTokens(s.learningActivity))}${cleanEvidence ? `\nEvidencia: ${cleanEvidence}` : ''}`, styles: { fontSize: 5.8 } },
         ];
@@ -655,14 +674,14 @@ export async function generatePlanningPDF(
         head: [
           [
             {
-              content: `Sesiones de 50 minutos — ${actSessions.length} sesiones totales`,
+              content: `${actHeading} — Sesiones de 50 minutos — ${actSessions.length} sesiones totales (${actSessions.length} de ${totalBlockSessions || actSessions.length} del Bloque ${blockNum})`,
               colSpan: 4,
               styles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 6.5 },
             },
           ],
           [
-            { content: 'Sesión / Fase', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 22, halign: 'center' } },
-            { content: 'Título / Tema Situado', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 42 } },
+            { content: 'Sesión / Fase', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 25, halign: 'center' } },
+            { content: 'Título / Tema Situado', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6, cellWidth: 40 } },
             { content: 'Actividades del Docente (Enseñanza)', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
             { content: 'Actividades del Estudiante y Evidencia Formativa', styles: { fontStyle: 'bold', fillColor: [226, 232, 240], textColor: NAVY, fontSize: 6 } },
           ],
@@ -1158,8 +1177,16 @@ export async function generateSecuenciaPDF(
       ? 'Saberes curriculares vinculados a la progresión'
       : 'Saberes curriculares vinculados al contenido formativo';
 
+  let prevSeqBlockIndex: number | null = null;
   activities.forEach((act, idx) => {
-    const { sessions, totalBlockSessions } = getSessionsForActivity(idx, activities, sequenceData);
+    const { sessions, totalBlockSessions, blockIndex } = getSessionsForActivity(idx, activities, sequenceData);
+    const blockChanged = prevSeqBlockIndex !== null && blockIndex !== prevSeqBlockIndex;
+    if (idx > 0 && ((blockChanged && currentY > margin + 20) || currentY > pageHeight - 72)) {
+      doc.addPage();
+      currentY = margin;
+    }
+    prevSeqBlockIndex = blockIndex;
+    const actHeadingLabel = buildPlanningActivityHeading(act, idx, activities, { isProgresiones });
 
     const rows: RowInput[] = [];
 
@@ -1207,7 +1234,9 @@ export async function generateSecuenciaPDF(
         sessions,
         totalBlockSessions,
         { apertura: PHASE_APERTURA, desarrollo: PHASE_DESARROLLO, cierre: PHASE_CIERRE },
-        BLUE_MID
+        BLUE_MID,
+        blockIndex + 1,
+        actHeadingLabel
       );
     } else {
       // Fallback a momentos macro si no se generó secuencia micro
@@ -1259,7 +1288,9 @@ export async function generateSecuenciaPDF(
         blk.sessions,
         blk.sessions.length,
         { apertura: PHASE_APERTURA, desarrollo: PHASE_DESARROLLO, cierre: PHASE_CIERRE },
-        BLUE_MID
+        BLUE_MID,
+        corteNum,
+        cleanBlockName
       );
       autoTable(doc, {
         startY: currentY,

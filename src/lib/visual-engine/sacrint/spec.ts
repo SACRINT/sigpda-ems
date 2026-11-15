@@ -30,12 +30,23 @@ import {
 } from './diagrams';
 import { classifyTopic } from '@/lib/visual-engine/topic-classifier';
 import {
+  extractDisciplinaryConceptPhrase,
   isEvaluationOrClosureObjective,
+  isPaecProjectOrArtifactTitle,
   resolveInfographicConceptTitle,
   sanitizeWorkbookTocTitle,
 } from '@/lib/editorial/topic-title-resolver';
-import { finalizeVisibleText, fitPedagogicalText, repairDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
-import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
+import {
+  finalizeVisibleText,
+  fitPedagogicalText,
+  hasDanglingEnding,
+  repairDanglingEnding,
+} from '@/lib/editorial/pedagogical-text-fitter';
+import {
+  isValidRenderableFormula,
+  normalizeEditorialText,
+  normalizeSessionDescriptorTense,
+} from '@/lib/editorial/text-normalization';
 
 export const LESSON_GUIDE_NO_SESSIONS_CODE = 'LESSON_GUIDE_NO_SESSIONS';
 
@@ -448,13 +459,23 @@ function stripLeadingSessionTag(value: string): string {
   return out;
 }
 
+const INVALID_CONCEPT_ANCHOR_RE =
+  /^(?:vas\s+a|vamos\s+a|aprender|evaluar|integrar|optimizar|depurar|validar|construir|realizar|socializar|defender|explorar|aplicar|resolver)\b/i;
+
 function extractShortConceptAnchor(topicTitle?: string, fallback?: string): string {
-  const cleaned = stripLeadingSessionTag(topicTitle || fallback || '')
-    .replace(/^(?:taller\s+de\s+|introducci[oó]n\s+a(?:l|\s+la)?\s+|fundamentos\s+de\s+)/i, '')
-    .trim();
+  const candidates = [topicTitle, fallback]
+    .map((raw) => extractDisciplinaryConceptPhrase(stripLeadingSessionTag(raw || '')))
+    .map((cleaned) =>
+      cleaned
+        .replace(/^(?:taller\s+de\s+|introducci[oó]n\s+a(?:l|\s+la)?\s+|fundamentos\s+de\s+)/i, '')
+        .trim()
+    )
+    .filter((cleaned) => cleaned.length >= 6 && !INVALID_CONCEPT_ANCHOR_RE.test(cleaned) && !isPaecProjectOrArtifactTitle(cleaned));
+
+  const cleaned = candidates[0] || '';
   if (!cleaned) return '';
   const headClause = cleaned.includes(':') ? cleaned.split(':')[0]!.trim() : cleaned;
-  const source = headClause.length >= 12 ? headClause : cleaned;
+  const source = headClause.length >= 10 ? headClause : cleaned;
   const rawWords = source
     .replace(/[¿?¡!.:;,]+$/g, '')
     .split(/\s+/)
@@ -472,7 +493,8 @@ function extractShortConceptAnchor(topicTitle?: string, fallback?: string): stri
   if (candidate.length > 32) {
     candidate = candidate.slice(0, 32).replace(/\s+\S*$/, '').trim();
   }
-  return repairDanglingEnding(candidate, false).replace(/[¿?¡!.:;,]+$/g, '').trim();
+  const repaired = repairDanglingEnding(candidate, false).replace(/[¿?¡!.:;,]+$/g, '').trim();
+  return INVALID_CONCEPT_ANCHOR_RE.test(repaired) ? '' : repaired;
 }
 
 function resolveMissionMisconceptionParts(
@@ -517,8 +539,19 @@ function resolveMissionMisconceptionParts(
     .trim();
   const anchor = rawAnchor;
 
+  const primaryContextText = [
+    bundle?.topicTitle,
+    options.session?.objetivo,
+    options.session?.contenido,
+    allowMission ? mission.sessionTopic : undefined,
+    allowMission ? mission.title : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
   const withAnchor = (chosen: { error: string; correction: string }): { error: string; correction: string } => {
-    if (allowMission || !anchor) return chosen;
+    if (allowMission || !anchor || INVALID_CONCEPT_ANCHOR_RE.test(anchor)) return chosen;
     const base = chosen.error.replace(/\.+$/, '').trim();
     if (base.toLowerCase().includes(anchor.toLowerCase())) {
       return { error: `${base}.`, correction: chosen.correction };
@@ -534,7 +567,11 @@ function resolveMissionMisconceptionParts(
     subRules: Array<{ pattern: RegExp; error: string; correction: string }>,
     variants: Array<{ error: string; correction: string }>
   ): { error: string; correction: string } => {
-    const matched = subRules.filter((rule) => rule.pattern.test(contextText));
+    const primaryMatched = subRules.filter((rule) => rule.pattern.test(primaryContextText));
+    const matched =
+      primaryMatched.length > 0
+        ? primaryMatched
+        : subRules.filter((rule) => rule.pattern.test(contextText));
     const chosen =
       matched.length > 0
         ? matched[sessionIdx % matched.length]!
@@ -580,9 +617,19 @@ function resolveMissionMisconceptionParts(
     return pickByKeywordAndSession(
       [
         {
-          pattern: /muestra|margen de error|encuesta/i,
+          pattern: /margen de error|intervalo de confianza/i,
           error: 'Usar margen porcentual sin pasarlo a decimal.',
           correction: 'Expresar el margen como decimal (ej. 5% = 0.05) y verificar el tamaño muestral.',
+        },
+        {
+          pattern: /muestra|encuesta|poblaci[oó]n/i,
+          error: 'Generalizar desde una muestra sesgada o insuficiente.',
+          correction: 'Definir tamaño muestral representativo y criterios homogéneos de recolección.',
+        },
+        {
+          pattern: /frecuencia|tabula|tabla/i,
+          error: 'Contar frecuencias aisladas sin verificar el total n.',
+          correction: 'Sumar las frecuencias absolutas y comprobar que coincidan con el tamaño n.',
         },
         {
           pattern: /promedio|media|mediana|moda|desviaci[oó]n/i,
@@ -620,8 +667,8 @@ function resolveMissionMisconceptionParts(
         },
         {
           pattern: /v[eé]rtice|m[aá]ximo|m[ií]nimo|altura|par[aá]bola/i,
-          error: 'Omitir el signo negativo en x_v = -b/(2a).',
-          correction: 'Calcular primero x_v = -b/(2a) y evaluar f(x_v) para obtener el extremo exacto.',
+          error: 'Omitir el signo negativo en xᵥ = -b/(2a).',
+          correction: 'Calcular primero xᵥ = -b/(2a) y evaluar f(xᵥ) para obtener el extremo exacto.',
         },
         {
           pattern: /factoriz|producto|ra[ií]ces|terreno|[aá]rea/i,
@@ -663,9 +710,19 @@ function resolveMissionMisconceptionParts(
           correction: 'Multiplicar toda la fila (izquierda y derecha) para conservar la equivalencia.',
         },
         {
-          pattern: /gr[aá]fic|intersecci[oó]n/i,
+          pattern: /gr[aá]fic|intersecci[oó]n|plano/i,
           error: 'Graficar ejes con distinta escala y leer mal el cruce.',
           correction: 'Usar escala uniforme y verificar el punto (x, y) por sustitución algebraica.',
+        },
+        {
+          pattern: /gr[aá]fic|intersecci[oó]n|rectas/i,
+          error: 'Leer el cruce invertido como (y, x) en vez de (x, y).',
+          correction: 'Ubicar primero la abscisa x horizontal y después la ordenada y vertical.',
+        },
+        {
+          pattern: /determinante|cramer/i,
+          error: 'Invertir signos al restar la diagonal secundaria en Δ.',
+          correction: 'Aplicar Δ = a₁b₂ - a₂b₁ respetando paréntesis y signos de cada coeficiente.',
         },
       ],
       [
@@ -692,7 +749,12 @@ function resolveMissionMisconceptionParts(
     return pickByKeywordAndSession(
       [
         {
-          pattern: /congruen|semejan|criterio|lal|ala|lll/i,
+          pattern: /suplementar|complementar|opuestos\s+(?:por\s+el\s+|al\s+)v[eé]rtice|par\s+lineal|tipos\s+de\s+[aá]ngulos/i,
+          error: 'Sumar ángulos suplementarios como si sumaran 90° o igualarlos sin verificar el tipo.',
+          correction: 'Comprobar primero si el par es complementario (90°), suplementario (180°) u opuesto por el vértice (iguales).',
+        },
+        {
+          pattern: /congruen|semejan|napole[oó]n|\blal\b|\bala\b|\blll\b/i,
           error: 'Asumir congruencia sin comprobar criterio ni orden angular.',
           correction: 'Justificar el criterio (LLL, LAL o ALA) con correspondencia explícita de vértices.',
         },
@@ -780,9 +842,29 @@ function resolveMissionMisconceptionParts(
           correction: 'Multiplicar toda la ecuación por el mínimo común múltiplo para conservar el equilibrio.',
         },
         {
-          pattern: /balanza|despej|inc[oó]gnita/i,
+          pattern: /dos\s+(?:variables|inc[oó]gnitas)|tabular|intercepto/i,
+          error: 'Intercambiar las coordenadas (0, b) y (a, 0) al tabular.',
+          correction: 'Evaluar x = 0 para hallar el corte vertical y = b y y = 0 para el horizontal.',
+        },
+        {
+          pattern: /dos\s+(?:variables|inc[oó]gnitas)|recta|gr[aá]fic/i,
+          error: 'Cometer error de signo al despejar y en ax + by = c.',
+          correction: 'Trasponer ax con signo contrario y dividir cada término entre b.',
+        },
+        {
+          pattern: /balanza|equilibrio/i,
           error: 'Mover términos sin aplicar operación inversa bilateral.',
           correction: 'Aplicar la misma operación inversa en ambos miembros y comprobar sustituyendo.',
+        },
+        {
+          pattern: /despej|primer\s+grado|lineal/i,
+          error: 'Sumar constantes sueltas con coeficientes algebraicos.',
+          correction: 'Agrupar únicamente términos semejantes antes de despejar la incógnita.',
+        },
+        {
+          pattern: /inc[oó]gnita|ecuaci[oó]n|model/i,
+          error: 'Elegir una incógnita distinta a la magnitud preguntada.',
+          correction: 'Definir qué representa x y sus unidades antes de plantear la igualdad.',
         },
       ],
       [
@@ -975,7 +1057,6 @@ function buildLessonGuideSlidesForSession(
       diagram.kind === 'quadratic' ||
       diagram.kind === 'system-2x2' ||
       diagram.kind === 'exponential' ||
-      diagram.kind === 'geometry' ||
       diagram.kind === 'reaction');
   const variables = isQuantOrReactionDiagram ? buildDiagramVariables(diagram) : [];
   const formula = diagramFormula(diagram);
@@ -984,9 +1065,12 @@ function buildLessonGuideSlidesForSession(
     session,
     allowMissionFallback: false,
   });
-  const rawMisconception = fitPedagogicalText(sanitizePedagogicalMetaPhrases(misconceptionParts.error), {
-    maxChars: 112,
-    maxWords: 16,
+  const normalizedMisconception = normalizeEditorialText(
+    normalizeSessionDescriptorTense(misconceptionParts.error)
+  );
+  const rawMisconception = fitPedagogicalText(sanitizePedagogicalMetaPhrases(normalizedMisconception), {
+    maxChars: 88,
+    maxWords: 13,
     role: 'hint',
   });
   const misconception = preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
@@ -1007,44 +1091,101 @@ function buildLessonGuideSlidesForSession(
     artifactName = `${artifactName} · Sesión ${sesLabel}`;
   }
 
-  const fittedTopicTitle = finalizeVisibleText(
-    stripLeadingSessionTag(
-      bundle.topicTitle.length > 120
-        ? fitPedagogicalText(bundle.topicTitle, {
-            maxChars: 118,
-            maxWords: 15,
-            role: 'concept',
-            ensurePeriod: false,
-          }) || stripLeadingSessionTag(meta.missionTitle)
-        : bundle.topicTitle
-    ),
-    { fallback: stripLeadingSessionTag(meta.missionTitle), ensurePeriod: false }
+  const fittedTopicTitle = normalizeSessionDescriptorTense(
+    finalizeVisibleText(
+      stripLeadingSessionTag(
+        bundle.topicTitle.length > 120
+          ? fitPedagogicalText(bundle.topicTitle, {
+              maxChars: 118,
+              maxWords: 15,
+              role: 'concept',
+              ensurePeriod: false,
+            }) || stripLeadingSessionTag(meta.missionTitle)
+          : bundle.topicTitle
+      ),
+      { fallback: stripLeadingSessionTag(meta.missionTitle), ensurePeriod: false }
+    )
   );
-  const cleanObjective = stripLeadingSessionTag(bundle.objective);
-  const cleanExplanation =
+  const cleanObjective = normalizeSessionDescriptorTense(stripLeadingSessionTag(bundle.objective));
+  const rawExplanationBase =
     fitPedagogicalText(
       preventSixGramTheoryOverlap(
         bundle.concepts.definition || cleanObjective || fittedTopicTitle,
         workbookTheorySources
       ),
-      { maxChars: 92, maxWords: 14, role: 'concept' }
+      { maxChars: 124, maxWords: 19, role: 'concept' }
     ) || cleanObjective;
+  let cleanExplanation = rawExplanationBase;
+  if (cleanExplanation.length < 64) {
+    const remainingChars = Math.max(42, 124 - cleanExplanation.length - 1);
+    const extraRule = bundle.concepts.keyRules.find(
+      (r) =>
+        Boolean(r) &&
+        r.length >= 18 &&
+        !cleanExplanation.toLowerCase().includes(r.toLowerCase().slice(0, 20))
+    );
+    const enrichmentCandidates = [
+      extraRule,
+      bundle.example?.problemStatement,
+      bundle.activation,
+      bundle.question,
+      bundle.concepts.keyRules[0],
+    ].filter((value): value is string => Boolean(value));
+    const extraSource = enrichmentCandidates
+      .map((value) =>
+        preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(value), workbookTheorySources)
+      )
+      .find(
+        (value) =>
+          value.length >= 18 &&
+          !cleanExplanation.toLowerCase().includes(value.toLowerCase().slice(0, 20))
+      );
+    const fittedExtra = extraSource
+      ? fitPedagogicalText(extraSource, {
+          maxChars: remainingChars,
+          maxWords: Math.max(6, 19 - cleanExplanation.split(/\s+/).length),
+          role: 'concept',
+        })
+      : '';
+    if (fittedExtra && !cleanExplanation.toLowerCase().includes(fittedExtra.toLowerCase().slice(0, 20))) {
+      const combined = `${cleanExplanation.replace(/[.!?]+$/, '')}. ${fittedExtra}`;
+      if (combined.length <= 128) {
+        cleanExplanation = combined;
+      }
+    }
+    if (cleanExplanation.length < 64) {
+      const neutralEnrichment = fitPedagogicalText(
+        'Aplicar este concepto permite interpretar y resolver situaciones del entorno con datos reales.',
+        { maxChars: Math.max(42, 124 - cleanExplanation.length - 1), role: 'concept' }
+      );
+      if (neutralEnrichment) {
+        const combined = `${cleanExplanation.replace(/[.!?]+$/, '')}. ${neutralEnrichment}`;
+        if (combined.length <= 128) {
+          cleanExplanation = combined;
+        }
+      }
+    }
+  }
+  const expPrefix = cleanExplanation.toLowerCase().replace(/[^a-záéíóúñ0-9]+/gi, ' ').trim().slice(0, 24);
   const conceptTakeaways = (
     bundle.concepts.keyRules.length > 0 ? bundle.concepts.keyRules : []
   )
     .map((rule) =>
       fitPedagogicalText(
         preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(rule), workbookTheorySources),
-        { maxChars: 64, maxWords: 10, role: 'concept', ensurePeriod: false }
+        { maxChars: 48, maxWords: 7, role: 'concept', ensurePeriod: false }
       )
     )
-    .filter(
-      (item, idx, arr) =>
-        Boolean(item) &&
-        !isRubricOrBoilerplateLeak(item) &&
-        item !== cleanExplanation &&
-        arr.indexOf(item) === idx
-    )
+    .filter((item, idx, arr) => {
+      if (!item || isRubricOrBoilerplateLeak(item) || item === cleanExplanation || hasDanglingEnding(item)) {
+        return false;
+      }
+      const itemNorm = item.toLowerCase().replace(/[^a-záéíóúñ0-9]+/gi, ' ').trim();
+      if (expPrefix && (itemNorm.startsWith(expPrefix) || cleanExplanation.toLowerCase().includes(item.toLowerCase().slice(0, 22)))) {
+        return false;
+      }
+      return arr.indexOf(item) === idx;
+    })
     .slice(0, 2);
   const validFormulas = bundle.concepts.formulas.filter((item) => isValidRenderableFormula(item));
   const effectiveFormulas = validFormulas.length > 0 ? validFormulas.slice(0, 2) : formula ? [formula] : [];
@@ -1071,8 +1212,8 @@ function buildLessonGuideSlidesForSession(
   };
 
   const primaryObjective = fitPedagogicalText(cleanObjective, {
-    maxChars: 80,
-    maxWords: 12,
+    maxChars: 92,
+    maxWords: 14,
     role: 'concept',
     ensurePeriod: false,
   });
@@ -1101,7 +1242,7 @@ function buildLessonGuideSlidesForSession(
     .map((item) =>
       fitPedagogicalText(
         preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(item), workbookTheorySources),
-        { maxChars: 66, maxWords: 10, role: 'general', ensurePeriod: false }
+        { maxChars: 52, maxWords: 8, role: 'general', ensurePeriod: false }
       )
     )
     .filter((item, idx, arr): item is string => Boolean(item) && arr.indexOf(item) === idx)
@@ -1523,11 +1664,22 @@ function buildSteps(
           .filter((item, index, items) => Boolean(item) && !isRubricOrBoilerplateLeak(item) && items.indexOf(item) === index)
           .slice(0, 4);
 
-  const labels = stepLabelsForPack(pack);
+  const labels = stepLabelsForPack(
+    pack,
+    [
+      mission.sessionTopic,
+      mission.conceptZero?.coreExplanation,
+      selectedSession?.objetivo,
+      selectedSession?.contenido,
+      ...effectiveSolved,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
   return source.map((body, index) => ({
     number: index + 1,
     title: labels[index] ?? `PASO ${index + 1}`,
-    body: distillStepPreservingMath(body, 210),
+    body: distillStepPreservingMath(body, 225),
   }));
 }
 
@@ -1618,19 +1770,37 @@ export function buildSacrintInfographic(
     allowMissionFallback: !selectedSession,
   });
   const misconceptionFix = {
-    error: finalizeVisibleText(sanitizePedagogicalMetaPhrases(misconceptionFixRaw.error), { ensurePeriod: true }),
-    correction: finalizeVisibleText(sanitizePedagogicalMetaPhrases(misconceptionFixRaw.correction), { ensurePeriod: true }),
+    error: finalizeVisibleText(
+      sanitizePedagogicalMetaPhrases(
+        normalizeEditorialText(normalizeSessionDescriptorTense(misconceptionFixRaw.error))
+      ),
+      { ensurePeriod: true }
+    ),
+    correction: finalizeVisibleText(
+      sanitizePedagogicalMetaPhrases(
+        normalizeEditorialText(normalizeSessionDescriptorTense(misconceptionFixRaw.correction))
+      ),
+      { ensurePeriod: true }
+    ),
   };
-  const nonClosureSessionObjective = sessionPlans
-    .map((s) => s.objetivo)
-    .find((obj) => Boolean(obj) && !isEvaluationOrClosureObjective(obj));
+  const nonClosureSession = sessionPlans.find(
+    (s) => Boolean(s.objetivo) && !isEvaluationOrClosureObjective(s.objetivo)
+  );
+  const nonClosureSessionObjective = nonClosureSession?.objetivo;
+  const effectiveMissionTopic = isPaecProjectOrArtifactTitle(mission.sessionTopic)
+    ? nonClosureSessionObjective || mission.sessionTopic
+    : mission.sessionTopic;
   const topicTitle = sanitizePedagogicalMetaPhrases(
     resolveInfographicConceptTitle({
-      conceptosClave: selectedSession?.contenido || mission.conceptZero?.coreExplanation,
-      sessionObjective: selectedSession?.objetivo,
-      missionSessionTopic: mission.sessionTopic,
+      conceptosClave:
+        selectedSession?.contenido ||
+        (!isPaecProjectOrArtifactTitle(mission.conceptZero?.coreExplanation)
+          ? mission.conceptZero?.coreExplanation
+          : nonClosureSession?.contenido || mission.conceptZero?.coreExplanation),
+      sessionObjective: selectedSession?.objetivo || nonClosureSessionObjective,
+      missionSessionTopic: effectiveMissionTopic,
       missionFocus: mission.sessionFocus || nonClosureSessionObjective,
-      missionTitle: meta.missionTitle,
+      missionTitle: isPaecProjectOrArtifactTitle(meta.missionTitle) ? nonClosureSessionObjective : meta.missionTitle,
     })
   );
   const applicationSummary = finalizeVisibleText(

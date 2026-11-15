@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
-import { PDFDocument } from 'pdf-lib';
 import { auth } from '@/lib/auth';
 import {
   getTeacherByEmail,
@@ -11,7 +10,7 @@ import {
   getBlockWorkbook,
   getAllBlockWorkbooks,
 } from '@/lib/db';
-import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
+import { generateExtraPdfDocument, mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
 import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import {
@@ -41,43 +40,10 @@ export const maxDuration = 300;
 
 async function mergeExtrasToPdf(
   items: Array<{ id: string; key_index: number | null; content_text: string; title: string; type: string }>,
-  brandingCtx?: BrandingContext
+  brandingCtx?: BrandingContext,
+  compiledLabel?: string
 ): Promise<Buffer | null> {
-  if (!items || items.length === 0) return null;
-  try {
-    const mergedPdf = await PDFDocument.create();
-    let count = 0;
-    for (const extra of items) {
-      try {
-        const canonicalKeyIndex =
-          extra.key_index !== null && extra.key_index !== undefined
-            ? resolveBlockNumber(extra.key_index) !== null
-              ? resolveBlockNumber(extra.key_index)! - 1
-              : extra.key_index
-            : null;
-        const pdfDoc = generateExtraPdfDocument({ ...extra, keyIndex: canonicalKeyIndex }, brandingCtx);
-        const bytes = Buffer.from(pdfDoc.output('arraybuffer'));
-        const indPdf = await PDFDocument.load(bytes);
-        const pages = await mergedPdf.copyPages(indPdf, indPdf.getPageIndices());
-        for (const page of pages) {
-          mergedPdf.addPage(page);
-        }
-        count++;
-      } catch (err) {
-        logger.warn(`Error rendering individual PDF for extra ${extra.id}:`, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-    if (count === 0) return null;
-    const mergedBytes = await mergedPdf.save();
-    return Buffer.from(mergedBytes);
-  } catch (err) {
-    logger.warn('Error merging extras to PDF:', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return null;
-  }
+  return mergeCompiledExtrasPdf(items, brandingCtx, compiledLabel ? { compiledLabel } : undefined);
 }
 
 export async function GET(request: NextRequest) {
@@ -335,7 +301,7 @@ async function handleBulkPdf(request: NextRequest) {
         'lesson_plan'
       );
       if (lessonPlans.length > 0) {
-        const pdfBuf = await mergeExtrasToPdf(lessonPlans, brandingCtx);
+        const pdfBuf = await mergeExtrasToPdf(lessonPlans, brandingCtx, 'PLANES DE CLASE COMPILADOS');
         if (pdfBuf) {
           zip.file(`03_Planes_de_Clase_Compilado_${cleanSubject}.pdf`, pdfBuf);
         }
@@ -348,7 +314,7 @@ async function handleBulkPdf(request: NextRequest) {
         'teacher_guide'
       );
       if (teacherGuides.length > 0) {
-        const pdfBuf = await mergeExtrasToPdf(teacherGuides, brandingCtx);
+        const pdfBuf = await mergeExtrasToPdf(teacherGuides, brandingCtx, 'SOLUCIONARIO DOCENTE COMPILADO');
         if (pdfBuf) {
           zip.file(`04_Solucionario_Docente_Compilado_${cleanSubject}.pdf`, pdfBuf);
         }
@@ -361,7 +327,7 @@ async function handleBulkPdf(request: NextRequest) {
         'practice_guide'
       );
       if (practiceGuides.length > 0) {
-        const pdfBuf = await mergeExtrasToPdf(practiceGuides, brandingCtx);
+        const pdfBuf = await mergeExtrasToPdf(practiceGuides, brandingCtx, 'GUÍAS DE PRÁCTICA COMPILADAS');
         if (pdfBuf) {
           zip.file(`05_Guias_de_Practica_Compilado_${cleanSubject}.pdf`, pdfBuf);
         }
@@ -399,7 +365,7 @@ async function handleBulkPdf(request: NextRequest) {
       }
 
       if (combinedEvalExtras.length > 0) {
-        const pdfBuf = await mergeExtrasToPdf(combinedEvalExtras, brandingCtx);
+        const pdfBuf = await mergeExtrasToPdf(combinedEvalExtras, brandingCtx, 'INSTRUMENTOS DE EVALUACIÓN COMPILADOS');
         if (pdfBuf) {
           zip.file(`07_Instrumentos_de_Evaluacion_Compilado_${cleanSubject}.pdf`, pdfBuf);
         }

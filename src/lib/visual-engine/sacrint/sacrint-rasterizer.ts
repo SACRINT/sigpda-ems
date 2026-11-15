@@ -6,6 +6,7 @@ import type { SacrintDeckSpec, SacrintDiagramSpec, SacrintInfographicSpec } from
 import { renderDeckSvgs } from './slide-renderer';
 import { infographicFilename, renderInfographicSvg } from './infographic-renderer';
 import { ensureSacrintFontsRegistered, getSacrintFontFiles } from './sacrint-font-bootstrap';
+import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
 import { INFOGRAPHIC, SLIDE } from './tokens';
 import {
   finalizeVisibleText,
@@ -100,25 +101,46 @@ function darkenForPrint(rgb: RGB, factor = 0.68): RGB {
   ];
 }
 
+let vectorHasUtfFonts = false;
+
 function vecText(value: string | null | undefined): string {
-  const preCleaned = String(value ?? '')
+  const raw = String(value ?? '')
     .replace(/[•▪▸]/g, '-')
-    .replace(/[—–]/g, '-')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/…/g, '...')
-    .replace(/[✓✔]/g, '[OK]')
-    .replace(/[✗✘✕]/g, '[X]')
-    .replace(/→/g, '->')
-    .replace(/←/g, '<-');
+    .replace(/[✓✔]/g, '');
   const normalized = finalizeVisibleText(
-    normalizeEditorialText(preCleaned, { target: 'unicode' }),
+    normalizeEditorialText(raw, { target: 'unicode' }),
     { ensurePeriod: false }
   );
-  return toWinAnsiMathSafe(normalized)
+  if (vectorHasUtfFonts) {
+    // Lato-Regular / Lato-Bold soportan ′, ≈, ≠, ≤, ≥, √, °, ², ³, ×, Δ, θ, α, β y tildes UTF-8
+    return normalized
+      .replace(/≅/g, '~=')
+      .replace(/[✗✘✕]/g, '×')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  const winSafe = toWinAnsiMathSafe(
+    normalized
+      .replace(/[—–]/g, '-')
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/…/g, '...')
+      .replace(/→/g, '->')
+      .replace(/←/g, '<-')
+  );
+  return winSafe
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function drawVectorCheckBadge(doc: jsPDF, cx: number, cy: number): void {
+  doc.setFillColor(16, 185, 129);
+  doc.circle(cx, cy, 1.45, 'F');
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.45);
+  doc.line(cx - 0.65, cy + 0.05, cx - 0.15, cy + 0.6);
+  doc.line(cx - 0.15, cy + 0.6, cx + 0.75, cy - 0.55);
 }
 
 function drawFittedVectorText(
@@ -277,7 +299,12 @@ function drawVectorDiagram(
         : diagram.kind === 'exponential'
           ? Math.max(1, diagram.periods)
           : diagram.xMax;
-    const yMin = diagram.kind === 'linear' || diagram.kind === 'exponential' ? 0 : diagram.yMin;
+    const yMin =
+      diagram.kind === 'linear'
+        ? Math.min(0, Math.floor(Math.min(diagram.intercept, diagram.slope * diagram.domainMax + diagram.intercept) / 5) * 5)
+        : diagram.kind === 'exponential'
+          ? 0
+          : diagram.yMin;
     const yMax =
       diagram.kind === 'linear'
         ? Math.max(10, diagram.rangeMax)
@@ -395,6 +422,116 @@ function drawVectorDiagram(
     return;
   }
 
+  if (diagram.kind === 'geometry') {
+    const drawHalfW = w * 0.48;
+    const figX = x + 3;
+    const figY = y + 3;
+    const figW = drawHalfW - 4;
+    const figH = h - 6;
+    drawCard(doc, figX, figY, figW, figH, [255, 255, 255], accent, 1.5);
+
+    if (diagram.variant === 'angles') {
+      const vy = figY + figH * 0.68;
+      const vx = figX + figW * 0.48;
+      doc.setDrawColor(accent[0], accent[1], accent[2]);
+      doc.setLineWidth(0.75);
+      doc.line(figX + 5, vy, figX + figW - 5, vy);
+      doc.setDrawColor(accent2[0], accent2[1], accent2[2]);
+      doc.line(vx, vy, vx + figW * 0.28, figY + figH * 0.22);
+      doc.setDrawColor(100, 116, 139);
+      doc.setLineWidth(0.35);
+      doc.circle(vx, vy, 5.5, 'S');
+      drawFittedVectorText(doc, 'α + β = 180°', figX + 3, figY + 6.5, figW - 6, 4.5, {
+        fontSize: 7.2,
+        bold: true,
+        color: accent2,
+        align: 'center',
+      });
+      drawFittedVectorText(doc, diagram.secondaryLabel, figX + 3, figY + figH - 7, figW - 6, 5.5, {
+        fontSize: 6.2,
+        color: [71, 85, 105],
+        align: 'center',
+      });
+    } else if (diagram.variant === 'right-triangle') {
+      const ax = figX + 8;
+      const ay = figY + figH - 9;
+      const bx = figX + figW - 9;
+      const by = ay;
+      const cx = ax;
+      const cy = figY + 9;
+      doc.setDrawColor(accent[0], accent[1], accent[2]);
+      doc.setLineWidth(0.75);
+      doc.line(ax, ay, bx, by);
+      doc.line(ax, ay, cx, cy);
+      doc.setDrawColor(accent2[0], accent2[1], accent2[2]);
+      doc.line(bx, by, cx, cy);
+      doc.setDrawColor(100, 116, 139);
+      doc.setLineWidth(0.35);
+      doc.rect(ax, ay - 3.5, 3.5, 3.5);
+      drawFittedVectorText(doc, 'c² = a² + b²', figX + 12, figY + 7, figW - 16, 4.5, {
+        fontSize: 7.2,
+        bold: true,
+        color: accent2,
+        align: 'right',
+      });
+      drawFittedVectorText(doc, diagram.primaryLabel, figX + 3, figY + figH - 5.5, figW - 6, 4.5, {
+        fontSize: 6.2,
+        color: accent,
+        align: 'center',
+      });
+    } else {
+      // Triángulos congruentes (LLL / LAL / ALA) o Teorema de Napoleón
+      const t1x1 = figX + 4;
+      const t1x2 = figX + figW * 0.42;
+      const t1xm = figX + figW * 0.21;
+      const tyB = figY + figH * 0.68;
+      const tyT = figY + figH * 0.24;
+      doc.setDrawColor(accent[0], accent[1], accent[2]);
+      doc.setLineWidth(0.7);
+      doc.triangle(t1x1, tyB, t1x2, tyB, t1xm, tyT, 'S');
+      const t2x1 = figX + figW * 0.56;
+      const t2x2 = figX + figW - 4;
+      const t2xm = figX + figW * 0.77;
+      doc.setDrawColor(accent2[0], accent2[1], accent2[2]);
+      doc.triangle(t2x1, tyB, t2x2, tyB, t2xm, tyT, 'S');
+      drawFittedVectorText(doc, 'ΔABC ~= ΔA′B′C′', figX + 3, figY + 6.5, figW - 6, 4.5, {
+        fontSize: 7,
+        bold: true,
+        color: accent,
+        align: 'center',
+      });
+      drawFittedVectorText(doc, diagram.equation || 'a/a′ = b/b′ = c/c′ = k', figX + 3, figY + figH - 7, figW - 6, 5.5, {
+        fontSize: 6.4,
+        bold: true,
+        color: accent2,
+        align: 'center',
+      });
+    }
+
+    const infoX = x + drawHalfW + 3;
+    const infoW = w - drawHalfW - 6;
+    const cards = [
+      { title: diagram.primaryLabel, detail: diagram.equation || diagram.secondaryLabel },
+      ...diagram.highlights.slice(0, 2).map((m) => ({ title: m.label, detail: m.detail })),
+    ];
+    const ch = (h - 6 - (cards.length - 1) * 2.5) / cards.length;
+    cards.forEach((c, idx) => {
+      const cy = y + 3 + idx * (ch + 2.5);
+      drawCard(doc, infoX, cy, infoW, ch, [255, 255, 255], idx === 0 ? accent : accent2, 1.4);
+      drawFittedVectorText(doc, c.title, infoX + 2.5, cy + 4.5, infoW - 5, 4, {
+        fontSize: 6.8,
+        bold: true,
+        color: idx === 0 ? accent : accent2,
+      });
+      drawFittedVectorText(doc, c.detail, infoX + 2.5, cy + 9.2, infoW - 5, Math.max(4, ch - 10), {
+        fontSize: 6.4,
+        minFontSize: 5.5,
+        color: [51, 65, 85],
+      });
+    });
+    return;
+  }
+
   // Diagrama relacional / conceptual en vector puro para tipos no cartesianos
   let nodes: Array<{ title: string; detail: string }> = [];
   if (diagram.kind === 'concept') {
@@ -419,11 +556,6 @@ function drawVectorDiagram(
       title: n.label,
       detail: n.detail,
     }));
-  } else if (diagram.kind === 'geometry') {
-    nodes = [
-      { title: diagram.primaryLabel, detail: diagram.equation || diagram.secondaryLabel },
-      ...diagram.highlights.slice(0, 2).map((m) => ({ title: m.label, detail: m.detail })),
-    ];
   } else if (diagram.kind === 'system-map') {
     nodes = [diagram.center, ...diagram.components.slice(0, 2)].map((n) => ({ title: n.label, detail: n.detail }));
   } else if (diagram.kind === 'block-diagram') {
@@ -483,7 +615,7 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
   // Header
   drawFittedVectorText(
     doc,
-    `${spec.pack.short} | MANUAL DE CONCEPTOS | MISION ${String(spec.meta.missionNumber).padStart(2, '0')}`,
+    `${spec.pack.short} | MANUAL DE CONCEPTOS | MISIÓN ${String(spec.meta.missionNumber).padStart(2, '0')}`,
     margin,
     8.5,
     contentW * 0.65,
@@ -689,7 +821,7 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
   const chkW = rightW - errW - 3.5;
 
   drawCard(doc, rightX, botY, errW, botH, [254, 242, 242], [252, 165, 165], 2);
-  drawFittedVectorText(doc, 'ERROR COMUN Y PREVENCION', rightX + 3.5, botY + 5, errW - 7, 4, {
+  drawFittedVectorText(doc, 'ERROR COMÚN Y PREVENCIÓN', rightX + 3.5, botY + 5, errW - 7, 4, {
     fontSize: 7.2,
     bold: true,
     color: [185, 28, 28],
@@ -702,7 +834,7 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
     color: slateDark,
   });
   if (corrText) {
-    drawFittedVectorText(doc, `Correccion: ${corrText}`, rightX + 3.5, Math.min(botY + 26, afterErr + 1.5), errW - 7, 13, {
+    drawFittedVectorText(doc, `Corrección: ${corrText}`, rightX + 3.5, Math.min(botY + 26, afterErr + 1.5), errW - 7, 13, {
       fontSize: 7,
       minFontSize: 6,
       color: slateSoft,
@@ -710,7 +842,7 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
   }
   if (spec.applicationSummary) {
     drawCard(doc, rightX + 2.5, botY + botH - 15, errW - 5, 13, [236, 253, 245], [110, 231, 183], 1.2);
-    drawFittedVectorText(doc, `Cuando se aplica: ${spec.applicationSummary}`, rightX + 4.5, botY + botH - 10.5, errW - 9, 10, {
+    drawFittedVectorText(doc, `Cuándo se aplica: ${spec.applicationSummary}`, rightX + 4.5, botY + botH - 10.5, errW - 9, 10, {
       fontSize: 6.7,
       minFontSize: 5.8,
       color: [6, 95, 70],
@@ -718,7 +850,7 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
   }
 
   drawCard(doc, chkX, botY, chkW, botH, [255, 255, 255], [203, 213, 225], 2);
-  drawFittedVectorText(doc, 'LISTA DE VERIFICACION', chkX + 3.5, botY + 5, chkW - 7, 4, {
+  drawFittedVectorText(doc, 'LISTA DE VERIFICACIÓN', chkX + 3.5, botY + 5, chkW - 7, 4, {
     fontSize: 7.2,
     bold: true,
     color: accent2,
@@ -726,7 +858,8 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
   const checklist = (spec.conceptManual?.masteryChecklist ?? spec.criteria).slice(0, 3);
   let cy = botY + 10.5;
   checklist.forEach((item) => {
-    cy = drawFittedVectorText(doc, `[OK] ${item}`, chkX + 3.5, cy, chkW - 7, 10, {
+    drawVectorCheckBadge(doc, chkX + 5.2, cy - 1);
+    cy = drawFittedVectorText(doc, item, chkX + 8.2, cy, chkW - 11.5, 10, {
       fontSize: 6.8,
       minFontSize: 5.8,
       color: slateDark,
@@ -893,22 +1026,23 @@ function renderVectorLetterPage(doc: jsPDF, spec: SacrintInfographicSpec) {
   const chkX = margin + errW + 4;
   const chkW = contentW - errW - 4;
   drawCard(doc, margin, y, errW, botH, [254, 242, 242], [252, 165, 165], 2);
-  drawFittedVectorText(doc, 'ERROR COMUN Y COMO EVITARLO', margin + 3, y + 5, errW - 6, 4, { fontSize: 7.2, bold: true, color: [185, 28, 28] });
+  drawFittedVectorText(doc, 'ERROR COMÚN Y CÓMO EVITARLO', margin + 3, y + 5, errW - 6, 4, { fontSize: 7.2, bold: true, color: [185, 28, 28] });
   const errAfter = drawFittedVectorText(doc, spec.misconceptionFix?.error || spec.misconception, margin + 3, y + 10, errW - 6, 15, { fontSize: 7.4, minFontSize: 6.2, color: slateDark });
   if (spec.misconceptionFix?.correction) {
-    drawFittedVectorText(doc, `Correccion: ${spec.misconceptionFix.correction}`, margin + 3, Math.min(y + 26, errAfter + 1.5), errW - 6, 12, { fontSize: 7.1, minFontSize: 6, color: slateSoft });
+    drawFittedVectorText(doc, `Corrección: ${spec.misconceptionFix.correction}`, margin + 3, Math.min(y + 26, errAfter + 1.5), errW - 6, 12, { fontSize: 7.1, minFontSize: 6, color: slateSoft });
   }
   if (spec.applicationSummary) {
     drawCard(doc, margin + 2.5, y + botH - 15, errW - 5, 12.5, [236, 253, 245], [110, 231, 183], 1.2);
-    drawFittedVectorText(doc, `Aplicacion: ${spec.applicationSummary}`, margin + 4.5, y + botH - 10.5, errW - 9, 9.5, { fontSize: 6.8, minFontSize: 5.8, color: [6, 95, 70] });
+    drawFittedVectorText(doc, `Aplicación: ${spec.applicationSummary}`, margin + 4.5, y + botH - 10.5, errW - 9, 9.5, { fontSize: 6.8, minFontSize: 5.8, color: [6, 95, 70] });
   }
 
   drawCard(doc, chkX, y, chkW, botH, [255, 255, 255], [203, 213, 225], 2);
-  drawFittedVectorText(doc, 'LISTA DE VERIFICACION', chkX + 3, y + 5, chkW - 6, 4, { fontSize: 7.2, bold: true, color: accent2 });
+  drawFittedVectorText(doc, 'LISTA DE VERIFICACIÓN', chkX + 3, y + 5, chkW - 6, 4, { fontSize: 7.2, bold: true, color: accent2 });
   const checklist = (spec.conceptManual?.masteryChecklist ?? spec.criteria).slice(0, 3);
   let cy = y + 10.5;
   checklist.forEach((item) => {
-    cy = drawFittedVectorText(doc, `[OK] ${item}`, chkX + 3, cy, chkW - 6, 11, { fontSize: 7, minFontSize: 6, color: slateDark }) + 1.5;
+    drawVectorCheckBadge(doc, chkX + 4.8, cy - 1);
+    cy = drawFittedVectorText(doc, item, chkX + 7.8, cy, chkW - 10.5, 11, { fontSize: 7, minFontSize: 6, color: slateDark }) + 1.5;
   });
   drawCard(doc, chkX + 2.5, y + botH - 13, chkW - 5, 10.5, [241, 245, 249], [203, 213, 225], 1.2);
   drawFittedVectorText(doc, `PAEC: ${spec.project.artifactName}`, chkX + 4.5, y + botH - 8.5, chkW - 9, 7, { fontSize: 6.6, minFontSize: 5.8, bold: true, color: accent });
@@ -931,6 +1065,7 @@ export function renderSacrintInfographicsVectorPdf(
     format: isWide ? [279.4, 157.16] : 'letter',
     compress: true,
   });
+  vectorHasUtfFonts = loadEditorialFonts(doc);
 
   doc.setProperties({
     title: vecText(specs[0]?.title || 'Manual de Conceptos SACRINT'),

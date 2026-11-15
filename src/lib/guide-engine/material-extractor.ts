@@ -20,7 +20,12 @@ import { autoTokenizeMaterials } from '@/lib/materials/auto-tokenize';
 import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-catalog';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import { normalizeBlockTitle } from '@/lib/document-branding';
-import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import {
+  diversifyLessonOpeningActivity,
+  normalizeEditorialText,
+  normalizeSessionDescriptorTense,
+  repairExtraPedagogicalArtifacts,
+} from '@/lib/editorial/text-normalization';
 import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import {
   composeSessionHeading,
@@ -403,6 +408,13 @@ function buildPlanDeClase(
 
   // Buscar si la sesión específica está modelada en la secuencia didáctica guardada (SecuenciaBloque)
   const sessionFromSeq = blockSequence?.sessions?.find((s) => s.sessionNum === sessionNum);
+  const rawMissionTopic = (mission.sessionTopic || mission.title || '').replace(/^Sesi[oó]n\s*\d+\s*[:.\-–—]\s*/i, '');
+  const missionTopicLabel = normalizeSessionDescriptorTense(
+    finalizeVisibleText(
+      sanitizeWorkbookTocTitle(rawMissionTopic, mission.title),
+      { fallback: 'el tema de la misión', ensurePeriod: false }
+    )
+  );
 
   // Momentos base diferenciados por rol de sesión (H-323): introducción / práctica / consolidación
   const moments = buildSessionMoments(mission, sessionNum);
@@ -460,11 +472,14 @@ function buildPlanDeClase(
       tiempoDesarrollo = 30;
       tiempoCierre = 10;
       aperturaDocente = `Activación focalizada: Conectar sesión anterior con el reto "${sessionFromSeq.title}".`;
-      aperturaEstudiante = `Recuperar insumos previos y organizar mesa de trabajo colaborativa.`;
+      aperturaEstudiante = diversifyLessonOpeningActivity(sessionNum, missionTopicLabel);
       desarrolloDocente = sessionFromSeq.teachingActivity || desarrolloDocenteBase;
       desarrolloEstudiante = sessionFromSeq.learningActivity || desarrolloEstudianteBase;
-      cierreDocente = sessionFromSeq.evaluation
-        ? `Monitoreo del avance: ${sessionFromSeq.evaluation}. Retroalimentación formativa inmediata.`
+      const cleanSeqEval = sessionFromSeq.evaluation
+        ? sessionFromSeq.evaluation.replace(/\s*·\s*Sesi[oó]n\s*\d+\s*[:.\-–—].*$/i, '').trim()
+        : '';
+      cierreDocente = cleanSeqEval
+        ? `Monitoreo del avance: ${cleanSeqEval} · Sesión ${sessionNum}. Retroalimentación formativa inmediata.`
         : cierreDocenteBase;
       cierreEstudiante = sessionFromSeq.evidence
         ? `Registro de avance sobre "${sessionFromSeq.evidence}" y revisión de dudas críticas.`
@@ -476,21 +491,22 @@ function buildPlanDeClase(
   // estudiante refleja lo que realmente hará en el libro (teoría, ejemplo, práctica) e
   // incluye LOS MISMOS enunciados con sus pistas (1:1 con el libro del estudiante y
   // con el solucionario docente — Fase B de alineación).
-  const missionTopicLabel = finalizeVisibleText(
-    sanitizeWorkbookTocTitle(mission.sessionTopic || mission.title, mission.title),
-    { fallback: 'el tema de la misión', ensurePeriod: false }
-  );
   const bookPlan = mission.sessionPlans?.find((p) => p.sessionNumber === sessionNum);
   if (bookPlan) {
-    const cleanObjetivo = finalizeVisibleText(
-      composeSessionHeading({ number: sessionNum, objective: bookPlan.objetivo }).replace(
-        new RegExp(`^Sesi[oó]n\\s*${sessionNum}\\s*:\\s*`, 'i'),
-        ''
-      ),
-      { fallback: missionTopicLabel, ensurePeriod: false }
+    const cleanObjetivo = normalizeSessionDescriptorTense(
+      finalizeVisibleText(
+        composeSessionHeading({ number: sessionNum, objective: bookPlan.objetivo }).replace(
+          new RegExp(`^Sesi[oó]n\\s*${sessionNum}\\s*:\\s*`, 'i'),
+          ''
+        ),
+        { fallback: missionTopicLabel, ensurePeriod: false }
+      )
     );
     const ejercicios = bookPlan.practica
-      .map((pr, i) => `${i + 1}. ${pr.enunciado}${pr.pista ? ` Pista: ${pr.pista}` : ''}`)
+      .map((pr, i) => {
+        const cleanStmt = pr.enunciado.replace(/^Ejercicio\s*\d+\s*:\s*/i, '').replace(/^Ejercicio\s*\d+\.\s+/i, '').trim();
+        return `${i + 1}. ${cleanStmt}${pr.pista ? ` Pista: ${pr.pista}` : ''}`;
+      })
       .join('\n');
     const bookAct =
       `Libro del estudiante: estudia "${cleanObjetivo}" — lee la teoría y el ejemplo resuelto, ` +
@@ -503,10 +519,12 @@ function buildPlanDeClase(
       : bookAct;
   }
 
-  // Título pedagógico desacoplado e idempotente (sin duplicar "Sesión N:" ni cortes colgantes)
-  const rawTitle = sanitizeWorkbookTocTitle(
-    sessionFromSeq?.title || mission.title || 'Misión de Aprendizaje',
-    mission.sessionTopic
+  // Título pedagógico desacoplado e idempotente (sin duplicar "Sesión N:" ni futuro en 2a persona)
+  const rawTitle = normalizeSessionDescriptorTense(
+    sanitizeWorkbookTocTitle(
+      sessionFromSeq?.title || mission.title || 'Misión de Aprendizaje',
+      mission.sessionTopic
+    )
   );
   const tituloSesion = composeSessionHeading({
     number: sessionNum,
@@ -579,7 +597,7 @@ function buildPlanDeClase(
       tiempoMinutos: tiempoCierre,
     },
     instrumentoEvaluacion: sessionFromSeq?.evaluation
-      ? `${sessionFromSeq.evaluation} · Sesión ${sessionNum}`
+      ? `${sessionFromSeq.evaluation.replace(/\s*·\s*Sesi[oó]n\s*\d+\s*[:.\-–—].*$/i, '').trim()} · Sesión ${sessionNum}`
       : `Rúbrica de Desempeño y Lista de Cotejo · ${missionTopicLabel} · Sesión ${sessionNum}`,
   };
 }
@@ -763,13 +781,21 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
       .sort((a, b) => a.sessionNumber - b.sessionNumber);
     if (sessionPlans.length > 0) {
       for (const plan of sessionPlans) {
-        parts.push(`#### ${composeSessionHeading({ number: plan.sessionNumber, objective: plan.objetivo })}`);
+        parts.push(`#### ${composeSessionHeading({ number: plan.sessionNumber, objective: normalizeSessionDescriptorTense(plan.objetivo) })}`);
         plan.practica.forEach((item, idx) => {
-          parts.push(`${idx + 1}. **${item.enunciado}**`);
+          const cleanStmt = item.enunciado.replace(/^Ejercicio\s*\d+\s*:\s*/i, '').replace(/^Ejercicio\s*\d+\.\s+/i, '').trim();
+          parts.push(`**Ejercicio ${idx + 1}:** ${cleanStmt}`);
           if (item.pista) parts.push(`   - *Pista (visible en el libro):* ${item.pista}`);
           if (item.solucion && item.solucion.length > 0) {
             parts.push(`   - *Solución modelo (solo docente):*`);
-            item.solucion.forEach((step, sIdx) => parts.push(`     ${sIdx + 1}. ${step}`));
+            item.solucion.forEach((step, sIdx) => {
+              const trimmed = step.trim();
+              if (/^(?:Paso\s*\d+\s*[:.\-–]|(?:Respuesta|Conclusi[oó]n|Interpretaci[oó]n|Resultado)(?:\s+final)?\s*:)/i.test(trimmed)) {
+                parts.push(`     ${trimmed}`);
+              } else {
+                parts.push(`     ${sIdx + 1}. ${trimmed.replace(/^\d+\.\s+/, '')}`);
+              }
+            });
           } else {
             parts.push(`   - *Solución modelo:* modelar en el pizarrón siguiendo el ejemplo resuelto de la sesión y validar el procedimiento con el grupo.`);
           }
@@ -842,7 +868,7 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
         parts.push(`**Ejercicio ${ex.number}:** ${ex.statement}`);
         if (ex.contextOrData) parts.push(`- *Datos/Variables:* ${ex.contextOrData}`);
         if (ex.hint) parts.push(`- *Pista Didáctica:* ${ex.hint}`);
-        parts.push(`- **Solución y Criterio Esperado:** ${ex.expectedOutputOrCriteria}\n`);
+        parts.push(`- **Solución y Criterio Esperado:** ${repairExtraPedagogicalArtifacts(ex.expectedOutputOrCriteria, { type: 'teacher_guide' })}\n`);
       }
     }
     parts.push('---\n');
@@ -1580,7 +1606,8 @@ function buildExerciseBlocks(
   parts.push('**Ejercicios**');
   parts.push('');
   ejercicios.forEach((ejercicio, index) => {
-    parts.push(`**Ejercicio ${index + 1}.** ${sanitizeInline(ejercicio.enunciado)}`);
+    const cleanStmt = sanitizeInline(ejercicio.enunciado).replace(/^Ejercicio\s*\d+\s*:\s*/i, '').replace(/^Ejercicio\s*\d+\.\s+/i, '').trim();
+    parts.push(`**Ejercicio ${index + 1}.** ${cleanStmt}`);
     if (ejercicio.pista) {
       parts.push(`**Pista:** ${sanitizeInline(ejercicio.pista)}`);
     }
