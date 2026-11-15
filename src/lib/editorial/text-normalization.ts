@@ -232,6 +232,14 @@ function unwrapLatexMathDelimiters(input: string): string {
   // 1. Bloques display $$...$$
   let text = input.replace(/\$\$([\s\S]+?)\$\$/g, (_m, inner: string) => inner.trim());
 
+  // 1.2. Monomios/expresiones algebraicas cortas con delimitadores `$...$`
+  // (ej. `$2x$`, `$4a$`, `$7x^2$`). No son moneda y deben desenvolverse antes
+  // de que la protección monetaria interprete el `$` inicial como importe.
+  text = text.replace(
+    /\$([+-]?\d+(?:[.,]\d+)?[a-zA-Zα-ωΑ-Ω²³₀-₉]+(?:\^[a-zA-Z0-9{}]+)?)\$(?!\d)/g,
+    '$1'
+  );
+
   // 1.5. Desenvolver números puros encerrados entre delimitadores LaTeX (`$4$`, `$0.025$`, `$6348$`, `$3.5%$`)
   // antes de proteger montos monetarios, evitando que el `$` de cierre quede huérfano y desfase el resto del texto.
   text = text.replace(/\$([+-]?\d+(?:[.,]\d+)*%?)\$(?!\d)/g, (_full, numInner: string, offset: number, whole: string) => {
@@ -391,6 +399,27 @@ export function formatSolvedExampleBlocks(raw: string | null | undefined): strin
     .replace(/[ \t]+(?=(?:Conclusi[oó]n|Resultado\s+final|Interpretaci[oó]n)\s*:)/gi, '\n\n');
 }
 
+/**
+ * Expande y despega pasos de un ejemplo resuelto que llegan fusionados en una
+ * sola cadena ("... = 4): -2y = ... Paso 2: ..."). Devuelve pasos atómicos sin
+ * numeración para que cada renderer vuelva a numerarlos una sola vez.
+ */
+export function normalizeSolvedExampleSteps(rawSteps: string[] | null | undefined): string[] {
+  if (!Array.isArray(rawSteps)) return [];
+  const out: string[] = [];
+  for (const rawStep of rawSteps) {
+    const formatted = formatSolvedExampleBlocks(String(rawStep ?? ''));
+    for (const block of formatted.split(/\n{2,}/)) {
+      const clean = block
+        .replace(/^\s*(?:Paso\s*\d+\s*[:.\-–]|\d+[.)])\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (clean.length >= 3 && !out.includes(clean)) out.push(clean);
+    }
+  }
+  return out;
+}
+
 export interface EditorialTextNormalizationOptions {
   /**
    * 'unicode' (por defecto): conserva símbolos matemáticos Unicode (`⇒`, `√`, `≤`, `≥`, `Fᵢ`, `°`, `²`).
@@ -456,6 +485,15 @@ export function normalizeEditorialText(
     .replace(/_\{([^{}]+)\}/g, (_m, sub: string) => convertUnicodeScript(sub, SUBSCRIPTS, '_'))
     .replace(/([A-Za-z0-9)\]])\^([0-9ni])/g, (_m, base: string, ch: string) => `${base}${SUPERSCRIPTS[ch] || `^${ch}`}`)
     .replace(/([A-Za-z0-9)\]])_([0-9ainexv])/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || `_${ch}`}`);
+
+  // 6.9. Normalizar notación ASCII de raíz, subíndices crudos y superíndices partidos.
+  // Se usa la convención editorial existente del proyecto: `V(...)` representa √(...).
+  text = text
+    .replace(/\b(?:raiz|sqrt)\s*\(([^()]*)\)/gi, (_m, inner: string) => `V(${inner.trim()})`)
+    .replace(/\bM_\((simple|compuesto)\)/gi, (_m, sub: string) => `M ${sub}`)
+    .replace(/¹2\b/g, '¹²')
+    .replace(/²2\b/g, '²²')
+    .replace(/³2\b/g, '³²');
 
   // 7. Desenvolver delimitadores LaTeX `$...$` / `$$...$$`
   text = unwrapLatexMathDelimiters(text);

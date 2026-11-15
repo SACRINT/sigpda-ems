@@ -74,6 +74,7 @@ export const SecuenciaGenerateInputSchema = z.object({
   learningOutcome: z.string().optional(),
   methodology: z.string().optional(),
   paecContext: z.string().optional(),
+  forceRegenerateFromScratch: z.boolean().optional(),
 });
 
 export type SecuenciaGenerateInputDTO = z.infer<typeof SecuenciaGenerateInputSchema>;

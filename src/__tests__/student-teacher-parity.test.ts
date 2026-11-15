@@ -256,9 +256,7 @@ describe('Paridad plan de clase ↔ sessionPlans del libro', () => {
     expect(plan1!.desarrollo.actividadEstudiante).toContain(EX1_PISTA);
     expect(plan1!.desarrollo.actividadEstudiante).toContain(EX2);
     expect(plan1!.desarrollo.actividadEstudiante).toContain(EX2_PISTA);
-    expect(plan1!.desarrollo.actividadEstudiante).toContain(
-      'Ejercicios de la sesión (mismos enunciados que el libro y el solucionario docente):'
-    );
+    expect(plan1!.desarrollo.actividadEstudiante).toMatch(/\n1\.\s/);
     // La solución modelo vive SOLO en el solucionario docente: ni en el plan ni en el libro.
     expect(plan1!.desarrollo.actividadEstudiante).not.toContain(EX1_SOL[2]);
     const plan2 = materials.planesDeClase.find((p) => p.numeroSesion === 2);

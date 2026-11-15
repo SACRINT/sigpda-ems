@@ -13,6 +13,8 @@ import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/pla
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { resolveSessionsPerBlock, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
+import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
+import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -179,7 +181,7 @@ export async function POST(
       );
     }
 
-    const { blockIndex, totalHours: customHours } = parseResult.data;
+    const { blockIndex, totalHours: customHours, forceRegenerateFromScratch } = parseResult.data;
 
     // F-47: Cota defensiva de totalHours en el cableado de la ruta (máximo 200 horas)
     if (customHours !== undefined && customHours > 200) {
@@ -194,7 +196,7 @@ export async function POST(
     const isUserAdmin = await isAdmin(userEmail);
 
     const rows = await db`
-      SELECT p.id, p.teacher_id, p.uac_name, p.semester, p.component, p.extracted_data, p.content_json, p.paec_context, p.sequence_json, p.metodologia_activa,
+      SELECT p.id, p.teacher_id, p.uac_name, p.semester, p.component, p.extracted_data, p.content_json, p.paec_context, p.sequence_json, p.workbooks_json, p.metodologia_activa,
              t.email as teacher_email
       FROM plannings p
       LEFT JOIN teachers t ON p.teacher_id = t.id
@@ -220,6 +222,48 @@ export async function POST(
 
     if (!targetBlock) {
       return NextResponse.json({ error: `Bloque ${blockIndex} no encontrado en la planeación (debe ser 0, 1 o 2)` }, { status: 404 });
+    }
+
+    // Blindaje: si ya existe un libro de bloque, la secuencia se reconstruye desde
+    // el workbook (fuente rica) en lugar de degradarla con plantillas o un prompt corto.
+    if (!forceRegenerateFromScratch) {
+      const rawWorkbooks = (plan as unknown as {
+        workbooks_json?: Record<string, { current?: ActiveWorkTextbook } | ActiveWorkTextbook | undefined> | null;
+      }).workbooks_json;
+      const workbookEntry = rawWorkbooks?.[`block_${blockIndex}`];
+      const workbook = (
+        workbookEntry && 'current' in workbookEntry ? workbookEntry.current : workbookEntry
+      ) as ActiveWorkTextbook | undefined;
+      if (workbook && Array.isArray(workbook.missions) && workbook.missions.length > 0) {
+        const syncedBlock = buildBlockSequenceFromWorkbook(workbook, blockIndex, targetBlock.title);
+        if (syncedBlock && syncedBlock.sessions.length > 0) {
+          const updatedSequence: Record<number, SecuenciaBloque> = {
+            ...(plan.sequence_json || {}),
+            [blockIndex]: syncedBlock,
+          };
+          const warnings: string[] = [];
+          try {
+            await db`
+              UPDATE plannings
+              SET sequence_json = ${JSON.stringify(updatedSequence)}::jsonb,
+                  updated_at = NOW()
+              WHERE id = ${id}::uuid
+            `;
+          } catch (dbErr) {
+            logger.error('Error persistiendo secuencia sincronizada desde workbook:', dbErr);
+            warnings.push('Secuencia sincronizada desde el libro pero no persistida en BD');
+          }
+          return NextResponse.json({
+            success: true,
+            blockIndex,
+            source: 'workbook',
+            sequence: updatedSequence[blockIndex],
+            fullSequence: updatedSequence,
+            attempts: 0,
+            warnings,
+          });
+        }
+      }
     }
 
     const blockActivity = targetBlock.activities[0] || {};
@@ -355,6 +399,8 @@ REQUISITOS PEDAGÓGICOS:
 3. Cada sesión debe tener un título pedagógico situado y concreto, actividades claras y diferenciadas para el rol del docente y rol del estudiante, y la evidencia o producto tangible generado en esos 50 minutos.
 4. Incorpora los Tres Saberes (Saber, Saber Hacer, Saber Ser) de manera secuencial y progresiva en las sesiones de desarrollo.
 5. PROHIBICIÓN ESTRICTA: Prohibido incluir temas de otras asignaturas (ej. no incluir modelado matemático, cálculo o física en asignaturas de Educación Física, Humanidades o Lengua). Las sesiones deben derivarse exclusivamente del contenido formativo y saberes de este bloque específico y diferenciarse de cualquier otro bloque.
+6. PROHIBIDO el relleno genérico: no uses frases como "Evaluación formativa continua", "Acompañamiento docente" o "Práctica activa colaborativa" sin contenido disciplinar específico. Cada campo debe nombrar el concepto, el dato, la operación, el producto y el instrumento concretos de esa sesión.
+7. teachingActivity debe integrar Contextualización situada + Mediación conceptual + Modelado docente con un ejemplo o procedimiento concreto. learningActivity debe integrar Práctica activa del libro + Aplicación situada. evidence debe nombrar el producto tangible; evaluation debe nombrar el instrumento analítico específico (rúbrica, lista de cotejo, escala) y el criterio observable.
 
 DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructura:
 {
@@ -363,10 +409,10 @@ DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON VÁLIDO con la siguiente estructu
       "sessionNum": 1,
       "phase": "Apertura",
       "title": "Título situado de la sesión",
-      "teachingActivity": "Explicación de la consigna y mediación del docente (2 oraciones concretas)",
-      "learningActivity": "Actividad activa individual o colaborativa que realizan los alumnos en los 50 min",
-      "evidence": "Producto, apunte, diagrama, bitácora o ejercicio entregable de la sesión",
-      "evaluation": "Instrumento o criterio formativo (ej: Lista de cotejo, Heteroevaluación, Rúbrica formativa)"
+      "teachingActivity": "Contextualización situada + Mediación conceptual + Modelado docente con ejemplo/procedimiento concreto",
+      "learningActivity": "Práctica activa del libro + Aplicación situada, con datos y producto",
+      "evidence": "Producto tangible específico de la sesión",
+      "evaluation": "Instrumento y criterio observable específico de la sesión"
     }
   ]
 }`;
@@ -435,30 +481,22 @@ Genera la secuencia didáctica completa de exactamente ${sessionsCount} sesiones
       };
     });
 
-    // Si la IA generó menos sesiones que las requeridas por el bloque, completar con la progresión temática del bloque
-    const blockThemeFallback = (blockActivity.contenidoFormativo || blockActivity.name || `Bloque ${blockIndex + 1}`)
-      .replace(/^(bloque|prop[oó]sito|unidad|actividad)\s*[\d,\sy]+:\s*/i, '')
-      .trim();
-    while (formattedSessions.length < sessionsCount) {
-      const sNum = formattedSessions.length + 1;
-      let phase: 'Apertura' | 'Desarrollo' | 'Cierre' = 'Desarrollo';
-      if (sNum <= aperturaCount) phase = 'Apertura';
-      else if (sNum > sessionsCount - cierreCount) phase = 'Cierre';
-
-      formattedSessions.push({
-        sessionNum: sNum,
-        totalSessions: sessionsCount,
-        phase,
-        title: `Sesión ${sNum}: ${phase === 'Cierre' ? `Evaluación formativa y síntesis — ${blockThemeFallback}` : `Práctica situada y consolidación — ${blockThemeFallback}`}`,
-        teachingActivity: phase === 'Cierre'
-          ? `Coordinación de la plenaria de evaluación formativa y retroalimentación sobre ${blockThemeFallback}.`
-          : `Acompañamiento docente, modelado y supervisión de la práctica sobre ${blockThemeFallback}.`,
-        learningActivity: phase === 'Cierre'
-          ? `Coevaluación con rúbrica, autoevaluación reflexiva y consolidación de evidencias sobre ${blockThemeFallback}.`
-          : `Práctica activa colaborativa y desarrollo de evidencias aplicadas a ${blockThemeFallback}.`,
-        evidence: phase === 'Cierre' ? 'Rúbrica/Lista de cotejo completada y producto final del bloque.' : 'Bitácora de trabajo y evidencia práctica de sesión.',
-        evaluation: phase === 'Cierre' ? 'Heteroevaluación formativa y sumativa.' : 'Evaluación formativa continua.',
-      });
+    // No se rellena la secuencia con sesiones genéricas. Si la IA no cubre el
+    // bloque completo, se aborta de forma ruidosa para que el docente reintente
+    // o regenere primero el libro de bloque (fuente rica de la secuencia).
+    if (formattedSessions.length < sessionsCount) {
+      return NextResponse.json(
+        {
+          error: `La IA generó ${formattedSessions.length} de ${sessionsCount} sesiones. No se guardó una secuencia incompleta ni se rellenó con texto genérico. Regenera el libro del bloque o vuelve a intentar la secuencia.`,
+          code: 'INCOMPLETE_SEQUENCE',
+          generatedSessions: formattedSessions.length,
+          requiredSessions: sessionsCount,
+        },
+        { status: 422 }
+      );
+    }
+    if (formattedSessions.length > sessionsCount) {
+      formattedSessions.length = sessionsCount;
     }
 
     const calibratedAISessions =

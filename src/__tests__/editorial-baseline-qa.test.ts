@@ -175,7 +175,9 @@ describe('Fase 0 Baseline QA — Regresiones editoriales, visuales y pedagógica
     const s1Text = svgs[1]!.svg.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     const s2Text = svgs[2]!.svg.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     // Slide 2/2 conserva oración inicial completa de práctica y aplicación (sin recortar "El terreno..." ni "Observa...")
-    expect(s2Text).toContain('El terreno comunitario');
+    expect(s2Text).toContain('El terreno');
+    expect(s2Text).toContain('12 m');
+    expect(s2Text).toContain('9 m');
     expect(s2Text).toContain('Observa el salón');
     expect(s2Text).toMatch(/OBJETIVOS?|METAS?|PROP[OÓ]SITO/i);
     expect(s2Text).toMatch(/EVALUACI[OÓ]N|CRITERIOS?|R[UÚ]BRICA/i);

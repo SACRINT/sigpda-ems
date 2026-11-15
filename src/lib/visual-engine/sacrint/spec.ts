@@ -1027,6 +1027,13 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
     if (m.phenomenonHook?.story) sources.push(m.phenomenonHook.story);
     for (const s of m.sessionPlans ?? []) {
       if (s.contenido) sources.push(s.contenido);
+      if (s.ejemploResuelto) sources.push(s.ejemploResuelto);
+      if (s.aplicacion) sources.push(s.aplicacion);
+      if (s.productoIntegrador) sources.push(s.productoIntegrador);
+      for (const practice of s.practica ?? []) {
+        if (practice.enunciado) sources.push(practice.enunciado);
+        if (practice.pista) sources.push(practice.pista);
+      }
     }
   }
   return sources;
@@ -1107,14 +1114,18 @@ function buildLessonGuideSlidesForSession(
     )
   );
   const cleanObjective = normalizeSessionDescriptorTense(stripLeadingSessionTag(bundle.objective));
+  const completeDefinition = preventSixGramTheoryOverlap(
+    bundle.concepts.definition || cleanObjective || fittedTopicTitle,
+    workbookTheorySources
+  );
   const rawExplanationBase =
-    fitPedagogicalText(
-      preventSixGramTheoryOverlap(
-        bundle.concepts.definition || cleanObjective || fittedTopicTitle,
-        workbookTheorySources
-      ),
-      { maxChars: 124, maxWords: 19, role: 'concept' }
-    ) || cleanObjective;
+    completeDefinition.length <= 220
+      ? completeDefinition
+      : fitPedagogicalText(completeDefinition, {
+          maxChars: 220,
+          maxWords: 34,
+          role: 'concept',
+        }) || cleanObjective;
   let cleanExplanation = rawExplanationBase;
   if (cleanExplanation.length < 64) {
     const remainingChars = Math.max(42, 124 - cleanExplanation.length - 1);
@@ -1651,9 +1662,9 @@ function buildSteps(
     sanitizeField(selectedSession?.motivacion || mission.phenomenonHook?.story, '', 200, 32),
     sanitizeField(selectedSession?.contenido || mission.iDoSection?.stepByStepDemo, '', 200, 32),
     sanitizeField(selectedSession?.practica?.[0]?.enunciado || mission.weDoSection?.guidedPractice, '', 200, 32),
+    sanitizeField(selectedSession?.practica?.[0]?.pista, '', 200, 32),
     sanitizeField(selectedSession?.aplicacion || mission.youDoSection?.autonomousChallenge, '', 200, 32),
-    'Verificar que el resultado responda con coherencia al contexto del planteamiento inicial.',
-    'Integrar el procedimiento y la conclusión con evidencia en el producto del bloque.',
+    sanitizeField(selectedSession?.productoIntegrador, '', 200, 32),
   ];
 
   const prioritizedFallback = [...fallback.slice(effectiveSolved.length), ...fallback];
@@ -1709,6 +1720,42 @@ function isInfographicDiagramCoherent(
 ): boolean {
   if (!diagram.available) return false;
   const combined = `${contextText} ${problemStatement} ${validFormulas.join(' ')}`;
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9.,=+\-*/^()]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const numbersIn = (value: string) =>
+    new Set(
+      (normalize(value).match(/-?\d+(?:[.,]\d+)?/g) || [])
+        .map((n) => n.replace(',', '.'))
+        .filter((n) => Number.isFinite(Number(n)))
+    );
+
+  const contextIsGeometry = /geometr|angul|triangulo|poligono|perimetro|area|cateto|hipotenusa|congruen|semejan/i.test(
+    normalize(contextText)
+  );
+  const diagramText = `${diagram.kind} ${diagramFormula(diagram)}`;
+  const diagramIsStatistics = /muestra|poblacion|estadistica|demograf|encuesta|frecuencia|media aritm|mediana|moda/i.test(
+    normalize(diagramText)
+  );
+  if (contextIsGeometry && diagramIsStatistics && !/estadistica/i.test(normalize(contextText))) {
+    return false;
+  }
+
+  // Coherencia numérica: si la gráfica introduce coeficientes que no aparecen
+  // ni en el ejemplo ni en las fórmulas válidas, es una gráfica de otro problema.
+  const diagramEquation = diagramFormula(diagram);
+  if (diagramEquation && /=/.test(diagramEquation) && /=/.test(combined)) {
+    const contextNumbers = numbersIn(combined);
+    const diagramNumbers = numbersIn(diagramEquation);
+    if (diagramNumbers.size > 0 && [...diagramNumbers].some((n) => !contextNumbers.has(n))) {
+      return false;
+    }
+  }
 
   if (diagram.kind === 'exponential') {
     const pctMatches = Array.from(combined.matchAll(/(\d+(?:[.,]\d+)?)\s*%/g))
@@ -1736,6 +1783,43 @@ function isInfographicDiagramCoherent(
   }
 
   return true;
+}
+
+export interface SacrintInfographicTarget {
+  missionIndex: number;
+  sessionIndex: number;
+  conceptKey: string;
+}
+
+/**
+ * Selecciona una infografía por concepto/sesión distinto. Evita el error de
+ * generar una sola lámina por misión tomando siempre `sessionPlans[0]`, que
+ * omitía los conceptos de las sesiones 2..N y duplicaba títulos entre misiones.
+ */
+export function selectInfographicTargets(workbook: ActiveWorkTextbook): SacrintInfographicTarget[] {
+  const seen = new Set<string>();
+  const targets: SacrintInfographicTarget[] = [];
+  const missions = workbook.missions ?? [];
+  missions.forEach((mission, missionIndex) => {
+    const plans = resolveSessionPlans(mission);
+    plans.forEach((plan, sessionIndex) => {
+      const rawKey = plan.contenido || plan.objetivo || mission.sessionTopic || '';
+      const conceptKey = cleanSacrintText(rawKey)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .slice(0, 90);
+      if (!conceptKey || seen.has(conceptKey)) return;
+      seen.add(conceptKey);
+      targets.push({ missionIndex, sessionIndex, conceptKey });
+    });
+  });
+  if (targets.length === 0 && missions.length > 0) {
+    targets.push({ missionIndex: 0, sessionIndex: 0, conceptKey: 'mission-0' });
+  }
+  return targets;
 }
 
 export function buildSacrintInfographic(
@@ -1818,11 +1902,13 @@ export function buildSacrintInfographic(
     conceptHighlights.definition || meta.missionTitle
   );
   const cleanClaim = finalizeVisibleText(
-    fitPedagogicalText(sanitizePedagogicalMetaPhrases(rawClaimCandidate), {
-      maxChars: 175,
-      maxWords: 28,
-      role: 'concept',
-    }) || conceptHighlights.definition || cleanTitle,
+    rawClaimCandidate.length <= 220
+      ? rawClaimCandidate
+      : fitPedagogicalText(sanitizePedagogicalMetaPhrases(rawClaimCandidate), {
+          maxChars: 220,
+          maxWords: 34,
+          role: 'concept',
+        }) || conceptHighlights.definition || cleanTitle,
     { ensurePeriod: true }
   );
 

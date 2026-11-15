@@ -16,6 +16,7 @@ import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import {
   buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
+  selectInfographicTargets,
   type SacrintDeckSpec,
   type SacrintInfographicSpec,
 } from '@/lib/visual-engine/sacrint/spec';
@@ -420,9 +421,13 @@ async function handleBulkPdf(request: NextRequest) {
         if (effectiveEntries.length > 0) {
           const specs: SacrintInfographicSpec[] = [];
           for (const entry of effectiveEntries) {
-            const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
-            for (let m = 0; m < missionCount; m++) {
-              specs.push(buildSacrintInfographic(entry.workbook, 'wide', { missionIndex: m }));
+            for (const target of selectInfographicTargets(entry.workbook)) {
+              specs.push(
+                buildSacrintInfographic(entry.workbook, 'wide', {
+                  missionIndex: target.missionIndex,
+                  sessionIndex: target.sessionIndex,
+                })
+              );
             }
           }
           if (specs.length > 0) {

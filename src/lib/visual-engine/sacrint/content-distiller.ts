@@ -1,4 +1,4 @@
-/**
+﻿/**
  * content-distiller.ts — Destilador Pedagógico SSoT para SACRINT (08_Presentaciones y 09_Infografias)
  *
  * Centraliza:
@@ -228,6 +228,29 @@ export function distillConciseText(
     role: 'general',
   });
   return fitted || clean;
+}
+
+/**
+ * Selecciona oraciones completas de una fuente, sin cortar a media cláusula.
+ * Si la primera oración excede el presupuesto, se devuelve completa: es preferible
+ * un enunciado algo más largo a un fragmento sin sujeto/verbo/predicado.
+ */
+function pickCompleteSentences(value: string | null | undefined, maxChars: number, maxSentences = 1): string {
+  const clean = sanitizePedagogicalMetaPhrases(cleanSacrintText(value));
+  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  const sentences = splitSpanishSentences(clean).filter(
+    (sentence) => sentence.trim().length >= 18 && !hasDanglingEnding(sentence)
+  );
+  if (sentences.length === 0) return '';
+  let out = '';
+  for (const sentence of sentences) {
+    const next = out ? `${out} ${sentence}` : sentence;
+    if (out && next.length > maxChars) break;
+    if (!out && sentence.length > maxChars) return sentence.trim();
+    out = next;
+    if (out.split(/(?<=[.!?])\s+/).length >= maxSentences) break;
+  }
+  return out.trim();
 }
 
 /** Divide un párrafo largo en puntos clave breves para proyección en aula. */
@@ -963,6 +986,19 @@ export function preventSixGramTheoryOverlap(
     congruencia: 'correspondencia',
     triangulo: 'polígono',
     triangulos: 'polígonos',
+    durante: 'a lo largo de',
+    cada: 'todo',
+    periodo: 'lapso',
+    periodos: 'lapsos',
+    temporal: 'de tiempo',
+    consecutivo: 'sucesivo',
+    consecutivos: 'sucesivos',
+    precision: 'exactitud',
+    proyectar: 'anticipar',
+    futuros: 'venideros',
+    censos: 'registros',
+    multiplica: 'opera',
+    incremento: 'aumento',
     coeficiente: 'factor',
     coeficientes: 'factores',
     factor: 'multiplicador',
@@ -1239,8 +1275,9 @@ export function extractConceptHighlights(
     ) || definitionSentences[0];
   const definition = allowMission
     ? conceptualDefSentence || distillConciseText(definitionSource, 200, 34)
-    : distillConciseText(conceptualDefSentence || definitionSource, 124, 19) ||
-      distillConciseText(definitionSource, 124, 19);
+    : pickCompleteSentences(definitionSource, 220, 1) ||
+      conceptualDefSentence ||
+      distillConciseText(definitionSource, 180, 26);
 
   const defNorm = definition.toLowerCase().replace(/[^a-záéíóúñ0-9]+/gi, ' ').trim();
   const defPrefix = defNorm.slice(0, 26);
@@ -1293,6 +1330,20 @@ const META_CONCLUSION_INSTRUCTION_RE =
 
 const PROCEDURAL_CONCLUSION_FILLER_RE =
   /^(?:analizar|evaluar|revisar|comprobar|verificar|comparar|interpretar|discutir|reflexionar)\s+(?:la\s+coherencia|el\s+resultado|la\s+validez|los\s+datos|si\s+el\s+resultado|paso\s+a\s+paso)\b/i;
+
+function isSubstantiveStep(candidate: string): boolean {
+  const value = candidate.trim();
+  if (value.length < 12) return false;
+  if (
+    /^(?:de acuerdo con el enunciado|analizar el significado|construir la ecuaci[oó]n|aplicar (?:la|las) propiedade?s?|realizar la operaci[oó]n|identificar (?:las )?variables)\b/i.test(
+      value
+    ) &&
+    !/[=0-9]/.test(value)
+  ) {
+    return false;
+  }
+  return /[=0-9]/.test(value) || value.length >= 35;
+}
 
 function isSubstantiveConclusion(candidate: string): boolean {
   const trimmed = candidate.trim();
@@ -1407,6 +1458,7 @@ export function extractWorkedExample(
     const steps = selectedRawSteps
       .map((step) => distillStepPreservingMath(step, stepBudget, stepWords))
       .filter(Boolean)
+      .filter(isSubstantiveStep)
       .slice(0, allowMission ? 4 : 3);
 
     if (steps.length > 0) {
@@ -1507,6 +1559,7 @@ export function extractWorkedExample(
   const missionSteps = rawMissionSteps
     .map((s) => distillStepPreservingMath(s, 185))
     .filter(Boolean)
+    .filter(isSubstantiveStep)
     .slice(0, 4);
 
   const demoRaw = cleanSacrintText(mission.iDoSection?.stepByStepDemo);
@@ -1521,6 +1574,7 @@ export function extractWorkedExample(
       .map((t) => cleanSacrintText(t.solution || t.solutionSteps?.[0] || t.rootCause || t.symptom))
       .filter((s) => s.length >= 8 && !isRubricOrBoilerplateLeak(s))
       .map((s) => distillStepPreservingMath(s, 175))
+      .filter(isSubstantiveStep)
       .slice(0, 4);
   }
   if (derivedSteps.length === 0) {
@@ -1607,18 +1661,10 @@ function distillExerciseStatement(rawEnunciado: string | null | undefined, maxCh
   );
   if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
 
-  const ensureActivityTask = (text: string): string => {
-    const value = text.trim();
-    if (!value) return '';
-    const hasExplicitTask =
-      value.includes('?') ||
-      /\b(?:calcula|determina|encuentra|plantea|resuelve|indica|explica|verifica|halla|convierte|transforma|analiza|dibuja|traza|grafica|realiza|lee|se[ñn]ala|elabora|construye|compara|justifica|modela|estima|proyecta|dise[ñn]a|aplica|eval[uú]a)\b/i.test(
-        value
-      );
-    return hasExplicitTask
-      ? value
-      : `${value.replace(/[.!?]+$/, '')}. Resuelve la situación y justifica tu respuesta.`;
-  };
+  // No se fabrican consignas genéricas. Si el enunciado de origen no trae
+  // datos + tarea explícita, se conserva tal cual y el gate de calidad lo
+  // reporta para que el writer lo corrija en origen.
+  const ensureActivityTask = (text: string): string => text.trim();
 
   // Quitar primera oración si es puramente introductoria sin datos numéricos ni consigna
   let sentences = clean
@@ -1965,6 +2011,10 @@ export function distillLessonBundle(
   if (!allowMission) {
     const theorySources = [
       session?.contenido,
+      session?.ejemploResuelto,
+      session?.aplicacion,
+      session?.productoIntegrador,
+      ...(session?.practica ?? []).flatMap((practice) => [practice.enunciado, practice.pista]),
       mission.conceptZero?.coreExplanation,
       mission.conceptZero?.narrativeExplanation,
       ...(options.extraTheorySources ?? []),

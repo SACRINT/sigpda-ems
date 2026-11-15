@@ -664,12 +664,26 @@ export function fitPedagogicalText(
   options: FitPedagogicalTextOptions = {}
 ): string {
   const role = options.role ?? 'general';
-  const maxChars = options.maxChars ?? 220;
+  let maxChars = options.maxChars ?? 220;
   let maxWords = options.maxWords;
   const ensurePeriod = options.ensurePeriod ?? true;
 
   const normalized = normalizeEditorialText(raw).replace(/\s+/g, ' ').trim();
   if (!normalized) return '';
+
+  const hasQuestion = /[?¿]/.test(normalized);
+  // Las preguntas son contenido irrenunciable: si caben con un margen elástico,
+  // se conservan completas en lugar de mutilarlas y añadirles "?" al final.
+  if (hasQuestion) {
+    const expandedChars = maxChars + 60;
+    const expandedWords = maxWords !== undefined ? maxWords + 10 : undefined;
+    if (
+      normalized.length <= expandedChars &&
+      (!expandedWords || normalized.split(/\s+/).filter(Boolean).length <= expandedWords)
+    ) {
+      return /[?]$/.test(normalized) ? normalized : `${normalized.replace(/[.!]+$/, '')}?`;
+    }
+  }
 
   const hasMultipleNumericClauses =
     (normalized.match(/\$/g) || []).length >= 2 ||
@@ -969,10 +983,15 @@ export function fitPedagogicalText(
     compressed = hardTrimToBudget(compressed, maxChars, maxWords, ensurePeriod);
   }
 
-  // Paso 6: Garantizar que jamás quede un final colgado o incompleto
+  // Paso 6: Garantizar que jamás quede un final colgado o incompleto.
+  // Si era pregunta y la compresión perdió el cierre, se recupera la oración
+  // interrogativa completa del original; nunca se pega "?" a un fragmento mutilado.
   const repaired = repairDanglingEnding(compressed, ensurePeriod);
-  if (/[?¿]/.test(normalized) && !/\?$/.test(repaired)) {
-    return `${repaired.replace(/[.!]+$/, '')}?`;
+  if (hasQuestion && !/\?$/.test(repaired)) {
+    const completeQuestion = splitSpanishSentences(normalized).find((sentence) => sentence.includes('?'));
+    if (completeQuestion && completeQuestion.length <= maxChars + 80) {
+      return completeQuestion.trim();
+    }
   }
   return repaired;
 }

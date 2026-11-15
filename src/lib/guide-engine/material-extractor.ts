@@ -479,7 +479,7 @@ function buildPlanDeClase(
         ? sessionFromSeq.evaluation.replace(/\s*·\s*Sesi[oó]n\s*\d+\s*[:.\-–—].*$/i, '').trim()
         : '';
       cierreDocente = cleanSeqEval
-        ? `Monitoreo del avance: ${cleanSeqEval} · Sesión ${sessionNum}. Retroalimentación formativa inmediata.`
+        ? `Monitoreo del avance: ${cleanSeqEval} · Sesión ${sessionNum}.`
         : cierreDocenteBase;
       cierreEstudiante = sessionFromSeq.evidence
         ? `Registro de avance sobre "${sessionFromSeq.evidence}" y revisión de dudas críticas.`
@@ -511,9 +511,7 @@ function buildPlanDeClase(
     const bookAct =
       `Libro del estudiante: estudia "${cleanObjetivo}" — lee la teoría y el ejemplo resuelto, ` +
       `resuelve ${bookPlan.practica.length} ejercicio(s) de práctica con pistas y registra tu evidencia.` +
-      (ejercicios
-        ? `\nEjercicios de la sesión (mismos enunciados que el libro y el solucionario docente):\n${ejercicios}`
-        : '');
+      (ejercicios ? `\n${ejercicios}` : '');
     desarrolloEstudiante = sessionFromSeq?.learningActivity
       ? `${desarrolloEstudiante} ${bookAct}`
       : bookAct;

@@ -7,6 +7,7 @@ import {
   normalizeEditorialText,
   normalizeExtraTitle,
   normalizeSessionDescriptorTense,
+  normalizeSolvedExampleSteps,
   repairExtraPedagogicalArtifacts,
 } from '@/lib/editorial/text-normalization';
 import {
@@ -22,7 +23,10 @@ import {
   extractPracticeActivities,
   extractWorkedExample,
 } from '@/lib/visual-engine/sacrint/content-distiller';
-import { buildSacrintDeck } from '@/lib/visual-engine/sacrint/spec';
+import {
+  buildSacrintDeck,
+  selectInfographicTargets,
+} from '@/lib/visual-engine/sacrint/spec';
 import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 
@@ -290,7 +294,7 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     expect(Number(p1Matches[0]![1])).toBe(pages.length);
   });
 
-  it('preserva pregunta+datos, añade consigna y repone pistas débiles en actividades', () => {
+  it('preserva pregunta+datos, no fabrica consignas genéricas y repone pistas débiles', () => {
     const session = {
       sessionNumber: 1,
       objetivo: 'Modelar ecuaciones.',
@@ -336,7 +340,8 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     expect(activities[0]!.statement).toContain('$4,000');
     expect(activities[0]!.statement).toContain('$6,000');
     expect(activities[0]!.statement).toContain('¿cuánto cuesta cada silla y cada mesa?');
-    expect(activities[1]!.statement).toMatch(/Resuelve la situación y justifica tu respuesta\./);
+    expect(activities[1]!.statement).toContain('Cada pulsera');
+    expect(activities[1]!.statement).not.toMatch(/Resuelve la situación y justifica tu respuesta\./);
     expect(activities[1]!.hint).not.toMatch(/^luego,\s*plantea una ecuación/i);
     expect(activities[1]!.hint.length).toBeGreaterThan(18);
 
@@ -355,6 +360,28 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     const currency = normalizeEditorialText('La escuela cuenta con un presupuesto de $1,$200 para equipamiento.');
     expect(currency).toContain('$1,200');
     expect(currency).not.toContain('$1,$200');
+
+    const monomials = normalizeEditorialText('Sustituye $2x$ y $7x$ en $4a$; usa $x^2$.');
+    expect(monomials).not.toContain('$2x$');
+    expect(monomials).not.toContain('$7x$');
+    expect(monomials).toContain('2x');
+    expect(monomials).toContain('7x');
+    expect(normalizeEditorialText('raiz(16) y sqrt(25)')).toContain('V(16)');
+    expect(normalizeEditorialText('raiz(16) y sqrt(25)')).not.toMatch(/\b(?:raiz|sqrt)\s*\(/i);
+
+    const completeQuestion = fitPedagogicalText(
+      '¿Comprendo la diferencia entre una expresión algebraica y una ecuación con incógnita?',
+      { maxChars: 60, maxWords: 8, role: 'activity' }
+    );
+    expect(completeQuestion.endsWith('?')).toBe(true);
+    expect(completeQuestion).toContain('expresión algebraica');
+
+    const expanded = normalizeSolvedExampleSteps([
+      'Despeja: 5x + y = 11, y = 11 - 5x Paso 2: Igualamos ambas expresiones y resolvemos.',
+    ]);
+    expect(expanded.length).toBeGreaterThanOrEqual(2);
+    expect(expanded[0]).toContain('5x');
+    expect(expanded[1]).toContain('Igualamos');
   });
 
   it('descarta conclusiones meta del ejemplo resuelto y conserva una conclusión sustantiva', () => {
@@ -399,5 +426,38 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     const example = extractWorkedExample(mission, session);
     expect(example.interpretation).not.toMatch(/Analizar la coherencia/i);
     expect(example.interpretation.length).toBeGreaterThan(0);
+  });
+
+  it('selecciona una infografía por concepto distinto y conserva el sessionIndex', () => {
+    const workbook = {
+      missions: [
+        {
+          missionIndex: 1,
+          sessionPlans: [
+            { sessionNumber: 1, contenido: 'Interés simple', objetivo: 'Interés simple' },
+            { sessionNumber: 2, contenido: 'Interés compuesto', objetivo: 'Interés compuesto' },
+          ],
+        },
+        {
+          missionIndex: 2,
+          sessionPlans: [
+            { sessionNumber: 1, contenido: 'Interés simple', objetivo: 'Interés simple' },
+            { sessionNumber: 2, contenido: 'Geometría plana', objetivo: 'Geometría plana' },
+          ],
+        },
+      ],
+    } as unknown as ActiveWorkTextbook;
+
+    const targets = selectInfographicTargets(workbook);
+    expect(targets).toHaveLength(3);
+    expect(targets.map((t) => t.conceptKey)).toEqual([
+      'interes simple',
+      'interes compuesto',
+      'geometria plana',
+    ]);
+    expect(targets[1]!.missionIndex).toBe(0);
+    expect(targets[1]!.sessionIndex).toBe(1);
+    expect(targets[2]!.missionIndex).toBe(1);
+    expect(targets[2]!.sessionIndex).toBe(1);
   });
 });

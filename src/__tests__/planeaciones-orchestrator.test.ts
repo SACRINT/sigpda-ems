@@ -541,17 +541,15 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     mockDb.mockResolvedValueOnce([mockPlanningRow]);
     vi.mocked(generateWithRetry).mockResolvedValueOnce({
       data: {
-        sessions: [
-          {
-            sessionNum: 1,
-            phase: 'Apertura',
-            title: 'Sesión Legacy 1',
-            teachingActivity: 'Docente legacy',
-            learningActivity: 'Alumno legacy',
-            evidence: 'Producto legacy',
-            evaluation: 'Lista de cotejo',
-          },
-        ],
+        sessions: Array.from({ length: 12 }, (_, index) => ({
+          sessionNum: index + 1,
+          phase: index < 3 ? 'Apertura' : index >= 10 ? 'Cierre' : 'Desarrollo',
+          title: index === 0 ? 'Sesión Legacy 1' : `Sesión Legacy ${index + 1}`,
+          teachingActivity: index === 0 ? 'Docente legacy' : `Docente legacy ${index + 1}`,
+          learningActivity: index === 0 ? 'Alumno legacy' : `Alumno legacy ${index + 1}`,
+          evidence: 'Producto legacy',
+          evaluation: 'Lista de cotejo',
+        })),
       },
       provider: 'gemini',
       latencyMs: 150,

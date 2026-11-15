@@ -93,7 +93,12 @@ import {
   drawProcessFlowBanner,
   extractProcessFlowSteps,
 } from '@/lib/visual-engine/pdf-components';
-import { formatSolvedExampleBlocks, normalizePdfEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
+import {
+  formatSolvedExampleBlocks,
+  normalizePdfEditorialText,
+  normalizeSolvedExampleSteps,
+  toWinAnsiMathSafe,
+} from '@/lib/editorial/text-normalization';
 import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
@@ -2637,8 +2642,9 @@ async function drawMission(
     y = flow.printMainParagraph(`Problema: ${ex.problemStatement}`, y, { size: 8, fontStyle: 'bold', color: DARK_TEXT });
     y += 2;
 
-    for (let sIdx = 0; sIdx < (ex.solutionSteps || []).length; sIdx++) {
-      const step = ex.solutionSteps[sIdx];
+    const normalizedSteps = normalizeSolvedExampleSteps(ex.solutionSteps);
+    for (let sIdx = 0; sIdx < normalizedSteps.length; sIdx++) {
+      const step = normalizedSteps[sIdx];
       y = flow.printMainParagraph(`Paso ${sIdx + 1}: ${step}`, y, { size: 7.8, color: DARK_TEXT, lineHeight: 3.8 });
     }
     y += 2;

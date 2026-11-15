@@ -664,9 +664,20 @@ function addQuadraticDiagram(slide: PptxGenJS.Slide, diagram: QuadraticDiagramSp
 
   const vx = Math.max(plotX + 8, Math.min(plotX + plotW - 110, xToPx(diagram.vertexX)));
   const vy = Math.max(plotY + 12, Math.min(plotY + plotH - 12, yToPx(diagram.vertexY)));
-  addPointMarker(slide, vx, vy, `V(${formatTickLabel(diagram.vertexX)}, ${formatTickLabel(diagram.vertexY)})`, accent2, accent, 114);
+  const tangentRoot =
+    Math.abs(diagram.vertexY) <= 1e-6
+      ? diagram.roots.find((root) => Math.abs(root - diagram.vertexX) <= 1e-6)
+      : undefined;
+  const vertexLabel =
+    tangentRoot !== undefined
+      ? `V(${formatTickLabel(diagram.vertexX)}, ${formatTickLabel(diagram.vertexY)})=x₁`
+      : `V(${formatTickLabel(diagram.vertexX)}, ${formatTickLabel(diagram.vertexY)})`;
+  addPointMarker(slide, vx, vy, vertexLabel, accent2, accent, 114);
 
   diagram.roots.slice(0, 2).forEach((root, idx) => {
+    // En parábolas tangentes al eje X, la etiqueta del vértice ya contiene x₁.
+    // Evita dibujar x1=... exactamente encima de V(...).
+    if (tangentRoot !== undefined && Math.abs(root - tangentRoot) <= 1e-6) return;
     const rx = Math.max(plotX + 8, Math.min(plotX + plotW - 96, xToPx(root)));
     const ry = yToPx(0);
     addPointMarker(slide, rx, ry, `x${idx + 1}=${formatTickLabel(root)}`, accent, accent2, 92);
@@ -1690,7 +1701,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     addDiagram(slide, spec.diagram, accent, accent2);
   }
 
-  const vars = spec.variables.slice(0, 4);
+  const vars = spec.variables.slice(0, isGuide ? 2 : 4);
   if (isGuide && hasDiagram && vars.length > 0) {
     const colGap = 16;
     const rowGap = 12;
@@ -1708,7 +1719,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
       addText(slide, variable.meaning, vx + 72, vy + 28, colW - 86, 36, { fontSize: pt(15), color: C.textSoft, maxLines: 2 });
     });
   } else if (isGuide && hasDiagram && spec.keyTakeaways && spec.keyTakeaways.length > 0) {
-    const guideKeys = spec.keyTakeaways.slice(0, 2);
+    const guideKeys = spec.keyTakeaways.slice(0, 1);
     const colGap = 16;
     const colW = guideKeys.length === 1 ? 1016 : (1016 - colGap) / 2;
     guideKeys.forEach((rule, index) => {

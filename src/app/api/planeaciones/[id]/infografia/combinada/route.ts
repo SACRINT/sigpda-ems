@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getAllBlockWorkbooks, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
-import { buildSacrintInfographic, type SacrintInfographicSpec } from '@/lib/visual-engine/sacrint/spec';
+import {
+  buildSacrintInfographic,
+  selectInfographicTargets,
+  type SacrintInfographicSpec,
+} from '@/lib/visual-engine/sacrint/spec';
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { logger } from '@/lib/logger';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
@@ -90,15 +94,18 @@ export async function GET(
     const specs: SacrintInfographicSpec[] = [];
 
     for (const entry of effectiveEntries) {
-      const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
-      for (let missionPos = 0; missionPos < missionCount; missionPos++) {
+      for (const target of selectInfographicTargets(entry.workbook)) {
         try {
-          const spec = buildSacrintInfographic(entry.workbook, layout, { missionIndex: missionPos });
+          const spec = buildSacrintInfographic(entry.workbook, layout, {
+            missionIndex: target.missionIndex,
+            sessionIndex: target.sessionIndex,
+          });
           specs.push(spec);
         } catch (err) {
-          logger.warn(`Error generando infografía SACRINT del bloque ${entry.blockIndex + 1}, misión ${missionPos + 1}:`, {
-            error: err instanceof Error ? err.message : String(err),
-          });
+          logger.warn(
+            `Error generando infografía SACRINT del bloque ${entry.blockIndex + 1}, misión ${target.missionIndex + 1}, sesión ${target.sessionIndex + 1}:`,
+            { error: err instanceof Error ? err.message : String(err) }
+          );
         }
       }
     }

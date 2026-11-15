@@ -512,7 +512,15 @@ function drawVectorDiagram(
     const infoW = w - drawHalfW - 6;
     const cards = [
       { title: diagram.primaryLabel, detail: diagram.equation || diagram.secondaryLabel },
-      ...diagram.highlights.slice(0, 2).map((m) => ({ title: m.label, detail: m.detail })),
+      ...diagram.highlights
+        .filter((m) => {
+          const label = (m.label || '').trim();
+          // Evita que letras sueltas de un diagrama geométrico (R, A, B) se
+          // interpreten como KPIs/tarjetas métricas del manual.
+          return label.length > 1 && !/^[A-ZÁÉÍÓÚÑ]$/i.test(label);
+        })
+        .slice(0, 2)
+        .map((m) => ({ title: m.label, detail: m.detail })),
     ];
     const ch = (h - 6 - (cards.length - 1) * 2.5) / cards.length;
     cards.forEach((c, idx) => {

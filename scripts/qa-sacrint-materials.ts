@@ -110,11 +110,30 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['orphan_paso_number', /(?:^|\n)[ \t]*\d+\.\s*\n+[ \t]*Paso\s+\d+\s*:/i],
     ['truncated_quadratic_formula', /(?:MODELO Y F[ÓO]RMULA CENTRAL|F[ÓO]RMULA CENTRAL)\s*\n?\s*c\s*=\s*0\b/i],
     ['truncated_angles_formula', /(?:^|[:•])\s*\(2x\s*\+\s*20\)\s*=\s*180/i],
+    ['latex_monomial_leak', /\$[+-]?\d+(?:[.,]\d+)?[a-zA-Zα-ωΑ-Ω²³₀-₉]+(?:\^[a-zA-Z0-9]+)?\$/],
+    ['literal_sqrt_notation', /\b(?:raiz|sqrt)\s*\(/i],
+    ['raw_subscript_formula', /\bM_\((?:simple|compuesto)\)/i],
+    [
+      'dangling_question',
+      /¿[^?]{0,90}\b(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|y|o|sus?)\s*\?/i,
+    ],
+    [
+      'incomplete_concept_ending',
+      /\b(?:a los que llamamos|valor desconocido llamado|expresado en el lado|miembro derecho para)\.\s*(?:\n|$)|(?:equivalencia|expresiones|miembros|valores)[^.]{0,50}\bentre dos\.\s*(?:\n|$)/i,
+    ],
   ];
 
   for (const [key, re] of rules) {
     const hits = collectPatternMatches(text, re);
     if (hits.length > 0) findings[key] = hits;
+  }
+  const genericActivityHits = collectPatternMatches(
+    text,
+    /Resuelve la situación y justifica tu respuesta\./gi,
+    5
+  );
+  if (genericActivityHits.length > 2) {
+    findings['generic_activity_filler'] = genericActivityHits;
   }
   return findings;
 }
@@ -264,7 +283,7 @@ export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
   }
   appendPdfSemanticFindings(fileName, text, pageTexts, findings);
 
-  return {
+  const report: PdfQaReport = {
     file: fileName,
     pages,
     totalChars: text.replace(/\s+/g, '').length,
@@ -274,6 +293,8 @@ export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
     totalImagePaintOps,
     findings,
   };
+  Object.defineProperty(report, '_text', { value: text, enumerable: false });
+  return report;
 }
 
 interface ParsedShapeBox {
@@ -388,6 +409,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
   let outOfBoundsShapes = 0;
   const collisions: PptxSlideCollision[] = [];
   const findings: Record<string, string[]> = {};
+  const documentText: string[] = [];
   const slide12Counts: number[] = [];
   const slide22Counts: number[] = [];
   let slide12Over200 = 0;
@@ -414,6 +436,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
     collisions.push(...detectTextBoxCollisions(shapes, slideNumber));
 
     const allSlideText = shapes.map((s) => s.text).filter(Boolean).join('\n');
+    documentText.push(allSlideText);
     const words = allSlideText.trim() ? allSlideText.trim().split(/\s+/).length : 0;
 
     if (allSlideText.includes('PIZARRÓN DOCENTE (1/2)')) {
@@ -555,7 +578,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
   const avg = (arr: number[]) =>
     arr.length > 0 ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : 0;
 
-  return {
+  const report: PptxQaReport = {
     file: fileName,
     slideCount: slideFiles.length,
     wrapNoneShapes,
@@ -572,6 +595,8 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
     repeatedMisconceptions,
     findings,
   };
+  Object.defineProperty(report, '_text', { value: documentText.join('\n'), enumerable: false });
+  return report;
 }
 
 export async function runMaterialsQa(targetDir: string, options?: { strict?: boolean }): Promise<MaterialQaSummary> {
@@ -613,7 +638,11 @@ export async function runMaterialsQa(targetDir: string, options?: { strict?: boo
       if (report.wordStats.slide12Over200 > 0 || report.wordStats.slide22Over200 > 0) {
         failures.push(`[${report.file}] Slides > 200 palabras: 1/2=${report.wordStats.slide12Over200}, 2/2=${report.wordStats.slide22Over200}`);
       }
-      if (options?.strict && report.wordStats.slide12Avg > 140) {
+      if (report.file.startsWith('08_') && report.wordStats.slide12Avg > 135) {
+        failures.push(
+          `[${report.file}] Promedio 1/2 (${report.wordStats.slide12Avg}w) excede el presupuesto estricto 90–130w`
+        );
+      } else if (options?.strict && report.wordStats.slide12Avg > 140) {
         warnings.push(`[${report.file}] Promedio 1/2 (${report.wordStats.slide12Avg}w) excede presupuesto 90–130w`);
       }
       if (report.wordStats.slide22MissingRubricOrObjectives > 0) {
@@ -621,6 +650,48 @@ export async function runMaterialsQa(targetDir: string, options?: { strict?: boo
       }
       if (report.repeatedMisconceptions.length > 0) {
         failures.push(`[${report.file}] Errores comunes repetidos > 2 veces (máx=${report.repeatedMisconceptions[0]!.count})`);
+      }
+    }
+  }
+
+  if (options?.strict) {
+    const normalize = (value: string) =>
+      value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const ngrams = (value: string, n: number) => {
+      const words = normalize(value).split(' ').filter(Boolean);
+      const out = new Set<string>();
+      for (let i = 0; i <= words.length - n; i++) out.add(words.slice(i, i + n).join(' '));
+      return out;
+    };
+    const book = pdfReports.find((report) => report.file.startsWith('06_')) as
+      | (PdfQaReport & { _text?: string })
+      | undefined;
+    if (book?._text) {
+      const bookGrams = ngrams(book._text, 6);
+      const compare = (file: string, text: string | undefined, label: string) => {
+        if (!text || bookGrams.size === 0) return;
+        const grams = ngrams(text, 6);
+        if (grams.size === 0) return;
+        let shared = 0;
+        for (const gram of grams) if (bookGrams.has(gram)) shared++;
+        const ratio = shared / grams.size;
+        if (ratio > 0.2) {
+          failures.push(
+            `[${file}] Solapamiento de 6-gramas con el libro 06 (${label}): ${(ratio * 100).toFixed(1)}% (máx. 20%)`
+          );
+        }
+      };
+      for (const pdf of pdfReports) {
+        if (pdf.file.startsWith('09_')) compare(pdf.file, (pdf as PdfQaReport & { _text?: string })._text, 'infografía');
+      }
+      for (const pptx of pptxReports) {
+        if (pptx.file.startsWith('08_')) compare(pptx.file, (pptx as PptxQaReport & { _text?: string })._text, 'presentación');
       }
     }
   }

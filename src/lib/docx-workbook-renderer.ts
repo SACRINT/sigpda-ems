@@ -105,7 +105,11 @@ import {
   generateToolQrPng,
   type DigitalTool,
 } from '@/lib/visual-engine/digital-tools-registry';
-import { formatSolvedExampleBlocks, normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import {
+  formatSolvedExampleBlocks,
+  normalizeEditorialText,
+  normalizeSolvedExampleSteps,
+} from '@/lib/editorial/text-normalization';
 import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
 
@@ -4049,13 +4053,14 @@ async function buildMissionContent(
       })
     );
 
-    for (let sIdx = 0; sIdx < (ex.solutionSteps || []).length; sIdx++) {
+    const normalizedSteps = normalizeSolvedExampleSteps(ex.solutionSteps);
+    for (let sIdx = 0; sIdx < normalizedSteps.length; sIdx++) {
       aperturaMain.push(
         new Paragraph({
           spacing: { after: 50, line: 320 },
           children: [
             new TextRun({ text: `• Paso ${sIdx + 1}: `, bold: true, size: 20, color: C.midBlue, font: 'Calibri' }),
-            new TextRun({ text: ex.solutionSteps[sIdx], size: 20, color: C.darkText, font: 'Calibri' }),
+            new TextRun({ text: normalizedSteps[sIdx], size: 20, color: C.darkText, font: 'Calibri' }),
           ],
         })
       );

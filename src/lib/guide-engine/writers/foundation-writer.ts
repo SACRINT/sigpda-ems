@@ -107,6 +107,7 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 - Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a aprender", "tu cuaderno", "observa", "resuelve").
 - PROHIBIDO usar etiquetas "Docente:" o "Estudiante:", y verbos de instrucción al maestro ("activar el interés", "exponer y problematizar", "verificar comprensión", "orientar el avance", "plantear la situación", "retomar el desafío"). Eso va en el plan de clase, NO en el libro.
 - El contenido debe ser REAL y AUTODIDACTA: definiciones, fórmulas, explicaciones, ejemplos resueltos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro aprende el tema.
+- ESTILO EDITORIAL OBLIGATORIO: lenguaje claro, directo y breve. PROHIBIDO el lenguaje hiperbólico o grandilocuente ("altísimo valor académico", "pulcritud", "veracidad absoluta", "lamentable omisión", "excelencia académica", "inequívoca"). Explica con hechos, datos y procedimientos, sin adjetivos de exaltación.
 
 REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Concepto Cero (400 a 600 palabras en total entre physicalAnalogy y coreExplanation):
