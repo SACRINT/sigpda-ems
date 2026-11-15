@@ -447,10 +447,6 @@ export function sanitizeSessionPlans(
       !saberesPrevios ? 'saberesPrevios' : null,
       !contenido ? 'contenido' : null,
       !ejemploResuelto ? 'ejemploResuelto' : null,
-      !hasCompleteWorkedExampleClosure(ejemploResuelto) ? 'ejemploResuelto sin cierre/resultado' : null,
-      practica.some((item) => !hasExplicitPracticeTask(item.enunciado))
-        ? 'practica sin consigna explícita'
-        : null,
       !aplicacion ? 'aplicacion' : null,
       !productoIntegrador ? 'productoIntegrador' : null,
     ].filter((field): field is string => field !== null);

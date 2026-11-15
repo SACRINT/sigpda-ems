@@ -405,7 +405,7 @@ async function callPack(
 async function generatePack(
   ctx: SessionShardContext,
   pack: number[],
-  opts: { packTerms?: string[] },
+  opts: { packTerms?: string[]; directive?: string },
   packLabel: string
 ): Promise<unknown[]> {
   const collected: unknown[] = [];
@@ -504,7 +504,17 @@ export async function generateShardedSessionPlans(
   if (missing.length > 0 && !ctx.input.signal?.aborted) {
     const rescue = await Promise.allSettled(
       shardSessions(missing).map(async (pack) => {
-        const result = await generatePack(ctx, pack, { packTerms: [] }, `${label}-rescate[${pack.join('-')}]`);
+        const result = await generatePack(
+          ctx,
+          pack,
+          {
+            packTerms: [],
+            directive:
+              `Estas sesiones no se generaron en el intento anterior: ${pack.join(', ')}. ` +
+              'Genera cada una COMPLETA con contenido de 3 párrafos, ejemploResuelto con datos + ecuación/procedimiento + resultado/conclusión, y 2 prácticas con datos + consigna explícita. No repitas el error de dejar solo datos sin tarea.',
+          },
+          `${label}-rescate[${pack.join('-')}]`
+        );
         if (result.length > 0) {
           raw.push(...result);
           await notifyPartialCheckpoint();
@@ -533,7 +543,7 @@ export async function generateShardedSessionPlans(
     .filter((x) => !x.report.ok);
 
   const repaired: number[] = [];
-  const maxRepairs = Math.max(2, Math.ceil(ctx.coveredSessions.length / 3));
+  const maxRepairs = Math.max(2, Math.min(deficient.length, Math.ceil(ctx.coveredSessions.length * 0.8)));
   if (deficient.length > 0 && !ctx.input.signal?.aborted) {
     const targets = deficient.slice(0, maxRepairs);
     for (const { plan, report } of targets) {
@@ -552,7 +562,9 @@ export async function generateShardedSessionPlans(
           {
             directive:
               `Tu borrador previo de la sesión ${plan.sessionNumber} fue insuficiente: ${report.deficits.join('; ')}. ` +
-              'Redáctala de nuevo COMPLETA cumpliendo exactamente la estructura: contenido en 3 párrafos sustanciales separados por saltos de línea (>=150 palabras cada uno), ejemploResuelto con Planteamiento y 4 pasos numerados (Paso 1..Paso 4), 2 ejercicios con enunciado detallado, pista propia y solución.',
+              `No repitas el mismo error. Ejemplo previo (recortado): "${(plan.ejemploResuelto || '').slice(0, 420)}". ` +
+              `Práctica previa (recortada): "${(plan.practica || []).map((p) => p.enunciado).join(' | ').slice(0, 360)}". ` +
+              'Redáctala de nuevo COMPLETA cumpliendo exactamente la estructura: contenido en 3 párrafos sustanciales separados por saltos de línea (>=150 palabras cada uno), ejemploResuelto con Planteamiento y 4 pasos numerados (Paso 1..Paso 4) que cierre con resultado numérico o conclusión verificable, 2 ejercicios con datos concretos y consigna explícita (pregunta o verbo de tarea), pista propia y solución.',
           },
           `${label}-reparacion[${plan.sessionNumber}]`
         );

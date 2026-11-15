@@ -127,21 +127,21 @@ describe('sanitizeSessionPlans — sin relleno genérico', () => {
     expect(sanitize(rawPlan({ productoIntegrador: undefined }))).toBeUndefined();
   });
 
-  it('ejemplo sin cierre o práctica sin consigna → descarta el plan', () => {
+  it('ejemplo sin cierre o práctica sin consigna se conserva para reparación dirigida', () => {
     expect(
       sanitize(
         rawPlan({
           ejemploResuelto: 'Planteamiento: se compran materiales para el taller.',
         })
       )
-    ).toBeUndefined();
+    ).toHaveLength(1);
     expect(
       sanitize(
         rawPlan({
           practica: [{ enunciado: 'El presupuesto total es de 2,500 pesos.', pista: 'Organiza los datos.' }],
         })
       )
-    ).toBeUndefined();
+    ).toHaveLength(1);
   });
 
   it('plan con sessionNumber fuera de coveredSessions → se ignora', () => {

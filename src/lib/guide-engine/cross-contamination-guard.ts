@@ -287,6 +287,20 @@ function findIssues(
     for (const rule of rules) {
       const match = value.match(rule.pattern);
       if (!match) continue;
+      // En una UAC matemática, un término de otro dominio puede ser contexto
+      // legítimo si el campo está modelando con datos/ecuaciones. No es
+      // contaminación: es aplicación situada.
+      const mathContext =
+        /matem/i.test(expectedDiscipline) &&
+        /[=]|\d[\d.,]*\s*(?:pesos|m²|m|cm|%|horas|unidades|personas|años)/i.test(value);
+      if (
+        mathContext &&
+        /construccion|ciencias naturales|telecomunicaciones|gastronomia|cultura digital/i.test(
+          rule.actualDiscipline
+        )
+      ) {
+        continue;
+      }
       const key = `${name}|${rule.label}`;
       if (seen.has(key)) continue;
       seen.add(key);
