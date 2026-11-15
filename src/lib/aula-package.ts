@@ -94,7 +94,8 @@ function workbookEntries(workbooks: Record<string, { current?: ActiveWorkTextboo
 
 export async function buildAulaPackageZip(
   planning: PlanningRow,
-  extras: ExtraRow[]
+  extras: ExtraRow[],
+  options: { includeSemestral?: boolean } = {}
 ): Promise<AulaPackageResult> {
   const content = (planning.content_json || null) as GeneratedPlanningContent | null;
   if (!content) {
@@ -249,8 +250,8 @@ export async function buildAulaPackageZip(
     warnings.push('Se generaron fichas de trabajo deterministas porque no había guías de práctica persistidas.');
   }
 
-  // 6. Libro de texto semestral
-  if (hasWorkbooks) {
+  // 6. Libro de texto semestral (se omite por defecto del ZIP síncrono por peso)
+  if (hasWorkbooks && options.includeSemestral === true) {
     try {
       const compiled = await compileSemestralWorkbook(planning.id, planningObj, { format: 'both' });
       if (compiled.pdf) {
@@ -263,6 +264,11 @@ export async function buildAulaPackageZip(
       warnings.push('No se pudo compilar el libro de texto semestral.');
       logger.warn('[AulaPackage] Error libro semestral:', { error });
     }
+  } else if (hasWorkbooks) {
+    zip.file(
+      '06_Libro_de_Texto_Semestral_LEEME.txt',
+      'El libro semestral consolidado se descarga por separado desde la tarjeta "Libros de Texto Activos" para evitar el timeout de 300 s de Vercel.\n'
+    );
   } else {
     warnings.push('No hay libros de bloque generados para el compendio semestral.');
   }

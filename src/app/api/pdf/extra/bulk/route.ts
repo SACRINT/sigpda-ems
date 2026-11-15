@@ -250,6 +250,8 @@ async function handleBulkPdf(request: NextRequest) {
     }
 
     const zip = new JSZip();
+    const includeSemestral =
+      request.nextUrl.searchParams.get('includeSemestral') === '1';
 
     // RAMA 1: PAQUETE MASTER CONSOLIDADO DE LA PLANEACIÓN (9 Entregables Compilados en 1 Solo Archivo Cada Uno)
     if (isMasterPackage && planning) {
@@ -273,14 +275,17 @@ async function handleBulkPdf(request: NextRequest) {
         updatedAt: planning.updated_at,
       };
 
-      // El libro semestral es el entregable más pesado: inícialo en paralelo
-      // mientras se generan los demás para no sumar su tiempo al total del ZIP.
-      const semestralPdfPromise = compileSemestralWorkbook(planning.id, planningObj, { format: 'pdf' })
-        .then(({ pdf }) => pdf)
-        .catch((err) => {
-          logger.warn('Error compiling Semestral Workbook PDF for bulk zip (paralelo):', { error: err });
-          return undefined;
-        });
+      // El libro semestral es el entregable más pesado. Por defecto se omite del
+      // ZIP síncrono para no agotar los 300 s de Vercel; se descarga desde su
+      // propia tarjeta. Solo se incluye si se solicita explícitamente.
+      const semestralPdfPromise = includeSemestral
+        ? compileSemestralWorkbook(planning.id, planningObj, { format: 'pdf' })
+            .then(({ pdf }) => pdf)
+            .catch((err) => {
+              logger.warn('Error compiling Semestral Workbook PDF for bulk zip (paralelo):', { error: err });
+              return undefined;
+            })
+        : Promise.resolve(undefined);
 
       // 1. Planeación Didáctica Semestral (PDF)
       if (contentJson) {
@@ -344,14 +349,21 @@ async function handleBulkPdf(request: NextRequest) {
         }
       }
 
-      // 6. Libro de Texto Semestral Consolidado (PDF) — ya iniciado en paralelo
-      try {
-        const pdf = await semestralPdfPromise;
-        if (pdf) {
-          zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.pdf`, pdf);
+      // 6. Libro de Texto Semestral Consolidado (PDF)
+      if (includeSemestral) {
+        try {
+          const pdf = await semestralPdfPromise;
+          if (pdf) {
+            zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.pdf`, pdf);
+          }
+        } catch (err) {
+          logger.warn('Error compiling Semestral Workbook PDF for bulk zip:', { error: err });
         }
-      } catch (err) {
-        logger.warn('Error compiling Semestral Workbook PDF for bulk zip:', { error: err });
+      } else {
+        zip.file(
+          '06_Libro_de_Texto_Semestral_LEEME.txt',
+          'El libro semestral consolidado (159 páginas) se descarga por separado desde la tarjeta "Libros de Texto Activos" para evitar el timeout de 300 s de Vercel.\n'
+        );
       }
 
       // 7. Instrumentos de Evaluación Formativa y Sumativa — Todos los bloques compilados en 1 solo PDF

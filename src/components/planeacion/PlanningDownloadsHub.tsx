@@ -105,72 +105,73 @@ function BulkDownloadButton({
       </a>
       {status !== 'idle' && (
         <div
-          role="dialog"
-          aria-modal="true"
           style={{
             position: 'fixed',
-            inset: 0,
+            bottom: 18,
+            right: 18,
             zIndex: 9999,
-            background: 'rgba(2, 6, 23, 0.72)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
+            width: 'min(420px, calc(100vw - 32px))',
+            background: '#0f172a',
+            border: '1px solid rgba(148, 163, 184, 0.35)',
+            borderRadius: 12,
+            padding: 14,
+            color: '#e2e8f0',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+            pointerEvents: 'auto',
           }}
         >
-          <div
-            style={{
-              width: 'min(520px, 100%)',
-              background: '#0f172a',
-              border: '1px solid rgba(148, 163, 184, 0.35)',
-              borderRadius: 14,
-              padding: 22,
-              color: '#e2e8f0',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
-            }}
-          >
-            <strong style={{ display: 'block', fontSize: 15, marginBottom: 8 }}>
-              {status === 'loading' ? 'Generando paquete de materiales…' : 'No se pudo descargar el paquete'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <strong style={{ fontSize: 13 }}>
+              {status === 'loading' ? 'Generando paquete…' : 'No se pudo descargar'}
             </strong>
             {status === 'loading' ? (
-              <>
-                <p style={{ margin: '0 0 12px', fontSize: 13, color: '#94a3b8' }}>
-                  El servidor está compilando los PDF/PPTX. Puede tardar varios minutos; no cierres esta pestaña.
-                </p>
-                <div style={{ height: 6, borderRadius: 999, background: 'rgba(148,163,184,0.2)', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      width: '35%',
-                      borderRadius: 999,
-                      background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
-                      animation: 'sigpda-indeterminate 1.2s ease-in-out infinite',
-                    }}
-                  />
-                </div>
-                <p style={{ margin: '10px 0 0', fontSize: 12, color: '#94a3b8' }}>
-                  Tiempo transcurrido: {elapsed}s
-                </p>
-              </>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: 11, padding: '2px 8px' }}
+                onClick={() => abortRef.current?.abort()}
+              >
+                Cancelar
+              </button>
             ) : (
-              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#fca5a5' }}>{error}</p>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: 11, padding: '2px 8px' }}
+                onClick={() => setStatus('idle')}
+              >
+                Cerrar
+              </button>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              {status === 'loading' ? (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => abortRef.current?.abort()}
-                >
-                  Cancelar
-                </button>
-              ) : (
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus('idle')}>
-                  Cerrar
-                </button>
-              )}
-            </div>
           </div>
+          {status === 'loading' ? (
+            <>
+              <div
+                style={{
+                  height: 5,
+                  marginTop: 10,
+                  borderRadius: 999,
+                  background: 'rgba(148,163,184,0.2)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: '35%',
+                    borderRadius: 999,
+                    background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
+                    animation: 'sigpda-indeterminate 1.2s ease-in-out infinite',
+                  }}
+                />
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: 11, color: '#94a3b8' }}>
+                {label} · {elapsed}s
+              </p>
+            </>
+          ) : (
+            <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#fca5a5' }}>{error}</p>
+          )}
         </div>
       )}
     </>
@@ -286,7 +287,7 @@ export default function PlanningDownloadsHub({
             <BulkDownloadButton
               href={`/api/planeaciones/${planning.id}/paquete-aula`}
               label="Paquete Integral de Aula (ZIP)"
-              title="Descargar Paquete Integral de Aula (ZIP)"
+              title="Descargar Paquete Integral de Aula (ZIP). El libro semestral se descarga aparte por su tamaño."
               icon={<Archive size={14} />}
               style={{
                 display: 'inline-flex',
@@ -322,8 +323,8 @@ export default function PlanningDownloadsHub({
             />
             <BulkDownloadButton
               href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
-              label="Paquete Completo (PDF + PPTX ZIP)"
-              title="Descargar los 9 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
+              label="Paquete PDF + PPTX (sin libro semestral)"
+              title="Descargar 01–05,07–09 en un ZIP. El libro semestral 06 se descarga por separado desde su tarjeta."
               icon={<Archive size={12} />}
               style={{
                 display: 'inline-flex',
@@ -338,6 +339,9 @@ export default function PlanningDownloadsHub({
                 fontWeight: 600,
               }}
             />
+            <span style={{ fontSize: '10.5px', color: 'var(--c-text-muted)', flexBasis: '100%' }}>
+              El libro semestral 06 se descarga por separado desde su tarjeta para evitar el timeout del paquete.
+            </span>
           </div>
         </div>
       </div>

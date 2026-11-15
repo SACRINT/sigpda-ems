@@ -6,7 +6,7 @@ import type { Planning } from '@/types/planning';
 
 import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
-export const maxDuration = 90;
+export const maxDuration = 300;
 
 export async function GET(
   request: NextRequest,

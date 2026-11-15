@@ -322,9 +322,9 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
       expect(wordZipLink.getAttribute('href')).toBe('/api/docx/extra/bulk?planningId=test-planning-1');
       expect(screen.getByText('Paquete Completo (Word + PPTX ZIP)')).toBeTruthy();
 
-      const pdfZipLink = screen.getByTitle(/Descargar.*ZIP \(PDF/i);
+      const pdfZipLink = screen.getByTitle(/Descargar 01–05,07–09/i);
       expect(pdfZipLink.getAttribute('href')).toBe('/api/pdf/extra/bulk?planningId=test-planning-1');
-      expect(screen.getByText('Paquete Completo (PDF + PPTX ZIP)')).toBeTruthy();
+      expect(screen.getByText('Paquete PDF + PPTX (sin libro semestral)')).toBeTruthy();
 
       const guiasBtn = screen.getByRole('button', { name: /Ver guías de práctica/i });
       fireEvent.click(guiasBtn);
