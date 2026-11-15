@@ -116,8 +116,8 @@ describe('Paridad 1:1 libro del estudiante ↔ solucionario docente', () => {
   const solucionario = materials.solucionarioDocente;
 
   it('cada sesión abre con una caja H4 de color y sin texto redundante', () => {
-    expect(solucionario).toContain('#### Sesión 1 —');
-    expect(solucionario).toContain('#### Sesión 2 —');
+    expect(solucionario).toContain('#### Sesión 1:');
+    expect(solucionario).toContain('#### Sesión 2:');
     expect(solucionario).not.toContain('Guía de Ejercicios Resueltos');
     expect(solucionario).not.toContain('MISMO ORDEN Y CONTENIDO QUE EL LIBRO DEL ESTUDIANTE');
   });
@@ -141,8 +141,8 @@ describe('Paridad 1:1 libro del estudiante ↔ solucionario docente', () => {
   });
 
   it('la solución NO se coloca antes de su ejercicio ni se mezcla entre sesiones', () => {
-    const s1 = solucionario.indexOf('#### Sesión 1 —');
-    const s2 = solucionario.indexOf('#### Sesión 2 —');
+    const s1 = solucionario.indexOf('#### Sesión 1:');
+    const s2 = solucionario.indexOf('#### Sesión 2:');
     expect(s1).toBeGreaterThanOrEqual(0);
     expect(s2).toBeGreaterThan(s1);
     // El enunciado del ejercicio 1 y su solución van juntos en la sesión 1
@@ -386,7 +386,7 @@ describe('Paridad total 24/24: planes de clase y solucionario con cobertura comp
   });
 
   it('el solucionario lista exactamente las 24 sesiones en orden 1..24', () => {
-    const headers = materials.solucionarioDocente.match(/#### Sesión (\d+) —/g) ?? [];
+    const headers = materials.solucionarioDocente.match(/#### Sesión (\d+):/g) ?? [];
     expect(headers.map((h) => Number(h.match(/(\d+)/)![1]))).toEqual(expectedNumbers);
   });
 

@@ -35,11 +35,11 @@ function baseMission(overrides: Partial<MissionSection>): MissionSection {
     phenomenonHook: { story: 'La cooperativa calcula costos.', detonatingQuestion: '¿Cómo igualar costos?' },
     conceptZero: {
       physicalAnalogy: 'Una balanza en equilibrio.',
-      coreExplanation: 'Un sistema de ecuaciones lineales 2x2 tiene solución donde se cruzan las rectas.',
+      coreExplanation: 'Un sistema de ecuaciones lineales 2x2 tiene solución donde se cruzan las rectas L1: y = 2x + 1 y L2: y = -x + 4.',
     },
-    iDoSection: { stepByStepDemo: 'Modelado del método de sustitución con números concretos.' },
-    weDoSection: { guidedPractice: 'Resuelvan en equipo un sistema 2x2 con datos de su comunidad.', workbookElements: [] },
-    youDoSection: { autonomousChallenge: 'Plantea y resuelve un sistema de tu entorno.', workbookElements: [] },
+    iDoSection: { stepByStepDemo: 'Modelado del método de sustitución para y = 2x + 1 y y = -x + 4.' },
+    weDoSection: { guidedPractice: 'Resuelvan en equipo el sistema y = 2x + 1 con y = -x + 4 en su comunidad.', workbookElements: [] },
+    youDoSection: { autonomousChallenge: 'Plantea y resuelve el sistema L1: y = 2x + 1 y L2: y = -x + 4 de tu entorno.', workbookElements: [] },
     troubleshooting: [],
     formativeCheckpoint: {
       question: '¿Cómo verificas la solución de un sistema?',
@@ -66,7 +66,19 @@ const mockWorkbook = {
   },
   missions: [
     baseMission({ missionIndex: 1, coveredSessions: [1, 2, 3, 4] }),
-    baseMission({ missionIndex: 2, coveredSessions: [5, 6], title: 'Proyecto de medición comunitaria' }),
+    baseMission({
+      missionIndex: 2,
+      coveredSessions: [5, 6],
+      title: 'Proyecto de medición comunitaria',
+      sessionTopic: 'Teorema de Pitágoras y triángulos rectángulos',
+      sessionFocus: 'Cálculo de hipotenusa con catetos 6 m y 8 m',
+      conceptZero: {
+        physicalAnalogy: 'Escuadra de carpintero.',
+        coreExplanation: 'En todo triángulo rectángulo con catetos 6 m y 8 m, c² = a² + b².',
+      },
+      iDoSection: { stepByStepDemo: 'Calcula c para catetos 6 m y 8 m.' },
+      weDoSection: { guidedPractice: 'En parejas, verifiquen un triángulo rectángulo de catetos 6 m y 8 m.', workbookElements: [] },
+    }),
   ],
 } as unknown as ActiveWorkTextbook;
 

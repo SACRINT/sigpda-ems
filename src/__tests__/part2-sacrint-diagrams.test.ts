@@ -41,28 +41,28 @@ describe('SACRINT Part 2 — Non-Fabricated Mathematical Diagrams', () => {
     expect(diag.kind).toBe('quadratic');
     expect(diag.available).toBe(false);
     if (diag.kind === 'quadratic') {
-      expect(diag.equation).toBe('Modelo por construir');
+      expect(diag.equation).toBe('');
       expect(diag.samples).toHaveLength(0);
       expect(diag.roots).toHaveLength(0);
     }
 
     const vars = buildDiagramVariables(diag);
     expect(JSON.stringify(vars)).not.toContain('x² - 6x + 5');
-    expect(vars.every((v) => v.meaning === 'Por construir')).toBe(true);
-    expect(diagramFormula(diag)).toBe('Modelo por construir');
+    expect(vars).toHaveLength(0);
+    expect(diagramFormula(diag)).toBe('');
 
-    // Verify SVG and PPTX render "MODELO POR CONSTRUIR" instead of fake parabola
+    // Verify SVG and PPTX omit unavailable diagram box cleanly and NEVER render "MODELO POR CONSTRUIR"
     const wb = structuredClone(MATH_DEMO_WORKBOOK);
     wb.missions![0]!.sessionPlans = [session];
     const deck = buildSacrintDeck(wb, { mode: 'lesson-guide' });
     const svgs = renderDeckSvgs(deck);
-    expect(svgs[1]!.svg).toContain('MODELO POR CONSTRUIR');
+    expect(svgs[1]!.svg).not.toContain('MODELO POR CONSTRUIR');
     expect(svgs[1]!.svg).not.toContain('x² - 6x + 5');
 
     const pptxBuf = await generateSacrintPptx(deck);
     const zip = await JSZip.loadAsync(pptxBuf);
     const slide2Xml = await zip.files['ppt/slides/slide2.xml']!.async('text');
-    expect(slide2Xml).toContain('MODELO POR CONSTRUIR');
+    expect(slide2Xml).not.toContain('MODELO POR CONSTRUIR');
     expect(slide2Xml).not.toContain('x² - 6x + 5');
   });
 
@@ -78,15 +78,15 @@ describe('SACRINT Part 2 — Non-Fabricated Mathematical Diagrams', () => {
     expect(diag.kind).toBe('system-2x2');
     expect(diag.available).toBe(false);
     if (diag.kind === 'system-2x2') {
-      expect(diag.equation1).toBe('Modelo por construir');
-      expect(diag.equation2).toBe('Modelo por construir');
+      expect(diag.equation1).toBe('');
+      expect(diag.equation2).toBe('');
       expect(diag.intersection).toBeNull();
     }
 
     const vars = buildDiagramVariables(diag);
     expect(JSON.stringify(vars)).not.toContain('2x + 3y = 12');
     expect(JSON.stringify(vars)).not.toContain('x - y = 1');
-    expect(diagramFormula(diag)).toBe('Modelo por construir');
+    expect(diagramFormula(diag)).toBe('');
   });
 
   it('returns available=false when text mentions compound interest without principal or rate numbers', () => {
@@ -100,7 +100,7 @@ describe('SACRINT Part 2 — Non-Fabricated Mathematical Diagrams', () => {
     expect(diag.kind).toBe('exponential');
     expect(diag.available).toBe(false);
     if (diag.kind === 'exponential') {
-      expect(diag.equation).toBe('Modelo por construir');
+      expect(diag.equation).toBe('');
       expect(diag.compoundSeries).toHaveLength(0);
     }
   });

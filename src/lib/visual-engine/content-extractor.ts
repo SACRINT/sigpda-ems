@@ -35,6 +35,7 @@ import type { ActiveWorkTextbook, MissionSection } from '@/types/work-textbook';
 import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
 import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
+import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
 
 const STAT_COLORS = ['#2563eb', '#d97706', '#059669', '#7c3aed', '#dc2626', '#0284c7'];
 const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
@@ -45,28 +46,31 @@ const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
  */
 export function stripMarkdown(text: string | null | undefined): string {
   if (!text) return '';
-  return text
+  const structuralCleaned = text
     // Comentarios HTML o etiquetas de control de workbook (<!--...-->)
     .replace(/<!--[\s\S]*?-->/g, '')
     // Encabezados Markdown (# Título)
     .replace(/^#{1,6}\s+/gm, '')
-    // Negrita y cursiva combinada ***texto*** o ___texto___
-    .replace(/\*{3}(.*?)\*{3}/g, '$1')
-    .replace(/(?<!\w)_{3}(.*?)_{3}(?!\w)/g, '$1')
-    // Negritas **texto** o __texto__
-    .replace(/\*{2}(.*?)\*{2}/g, '$1')
-    .replace(/(?<!\w)_{2}(.*?)_{2}(?!\w)/g, '$1')
-    // Cursivas *texto* o _texto_
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/(?<!\w)_([^_]+)_(?!\w)/g, '$1')
+    // Viñetas iniciales con asterisco (* item -> • item)
+    .replace(/^\s*\*\s+/gm, '• ')
+    // Negrita y cursiva con guion bajo ___texto___ / __texto__ / _texto_ respetando identificadores técnicos (x_v, C_0)
+    .replace(/(?<!\w)_{3}([^_\n]+?)_{3}(?!\w)/g, '$1')
+    .replace(/(?<!\w)_{2}([^_\n]+?)_{2}(?!\w)/g, '$1')
+    .replace(/(?<=^|[\s(\["'¿¡])_(?!\s)([^_\n]+?)(?<!\s)_(?=$|[\s.,;:!?)\]"'])/g, '$1')
     // Código en línea `código`
     .replace(/`([^`]+)`/g, '$1')
     // Tachado ~~texto~~
-    .replace(/~~(.*?)~~/g, '$1')
-    // Viñetas iniciales con asterisco (* item -> • item)
-    .replace(/^\s*\*\s+/gm, '• ')
-    // Cualquier asterisco remanente suelto
-    .replace(/\*/g, '')
+    .replace(/~~(.*?)~~/g, '$1');
+
+  // Delegar énfasis con asteriscos (***, **, *) al parser SSoT que preserva multiplicaciones aritméticas
+  const emphasisStripped = stripInlineMarkdownEmphasis(structuralCleaned);
+
+  // Convertir operadores aritméticos * entre operandos (2*largo, C*i*t, (12*9)/2, base*altura, a * b) a × tipográfico
+  return emphasisStripped
+    .replace(
+      /(?<=[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ)\]])([ \t]*)\*([ \t]*)(?=[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ(\[])/g,
+      (_m, pre: string, post: string) => (pre || post ? ' × ' : '×')
+    )
     .trim();
 }
 

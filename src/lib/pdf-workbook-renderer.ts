@@ -93,7 +93,8 @@ import {
   drawProcessFlowBanner,
   extractProcessFlowSteps,
 } from '@/lib/visual-engine/pdf-components';
-import { normalizePdfEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
+import { formatSolvedExampleBlocks, normalizePdfEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
+import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
@@ -2334,7 +2335,10 @@ async function drawMission(
   const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
   const reflPrompts: string[] = (mission.formativeCheckpoint?.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
   const criteriaItems: string[] = (mission.formativeCheckpoint?.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
-  const topicLabel = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim() || 'la misión';
+  const topicLabel = finalizeVisibleText(
+    sanitizeWorkbookTocTitle(mission.sessionTopic || mission.sessionFocus || mission.title, mission.sessionTopic),
+    { fallback: 'la misión', ensurePeriod: false }
+  );
 
   // ── Figura visual por sesión: SVG vectorial determinista (offline, sin red/BD)
   //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
@@ -2348,7 +2352,7 @@ async function drawMission(
         sessionNumber: sNum,
         missionNumber,
       });
-      if (!visual) return curY;
+      if (!visual || visual.metadata?.isFallback) return curY;
       const img = await svgToPngBuffer(visual.svg);
       if (!img) return curY;
       // Proporción REAL del SVG (nunca forzar una altura fija: aplasta ejes y etiquetas)
@@ -2438,10 +2442,15 @@ async function drawMission(
         ? `Conéctalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogía al tema "${topicLabel}" y escríbela con tus palabras.`
         : `Elabora un ejemplo propio de "${topicLabel}" con datos concretos, resuélvelo paso a paso y verifica el resultado.`;
     y = printPdfSubLabel(flow, 'Ejemplo resuelto', phaseColor, y);
-    y = para(plan?.ejemploResuelto || exampleFallback);
+    y = para(formatSolvedExampleBlocks(plan?.ejemploResuelto || exampleFallback));
 
     // Figura visual de la sesión (vector determinista con alfa transparente)
-    y = await drawSessionFigure(sNum, sMeta.title || topicLabel, `${plan?.contenido || ''} ${topicLabel}`, y);
+    const sessionFigureContext = [
+      plan ? (plan.contenido || '') : (conceptLine ? `${conceptLine} ${theoryFallback}` : theoryFallback),
+      plan ? (plan.ejemploResuelto || '') : exampleFallback,
+      topicLabel,
+    ].filter(Boolean).join(' ');
+    y = await drawSessionFigure(sNum, sMeta.title || topicLabel, sessionFigureContext, y);
 
     y = printPdfSubLabel(flow, 'Práctica', phaseColor, y);
     if (plan?.practica && plan.practica.length > 0) {
@@ -2762,7 +2771,7 @@ async function drawMission(
       // dispatchVisual garantiza una representación matemática/científica 100% offline.
       if (!stemVisualRendered) {
         const vectorResult = dispatchVisual(effSubject, mission.title, contextText, missionNumber);
-        if (vectorResult) {
+        if (vectorResult && !vectorResult.metadata?.isFallback) {
           const imgResult = await svgToPngBuffer(vectorResult.svg);
           if (imgResult) {
             const imgW = Math.min(mainW * 0.92, 124);
@@ -2778,7 +2787,7 @@ async function drawMission(
             setFontCaption(doc);
             doc.setFontSize(7.5);
             doc.setTextColor(...MUTED_TEXT);
-            const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+            const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica del modelo cuantitativo`;
             const captionLines = doc.splitTextToSize(fallbackCaption, mainW * 0.88);
             doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
             y += (captionLines.length * 3.2) + 4;
@@ -2829,9 +2838,9 @@ async function drawMission(
             doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
             y += (captionLines.length * 3.2) + 3.5;
           } else {
-            // Fallback sintético determinístico Capa 0 si el asset PNG de material no se pudo leer
+            // Omitir fallback sintético sin datos reales (no insertar "Modelo por construir" vacío)
             const vectorResult = dispatchVisual(effSubject, mission.title, contextText, missionNumber);
-            if (vectorResult) {
+            if (vectorResult && !vectorResult.metadata?.isFallback) {
               const imgResult = await svgToPngBuffer(vectorResult.svg);
               if (imgResult) {
                 const imgW = Math.min(120, mainW * 0.88);
@@ -2847,7 +2856,7 @@ async function drawMission(
                 setFontCaption(doc);
                 doc.setFontSize(7.5);
                 doc.setTextColor(...MUTED_TEXT);
-                const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+                const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica del modelo cuantitativo`;
                 const captionLines = doc.splitTextToSize(fallbackCaption, mainW * 0.88);
                 doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
                 y += (captionLines.length * 3.2) + 3.5;
@@ -2895,9 +2904,9 @@ async function drawMission(
             doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
             y += (captionLines.length * 3.2) + 4;
           } else {
-            // Fallback sintético determinístico Capa 0 cuando falla la descarga de Openverse
+            // Omitir fallback sintético sin datos reales
             const vectorResult = dispatchVisual(effSubject, mission.title, contextText, missionNumber);
-            if (vectorResult) {
+            if (vectorResult && !vectorResult.metadata?.isFallback) {
               const fallbackImg = await svgToPngBuffer(vectorResult.svg);
               if (fallbackImg) {
                 const imgW = Math.min(mainW * 0.92, 124);
@@ -2913,7 +2922,7 @@ async function drawMission(
                 setFontCaption(doc);
                 doc.setFontSize(7.5);
                 doc.setTextColor(...MUTED_TEXT);
-                const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+                const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica del modelo cuantitativo`;
                 const captionLines = doc.splitTextToSize(fallbackCaption, mainW * 0.88);
                 doc.text(captionLines, margin + mainW / 2, y, { align: 'center' });
                 y += (captionLines.length * 3.2) + 3.5;

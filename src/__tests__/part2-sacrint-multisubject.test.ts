@@ -176,7 +176,9 @@ describe('SACRINT Part 2 — Multi-Subject Neutrality & Session Isolation', () =
     expect(s2Serialized).not.toContain('APLICACION_HOGAR_MISION_GLOBAL_UNICA');
     expect(s2Serialized).not.toContain('ERROR_COMUN_MISION_GLOBAL_UNICO');
 
-    // Instead, Session 2 explicitly marks missing sections as "Por completar en el libro"
-    expect(s2Serialized).toContain('Por completar en el libro');
+    // Neither boilerplate placeholders nor Session 1 / Mission leaks appear in Session 2
+    expect(s2Serialized).not.toContain('Por completar en el libro');
+    expect(s2Serialized).not.toContain('Modelo por construir');
+    expect(s2Serialized).toContain('Redactar un ensayo argumentativo sobre patrimonio cultural comunitario');
   });
 });

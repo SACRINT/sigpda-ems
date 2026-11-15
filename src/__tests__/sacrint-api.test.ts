@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { PDFParse } from 'pdf-parse';
 import { MATH_DEMO_WORKBOOK } from '@/lib/visual-engine/sacrint/fixtures/math-demo-workbook';
 
 const mockAuth = vi.fn();
@@ -117,7 +118,7 @@ describe('SACRINT API', () => {
   it('sirve infografía SVG, PNG y PDF', async () => {
     const svgRes = await infographicCall('?blockIndex=0&layout=letter&format=svg');
     expect(svgRes.status).toBe(200);
-    expect(await svgRes.text()).toContain('SACRINT · CARTA');
+    expect(await svgRes.text()).toContain('SACRINT · MANUAL CARTA');
 
     const pngRes = await infographicCall('?blockIndex=0&layout=letter&format=png');
     expect(pngRes.status).toBe(200);
@@ -131,25 +132,41 @@ describe('SACRINT API', () => {
     expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
   }, 120000);
 
-  it('exporta PDF a 300 dpi y conserva el aspecto wide', async () => {
+  it('exporta PDF vectorial con texto seleccionable y conserva el aspecto letter/wide', async () => {
     const mediaBox = (pdf: Buffer) => {
       const match = pdf.toString('latin1').match(/\/MediaBox\s*\[([^\]]+)\]/);
       return match ? match[1].trim().split(/\s+/).map(Number) : [];
     };
+    const extractText = async (pdf: Buffer) => {
+      const parser = new PDFParse({ data: pdf });
+      try {
+        return (await parser.getText()).text;
+      } finally {
+        await parser.destroy();
+      }
+    };
 
     const letterRes = await infographicCall('?blockIndex=0&layout=letter&format=pdf');
     const letterPdf = Buffer.from(await letterRes.arrayBuffer());
-    const letterText = letterPdf.toString('latin1');
-    expect(letterText).toContain('/Width 2550');
-    expect(letterText).toContain('/Height 3300');
+    const letterRaw = letterPdf.toString('latin1');
+    const letterText = await extractText(letterPdf);
+    expect(letterRaw).not.toContain('/Width 2550');
+    expect(letterText).toContain('MANUAL DE CONCEPTOS');
+    expect(letterText.length).toBeGreaterThan(250);
     expect(mediaBox(letterPdf)).toEqual([0, 0, 612, 792]);
 
     const wideRes = await infographicCall('?blockIndex=0&layout=wide&format=pdf');
     const widePdf = Buffer.from(await wideRes.arrayBuffer());
-    const wideText = widePdf.toString('latin1');
-    expect(wideText).toContain('/Width 5504');
-    expect(wideText).toContain('/Height 3072');
-    expect(mediaBox(widePdf)).toEqual([0, 0, 792, 445.5]);
+    const wideRaw = widePdf.toString('latin1');
+    const wideText = await extractText(widePdf);
+    expect(wideRaw).not.toContain('/Width 5504');
+    expect(wideText).toContain('MANUAL DE CONCEPTOS');
+    expect(wideText.length).toBeGreaterThan(250);
+    const wideBox = mediaBox(widePdf);
+    expect(wideBox?.[0]).toBe(0);
+    expect(wideBox?.[1]).toBe(0);
+    expect(wideBox?.[2]).toBeCloseTo(792, 0);
+    expect(wideBox?.[3]).toBeCloseTo(445.5, 1);
   }, 120000);
 
   it('rechaza layout inválido', async () => {

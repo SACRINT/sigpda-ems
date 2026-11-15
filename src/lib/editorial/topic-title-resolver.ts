@@ -10,7 +10,12 @@
  */
 
 import { normalizeEditorialText } from './text-normalization';
-import { fitPedagogicalText, hasDanglingEnding, repairDanglingEnding } from './pedagogical-text-fitter';
+import {
+  finalizeVisibleText,
+  fitPedagogicalText,
+  hasDanglingEnding,
+  repairDanglingEnding,
+} from './pedagogical-text-fitter';
 
 export interface TopicTitleInput {
   sectionTitle?: string | null;
@@ -93,7 +98,7 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     const prev = text;
     text = text
       .replace(
-        /^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|vamos\s+a\s+|el\s+estudiante\s+|lograr[aá]s\s+)?(?:recuperar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|optimizar,\s*depurar\s+y\s+validar(?:\s+tu\s+evidencia\s+formativa\s+(?:sobre|de))?|optimizar\s+y\s+consolidar(?:\s+tu\s+evidencia\s+formativa\s+(?:mediante|integrando|sobre|de))?|evaluar(?:[aá]s)?\s+(?:tus\s+(?:conocimientos|aprendizajes)\s+(?:sobre|de)\s+|tu\s+aprendizaje\s+mediante\s+(?:la\s+aplicaci[oó]n\s+de\s+)?)|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?\s+mediante\s+(?:la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?\s+)?)?|aprender(?:[aá]s)?\s+a\s+|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?\s+|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?\s+|visualizar(?:[aá]s)?\s+|representar(?:[aá]s)?\s+|graficar(?:[aá]s)?\s+|tabular(?:[aá]s)?\s+|modelar(?:[aá]s)?\s+|calcular(?:[aá]s)?\s+|determinar(?:[aá]s)?\s+|clasificar(?:[aá]s)?\s+|medir(?:[aá]s)?\s+|verificar(?:[aá]s)?\s+|argumentar(?:[aá]s)?\s+|elaborar(?:[aá]s)?\s+|dise[ñn]ar(?:[aá]s)?\s+|interpretar(?:[aá]s)?\s+|sintetizar(?:[aá]s)?\s+|presentar(?:[aá]s)?\s+|socializar(?:[aá]s)?\s+|exponer(?:[aá]s)?\s+|trabajar(?:[aá]s)?\s+|comparar(?:[aá]s)?\s+|identificar(?:[aá]s)?\s+|comprender(?:[aá]s)?\s+|analizar(?:[aá]s)?\s+|aplicar(?:[aá]s)?\s+|resolver(?:[aá]s)?\s+|construir(?:[aá]s)?\s+y\s+analizar(?:[aá]s)?\s+|construir(?:[aá]s)?\s+|estructurar(?:[aá]s)?\s+|dominar(?:[aá]s)?\s+|contrastar(?:[aá]s)?\s+|delimitar(?:[aá]s)?\s+|explorar(?:[aá]s)?\s+|consolidar(?:[aá]s)?\s+|reflexionar(?:[aá]s)?\s+sobre(?:\s+tus\s+aprendizajes\s+de)?\s+|realizar(?:[aá]s)?\s+)/i,
+        /^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|vamos\s+a\s+|el\s+estudiante\s+|lograr[aá]s\s+)?(?:recuperar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|optimizar,\s*depurar\s+y\s+validar(?:\s+tu\s+evidencia\s+formativa\s+(?:sobre|de))?|optimizar\s+y\s+consolidar(?:\s+tu\s+evidencia\s+formativa\s+(?:mediante|integrando|sobre|de))?|evaluar(?:[aá]s)?\s+(?:formativamente\s+(?:los\s+|las\s+|el\s+|la\s+)?|tus\s+(?:conocimientos|aprendizajes)\s+(?:sobre|de)\s+|tu\s+aprendizaje\s+mediante\s+(?:la\s+aplicaci[oó]n\s+de\s+)?)|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?\s+mediante\s+(?:la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?\s+)?)?|aprender(?:[aá]s)?\s+a\s+|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?\s+|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?\s+|visualizar(?:[aá]s)?\s+|representar(?:[aá]s)?\s+|graficar(?:[aá]s)?\s+|tabular(?:[aá]s)?\s+|modelar(?:[aá]s)?\s+|calcular(?:[aá]s)?\s+|determinar(?:[aá]s)?\s+|clasificar(?:[aá]s)?\s+|medir(?:[aá]s)?\s+|verificar(?:[aá]s)?\s+|argumentar(?:[aá]s)?\s+|elaborar(?:[aá]s)?\s+|dise[ñn]ar(?:[aá]s)?\s+|interpretar(?:[aá]s)?\s+|sintetizar(?:[aá]s)?\s+|presentar(?:[aá]s)?\s+|socializar(?:[aá]s)?\s+|exponer(?:[aá]s)?\s+|trabajar(?:[aá]s)?\s+|comparar(?:[aá]s)?\s+|identificar(?:[aá]s)?\s+|comprender(?:[aá]s)?\s+|analizar(?:[aá]s)?\s+|aplicar(?:[aá]s)?\s+|resolver(?:[aá]s)?\s+|construir(?:[aá]s)?\s+y\s+analizar(?:[aá]s)?\s+|construir(?:[aá]s)?\s+|estructurar(?:[aá]s)?\s+|dominar(?:[aá]s)?\s+|contrastar(?:[aá]s)?\s+|delimitar(?:[aá]s)?\s+|explorar(?:[aá]s)?\s+|consolidar(?:[aá]s)?\s+|reflexionar(?:[aá]s)?\s+sobre(?:\s+tus\s+aprendizajes\s+de)?\s+|realizar(?:[aá]s)?\s+)/i,
         ''
       )
       .replace(
@@ -360,4 +365,44 @@ export function sanitizeMissionFocus(
 
   if (segments.length === 0) return fallback;
   return segments.join(' · ');
+}
+
+/**
+ * Compone de forma idempotente el encabezado "Sesión N: ..." evitando
+ * duplicaciones ("Sesión 1: Sesión 1...") y reparando finales colgantes.
+ */
+export function composeSessionHeading(input: {
+  number: number;
+  objective?: string | null;
+  fallback?: string;
+}): string {
+  const num = Number.isFinite(input.number) && input.number > 0 ? Math.trunc(input.number) : 1;
+  const fallback = finalizeVisibleText(input.fallback || 'Desarrollo temático', { ensurePeriod: false });
+  let body = finalizeVisibleText(input.objective ?? '', { ensurePeriod: false });
+
+  // Remover iterativamente prefijos redundantes de sesión o numeración inicial
+  let prev = '';
+  while (body !== prev) {
+    prev = body;
+    body = body
+      .replace(new RegExp(`^(?:sesi[oó]n\\s*${num}|sesi[oó]n\\s*\\d+)\\s*(?:[:.\\-–—]+\\s*|\\s+(?=[A-ZÁÉÍÓÚÑ¿¡0-9]))`, 'i'), '')
+      .replace(/^\d{1,2}\s*[.)\-–—]+\s*/, '')
+      .trim();
+  }
+
+  // Remover cola redundante "· Sesión N" o "(Sesión N)" si ya irá en el encabezado
+  body = body
+    .replace(new RegExp(`\\s*[·\\-–—]+\\s*sesi[oó]n\\s*${num}$`, 'i'), '')
+    .replace(/[.]+$/, '')
+    .trim();
+
+  body = finalizeVisibleText(body, { fallback, ensurePeriod: false })
+    .replace(/[.]+$/, '')
+    .trim();
+
+  if (!body) body = fallback || 'Desarrollo temático';
+  if (/^[a-záéíóúñ]/.test(body)) {
+    body = body.charAt(0).toUpperCase() + body.slice(1);
+  }
+  return `Sesión ${num}: ${body}`;
 }

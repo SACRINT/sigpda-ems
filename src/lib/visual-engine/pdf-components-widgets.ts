@@ -441,6 +441,78 @@ export function drawSidebarHeaderBadge(
   return y + h + 3;
 }
 
+function drawSidebarHighlightWidget(
+  doc: jsPDF,
+  opts: {
+    title: string;
+    bodyText: string;
+    bgColor: readonly [number, number, number];
+    accentColor: readonly [number, number, number];
+    borderColor: readonly [number, number, number];
+    sideXAbs: number;
+    sideW: number;
+    startY: number;
+    sideBottom: number;
+  }
+): number {
+  const { title, bodyText, bgColor, accentColor, borderColor, sideXAbs, sideW, startY, sideBottom } = opts;
+  const availH = sideBottom - startY - 1.5;
+  if (!bodyText || availH < 18) return startY;
+
+  const cleanText = sanitizePdfText(stripMarkdown(bodyText));
+  if (!cleanText) return startY;
+
+  const presets: Array<{ fontSize: number; lineH: number }> = [
+    { fontSize: 5.8, lineH: 3.15 },
+    { fontSize: 5.3, lineH: 2.85 },
+    { fontSize: 4.9, lineH: 2.6 },
+  ];
+
+  let chosenFont = presets[0].fontSize;
+  let chosenLineH = presets[0].lineH;
+  let chosenLines: string[] = [];
+  let cardH = Infinity;
+
+  setFontBody(doc, 'normal');
+  for (const preset of presets) {
+    doc.setFontSize(preset.fontSize);
+    const wrapped = doc.splitTextToSize(cleanText, sideW - 7.5) as string[];
+    const neededH = 8.2 + wrapped.length * preset.lineH + 2.8;
+    chosenFont = preset.fontSize;
+    chosenLineH = preset.lineH;
+    chosenLines = wrapped;
+    cardH = neededH;
+    if (neededH <= availH) break;
+  }
+
+  // Nunca truncar ni cortar a 4 líneas: diferir a la siguiente página si no cabe íntegro
+  if (cardH > availH) {
+    return startY;
+  }
+
+  doc.setFillColor(...bgColor);
+  doc.roundedRect(sideXAbs, startY, sideW, cardH, RADIUS.SM, RADIUS.SM, 'F');
+  doc.setFillColor(...accentColor);
+  doc.roundedRect(sideXAbs, startY, 2.5, cardH, RADIUS.SM, RADIUS.SM, 'F');
+  doc.setDrawColor(...borderColor);
+  doc.setLineWidth(STROKE.HAIRLINE);
+  doc.roundedRect(sideXAbs, startY, sideW, cardH, RADIUS.SM, RADIUS.SM, 'S');
+
+  setFontHeading(doc);
+  doc.setFontSize(6.0);
+  doc.setTextColor(...accentColor);
+  doc.text(title, sideXAbs + 4.5, startY + 4.0);
+
+  setFontBody(doc, 'normal');
+  doc.setFontSize(chosenFont);
+  doc.setTextColor(...COLOR.TEXT_PRIMARY);
+  chosenLines.forEach((line, idx) => {
+    doc.text(line, sideXAbs + 4.5, startY + 7.6 + idx * chosenLineH);
+  });
+
+  return startY + cardH + 3.0;
+}
+
 export function drawAnalogyWidget(
   doc: jsPDF,
   opts: {
@@ -451,39 +523,17 @@ export function drawAnalogyWidget(
     sideBottom: number;
   }
 ): number {
-  const { analogy, sideXAbs, sideW, startY, sideBottom } = opts;
-  if (!analogy || startY + 20 >= sideBottom) return startY;
-
-  const cleanAnalogy = sanitizePdfText(stripMarkdown(analogy));
-  setFontBody(doc, 'normal');
-  doc.setFontSize(5.8);
-  const lines = doc.splitTextToSize(cleanAnalogy, sideW - 6);
-  const cardH = 5.5 + Math.min(4, lines.length) * 3.2 + 6;
-
-  if (startY + cardH < sideBottom) {
-    doc.setFillColor(...COLOR.GOLD_LIGHT);
-    doc.roundedRect(sideXAbs, startY, sideW, cardH, RADIUS.SM, RADIUS.SM, 'F');
-    doc.setFillColor(...COLOR.GOLD);
-    doc.roundedRect(sideXAbs, startY, 2.5, cardH, RADIUS.SM, RADIUS.SM, 'F');
-    doc.setDrawColor(...COLOR.GOLD);
-    doc.setLineWidth(STROKE.HAIRLINE);
-    doc.roundedRect(sideXAbs, startY, sideW, cardH, RADIUS.SM, RADIUS.SM, 'S');
-
-    setFontHeading(doc);
-    doc.setFontSize(6.0);
-    doc.setTextColor(...COLOR.GOLD);
-    doc.text('IDEA FUERZA', sideXAbs + 4.5, startY + 4.0);
-
-    setFontBody(doc, 'normal');
-    doc.setFontSize(5.8);
-    doc.setTextColor(...COLOR.TEXT_PRIMARY);
-    lines.slice(0, 4).forEach((l: string, i: number) => {
-      doc.text(l, sideXAbs + 4.5, startY + 7.5 + i * 3.2);
-    });
-
-    return startY + cardH + 3;
-  }
-  return startY;
+  return drawSidebarHighlightWidget(doc, {
+    title: 'IDEA FUERZA',
+    bodyText: opts.analogy,
+    bgColor: COLOR.GOLD_LIGHT,
+    accentColor: COLOR.GOLD,
+    borderColor: COLOR.GOLD,
+    sideXAbs: opts.sideXAbs,
+    sideW: opts.sideW,
+    startY: opts.startY,
+    sideBottom: opts.sideBottom,
+  });
 }
 
 export function drawStudyTipWidget(
@@ -496,39 +546,17 @@ export function drawStudyTipWidget(
     sideBottom: number;
   }
 ): number {
-  const { tip, sideXAbs, sideW, startY, sideBottom } = opts;
-  if (!tip || startY + 20 >= sideBottom) return startY;
-
-  const cleanTip = sanitizePdfText(stripMarkdown(tip));
-  setFontBody(doc, 'normal');
-  doc.setFontSize(5.8);
-  const lines = doc.splitTextToSize(cleanTip, sideW - 6);
-  const cardH = 5.5 + Math.min(4, lines.length) * 3.2 + 6;
-
-  if (startY + cardH < sideBottom) {
-    doc.setFillColor(...COLOR.CALLOUT_IDEA_BG);
-    doc.roundedRect(sideXAbs, startY, sideW, cardH, RADIUS.SM, RADIUS.SM, 'F');
-    doc.setFillColor(...COLOR.CALLOUT_IDEA_ACC);
-    doc.roundedRect(sideXAbs, startY, 2.5, cardH, RADIUS.SM, RADIUS.SM, 'F');
-    doc.setDrawColor(...COLOR.BORDER);
-    doc.setLineWidth(STROKE.HAIRLINE);
-    doc.roundedRect(sideXAbs, startY, sideW, cardH, RADIUS.SM, RADIUS.SM, 'S');
-
-    setFontHeading(doc);
-    doc.setFontSize(6.0);
-    doc.setTextColor(...COLOR.CALLOUT_IDEA_ACC);
-    doc.text('ESTUDIO ACTIVO', sideXAbs + 4.5, startY + 4.0);
-
-    setFontBody(doc, 'normal');
-    doc.setFontSize(5.8);
-    doc.setTextColor(...COLOR.TEXT_PRIMARY);
-    lines.slice(0, 4).forEach((l: string, i: number) => {
-      doc.text(l, sideXAbs + 4.5, startY + 7.5 + i * 3.2);
-    });
-
-    return startY + cardH + 3;
-  }
-  return startY;
+  return drawSidebarHighlightWidget(doc, {
+    title: 'ESTUDIO ACTIVO',
+    bodyText: opts.tip,
+    bgColor: COLOR.CALLOUT_IDEA_BG,
+    accentColor: COLOR.CALLOUT_IDEA_ACC,
+    borderColor: COLOR.BORDER,
+    sideXAbs: opts.sideXAbs,
+    sideW: opts.sideW,
+    startY: opts.startY,
+    sideBottom: opts.sideBottom,
+  });
 }
 
 export function drawQrMiniWidget(
@@ -888,12 +916,67 @@ export function drawDigitalToolCardWidget(
   opts: DigitalToolCardOpts
 ): number {
   const { tool, qrPngBuffer, sideXAbs, sideW, startY, sideBottom, compact = false } = opts;
-  const availH = sideBottom - startY;
-  const minH = compact ? 32 : 42;
+  const availH = sideBottom - startY - 1.5;
+  const minH = compact ? 30 : 38;
   if (availH < minH) return startY;
 
-  const cardH = Math.min(availH - 2, compact ? 36 : 46);
   const sy = startY;
+  const qrSize = 13;
+  const qrX = sideXAbs + sideW - qrSize - 2.8;
+  const qrY = sy + 2.8;
+  // Zona estrictamente aislada a la izquierda del QR para título, píldora y plataformas
+  const leftZoneW = Math.max(18, qrX - (sideXAbs + 4.5) - 2.0);
+  const fullDescW = Math.max(24, sideW - 7.5);
+
+  setFontHeading(doc);
+  doc.setFontSize(4.7);
+  const pillLines = doc.splitTextToSize('HERRAMIENTA DIGITAL · MCCEMS', leftZoneW) as string[];
+
+  setFontBody(doc, 'bold');
+  doc.setFontSize(6.0);
+  const nameLines = doc.splitTextToSize(sanitizePdfText(tool.name), leftZoneW) as string[];
+
+  setFontBody(doc, 'normal');
+  doc.setFontSize(4.6);
+  const platLines = doc.splitTextToSize(sanitizePdfText(tool.platforms.join(' · ')), leftZoneW) as string[];
+
+  const headerBottomOffset =
+    3.6 +
+    pillLines.length * 2.2 +
+    0.8 +
+    nameLines.length * 2.7 +
+    0.4 +
+    platLines.length * 2.2 +
+    1.2;
+  const descStartY = sy + Math.max(headerBottomOffset, 2.8 + qrSize + 2.2);
+
+  const cleanDesc = sanitizePdfText(tool.description);
+  const descPresets: Array<{ fontSize: number; lineH: number }> = [
+    { fontSize: 4.9, lineH: 2.6 },
+    { fontSize: 4.5, lineH: 2.35 },
+    { fontSize: 4.2, lineH: 2.15 },
+  ];
+
+  let chosenDescFont = descPresets[0].fontSize;
+  let chosenDescLineH = descPresets[0].lineH;
+  let descLines: string[] = [];
+  let cardH = minH;
+
+  setFontBody(doc, 'normal');
+  for (const preset of descPresets) {
+    doc.setFontSize(preset.fontSize);
+    descLines = doc.splitTextToSize(cleanDesc, fullDescW) as string[];
+    const descHeight = descLines.length * preset.lineH;
+    const neededH = (descStartY - sy) + descHeight + 5.2;
+    chosenDescFont = preset.fontSize;
+    chosenDescLineH = preset.lineH;
+    cardH = Math.max(minH, neededH);
+    if (cardH <= availH) break;
+  }
+
+  if (cardH > availH) {
+    return startY;
+  }
 
   // Fondo de tarjeta
   doc.setFillColor(...COLOR.TABLE_ALT_ROW);
@@ -908,29 +991,34 @@ export function drawDigitalToolCardWidget(
   doc.setLineWidth(STROKE.HAIRLINE);
   doc.roundedRect(sideXAbs, sy, sideW, cardH, RADIUS.SM, RADIUS.SM, 'S');
 
-  // Encabezado tipo píldora
+  let curY = sy + 3.6;
   setFontHeading(doc);
-  doc.setFontSize(5.2);
+  doc.setFontSize(4.7);
   doc.setTextColor(...ACCENT_DIGITAL);
-  doc.text('HERRAMIENTA DIGITAL · MCCEMS', sideXAbs + 4.5, sy + 3.8);
+  for (const line of pillLines) {
+    doc.text(line, sideXAbs + 4.5, curY);
+    curY += 2.2;
+  }
 
-  // Nombre de la herramienta
+  curY += 0.8;
   setFontBody(doc, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(6.0);
   doc.setTextColor(...COLOR.NAVY);
-  doc.text(sanitizePdfText(tool.name), sideXAbs + 4.5, sy + 7.5);
+  for (const line of nameLines) {
+    doc.text(line, sideXAbs + 4.5, curY);
+    curY += 2.7;
+  }
 
-  // Plataformas (Web / Android / etc.)
+  curY += 0.4;
   setFontBody(doc, 'normal');
-  doc.setFontSize(4.8);
+  doc.setFontSize(4.6);
   doc.setTextColor(...COLOR.TEXT_MUTED);
-  doc.text(tool.platforms.join(' · '), sideXAbs + 4.5, sy + 10.5);
+  for (const line of platLines) {
+    doc.text(line, sideXAbs + 4.5, curY);
+    curY += 2.2;
+  }
 
-  // QR Code incrustado en el lado derecho a 14x14mm nítido
-  const qrSize = 14;
-  const qrX = sideXAbs + sideW - qrSize - 3;
-  const qrY = sy + 3.5;
-
+  // QR Code incrustado arriba a la derecha sin invadir texto
   if (qrPngBuffer) {
     try {
       doc.addImage(qrPngBuffer, 'PNG', qrX, qrY, qrSize, qrSize);
@@ -940,25 +1028,21 @@ export function drawDigitalToolCardWidget(
     }
   }
 
-  // Descripción didáctica completa (sin cortar en 2 o 3 líneas)
-  const textMaxW = sideW - qrSize - 9;
+  // Descripción didáctica completa debajo de cabecera+QR (ancho completo sin superposición)
   setFontBody(doc, 'normal');
-  doc.setFontSize(4.9);
+  doc.setFontSize(chosenDescFont);
   doc.setTextColor(...COLOR.TEXT_PRIMARY);
-  const descLines = doc.splitTextToSize(sanitizePdfText(tool.description), textMaxW) as string[];
-  let lineY = sy + 14.2;
-  const maxAllowedY = sy + cardH - 5.2;
+  let lineY = descStartY;
   for (const line of descLines) {
-    if (lineY > maxAllowedY) break;
     doc.text(line, sideXAbs + 4.5, lineY);
-    lineY += 2.6;
+    lineY += chosenDescLineH;
   }
 
   // Callout inferior de interacción
   setFontBody(doc, 'bold');
-  doc.setFontSize(4.8);
+  doc.setFontSize(4.7);
   doc.setTextColor(...ACCENT_DIGITAL);
-  doc.text(sanitizePdfText('Escanea el QR para interactuar'), sideXAbs + 4.5, sy + cardH - 2.5);
+  doc.text(sanitizePdfText('Escanea el QR para interactuar'), sideXAbs + 4.5, sy + cardH - 2.3);
 
   return sy + cardH + 3.0;
 }

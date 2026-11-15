@@ -83,7 +83,10 @@ export function sanitizePdfText(text: string | null | undefined): string {
   return str
     .replace(/[\u2013\u2014]/g, '-')
     .replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 

@@ -25,7 +25,7 @@ import {
   drawCalloutBox,
   sanitizePdfText,
 } from '@/lib/visual-engine/pdf-components-core';
-import { normalizePdfEditorialText } from '@/lib/editorial/text-normalization';
+import { formatSolvedExampleBlocks, normalizePdfEditorialText } from '@/lib/editorial/text-normalization';
 import {
   loadEditorialFonts,
   areEditorialFontsLoaded,
@@ -350,7 +350,9 @@ export function renderExtraDocument(
   };
 
   // ── Parsing de líneas y componentes ───────────────────────────────────────
-  const contentToParse = normalizePdfEditorialText(getExtraContentForRender(extra));
+  const contentToParse = normalizePdfEditorialText(
+    formatSolvedExampleBlocks(getExtraContentForRender(extra))
+  );
   const lines = contentToParse.split('\n');
   let inTable = false;
   let tableHeaders: string[] = [];

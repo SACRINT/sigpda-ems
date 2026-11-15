@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jsPDF } from 'jspdf';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getBlockWorkbook, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import { buildSacrintInfographic, type SacrintInfographicFormat } from '@/lib/visual-engine/sacrint/spec';
 import { renderInfographicSvg } from '@/lib/visual-engine/sacrint/infographic-renderer';
-import { renderInfographicPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
+import { renderCombinedSacrintInfographicsPdf, renderInfographicPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { INFOGRAPHIC } from '@/lib/visual-engine/sacrint/tokens';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
@@ -161,10 +160,9 @@ export async function GET(
       });
     }
 
-    const pdfScale = format === 'pdf' ? 2 : 1;
-    const png = await renderInfographicPng(spec, pdfScale);
-    const disposition = searchParams.get('download') === '1' ? 'attachment' : 'inline';
     if (format === 'png') {
+      const png = await renderInfographicPng(spec, 1);
+      const disposition = searchParams.get('download') === '1' ? 'attachment' : 'inline';
       return new NextResponse(new Uint8Array(png.buffer), {
         status: 200,
         headers: {
@@ -176,17 +174,8 @@ export async function GET(
       });
     }
 
-    const doc = new jsPDF({
-      unit: 'in',
-      format: layout === 'wide' ? [11, 6.1875] : [8.5, 11],
-      orientation: layout === 'wide' ? 'landscape' : 'portrait',
-      compress: true,
-    });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    doc.setProperties({ title: spec.title });
-    doc.addImage(`data:image/png;base64,${png.buffer.toString('base64')}`, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
-    const pdf = Buffer.from(doc.output('arraybuffer'));
+    const disposition = searchParams.get('download') === '1' ? 'attachment' : 'inline';
+    const pdf = await renderCombinedSacrintInfographicsPdf([spec], layout);
 
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,

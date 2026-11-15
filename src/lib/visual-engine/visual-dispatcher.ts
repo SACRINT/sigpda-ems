@@ -618,7 +618,7 @@ export function dispatchVisual(
       }
       return generateCartesianPlane({
         title: `Plano Cartesiano — Modelación Cuadrática (${scopeLabel})`,
-        subtitle: 'Modelo por construir: tabula y grafica con los datos del problema',
+        subtitle: 'Tabulación y representación gráfica con los datos del problema',
         isFallback: true,
       });
     }
@@ -644,7 +644,7 @@ export function dispatchVisual(
       }
       return generateCartesianPlane({
         title: `Plano Cartesiano — Sistema de Ecuaciones 2×2 (${scopeLabel})`,
-        subtitle: 'Modelo por construir: traza L₁ y L₂ para hallar la intersección',
+        subtitle: 'Tabulación e intersección de L₁ y L₂ según el problema',
         isFallback: true,
       });
     }
@@ -673,11 +673,15 @@ export function dispatchVisual(
           searchText
         ))
     ) {
+      const isRightTriangleContext = /\b(?:triangulos?\s+rectangulos?|pitagoras|catetos?|hipotenusa)\b/.test(
+        searchText
+      );
       if (
-        classification.subtopic === 'perimeter-area' ||
-        /\b(?:rectangulo(?:s)?|cuadrilatero(?:s)?|perimetro\s+y\s+area|area\s+del\s+(?:rectangulo|terreno))\b/.test(
-          searchText
-        )
+        !isRightTriangleContext &&
+        (classification.subtopic === 'perimeter-area' ||
+          /\b(?:rectangulo(?:s)?|cuadrilatero(?:s)?|perimetro\s+y\s+area|area\s+del\s+(?:rectangulo|terreno))\b/.test(
+            searchText
+          ))
       ) {
         const rectParams = tryExtractRectangleParameters(rawContext);
         return generateRectangle(rectParams?.largo ?? null, rectParams?.ancho ?? null, {
@@ -725,7 +729,7 @@ export function dispatchVisual(
 
       return generateCartesianPlane({
         title: `Plano Cartesiano para Tabulación y Bosquejo (${scopeLabel})`,
-        subtitle: 'Modelo por construir: registra tus valores y traza la representación gráfica',
+        subtitle: 'Espacio de tabulación gráfica con los valores del ejercicio',
         isFallback: true,
       });
     }
@@ -733,7 +737,7 @@ export function dispatchVisual(
     // 6. Por defecto en STEM: Plano Cartesiano limpio (nunca inventa funciones ni dimensiones)
     return generateCartesianPlane({
       title: `Plano Cartesiano para Tabulación y Bosquejo de Datos (${scopeLabel})`,
-      subtitle: 'Modelo por construir con los datos de la actividad',
+      subtitle: 'Tabulación con los datos de la actividad',
       isFallback: true,
     });
   }

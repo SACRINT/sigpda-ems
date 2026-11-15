@@ -105,7 +105,8 @@ import {
   generateToolQrPng,
   type DigitalTool,
 } from '@/lib/visual-engine/digital-tools-registry';
-import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import { formatSolvedExampleBlocks, normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
 
 function rgbToHex(rgb: [number, number, number]): string {
@@ -3660,7 +3661,10 @@ async function buildMissionContent(
   const diagQuestions: string[] = (mission.diagnosticEvaluation?.questions || []).map((q) => q.trim()).filter((q) => q.length >= 15);
   const reflPrompts: string[] = (mission.formativeCheckpoint?.reflectionPrompts || []).map((p) => p.trim()).filter((p) => p.length >= 15);
   const criteriaItems: string[] = (mission.formativeCheckpoint?.criteriaChecklist || []).map((c) => c.trim()).filter((c) => c.length >= 10);
-  const topicLabel = (mission.sessionTopic || mission.sessionFocus || mission.title || '').replace(/\s+/g, ' ').trim() || 'la misión';
+  const topicLabel = finalizeVisibleText(
+    sanitizeWorkbookTocTitle(mission.sessionTopic || mission.sessionFocus || mission.title, mission.sessionTopic),
+    { fallback: 'la misión', ensurePeriod: false }
+  );
 
   // ── Figura visual por sesión: SVG vectorial determinista (offline, sin red/BD)
   //    rasterizado con sharp a PNG con canal alfa transparente. Nunca rompe el render.
@@ -3679,7 +3683,7 @@ async function buildMissionContent(
         sessionNumber: sNum,
         missionNumber,
       });
-      if (!visual) return;
+      if (!visual || visual.metadata?.isFallback) return;
       const img = await svgToPngBuffer(visual.svg);
       if (!img) return;
       target.push(
@@ -3784,14 +3788,19 @@ async function buildMissionContent(
         ? `Conéctalo con lo que ya conoces: "${mission.conceptZero.physicalAnalogy}" Ahora traduce esa analogía al tema "${topicLabel}" y escríbela con tus palabras.`
         : `Elabora un ejemplo propio de "${topicLabel}" con datos numéricos concretos, resuélvelo paso a paso y verifica el resultado.`;
     target.push(subLabel('Ejemplo resuelto'));
-    target.push(...buildDocxBodyParagraphs(plan?.ejemploResuelto || exampleFallback, { after: 140 }));
+    target.push(...buildDocxBodyParagraphs(formatSolvedExampleBlocks(plan?.ejemploResuelto || exampleFallback), { after: 140 }));
 
     // Figura visual de la sesión (vector determinista con alfa transparente)
+    const sessionFigureContext = [
+      plan ? (plan.contenido || '') : (conceptLine ? `${conceptLine} ${theoryFallback}` : theoryFallback),
+      plan ? (plan.ejemploResuelto || '') : exampleFallback,
+      topicLabel,
+    ].filter(Boolean).join(' ');
     await pushSessionFigure(
       target,
       sNum,
       sMeta.title || topicLabel,
-      `${plan?.contenido || ''} ${topicLabel}`
+      sessionFigureContext
     );
 
     target.push(subLabel('Practica'));
@@ -4185,12 +4194,12 @@ async function buildMissionContent(
             })
           );
         } else {
-          // Fallback sintético determinístico Capa 0 si el asset PNG de material no se pudo leer
+          // Omitir fallback sintético sin datos reales
           const vectorResult = dispatchVisual(subjectName, mission.title, contextText, missionNumber);
-          if (vectorResult) {
+          if (vectorResult && !vectorResult.metadata?.isFallback) {
             const imgResult = await svgToPngBuffer(vectorResult.svg);
             if (imgResult) {
-              const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica conceptual y espacio de tabulación guiada`;
+              const fallbackCaption = `Figura M${missionNumber}.1 — Representación gráfica del modelo cuantitativo`;
               elements.push(
                 new Paragraph({
                   alignment: AlignmentType.CENTER,

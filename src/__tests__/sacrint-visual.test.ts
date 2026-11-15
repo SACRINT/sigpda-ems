@@ -243,7 +243,7 @@ describe('SACRINT visual engine', () => {
     expect(svgs[6].svg).toContain('RÚBRICA DE EVALUACIÓN'.toLocaleUpperCase('es-MX'));
   });
 
-  it('degrada a modelo por construir cuando faltan parámetros', () => {
+  it('omite diagrama sintético y evita placeholders cuando faltan parámetros', () => {
     const workbook = structuredClone(MATH_DEMO_WORKBOOK);
     const mission = workbook.missions![0]!;
     mission.conceptZero!.coreExplanation =
@@ -261,15 +261,15 @@ describe('SACRINT visual engine', () => {
     expect(concept.diagram.kind).toBe('linear');
     if (concept.diagram.kind !== 'linear') return;
     expect(concept.diagram.available).toBe(false);
-    expect(concept.diagram.equation).toBe('y = mx + b');
+    expect(concept.diagram.equation).toBe('');
     expect(concept.diagram.points).toEqual([]);
 
     const slideSvg = renderDeckSvgs(deck)[2].svg;
-    expect(slideSvg).toContain('MODELO POR CONSTRUIR');
+    expect(slideSvg).not.toContain('MODELO POR CONSTRUIR');
     expect(slideSvg).not.toContain('0.85x');
 
     const infographicSvg = renderInfographicSvg(buildSacrintInfographic(workbook, 'letter'));
-    expect(infographicSvg).toContain('MODELO POR CONSTRUIR');
+    expect(infographicSvg).not.toContain('MODELO POR CONSTRUIR');
   });
 
   it('deriva pasos y andamiaje desde texto real etiquetado', () => {
@@ -346,8 +346,10 @@ describe('SACRINT visual engine', () => {
     expect(wideSvg).toContain(`height="${INFOGRAPHIC.wide.height}"`);
     expect(letterSvg).toContain(`width="${INFOGRAPHIC.letter.width}"`);
     expect(letterSvg).toContain(`height="${INFOGRAPHIC.letter.height}"`);
-    expect(wideSvg).toContain('RUTA DE APRENDIZAJE');
-    expect(letterSvg).toContain('RUTA DE APRENDIZAJE');
+    expect(wideSvg).toContain('PROCEDIMIENTO CLAVE');
+    expect(letterSvg).toContain('PROCEDIMIENTO CLAVE');
+    expect(wideSvg).not.toContain('RUTA DE APRENDIZAJE');
+    expect(letterSvg).not.toContain('RUTA DE APRENDIZAJE');
     expect(wideSvg).not.toContain('${');
     expect(letterSvg).not.toContain('${');
   });
@@ -374,7 +376,8 @@ describe('SACRINT visual engine', () => {
         const svg = renderInfographicSvg(infographic);
         expect(svg).toContain(`width="${INFOGRAPHIC[format].width}"`);
         expect(svg).toContain(`height="${INFOGRAPHIC[format].height}"`);
-        expect(svg).toContain('RUTA DE APRENDIZAJE');
+        expect(svg).toContain('PROCEDIMIENTO CLAVE');
+        expect(svg).not.toContain('RUTA DE APRENDIZAJE');
         expect(svg).not.toContain('undefined');
         expect(svg).not.toContain('${');
       }

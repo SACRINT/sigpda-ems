@@ -421,16 +421,6 @@ ${singleLine(uppercaseLabel(node.detail), x + 10, y + height - 10, {
   })}</g>`;
 }
 
-function unavailableBadge(x: number, y: number): string {
-  return singleLine('POR CONSTRUIR', x, y, {
-    fill: SACRINT.amber,
-    fontSize: 9,
-    weight: 'semibold',
-    letterSpacing: 1.8,
-    anchor: 'middle',
-  });
-}
-
 export function reactionScheme(
   diagram: ReactionDiagramSpec,
   x: number,
@@ -483,7 +473,7 @@ export function reactionScheme(
     width: compact ? 1.4 : 2,
     dash: diagram.available ? undefined : '6 6',
   }));
-  parts.push(singleLine(diagram.available ? 'TRANSFORMACIÓN' : 'RELACIÓN POR CONSTRUIR', (arrowStart + arrowEnd) / 2, arrowY + 24, {
+  parts.push(singleLine(diagram.available ? 'TRANSFORMACIÓN' : 'RELACIÓN CONCEPTUAL', (arrowStart + arrowEnd) / 2, arrowY + 24, {
     fill: diagram.available ? accent2 : SACRINT.muted,
     fontSize: compact ? 7 : 8,
     weight: 'semibold',
@@ -491,7 +481,6 @@ export function reactionScheme(
     anchor: 'middle',
   }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width / 2, y + 16));
   if (height > 250) {
     const note = textBlock(diagram.note, width - pad * 2, {
       x: x + pad,
@@ -581,7 +570,6 @@ export function argumentMap(
   parts.push(diagramConnector(leftPremiseX + premiseW / 2, premiseY + premiseH, objectionX + bottomW / 2, bottomY, SACRINT.red, { width: 1, dash: '4 4' }));
   parts.push(diagramConnector(rightPremiseX + premiseW / 2, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, { width: 1 }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -619,7 +607,6 @@ export function languageMap(
   parts.push(diagramConnector(ruleX + cardW, arrowY, outputX - 2, arrowY, accent2, { width: 1.2 }));
   parts.push(diagramConnector(x + width / 2, topY + cardH + 2, x + width / 2, contextY - 6, accent, { width: 1, dash: '4 4' }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -678,7 +665,6 @@ export function conceptMap(
     }));
   });
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -729,7 +715,6 @@ export function timelineDiagram(
     anchor: 'middle',
   }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -775,7 +760,6 @@ export function systemMapDiagram(
   parts.push(diagramConnector(x + width / 2, compY + compH, x + width / 2, envY - 4, accent, { width: 1.2 }));
   parts.push(nodeCard(diagram.environment, x + pad, envY, width - pad * 2, envH, { accent, accent2, compact, maxLines: 2 }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -825,7 +809,6 @@ export function clinicalFlowDiagram(
     parts.push(note.svg);
   }
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -867,7 +850,6 @@ export function blockDiagram(
   parts.push(diagramConnector(outputX + cardW / 2, topY + cardH + 4, feedbackX + feedbackW - 20, feedbackY + feedbackH / 2, accent2, { width: 1, dash: '4 4' }));
   parts.push(diagramConnector(feedbackX + 20, feedbackY + feedbackH / 2, inputX + cardW / 2, topY + cardH + 4, accent, { width: 1, dash: '4 4' }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -918,7 +900,6 @@ export function sopFlowDiagram(
     anchor: 'middle',
   }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -969,7 +950,6 @@ export function creativeCycleDiagram(
     anchor: 'middle',
   }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -1026,7 +1006,6 @@ export function trainingCycleDiagram(
     anchor: 'middle',
   }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -1079,7 +1058,6 @@ export function regulationFlowDiagram(
     anchor: 'middle',
   }));
 
-  if (!diagram.available) parts.push(unavailableBadge(x + width - 48, y + 14));
   return parts.join('');
 }
 
@@ -1251,7 +1229,6 @@ export function linearGraph(
     }
   } else {
     parts.push(line(plotX + plotW * 0.2, plotY + plotH * 0.48, plotX + plotW * 0.8, plotY + plotH * 0.48, tc.pal.strokeSoft, 1, 'stroke-dasharray="8 8" stroke-opacity="0.6"'));
-    parts.push(singleLine('MODELO POR CONSTRUIR', plotX + plotW / 2, plotY + plotH / 2, { fill: tc.pal.muted, fontSize: compact ? 14 : 18, weight: 'semibold', letterSpacing: 2, anchor: 'middle' }));
   }
 
   parts.push(singleLine(uppercaseLabel(diagram.xLabel), plotX + plotW / 2, y + height - 6, { fill: tc.pal.muted, fontSize: compact ? 10 : 11, weight: 'semibold', letterSpacing: 1.4, anchor: 'middle' }));
@@ -1313,7 +1290,6 @@ export function quadraticGraph(
 
   if (!diagram.available || diagram.samples.length < 2) {
     parts.push(line(plotX + plotW * 0.2, plotY + plotH * 0.48, plotX + plotW * 0.8, plotY + plotH * 0.48, tc.pal.strokeSoft, 1, 'stroke-dasharray="8 8" stroke-opacity="0.6"'));
-    parts.push(singleLine('MODELO POR CONSTRUIR', plotX + plotW / 2, plotY + plotH / 2, { fill: tc.pal.muted, fontSize: compact ? 14 : 18, weight: 'semibold', letterSpacing: 2, anchor: 'middle' }));
     parts.push(singleLine(uppercaseLabel(diagram.xLabel), plotX + plotW / 2, y + height - 6, { fill: tc.pal.muted, fontSize: compact ? 10 : 11, weight: 'semibold', letterSpacing: 1.4, anchor: 'middle' }));
     return parts.join('');
   }
@@ -1398,7 +1374,6 @@ export function system2x2Graph(
 
   if (!diagram.available) {
     parts.push(line(plotX + plotW * 0.2, plotY + plotH * 0.48, plotX + plotW * 0.8, plotY + plotH * 0.48, tc.pal.strokeSoft, 1, 'stroke-dasharray="8 8" stroke-opacity="0.6"'));
-    parts.push(singleLine('MODELO POR CONSTRUIR', plotX + plotW / 2, plotY + plotH / 2, { fill: tc.pal.muted, fontSize: compact ? 14 : 18, weight: 'semibold', letterSpacing: 2, anchor: 'middle' }));
     parts.push(singleLine(uppercaseLabel(diagram.xLabel), plotX + plotW / 2, y + height - 6, { fill: tc.pal.muted, fontSize: compact ? 10 : 11, weight: 'semibold', letterSpacing: 1.4, anchor: 'middle' }));
     return parts.join('');
   }
@@ -1480,7 +1455,6 @@ export function exponentialGraph(
 
   if (!diagram.available || diagram.compoundSeries.length < 2) {
     parts.push(line(plotX + plotW * 0.2, plotY + plotH * 0.48, plotX + plotW * 0.8, plotY + plotH * 0.48, tc.pal.strokeSoft, 1, 'stroke-dasharray="8 8" stroke-opacity="0.6"'));
-    parts.push(singleLine('MODELO POR CONSTRUIR', plotX + plotW / 2, plotY + plotH / 2, { fill: tc.pal.muted, fontSize: compact ? 14 : 18, weight: 'semibold', letterSpacing: 2, anchor: 'middle' }));
     parts.push(singleLine(uppercaseLabel(diagram.xLabel), plotX + plotW / 2, y + height - 6, { fill: tc.pal.muted, fontSize: compact ? 10 : 11, weight: 'semibold', letterSpacing: 1.4, anchor: 'middle' }));
     return parts.join('');
   }

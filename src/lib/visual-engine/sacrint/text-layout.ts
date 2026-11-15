@@ -20,6 +20,8 @@ export interface FittedText {
   lineHeight: number;
   width: number;
   height: number;
+  overflow: boolean;
+  requiredHeight: number;
 }
 
 const FAMILY_FACTOR: Record<TextFamily, number> = {
@@ -119,60 +121,83 @@ export function fitText(text: string, maxWidth: number, options: FitTextOptions)
   const letterSpacing = options.letterSpacing ?? 0;
   const lineHeightRatio = options.lineHeightRatio ?? 1.22;
   const minFontSize = options.minFontSize ?? 12;
-  let best: FittedText = { lines: [], fontSize: minFontSize, lineHeight: Math.round(minFontSize * lineHeightRatio), width: 0, height: 0 };
+  let best: FittedText = {
+    lines: [],
+    fontSize: minFontSize,
+    lineHeight: Math.round(minFontSize * lineHeightRatio),
+    width: 0,
+    height: 0,
+    overflow: false,
+    requiredHeight: 0,
+  };
 
   for (let fontSize = Math.round(options.maxFontSize); fontSize >= minFontSize; fontSize -= 0.5) {
     const lines = wrapText(text, maxWidth, fontSize, family, weight, letterSpacing);
     const width = Math.max(0, ...lines.map((line) => measureText(line, fontSize, family, weight, letterSpacing)));
+    const lh = Math.round(fontSize * lineHeightRatio * 10) / 10;
+    const reqH = Math.round(lines.length * fontSize * lineHeightRatio);
     if (lines.length <= options.maxLines) {
       return {
         lines,
         fontSize,
-        lineHeight: Math.round(fontSize * lineHeightRatio * 10) / 10,
+        lineHeight: lh,
         width,
-        height: Math.round(lines.length * fontSize * lineHeightRatio),
+        height: reqH,
+        overflow: false,
+        requiredHeight: reqH,
       };
     }
     best = {
       lines,
       fontSize,
-      lineHeight: Math.round(fontSize * lineHeightRatio * 10) / 10,
+      lineHeight: lh,
       width,
-      height: Math.round(lines.length * fontSize * lineHeightRatio),
+      height: Math.round(options.maxLines * fontSize * lineHeightRatio),
+      overflow: true,
+      requiredHeight: reqH,
     };
   }
 
-  // Si truncate === false, seguir reduciendo tipografía hasta 7.5px antes de recortar líneas
+  // Si truncate === false, seguir reduciendo tipografía hasta 7.5px antes de aceptar overflow controlado
   if (options.truncate === false) {
     const emergencyMinFont = Math.max(7.5, minFontSize - 4.5);
     for (let fontSize = minFontSize - 0.5; fontSize >= emergencyMinFont; fontSize -= 0.5) {
       const compactRatio = Math.max(1.08, lineHeightRatio - 0.08);
       const lines = wrapText(text, maxWidth, fontSize, family, weight, letterSpacing);
       const width = Math.max(0, ...lines.map((line) => measureText(line, fontSize, family, weight, letterSpacing)));
+      const lh = Math.round(fontSize * compactRatio * 10) / 10;
+      const reqH = Math.round(lines.length * fontSize * compactRatio);
       best = {
         lines,
         fontSize,
-        lineHeight: Math.round(fontSize * compactRatio * 10) / 10,
+        lineHeight: lh,
         width,
-        height: Math.round(lines.length * fontSize * compactRatio),
+        height: lines.length <= options.maxLines ? reqH : Math.round(options.maxLines * fontSize * compactRatio),
+        overflow: lines.length > options.maxLines,
+        requiredHeight: reqH,
       };
       if (lines.length <= options.maxLines) {
         return best;
       }
     }
-    // Conservar todas las líneas sin truncar para no cortar ecuaciones, datos ni preguntas
+    // Reportar overflow exacto y requiredHeight para que el renderer decida ajustar, envolver o reflow
     return best;
   }
 
-  const lines = best.lines.slice(0, options.maxLines);
-  if (lines.length > 0) {
-    lines[lines.length - 1] = ellipsize(lines[lines.length - 1], maxWidth, best.fontSize, family, weight, letterSpacing);
+  const fullReqH = best.requiredHeight > 0 ? best.requiredHeight : Math.round(best.lines.length * best.lineHeight);
+  const sliced = best.lines.slice(0, options.maxLines);
+  const overflowed = best.lines.length > options.maxLines;
+  if (sliced.length > 0 && overflowed) {
+    sliced[sliced.length - 1] = ellipsize(sliced[sliced.length - 1], maxWidth, best.fontSize, family, weight, letterSpacing);
   }
+  const actualH = Math.round(sliced.length * best.lineHeight);
   return {
     ...best,
-    lines,
-    width: Math.max(0, ...lines.map((line) => measureText(line, best.fontSize, family, weight, letterSpacing))),
-    height: lines.length * best.lineHeight,
+    lines: sliced,
+    width: Math.max(0, ...sliced.map((line) => measureText(line, best.fontSize, family, weight, letterSpacing))),
+    height: actualH,
+    overflow: overflowed,
+    requiredHeight: Math.max(actualH, fullReqH),
   };
 }
 

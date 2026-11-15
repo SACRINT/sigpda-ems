@@ -247,7 +247,8 @@ describe('SACRINT Part 2 — Pedagogical Redesign & Diagram Authenticity', () =>
 
     for (const svg of [wideSvg, letterSvg]) {
       expect(svg).toContain('#F8FAFC');
-      expect(svg).toContain('RUTA DE APRENDIZAJE');
+      expect(svg).toContain('PROCEDIMIENTO CLAVE');
+      expect(svg).not.toContain('RUTA DE APRENDIZAJE');
       expect(svg).not.toContain('[[material:');
       expect(svg).not.toContain('SECRET_ANSWER_KEY_DO_NOT_LEAK');
       expect(svg).not.toContain('Rúbrica Analítica');
@@ -255,7 +256,7 @@ describe('SACRINT Part 2 — Pedagogical Redesign & Diagram Authenticity', () =>
       expect(svg).not.toContain('undefined');
       expect(svg).not.toContain('${');
     }
-    expect(letterSvg).toContain('SACRINT · CARTA');
+    expect(letterSvg).toContain('SACRINT · MANUAL CARTA');
 
     const png = await renderInfographicPng(letter, 2);
     const meta = await sharp(png.buffer).metadata();

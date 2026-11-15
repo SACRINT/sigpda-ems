@@ -292,6 +292,75 @@ function unwrapLatexMathDelimiters(input: string): string {
     .replace(/\$(\d+(?:[.,]\d+)?(?:\^\d+|[²³¹⁰⁴⁵⁶⁷⁸⁹ⁿ]))/g, '$1');
 }
 
+function repairTabTimesCorruption(text: string): string {
+  return text
+    // Reparar "\t + imes" originado por literales "\times" sin doble barra invertida
+    .replace(/[\t]+\s*imes(?=\s|[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ(\[+\-=×/.,;:]|$)/gi, ' \\times ')
+    // Reparar " imes " huérfano tras pérdida previa del tabulador en expresiones matemáticas (sin tocar "estimes"/"times")
+    .replace(/(?<=[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ)\]=×])\s+imes(?=\s+[0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ(\[]|\s*$)/g, ' \\times ');
+}
+
+function normalizeEditorialPunctuation(text: string): string {
+  const savedUrls: string[] = [];
+  const withUrlTokens = text.replace(/https?:\/\/[^\s)>"']+/gi, (url) => {
+    const token = `__SACRINT_URL_${savedUrls.length}__`;
+    savedUrls.push(url);
+    return token;
+  });
+
+  let out = withUrlTokens
+    // Limpiar flechas ASCII tipo "Esto => revisar" heredadas en prosa pedagógica
+    .replace(/\bEsto\s*(?:⇒|=>|→|->)\s*revisar\b/g, 'Esto implica revisar')
+    // Corregir artículo capitalizado tras preposición ("de La difusión" -> "de la difusión") sin tocar nombres propios
+    .replace(/\b(de|en|sobre|entre|para|con|hacia|desde|ante)\s+(La|Las|Los)\s+(?=[a-záéíóúñ]{3,})/g, (_m, prep: string, art: string) => `${prep} ${art.toLowerCase()} `)
+    .replace(/\bde\s+El\s+(?=[a-záéíóúñ]{3,})/g, 'del ')
+    // Limpiar corte truncado clásico "y activarás tus" cuando queda colgante sin sustantivo siguiente
+    .replace(/\s+y\s+activar[aá]s\s+tus(?=\s*(?:$|["'”».,;:!?()[\]—–-]))/gi, '')
+    // Reparar comas huérfanas seguidas de punto y coma o dos puntos (", ;" -> ";", ", :" -> ":")
+    .replace(/,\s*;/g, ';')
+    .replace(/,\s*:/g, ':')
+    // Colapsar ".." erróneos preservando elipsis "..." y separadores decimales
+    .replace(/(?<!\.)\.\.(?!\.)/g, '.')
+    // Quitar espacios horizontales antes de coma, punto y coma, admiración o cierre interrogativo
+    .replace(/([A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ)%°"»\]])[ \t]+([,;!?])(?=\s|$|[A-Za-z0-9"»)])/g, '$1$2')
+    // Quitar espacios antes de punto final, cuidando no romper números ".5" tras operador
+    .replace(/(?<=[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ)%°"»\]])[ \t]+\.(?!\d)/g, '.')
+    // Quitar espacios antes de ":" cuando actúa como puntuación editorial
+    .replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9)%°"»\]])[ \t]+:(?=\s|$)/g, '$1:')
+    // Colapsar múltiples espacios horizontales conservando saltos de línea
+    .replace(/[ \t]{2,}/g, ' ');
+
+  savedUrls.forEach((url, idx) => {
+    out = out.replace(`__SACRINT_URL_${idx}__`, url);
+  });
+
+  return out;
+}
+
+/**
+ * Normaliza saltos de línea en ejemplos resueltos para evitar pasos o ecuaciones pegadas
+ * en una sola línea (ej. "1) x + y = 10 2) x - y = 4 Paso 2: ...").
+ */
+export function formatSolvedExampleBlocks(raw: string | null | undefined): string {
+  if (!raw) return '';
+  return raw
+    .replace(/\s+(?=\bPaso\s*\d+\s*[:.\-–])/gi, '\n\n')
+    .replace(/\s+(?=(\d+)\)\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9(])/g, (match, numStr: string, offset: number, full: string) => {
+      const itemNum = Number(numStr);
+      if (!Number.isFinite(itemNum) || itemNum < 1 || itemNum > 25) return match;
+      const sliceBefore = full.slice(0, offset);
+      const lastNewline = sliceBefore.lastIndexOf('\n');
+      const currentLine = sliceBefore.slice(lastNewline + 1);
+      const prevNonSpace = currentLine.trimEnd().slice(-1);
+      if (!prevNonSpace || /[=+\-*/×÷^<(,\[]/.test(prevNonSpace)) return match;
+      const openParens = (currentLine.match(/\(/g) || []).length;
+      const closeParens = (currentLine.match(/\)/g) || []).length;
+      if (openParens > closeParens) return match;
+      return '\n';
+    })
+    .replace(/\s+(?=(?:Conclusi[oó]n|Resultado\s+final|Interpretaci[oó]n)\s*:)/gi, '\n\n');
+}
+
 export interface EditorialTextNormalizationOptions {
   /**
    * 'unicode' (por defecto): conserva símbolos matemáticos Unicode (`⇒`, `√`, `≤`, `≥`, `Fᵢ`, `°`, `²`).
@@ -308,7 +377,7 @@ export function normalizeEditorialText(
   options?: EditorialTextNormalizationOptions
 ): string {
   if (!value) return '';
-  let text = String(value);
+  let text = repairTabTimesCorruption(String(value));
 
   // 1. Títulos de bloque repetidos: "Bloque 1 (Corte 1): Bloque 1 (Corte 1)" o "Bloque 1: Bloque 1 (Corte 1)" -> "Bloque 1 (Corte 1)"
   text = text.replace(
@@ -320,12 +389,17 @@ export function normalizeEditorialText(
     }
   );
 
-  // 2. Prefijos de ejercicio duplicados: "Ejercicio 1. Ejercicio 1:" -> "Ejercicio 1:"
+  // 2. Prefijos de ejercicio y sesión duplicados: "Ejercicio 1. Ejercicio 1:" -> "Ejercicio 1:", "Sesión 2: Sesión 2:" -> "Sesión 2:"
   text = text.replace(
     /(\*{0,2}Ejercicio\s+(\d+)\.?(\*{0,2}))\s*Ejercicio\s+\2\s*[:.]\s*/gi,
     '$1: '
   );
   text = text.replace(/\bEjercicio\s+(\d+)\s*\.\s*:\s*/gi, 'Ejercicio $1: ');
+  text = text.replace(
+    /\b(Sesi[oó]n\s+(\d{1,2}))\s*[:.\-–—]*\s*Sesi[oó]n\s+\2(?:\s*[:.\-–—]\s*|\s+)/gi,
+    (_m, head: string) => `${head}: `
+  );
+  text = text.replace(/\b(Sesi[oó]n\s+\d{1,2})\s*\.\s*:\s*/gi, '$1: ');
 
   // 3. Etiquetas [[...]] residuales que no sean [[material:...]]
   text = text.replace(/\[\[\s*(?!material\s*:)([^\]]+?)\s*\]\]/gi, (_m, inner: string) => {
@@ -351,6 +425,12 @@ export function normalizeEditorialText(
 
   // 7. Desenvolver delimitadores LaTeX `$...$` / `$$...$$`
   text = unwrapLatexMathDelimiters(text);
+
+  // 7.05 Normalizar "approx" sin barra invertida entre expresiones numéricas/matemáticas
+  text = text.replace(/(?<=[0-9)\]⁰¹²³⁴⁵⁶⁷⁸⁹])\s*\bapprox\b\s*(?=[+\-0-9([√])/gi, ' ≈ ');
+
+  // 7.1 Higiene de puntuación y espacios sin romper decimales, versiones, ... ni URLs
+  text = normalizeEditorialPunctuation(text);
 
   // 8. Si el destino requiere WinAnsi estricto, trasladar caracteres Unicode fuera de Latin-1
   if (options?.target === 'winansi') {

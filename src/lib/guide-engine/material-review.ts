@@ -119,6 +119,8 @@ const PLACEHOLDER_PATTERNS: readonly RegExp[] = [
   /\[completar[^\]]*\]/i,
   /\[\.\.\.\]/,
   /\$\{[^}]*\}/,
+  /modelo\s+por\s+construir/i,
+  /por\s+completar\s+en\s+el\s+libro/i,
 ];
 
 const MIN_CHARS_BY_MATERIAL: Record<MaterialType, { errorFloor: number; warningFloor: number }> = {

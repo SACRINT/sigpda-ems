@@ -35,8 +35,9 @@ import { fitText } from './text-layout';
 
 const W = 10;
 const IN = W / 1920;
-const FONT_DISPLAY = 'Space Grotesk';
-const FONT_BODY = 'Inter';
+const DESIGN_PX_PER_PT = 1920 / (W * 72); // 1 pt = 2.6667 design px en diapositiva de 10 in
+const FONT_DISPLAY = 'Calibri';
+const FONT_BODY = 'Calibri';
 
 const C = {
   canvas: '05070B',
@@ -76,50 +77,56 @@ function addText(
   height: number,
   options: TextOptions = {}
 ) {
+  const cleanedValue = String(value ?? '').replace(/[ \t]+/g, ' ').trim();
+  if (!cleanedValue) return;
   const {
     maxLines: explicitMaxLines,
     lineHeightRatio: explicitLineHeightRatio,
     lineSpacingMultiple,
-    truncate = false,
+    truncate: _truncate = false,
     ...textOptions
   } = options;
-  const pxSize = Math.max(14, (textOptions.fontSize ?? pt(20)) / 0.5);
-  const lineHeightRatio = explicitLineHeightRatio ?? lineSpacingMultiple ?? 1.2;
-  const minFontSize = Math.max(11, Math.round(pxSize * 0.52));
-  const maxLines = explicitMaxLines ?? Math.max(1, Math.floor(height / (minFontSize * lineHeightRatio)));
-  const fitted = fitText(value, width, {
-    family: textOptions.fontFace === FONT_DISPLAY ? 'display' : 'body',
-    weight: textOptions.bold ? 'bold' : 'regular',
-    maxFontSize: Math.round(pxSize),
-    minFontSize,
-    maxLines,
-    lineHeightRatio,
-    truncate,
-  });
-  if (fitted.lines.length === 0) return;
+  const lineHeightRatio = explicitLineHeightRatio ?? lineSpacingMultiple ?? 1.15;
+  const requestedPt = textOptions.fontSize ?? pt(20);
+  const minPt = height <= 28 ? 7 : 7.5;
+  const allowedLines =
+    explicitMaxLines ??
+    Math.max(1, Math.floor((height + 2) / (minPt * DESIGN_PX_PER_PT * lineHeightRatio)));
 
-  const blockHeight = fitted.lines.length * fitted.lineHeight;
-  const verticalOffset = textOptions.valign === 'middle'
-    ? Math.max(0, (height - blockHeight) / 2)
-    : textOptions.valign === 'bottom'
-      ? Math.max(0, height - blockHeight)
-      : 0;
-
-  fitted.lines.forEach((line, index) => {
-    slide.addText(line, {
-      x: inch(x),
-      y: inch(y + verticalOffset + index * fitted.lineHeight),
-      w: inch(width),
-      h: inch(fitted.lineHeight + 2),
-      fontFace: FONT_BODY,
-      fontSize: pt(fitted.fontSize),
-      color: C.text,
-      margin: 0,
-      ...textOptions,
-      valign: 'top',
-      fit: 'none',
-      wrap: false,
+  let finalPt = minPt;
+  for (let candidatePt = requestedPt; candidatePt >= minPt - 0.01; candidatePt -= 0.5) {
+    const roundedPt = Math.round(candidatePt * 10) / 10;
+    const candidatePx = roundedPt * DESIGN_PX_PER_PT;
+    const fitted = fitText(cleanedValue, width, {
+      family: textOptions.fontFace === FONT_DISPLAY ? 'display' : 'body',
+      weight: textOptions.bold ? 'bold' : 'regular',
+      maxFontSize: candidatePx,
+      minFontSize: candidatePx,
+      maxLines: allowedLines,
+      lineHeightRatio,
+      truncate: false,
     });
+    const neededHeight = fitted.lines.length * (candidatePx * lineHeightRatio);
+    if (!fitted.overflow && fitted.lines.length <= allowedLines && neededHeight <= height + 2) {
+      finalPt = roundedPt;
+      break;
+    }
+  }
+
+  slide.addText(cleanedValue, {
+    x: inch(x),
+    y: inch(y),
+    w: inch(width),
+    h: inch(height),
+    fontFace: FONT_BODY,
+    color: C.text,
+    margin: 0,
+    lineSpacingMultiple: lineHeightRatio,
+    ...textOptions,
+    fontSize: finalPt,
+    valign: textOptions.valign ?? 'top',
+    fit: 'none',
+    wrap: true,
   });
 }
 
@@ -202,24 +209,30 @@ function addEllipse(
 }
 
 function addHud(slide: PptxGenJS.Slide, left: string, right: string, active: number, accent: string, totalSteps = 8) {
+  const pillW = Math.min(720, Math.max(360, Math.round(left.length * 14.5 + 56)));
+  const rightX = Math.max(1220, 70 + pillW + 24);
   slide.addShape('roundRect', {
     x: inch(70),
     y: inch(46),
-    w: inch(330),
+    w: inch(pillW),
     h: inch(38),
     fill: { color: C.panel, transparency: 20 },
     line: { color: accent, width: 0.75, transparency: 30 },
     rectRadius: 0.18,
   });
-  addText(slide, left.toLocaleUpperCase('es-MX'), 88, 56, 295, 20, {
-    fontSize: pt(10),
+  addText(slide, left.toLocaleUpperCase('es-MX'), 88, 53, pillW - 36, 24, {
+    fontSize: pt(18),
     bold: true,
     color: accent,
+    valign: 'middle',
+    maxLines: 1,
   });
-  addText(slide, right.toLocaleUpperCase('es-MX'), 1280, 58, 560, 20, {
-    fontSize: pt(9),
+  addText(slide, right.toLocaleUpperCase('es-MX'), rightX, 55, 1840 - rightX, 22, {
+    fontSize: pt(17),
     color: C.muted,
     align: 'right',
+    valign: 'middle',
+    maxLines: 1,
   });
   for (let index = 0; index < totalSteps; index += 1) {
     slide.addShape('rect', {
@@ -486,10 +499,10 @@ function drawCartesianFrame(
   xLabel: string,
   yLabel: string
 ) {
-  const plotX = 892;
-  const plotY = 342;
-  const plotW = 892;
-  const plotH = 352;
+  const plotX = 944;
+  const plotY = 334;
+  const plotW = 844;
+  const plotH = 342;
   const xSpan = Math.max(1e-6, xMax - xMin);
   const ySpan = Math.max(1e-6, yMax - yMin);
   const xToPx = (value: number) => plotX + ((value - xMin) / xSpan) * plotW;
@@ -503,7 +516,7 @@ function drawCartesianFrame(
   for (let v = firstY, count = 0; v <= yMax + stepY * 0.001 && count < 8; v += stepY, count += 1) {
     const py = yToPx(v);
     addLine(slide, plotX, py, plotX + plotW, py, C.stroke, 0.5, 'dash');
-    addText(slide, formatTickLabel(v), plotX - 66, py - 9, 60, 16, { fontSize: pt(12), color: C.muted, align: 'right' });
+    addText(slide, formatTickLabel(v), plotX - 70, py - 9, 62, 18, { fontSize: pt(14), color: C.muted, align: 'right', maxLines: 1 });
   }
 
   const stepX = niceTickStep(xSpan, 5);
@@ -511,7 +524,7 @@ function drawCartesianFrame(
   for (let v = firstX, count = 0; v <= xMax + stepX * 0.001 && count < 8; v += stepX, count += 1) {
     const px = xToPx(v);
     addLine(slide, px, plotY, px, plotY + plotH, C.stroke, 0.5, 'dash');
-    addText(slide, formatTickLabel(v), px - 28, plotY + plotH + 8, 56, 16, { fontSize: pt(12), color: C.muted, align: 'center' });
+    addText(slide, formatTickLabel(v), px - 28, plotY + plotH + 8, 56, 18, { fontSize: pt(14), color: C.muted, align: 'center', maxLines: 1 });
   }
 
   if (yMin < 0 && yMax > 0) {
@@ -521,16 +534,18 @@ function drawCartesianFrame(
     addLine(slide, xToPx(0), plotY, xToPx(0), plotY + plotH, C.strokeSoft, 1);
   }
 
-  addText(slide, xLabel.toLocaleUpperCase('es-MX'), plotX + plotW / 2 - 220, plotY + plotH + 34, 440, 18, {
-    fontSize: pt(13),
+  addText(slide, xLabel.toLocaleUpperCase('es-MX'), plotX + plotW / 2 - 220, plotY + plotH + 30, 440, 20, {
+    fontSize: pt(15),
     color: C.muted,
     align: 'center',
+    maxLines: 1,
   });
-  addText(slide, yLabel.toLocaleUpperCase('es-MX'), plotX - 216, plotY + 160, 330, 18, {
-    fontSize: pt(13),
+  addText(slide, yLabel.toLocaleUpperCase('es-MX'), 718, plotY + plotH / 2 - 10, 280, 20, {
+    fontSize: pt(15),
     color: C.muted,
     align: 'center',
     valign: 'middle',
+    maxLines: 1,
     rotate: 270,
   });
 
@@ -546,19 +561,24 @@ function addPointMarker(
   accent2: string,
   width = 88
 ) {
+  const pillW = Math.max(width, Math.min(186, Math.round(label.length * 10 + 22)));
+  const pillX = Math.min(1816 - pillW, px + 8);
+  const pillY = Math.max(336, py - 26);
   addEllipse(slide, px - 5, py - 5, 10, 10, { fill: accent2, stroke: accent, strokeWidth: 1.2 });
   slide.addShape('roundRect', {
-    x: inch(px + 8),
-    y: inch(Math.max(336, py - 24)),
-    w: inch(width),
-    h: inch(20),
+    x: inch(pillX),
+    y: inch(pillY),
+    w: inch(pillW),
+    h: inch(24),
     fill: { color: C.canvas, transparency: 5 },
     line: { color: accent, width: 0.6, transparency: 30 },
     rectRadius: 0.03,
   });
-  addText(slide, label, px + 11, Math.max(337, py - 23), width - 6, 18, {
-    fontSize: pt(12),
+  addText(slide, label, pillX + 6, pillY + 2, pillW - 12, 20, {
+    fontSize: pt(13),
     color: C.text,
+    maxLines: 1,
+    valign: 'middle',
   });
 }
 
@@ -574,12 +594,7 @@ function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: st
   );
 
   if (!diagram.available) {
-    addText(slide, 'MODELO POR CONSTRUIR', plotX + plotW / 2 - 220, plotY + plotH / 2 - 14, 440, 28, {
-      fontSize: pt(18),
-      bold: true,
-      color: C.muted,
-      align: 'center',
-    });
+    addLine(slide, plotX + plotW * 0.2, plotY + plotH * 0.5, plotX + plotW * 0.8, plotY + plotH * 0.5, C.strokeSoft, 1, 'dash');
     return;
   }
 
@@ -626,12 +641,7 @@ function addQuadraticDiagram(slide: PptxGenJS.Slide, diagram: QuadraticDiagramSp
   );
 
   if (!diagram.available || diagram.samples.length < 2) {
-    addText(slide, 'MODELO POR CONSTRUIR', plotX + plotW / 2 - 220, plotY + plotH / 2 - 14, 440, 28, {
-      fontSize: pt(18),
-      bold: true,
-      color: C.muted,
-      align: 'center',
-    });
+    addLine(slide, plotX + plotW * 0.2, plotY + plotH * 0.5, plotX + plotW * 0.8, plotY + plotH * 0.5, C.strokeSoft, 1, 'dash');
     return;
   }
 
@@ -664,12 +674,7 @@ function addSystem2x2Diagram(slide: PptxGenJS.Slide, diagram: System2x2DiagramSp
   );
 
   if (!diagram.available) {
-    addText(slide, 'MODELO POR CONSTRUIR', plotX + plotW / 2 - 220, plotY + plotH / 2 - 14, 440, 28, {
-      fontSize: pt(18),
-      bold: true,
-      color: C.muted,
-      align: 'center',
-    });
+    addLine(slide, plotX + plotW * 0.2, plotY + plotH * 0.5, plotX + plotW * 0.8, plotY + plotH * 0.5, C.strokeSoft, 1, 'dash');
     return;
   }
 
@@ -725,12 +730,7 @@ function addExponentialDiagram(slide: PptxGenJS.Slide, diagram: ExponentialDiagr
   );
 
   if (!diagram.available || diagram.compoundSeries.length < 2) {
-    addText(slide, 'MODELO POR CONSTRUIR', plotX + plotW / 2 - 220, plotY + plotH / 2 - 14, 440, 28, {
-      fontSize: pt(18),
-      bold: true,
-      color: C.muted,
-      align: 'center',
-    });
+    addLine(slide, plotX + plotW * 0.2, plotY + plotH * 0.5, plotX + plotW * 0.8, plotY + plotH * 0.5, C.strokeSoft, 1, 'dash');
     return;
   }
 
@@ -777,9 +777,10 @@ function addGeometryDiagram(slide: PptxGenJS.Slide, diagram: GeometryDiagramSpec
     addText(slide, diagram.secondaryLabel, figX + 190, figY + 110, 180, 20, { fontSize: pt(14), color: accent2, bold: true });
   } else {
     addPanel(slide, figX + 20, figY + 20, 320, 240, { fill: C.panelAlt, stroke: accent, strokeWidth: 2 });
-    addLine(slide, figX + 20, figY + 260, figX + 340, figY + 20, accent2, 1.8, 'dash');
-    addText(slide, diagram.primaryLabel, figX + 36, figY + 110, 288, 30, { fontSize: pt(18), bold: true, color: accent, align: 'center' });
-    addText(slide, diagram.secondaryLabel, figX + 36, figY + 150, 288, 28, { fontSize: pt(15), color: accent2, align: 'center' });
+    addLine(slide, figX + 40, figY + 70, figX + 94, figY + 70, accent2, 1.8);
+    addLine(slide, figX + 40, figY + 70, figX + 78, figY + 34, accent2, 1.8, 'dash');
+    addText(slide, diagram.primaryLabel, figX + 36, figY + 102, 288, 44, { fontSize: pt(18), bold: true, color: accent, align: 'center', maxLines: 2 });
+    addText(slide, diagram.secondaryLabel, figX + 36, figY + 152, 288, 56, { fontSize: pt(15), color: accent2, align: 'center', maxLines: 2 });
   }
 
   diagram.highlights.slice(0, 3).forEach((node, index) => {
@@ -805,7 +806,7 @@ function addNodeCard(
     strokeWidth: options.border ? 1 : 0.75,
   });
   addLabel(slide, node.label, x + 12, y + 8, width - 24, 16, accent2, options.compact ? 7 : 8);
-  addText(slide, node.detail, x + 12, y + 28, width - 24, height - 34, {
+  addText(slide, node.detail, x + 12, y + 28, width - 24, Math.max(20, height - 38), {
     fontSize: pt(options.compact ? 9 : 11),
     color: C.textSoft,
     lineSpacingMultiple: 1.02,
@@ -888,7 +889,7 @@ function addReactionDiagram(slide: PptxGenJS.Slide, diagram: ReactionDiagramSpec
   addRightArrow(slide, arrowStart, arrowY, arrowEnd - arrowStart, diagram.available ? accent : C.muted, !diagram.available);
   addLabel(
     slide,
-    diagram.available ? 'Transformación' : 'Relación por construir',
+    diagram.available ? 'Transformación' : 'Relación conceptual',
     arrowStart,
     arrowY + 12,
     arrowEnd - arrowStart,
@@ -896,9 +897,6 @@ function addReactionDiagram(slide: PptxGenJS.Slide, diagram: ReactionDiagramSpec
     C.muted,
     7
   );
-  if (!diagram.available) {
-    addLabel(slide, 'Por construir', area.x + area.w / 2 - 70, area.y + 4, 140, 16, C.amber, 8);
-  }
   addText(slide, diagram.note, area.x + pad, area.y + area.h - 30, area.w - pad * 2, 24, {
     fontSize: pt(8),
     color: C.muted,
@@ -907,12 +905,12 @@ function addReactionDiagram(slide: PptxGenJS.Slide, diagram: ReactionDiagramSpec
 }
 
 function addArgumentDiagram(slide: PptxGenJS.Slide, diagram: ArgumentDiagramSpec, accent: string, accent2: string) {
-  const area = { x: 840, y: 318, w: 984, h: 420 };
+  const area = { x: 840, y: 314, w: 984, h: 424 };
   const pad = 12;
-  const gap = 14;
-  const thesisH = 76;
-  const premiseH = 88;
-  const bottomH = 86;
+  const gap = 18;
+  const thesisH = 82;
+  const premiseH = 104;
+  const bottomH = 98;
   const thesisW = area.w * 0.64;
   const thesisX = area.x + (area.w - thesisW) / 2;
   const contentH = thesisH + premiseH + bottomH + gap * 2;
@@ -925,6 +923,9 @@ function addArgumentDiagram(slide: PptxGenJS.Slide, diagram: ArgumentDiagramSpec
   const rightPremiseX = leftPremiseX + premiseW + gap;
   const objectionX = area.x + pad;
   const conclusionX = objectionX + bottomW + gap;
+  const objectionNode = diagram.objection.detail.trim()
+    ? diagram.objection
+    : { label: 'OBJECIÓN', detail: 'Sin objeción registrada en la sesión.' };
 
   addNodeCard(slide, diagram.thesis, thesisX, thesisY, thesisW, thesisH, accent, accent2, {
     border: accent,
@@ -936,7 +937,7 @@ function addArgumentDiagram(slide: PptxGenJS.Slide, diagram: ArgumentDiagramSpec
   addNodeCard(slide, diagram.premises[1] ?? { label: 'PREMISA 2', detail: 'Sin registro.' }, rightPremiseX, premiseY, premiseW, premiseH, accent, accent2, {
     compact: true,
   });
-  addNodeCard(slide, diagram.objection, objectionX, bottomY, bottomW, bottomH, accent, accent2, {
+  addNodeCard(slide, objectionNode, objectionX, bottomY, bottomW, bottomH, accent, accent2, {
     border: C.red,
     compact: true,
   });
@@ -949,7 +950,6 @@ function addArgumentDiagram(slide: PptxGenJS.Slide, diagram: ArgumentDiagramSpec
   addLine(slide, thesisX + thesisW * 0.68, thesisY + thesisH, rightPremiseX + premiseW / 2, premiseY, accent2, 1, 'solid', true);
   addLine(slide, leftPremiseX + premiseW / 2, premiseY + premiseH, objectionX + bottomW / 2, bottomY, C.red, 1, 'dash', true);
   addLine(slide, rightPremiseX + premiseW / 2, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, 1, 'solid', true);
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addLanguageDiagram(slide: PptxGenJS.Slide, diagram: LanguageDiagramSpec, accent: string, accent2: string) {
@@ -974,7 +974,6 @@ function addLanguageDiagram(slide: PptxGenJS.Slide, diagram: LanguageDiagramSpec
   addLine(slide, inputX + cardW, topY + cardH / 2, ruleX - 2, topY + cardH / 2, accent, 1.2, 'solid', true);
   addLine(slide, ruleX + cardW, topY + cardH / 2, outputX - 2, topY + cardH / 2, accent2, 1.2, 'solid', true);
   addLine(slide, area.x + area.w / 2, topY + cardH + 2, area.x + area.w / 2, contextY - 4, accent, 1, 'dash');
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addConceptDiagram(slide: PptxGenJS.Slide, diagram: ConceptDiagramSpec, accent: string, accent2: string) {
@@ -1015,7 +1014,6 @@ function addConceptDiagram(slide: PptxGenJS.Slide, diagram: ConceptDiagramSpec, 
     if (!position) return;
     addNodeCard(slide, node, position.x, position.y, nodeW, nodeH, accent, accent2, { compact: true });
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addTimelineDiagram(slide: PptxGenJS.Slide, diagram: TimelineDiagramSpec, accent: string, accent2: string) {
@@ -1052,7 +1050,6 @@ function addTimelineDiagram(slide: PptxGenJS.Slide, diagram: TimelineDiagramSpec
     color: accent,
     align: 'center',
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addSystemMapDiagram(slide: PptxGenJS.Slide, diagram: SystemMapDiagramSpec, accent: string, accent2: string) {
@@ -1077,7 +1074,6 @@ function addSystemMapDiagram(slide: PptxGenJS.Slide, diagram: SystemMapDiagramSp
   addNodeCard(slide, diagram.center, centerX, centerY, centerW, centerH, accent, accent2, { border: accent, fill: C.panelAlt, compact: true });
   addLine(slide, area.x + area.w / 2, compY + compH, area.x + area.w / 2, envY - 4, accent, 1.2, 'solid', true);
   addNodeCard(slide, diagram.environment, area.x + pad, envY, area.w - pad * 2, envH, accent, accent2, { compact: true });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addClinicalFlowDiagram(slide: PptxGenJS.Slide, diagram: ClinicalFlowDiagramSpec, accent: string, accent2: string) {
@@ -1111,7 +1107,6 @@ function addClinicalFlowDiagram(slide: PptxGenJS.Slide, diagram: ClinicalFlowDia
     color: C.muted,
     align: 'center',
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addBlockDiagramPptx(slide: PptxGenJS.Slide, diagram: BlockDiagramSpec, accent: string, accent2: string) {
@@ -1139,7 +1134,6 @@ function addBlockDiagramPptx(slide: PptxGenJS.Slide, diagram: BlockDiagramSpec, 
   addNodeCard(slide, diagram.feedback, feedbackX, feedbackY, feedbackW, feedbackH, accent, accent2, { compact: true });
   addLine(slide, outputX + cardW / 2, topY + cardH + 4, feedbackX + feedbackW - 20, feedbackY + feedbackH / 2, accent2, 1, 'dash', true);
   addLine(slide, feedbackX + 20, feedbackY + feedbackH / 2, inputX + cardW / 2, topY + cardH + 4, accent, 1, 'dash', true);
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addSopFlowDiagram(slide: PptxGenJS.Slide, diagram: SopFlowDiagramSpec, accent: string, accent2: string) {
@@ -1177,7 +1171,6 @@ function addSopFlowDiagram(slide: PptxGenJS.Slide, diagram: SopFlowDiagramSpec, 
     color: C.textSoft,
     align: 'center',
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addCreativeCycleDiagram(slide: PptxGenJS.Slide, diagram: CreativeCycleDiagramSpec, accent: string, accent2: string) {
@@ -1216,7 +1209,6 @@ function addCreativeCycleDiagram(slide: PptxGenJS.Slide, diagram: CreativeCycleD
     align: 'center',
     maxLines: 2,
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addTrainingCycleDiagram(slide: PptxGenJS.Slide, diagram: TrainingCycleDiagramSpec, accent: string, accent2: string) {
@@ -1269,7 +1261,6 @@ function addTrainingCycleDiagram(slide: PptxGenJS.Slide, diagram: TrainingCycleD
     align: 'center',
     maxLines: 2,
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addRegulationFlowDiagram(slide: PptxGenJS.Slide, diagram: RegulationFlowDiagramSpec, accent: string, accent2: string) {
@@ -1311,7 +1302,6 @@ function addRegulationFlowDiagram(slide: PptxGenJS.Slide, diagram: RegulationFlo
     align: 'center',
     maxLines: 2,
   });
-  if (!diagram.available) addLabel(slide, 'Por construir', area.x + area.w - 140, area.y, 130, 16, C.amber, 8);
 }
 
 function addDiagram(slide: PptxGenJS.Slide, diagram: SacrintDiagramSpec, accent: string, accent2: string) {
@@ -1375,27 +1365,33 @@ function renderCover(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extrac
   addHud(slide, `${deck.pack.short} / SACRINT`, `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} · BLOQUE ${String(deck.meta.blockNumber).padStart(2, '0')}`, 0, accent);
   addLabel(slide, spec.eyebrow, 80, 206, 620, 20, accent, 10);
   addLine(slide, 80, 236, 420, 236, accent, 1.5);
-  addText(slide, spec.title, 80, 252, 940, 224, {
+  addText(slide, spec.title, 80, 246, 940, 210, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(spec.title.length > 55 ? 46 : 64),
+    fontSize: pt(spec.title.length > 55 ? 44 : 58),
     bold: true,
     color: C.white,
     valign: 'middle',
     maxLines: 3,
   });
-  addText(slide, spec.subtitle ?? '', 80, 488, 900, 48, {
-    fontSize: pt(22),
+  addText(slide, spec.subtitle ?? '', 80, 464, 920, 52, {
+    fontSize: pt(20),
     color: C.textSoft,
     maxLines: 2,
   });
-  addLabel(slide, spec.metaLine, 80, 548, 760, 20, C.muted, 9);
+  const metaUpper = (spec.metaLine || '').toLocaleUpperCase('es-MX');
+  addText(slide, metaUpper, 80, 518, 940, 44, {
+    fontSize: pt(metaUpper.length > 68 ? 11.5 : 14),
+    bold: true,
+    color: C.muted,
+    maxLines: 2,
+  });
 
   if (spec.topicsCovered && spec.topicsCovered.length > 0) {
-    addPanel(slide, 80, 582, 940, 224, { fill: C.panel, transparency: 14, stroke: C.strokeSoft });
-    addLabel(slide, 'Temas y clases incluidas en esta presentación', 102, 594, 620, 18, accent, 8);
+    addPanel(slide, 80, 576, 940, 232, { fill: C.panel, transparency: 14, stroke: C.strokeSoft });
+    addLabel(slide, 'Temas y clases incluidas en esta presentación', 102, 590, 620, 18, accent, 8);
     spec.topicsCovered.slice(0, 6).forEach((topic, idx) => {
-      addText(slide, `• ${topic}`, 102, 618 + idx * 30, 896, 28, {
-        fontSize: pt(13.5),
+      addText(slide, `• ${topic}`, 102, 616 + idx * 30, 896, 26, {
+        fontSize: pt(14),
         color: C.textSoft,
         maxLines: 1,
       });
@@ -1459,110 +1455,254 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   const isGuide = Boolean(spec.isLessonGuide);
+  const hasDiagram = Boolean(spec.diagram?.available);
   const sesTag = spec.sessionNumber ? `SESIÓN ${String(spec.sessionNumber).padStart(2, '0')}` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')}`;
   addHud(
     slide,
-    isGuide ? 'Conocimiento nuevo y ejemplo' : 'Núcleo técnico',
+    isGuide ? 'Conocimiento nuevo' : 'Núcleo técnico',
     isGuide ? `${sesTag} // PIZARRÓN DOCENTE (1/2)` : `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} // CONCEPTO CERO`,
     isGuide ? 0 : 2,
     accent,
     isGuide ? 2 : 8
   );
-  addText(slide, spec.title, 80, 198, 700, 102, {
+
+  const headerW = hasDiagram ? 712 : 1760;
+  addText(slide, spec.title, 80, 132, headerW, hasDiagram ? 78 : 70, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(spec.title.length > 42 ? 27 : 34),
+    fontSize: pt(spec.title.length > 38 ? 26 : 32),
     bold: true,
     color: C.white,
     maxLines: 2,
   });
-  addText(slide, spec.subtitle ?? '', 80, 302, 700, 36, { fontSize: pt(isGuide ? 14 : 13), color: accent, bold: !isGuide, maxLines: 2 });
+  const hasSubtitle = Boolean(spec.subtitle?.trim());
+  if (hasSubtitle) {
+    addText(slide, spec.subtitle ?? '', 80, hasDiagram ? 216 : 210, headerW, hasDiagram ? 44 : 40, {
+      fontSize: pt(isGuide ? 18 : 17),
+      color: accent,
+      bold: !isGuide,
+      maxLines: 2,
+    });
+  }
 
-  if (isGuide) {
-    const exStatement = spec.workedExample?.problemStatement || spec.explanation;
-    const exSteps = (spec.workedExample?.steps ?? spec.keyTakeaways ?? []).slice(0, 3);
-    const exResult = spec.workedExample?.interpretation;
-
-    addPanel(slide, 80, 344, 700, 332, { fill: C.panel, transparency: 10 });
-    addLabel(slide, 'Ejemplo resuelto', 104, 364, 560, 18, accent, 9);
-    addText(slide, exStatement, 104, 390, 652, 64, {
-      fontSize: pt(14.5),
+  if (isGuide && !hasDiagram) {
+    const topY = hasSubtitle ? 276 : 228;
+    const conceptH = hasSubtitle ? 402 : 446;
+    const takeaways = (spec.keyTakeaways && spec.keyTakeaways.length > 0 ? spec.keyTakeaways : []).slice(0, 2);
+    addPanel(slide, 80, topY, 860, conceptH, { fill: C.panel, transparency: 10 });
+    addLabel(slide, 'Conocimiento nuevo', 106, topY + 20, 620, 18, accent2, 9);
+    addText(slide, spec.explanation, 106, topY + 50, 808, takeaways.length > 0 ? 124 : 330, {
+      fontSize: pt(22),
       color: C.white,
       bold: true,
-      lineSpacingMultiple: 1.05,
-      maxLines: 3,
+      lineSpacingMultiple: 1.12,
+      maxLines: 5,
     });
+    takeaways.forEach((rule, idx) => {
+      const ry = topY + 184 + idx * 82;
+      addText(slide, `• ${rule}`, 106, ry, 808, 72, {
+        fontSize: pt(19),
+        color: C.textSoft,
+        lineSpacingMultiple: 1.12,
+        maxLines: 3,
+      });
+    });
+
+    const errY = topY + conceptH + 16;
+    const errH = 948 - errY;
+    addPanel(slide, 80, errY, 860, errH, { fill: '1E080C', transparency: 32, stroke: C.red });
+    addLabel(slide, 'Error común', 106, errY + 20, 620, 18, C.red, 9);
+    addText(slide, spec.misconception, 106, errY + 48, 808, Math.max(120, errH - 64), {
+      fontSize: pt(20),
+      color: C.textSoft,
+      lineSpacingMultiple: 1.12,
+      maxLines: 5,
+    });
+
+    const effectiveFormulas = (spec.formulas && spec.formulas.length > 0 ? spec.formulas : spec.formula ? [spec.formula] : [])
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const hasFormula = effectiveFormulas.length > 0;
+    if (hasFormula) {
+      addPanel(slide, 968, topY, 872, 118, { fill: C.canvas, transparency: 8, stroke: accent });
+      addLabel(slide, 'Expresión clave', 994, topY + 18, 520, 18, accent, 8);
+      addText(slide, effectiveFormulas[0]!, 994, topY + 44, 820, 58, {
+        fontFace: FONT_DISPLAY,
+        fontSize: pt(effectiveFormulas[0]!.length > 48 ? 20 : 26),
+        bold: true,
+        color: accent,
+        maxLines: 2,
+      });
+    }
+
+    const exPanelY = hasFormula ? topY + 134 : topY;
+    const exPanelH = 948 - exPanelY;
+    const exStatement = spec.workedExample?.problemStatement || spec.explanation;
+    const exSteps = (spec.workedExample?.steps ?? []).slice(0, 3);
+    const exResult = spec.workedExample?.interpretation;
+
+    addPanel(slide, 968, exPanelY, 872, exPanelH, { fill: C.panel, transparency: 10 });
+    addLabel(slide, 'Ejemplo resuelto', 994, exPanelY + 20, 560, 18, accent, 9);
+    const stmtH = hasFormula ? 96 : 114;
+    addText(slide, exStatement, 994, exPanelY + 46, 820, stmtH, {
+      fontSize: pt(21),
+      color: C.white,
+      bold: true,
+      lineSpacingMultiple: 1.1,
+      maxLines: 4,
+    });
+    const stepBaseY = exPanelY + 54 + stmtH;
+    const stepStride = hasFormula ? 84 : 102;
     exSteps.forEach((step, idx) => {
-      const sy = 460 + idx * 52;
-      addText(slide, `0${idx + 1}`, 104, sy, 32, 22, { fontSize: pt(11), bold: true, color: accent2 });
-      addText(slide, step, 140, sy - 2, 616, 48, { fontSize: pt(12.5), color: C.textSoft, maxLines: 3 });
+      const sy = stepBaseY + idx * stepStride;
+      addText(slide, `0${idx + 1}`, 994, sy, 36, 26, { fontSize: pt(18), bold: true, color: accent2, maxLines: 1 });
+      addText(slide, step, 1036, sy - 2, 778, stepStride - 10, { fontSize: pt(18), color: C.textSoft, maxLines: 3 });
     });
     if (exResult) {
-      addText(slide, `Conclusión: ${exResult}`, 104, 622, 652, 42, {
-        fontSize: pt(12.5),
+      addText(slide, `Conclusión: ${exResult}`, 994, exPanelY + exPanelH - 72, 820, 58, {
+        fontSize: pt(18),
         color: C.emerald,
         bold: true,
         maxLines: 2,
       });
     }
 
-    addPanel(slide, 80, 688, 700, 100, { fill: '1E080C', transparency: 32, stroke: C.red });
-    addLabel(slide, 'Error común', 104, 704, 520, 18, C.red, 8);
-    addText(slide, spec.misconception, 104, 726, 652, 54, {
-      fontSize: pt(12.5),
-      color: C.textSoft,
-      lineSpacingMultiple: 1.04,
-      maxLines: 3,
-    });
-  } else {
-    addPanel(slide, 80, 354, 700, 232, { fill: C.panel, transparency: 12 });
-    addLabel(slide, 'Analogía física', 104, 382, 300, 18, accent, 9);
-    addText(slide, spec.analogy, 104, 420, 652, 146, {
-      fontSize: pt(20),
+    addFooter(slide, deck, `${sesTag} · concepto y ejemplo`, accent);
+    return;
+  }
+
+  if (isGuide) {
+    const exStatement = spec.workedExample?.problemStatement || spec.explanation;
+    const exSteps = (spec.workedExample?.steps ?? []).slice(0, 3);
+    const exResult = spec.workedExample?.interpretation;
+    const leftTopY = hasSubtitle ? 276 : 228;
+    const conceptBoxH = hasSubtitle ? 132 : 162;
+
+    addPanel(slide, 80, leftTopY, 712, conceptBoxH, { fill: C.panel, transparency: 12 });
+    addLabel(slide, 'Conocimiento nuevo', 102, leftTopY + 14, 520, 18, accent2, 9);
+    addText(slide, spec.explanation, 102, leftTopY + 40, 668, conceptBoxH - 52, {
+      fontSize: pt(19),
       color: C.text,
-      lineSpacingMultiple: 1.06,
+      lineSpacingMultiple: 1.14,
+      maxLines: 4,
     });
 
-    addPanel(slide, 80, 606, 700, 182, { fill: '1E080C', transparency: 35, stroke: C.red });
-    addLabel(slide, 'Error común', 104, 634, 300, 18, C.red, 9);
-    addText(slide, spec.misconception, 104, 672, 652, 100, {
+    const exBoxY = leftTopY + conceptBoxH + 14;
+    const exBoxH = 778 - exBoxY;
+    addPanel(slide, 80, exBoxY, 712, exBoxH, { fill: C.panel, transparency: 10 });
+    addLabel(slide, 'Ejemplo resuelto', 102, exBoxY + 14, 560, 18, accent, 9);
+    addText(slide, exStatement, 102, exBoxY + 40, 668, 60, {
+      fontSize: pt(19),
+      color: C.white,
+      bold: true,
+      lineSpacingMultiple: 1.08,
+      maxLines: 3,
+    });
+    exSteps.forEach((step, idx) => {
+      const sy = exBoxY + 108 + idx * 62;
+      addText(slide, `0${idx + 1}`, 102, sy, 32, 24, { fontSize: pt(16), bold: true, color: accent2, maxLines: 1 });
+      addText(slide, step, 138, sy - 2, 632, 54, { fontSize: pt(17), color: C.textSoft, maxLines: 3 });
+    });
+    if (exResult) {
+      addText(slide, `Conclusión: ${exResult}`, 102, exBoxY + exBoxH - 54, 668, 44, {
+        fontSize: pt(17),
+        color: C.emerald,
+        bold: true,
+        maxLines: 2,
+      });
+    }
+
+    addPanel(slide, 80, 792, 712, 156, { fill: '1E080C', transparency: 32, stroke: C.red });
+    addLabel(slide, 'Error común', 102, 806, 520, 18, C.red, 8);
+    addText(slide, spec.misconception, 102, 832, 668, 104, {
+      fontSize: pt(17.5),
+      color: C.textSoft,
+      lineSpacingMultiple: 1.12,
+      maxLines: 4,
+    });
+  } else {
+    addPanel(slide, 80, 354, hasDiagram ? 712 : 1760, 232, { fill: C.panel, transparency: 12 });
+    addLabel(slide, 'Analogía y núcleo', 104, 382, 400, 18, accent, 9);
+    addText(slide, spec.analogy, 104, 420, hasDiagram ? 664 : 1712, 146, {
+      fontSize: pt(20),
+      color: C.text,
+      lineSpacingMultiple: 1.08,
+    });
+
+    addPanel(slide, 80, 606, hasDiagram ? 712 : 1760, 182, { fill: '1E080C', transparency: 35, stroke: C.red });
+    addLabel(slide, 'Error común', 104, 634, 400, 18, C.red, 9);
+    addText(slide, spec.misconception, 104, 672, hasDiagram ? 664 : 1712, 100, {
       fontSize: pt(18),
       color: C.textSoft,
-      lineSpacingMultiple: 1.06,
+      lineSpacingMultiple: 1.08,
     });
   }
 
-  addPanel(slide, 824, 174, 1016, 574, { fill: C.canvas, transparency: 8 });
-  addLabel(slide, diagramModelLabel(spec.diagram), 852, 206, 480, 18, accent2, 9);
-  addText(slide, 'FIG. 01', 1710, 206, 100, 18, { fontSize: pt(9), color: C.muted, align: 'right' });
-  const formulaW = Math.min(960, Math.max(320, spec.formula.length * 16 + 56));
-  slide.addShape('roundRect', {
-    x: inch(852),
-    y: inch(236),
-    w: inch(formulaW),
-    h: inch(54),
-    fill: { color: C.canvas },
-    line: { color: accent, width: 1.2, transparency: 30 },
-    rectRadius: 0.05,
-  });
-  addText(slide, spec.formula, 874, 246, formulaW - 44, 34, {
-    fontFace: FONT_DISPLAY,
-    fontSize: pt(spec.formula.length > 44 ? 17 : 22),
-    bold: true,
-    color: accent,
-    maxLines: 1,
-  });
-  addDiagram(slide, spec.diagram, accent, accent2);
+  if (hasDiagram) {
+    addPanel(slide, 824, 168, 1016, 610, { fill: C.canvas, transparency: 8 });
+    addLabel(slide, diagramModelLabel(spec.diagram), 852, 194, 480, 18, accent2, 9);
+    addText(slide, 'FIG. 01', 1710, 194, 100, 18, { fontSize: pt(16), color: C.muted, align: 'right', maxLines: 1 });
+    if (spec.formula.trim()) {
+      const formulaW = Math.min(960, Math.max(320, spec.formula.length * 16 + 56));
+      slide.addShape('roundRect', {
+        x: inch(852),
+        y: inch(224),
+        w: inch(formulaW),
+        h: inch(54),
+        fill: { color: C.canvas },
+        line: { color: accent, width: 1.2, transparency: 30 },
+        rectRadius: 0.05,
+      });
+      addText(slide, spec.formula, 874, 234, formulaW - 44, 34, {
+        fontFace: FONT_DISPLAY,
+        fontSize: pt(spec.formula.length > 44 ? 17 : 22),
+        bold: true,
+        color: accent,
+        maxLines: 1,
+      });
+    }
+    addDiagram(slide, spec.diagram, accent, accent2);
+  }
 
-  const gap = 12;
-  const tileW = (1760 - gap * 3) / 4;
-  spec.variables.forEach((variable, index) => {
-    const x = 80 + index * (tileW + gap);
-    const color = index % 2 === 0 ? accent : accent2;
-    addPanel(slide, x, 802, tileW, 132, { fill: C.panel, transparency: 16, stroke: C.strokeSoft });
-    addText(slide, variable.symbol, x + 18, 826, 44, 40, { fontFace: FONT_DISPLAY, fontSize: pt(28), bold: true, color });
-    addLabel(slide, variable.label, x + 62, 820, tileW - 78, 18, C.muted, 7);
-    addText(slide, variable.meaning, x + 62, 846, tileW - 78, 68, { fontSize: pt(15), color: C.textSoft, maxLines: 3 });
-  });
+  const vars = spec.variables.slice(0, 4);
+  if (isGuide && hasDiagram && vars.length > 0) {
+    const colGap = 16;
+    const rowGap = 12;
+    const colW = (1016 - colGap) / 2;
+    const rowH = 72;
+    vars.forEach((variable, index) => {
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const vx = 824 + col * (colW + colGap);
+      const vy = 792 + row * (rowH + rowGap);
+      const color = index % 2 === 0 ? accent : accent2;
+      addPanel(slide, vx, vy, colW, rowH, { fill: C.panel, transparency: 16, stroke: C.strokeSoft });
+      addText(slide, variable.symbol, vx + 14, vy + 14, 52, 42, { fontFace: FONT_DISPLAY, fontSize: pt(24), bold: true, color, maxLines: 1 });
+      addLabel(slide, variable.label, vx + 72, vy + 8, colW - 86, 16, C.muted, 7);
+      addText(slide, variable.meaning, vx + 72, vy + 28, colW - 86, 36, { fontSize: pt(15), color: C.textSoft, maxLines: 2 });
+    });
+  } else if (isGuide && hasDiagram && spec.keyTakeaways && spec.keyTakeaways.length > 0) {
+    const guideKeys = spec.keyTakeaways.slice(0, 2);
+    const colGap = 16;
+    const colW = guideKeys.length === 1 ? 1016 : (1016 - colGap) / 2;
+    guideKeys.forEach((rule, index) => {
+      const vx = 824 + index * (colW + colGap);
+      const color = index % 2 === 0 ? accent : accent2;
+      addPanel(slide, vx, 792, colW, 156, { fill: C.panel, transparency: 16, stroke: C.strokeSoft });
+      addLabel(slide, `Punto clave 0${index + 1}`, vx + 18, 808, colW - 36, 18, color, 8);
+      addText(slide, rule, vx + 18, 834, colW - 36, 98, { fontSize: pt(17), color: C.textSoft, lineSpacingMultiple: 1.12, maxLines: 3 });
+    });
+  } else if (!isGuide && vars.length > 0) {
+    const gap = 12;
+    const tileW = (1760 - gap * 3) / 4;
+    vars.forEach((variable, index) => {
+      const x = 80 + index * (tileW + gap);
+      const color = index % 2 === 0 ? accent : accent2;
+      addPanel(slide, x, 802, tileW, 132, { fill: C.panel, transparency: 16, stroke: C.strokeSoft });
+      addText(slide, variable.symbol, x + 18, 826, 44, 40, { fontFace: FONT_DISPLAY, fontSize: pt(28), bold: true, color, maxLines: 1 });
+      addLabel(slide, variable.label, x + 62, 820, tileW - 78, 18, C.muted, 7);
+      addText(slide, variable.meaning, x + 62, 846, tileW - 78, 68, { fontSize: pt(15), color: C.textSoft, maxLines: 3 });
+    });
+  }
 
   addFooter(slide, deck, `${diagramFooterLabel(spec.diagram)} · ${sesTag}`, accent);
 }
@@ -1692,70 +1832,111 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
     accent,
     isGuide ? 2 : 8
   );
-  addText(slide, spec.title, 80, 198, 920, 88, {
+  addText(slide, spec.title, 80, 142, 1760, 56, {
     fontFace: FONT_DISPLAY,
-    fontSize: pt(spec.title.length > 45 ? 27 : 34),
+    fontSize: pt(spec.title.length > 45 ? 26 : 32),
     bold: true,
     color: C.white,
-    maxLines: 2,
+    maxLines: 1,
   });
-  addLabel(slide, spec.subtitle || spec.eyebrow, 80, 292, 920, 18, accent, 9);
+  const hasPracticeSubtitle = Boolean(spec.subtitle?.trim());
+  if (!isGuide || hasPracticeSubtitle) {
+    addLabel(slide, spec.subtitle || spec.eyebrow, 80, 202, 1760, 22, accent, 9);
+  }
 
   const activityItems = spec.activities && spec.activities.length > 0
     ? spec.activities
     : spec.checkpoints.map((cp, idx) => ({ label: `Actividad ${idx + 1}`, statement: cp, hint: '' }));
 
   if (isGuide) {
-    addLabel(slide, 'Ejercicios del libro', 80, 326, 760, 18, accent2, 9);
+    const gTop = hasPracticeSubtitle ? 246 : 216;
+    const objH = hasPracticeSubtitle ? 148 : 132;
+    const objectives = (spec.objectiveBullets && spec.objectiveBullets.length > 0
+      ? spec.objectiveBullets
+      : [spec.subtitle || 'Comprender y aplicar los conceptos centrales de la sesión.']
+    ).slice(0, 2);
+    addPanel(slide, 80, gTop, 940, objH, { fill: C.panel, transparency: 10 });
+    addLabel(slide, 'Objetivo de la sesión', 104, gTop + 14, 520, 18, accent, 9);
+    objectives.forEach((obj, idx) => {
+      addText(slide, objectives.length === 1 ? obj : `• ${obj}`, 104, gTop + 42 + idx * 46, 892, objectives.length === 1 ? 78 : 42, {
+        fontSize: pt(17.5),
+        color: C.text,
+        lineSpacingMultiple: 1.12,
+        maxLines: objectives.length === 1 ? 3 : 2,
+      });
+    });
+
+    const actHeaderY = gTop + objH + 14;
+    addLabel(slide, 'Ejercicios del libro', 80, actHeaderY, 760, 18, accent2, 9);
     const visibleActivities = activityItems.slice(0, 2);
-    const actStride = visibleActivities.length >= 3 ? 192 : 276;
+    const actListTop = actHeaderY + 26;
+    const availActH = 948 - actListTop;
+    const actStride = Math.floor((availActH + 14) / 2);
+    const actCardH = actStride - 14;
     visibleActivities.forEach((act, index) => {
-      const y = 356 + index * actStride;
-      const cardH = actStride - 16;
-      addPanel(slide, 80, y, 940, cardH, { fill: C.panel, transparency: 14, stroke: C.strokeSoft });
-      addLabel(slide, act.label, 104, y + 16, 320, 18, accent2, 8);
-      addText(slide, act.statement, 104, y + 40, 892, cardH - 86, { fontSize: pt(15.5), color: C.text, maxLines: 4 });
+      const y = actListTop + index * actStride;
+      addPanel(slide, 80, y, 940, actCardH, { fill: C.panel, transparency: 14, stroke: C.strokeSoft });
+      addLabel(slide, act.label, 104, y + 14, 320, 18, accent2, 8);
+      addText(slide, act.statement, 104, y + 38, 892, act.hint ? actCardH - 104 : actCardH - 52, {
+        fontSize: pt(18),
+        color: C.text,
+        lineSpacingMultiple: 1.12,
+        maxLines: 5,
+      });
       if (act.hint) {
-        addText(slide, `Pista: ${act.hint}`, 104, y + cardH - 40, 892, 28, { fontSize: pt(12.5), color: C.amber, maxLines: 2 });
+        addText(slide, `Pista: ${act.hint}`, 104, y + actCardH - 58, 892, 50, {
+          fontSize: pt(15),
+          color: C.amber,
+          lineSpacingMultiple: 1.1,
+          maxLines: 2,
+        });
       }
     });
 
-    addPanel(slide, 1056, 326, 784, 214, { fill: C.panel, transparency: 12 });
-    addLabel(slide, 'Aplicación real', 1080, 348, 520, 18, accent, 9);
-    addText(slide, spec.applicationText || spec.practiceText, 1080, 380, 736, 142, {
-      fontSize: pt(16),
+    const rAppH = hasPracticeSubtitle ? 220 : 230;
+    addPanel(slide, 1052, gTop, 788, rAppH, { fill: C.panel, transparency: 12 });
+    addLabel(slide, 'Aplicación real', 1076, gTop + 16, 520, 18, accent, 9);
+    addText(slide, spec.applicationText || spec.practiceText, 1076, gTop + 46, 740, rAppH - 60, {
+      fontSize: pt(18),
       color: C.text,
-      lineSpacingMultiple: 1.06,
+      lineSpacingMultiple: 1.14,
       maxLines: 5,
     });
 
-    addPanel(slide, 1056, 558, 784, 174, { fill: '061410', transparency: 28, stroke: C.emerald });
-    addLabel(slide, 'Evidencia de la sesión', 1080, 580, 520, 18, C.emerald, 8);
-    addText(slide, spec.artifactName || 'Evidencia de clase', 1080, 606, 736, 32, {
+    const evalCriteria = (spec.evaluationCriteria && spec.evaluationCriteria.length > 0
+      ? spec.evaluationCriteria
+      : ['Procedimiento completo y respuesta verificada con claridad.']
+    ).slice(0, 2);
+    const rEvalY = gTop + rAppH + 16;
+    const rEvalH = hasPracticeSubtitle ? 224 : 234;
+    addPanel(slide, 1052, rEvalY, 788, rEvalH, { fill: C.panel, transparency: 16, stroke: C.amber });
+    addLabel(slide, 'Evaluación', 1076, rEvalY + 16, 520, 18, C.amber, 9);
+    evalCriteria.forEach((crit, idx) => {
+      addText(slide, `✓ ${crit}`, 1076, rEvalY + 48 + idx * 74, 740, 64, {
+        fontSize: pt(17),
+        color: C.textSoft,
+        lineSpacingMultiple: 1.12,
+        maxLines: 3,
+      });
+    });
+
+    const rEvidY = rEvalY + rEvalH + 16;
+    const rEvidH = 948 - rEvidY;
+    addPanel(slide, 1052, rEvidY, 788, rEvidH, { fill: '061410', transparency: 28, stroke: C.emerald });
+    addLabel(slide, 'Evidencia', 1076, rEvidY + 16, 520, 18, C.emerald, 8);
+    addText(slide, spec.artifactName || 'Evidencia de la sesión', 1076, rEvidY + 42, 740, 38, {
       fontFace: FONT_DISPLAY,
-      fontSize: pt(17),
+      fontSize: pt(20),
       bold: true,
       color: C.white,
       maxLines: 1,
     });
-    addText(slide, spec.artifactStep || spec.applicationText || '', 1080, 642, 736, 76, {
-      fontSize: pt(14),
+    addText(slide, spec.artifactStep || spec.applicationText || '', 1076, rEvidY + 86, 740, Math.max(80, rEvidH - 98), {
+      fontSize: pt(16.5),
       color: C.textSoft,
-      maxLines: 3,
+      lineSpacingMultiple: 1.12,
+      maxLines: 4,
     });
-
-    const checks = (spec.exitChecks ?? []).slice(0, 2);
-    if (checks.length > 0) {
-      addPanel(slide, 1056, 750, 784, 166, { fill: C.panel, transparency: 18, stroke: C.strokeSoft });
-      addLabel(slide, 'Cierre rápido', 1080, 770, 520, 18, accent2, 8);
-      checks.forEach((chk, idx) => {
-        addText(slide, `• ${chk}`, 1080, 800 + idx * 52, 736, 46, {
-          fontSize: pt(13.5),
-          color: C.textSoft,
-          maxLines: 2,
-        });
-      });
-    }
   } else {
     addPanel(slide, 80, 344, 760, 300, { fill: C.panel, transparency: 12 });
     addLabel(slide, 'Práctica colaborativa', 104, 372, 420, 18, accent, 9);
@@ -1767,21 +1948,21 @@ function renderPractice(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
       addText(slide, spec.hint, 104, 728, 712, 92, { fontSize: pt(16), color: C.textSoft, maxLines: 4 });
     }
 
-    addLabel(slide, 'Andamiaje de la práctica', 880, 190, 620, 18, accent2, 9);
+    addLabel(slide, 'Andamiaje de la práctica', 880, 246, 620, 18, accent2, 9);
     const visibleActivities = activityItems.slice(0, 4);
-    const actStride = visibleActivities.length >= 4 ? 148 : 185;
+    const actStride = visibleActivities.length >= 4 ? 160 : 196;
     visibleActivities.forEach((act, index) => {
-      const y = 226 + index * actStride;
+      const y = 278 + index * actStride;
       addPanel(slide, 880, y, 960, actStride - 16, { fill: C.panel, transparency: 18, stroke: C.strokeSoft });
       addLabel(slide, act.label, 904, y + 18, 320, 18, accent2, 8);
-      addText(slide, act.statement, 904, y + 42, 912, actStride - 84, { fontSize: pt(16), color: C.text, maxLines: 3 });
+      addText(slide, act.statement, 904, y + 42, 912, actStride - 92, { fontSize: pt(16), color: C.text, maxLines: 3 });
       if (act.hint) {
-        addText(slide, `Pista: ${act.hint}`, 904, y + actStride - 40, 912, 22, { fontSize: pt(12), color: C.amber, maxLines: 1 });
+        addText(slide, `Pista: ${act.hint}`, 904, y + actStride - 44, 912, 24, { fontSize: pt(14), color: C.amber, maxLines: 1 });
       }
     });
   }
 
-  addFooter(slide, deck, `${sesTag} · ejercitar · aplicar · verificar`, accent);
+  addFooter(slide, deck, `${sesTag} · objetivos · práctica · evaluación`, accent);
 }
 
 function renderChallenge(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract<SacrintChallengeSlide, { kind: 'challenge' }>) {

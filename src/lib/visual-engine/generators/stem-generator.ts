@@ -419,7 +419,7 @@ export function generateTriangle(
   svg += `<line x1="${w - 140}" y1="140" x2="${w - 25}" y2="140" stroke="#cbd5e1" stroke-width="0.8"/>`;
   svg += `<line x1="${w - 140}" y1="160" x2="${w - 25}" y2="160" stroke="#cbd5e1" stroke-width="0.8"/>`;
   annotations.push({ text: 'ESPACIO DE CÁLCULO', svgX: w - 82, svgY: 62, fontSize: 8.5, bold: true, color: COLOR_NAVY, align: 'center' });
-  annotations.push({ text: hasRealSides ? 'Relación Pitagórica:' : 'Modelo por construir:', svgX: w - 140, svgY: 80, fontSize: 8, color: '#64748b' });
+  annotations.push({ text: hasRealSides ? 'Relación Pitagórica:' : 'Relación geométrica:', svgX: w - 140, svgY: 80, fontSize: 8, color: '#64748b' });
   annotations.push({ text: 'c² = a² + b²', svgX: w - 140, svgY: 95, fontSize: 8.5, bold: true, color: COLOR_NAVY });
 
   return {

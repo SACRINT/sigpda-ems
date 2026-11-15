@@ -1,6 +1,7 @@
 import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SacrintPack } from './discipline-packs';
-import { cleanSacrintText, distillConciseText } from './content-distiller';
+import { cleanSacrintText, distillConciseText, sanitizePedagogicalMetaPhrases } from './content-distiller';
+import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
 import { classifyTopic, detectExponentialContext } from '@/lib/visual-engine/topic-classifier';
 
 /**
@@ -231,7 +232,20 @@ function clean(value: string | null | undefined): string {
 }
 
 function clip(value: string, max: number): string {
-  return distillConciseText(value, max) || clean(value).slice(0, max);
+  const cleaned = clean(value);
+  if (!cleaned) return '';
+  if (cleaned.length <= max) return cleaned;
+  const maxWords = Math.max(5, Math.floor(max / 5.5));
+  return (
+    fitPedagogicalText(cleaned, {
+      maxChars: max,
+      maxWords,
+      role: 'concept',
+      ensurePeriod: false,
+    }) ||
+    distillConciseText(cleaned, max) ||
+    cleaned
+  );
 }
 
 function firstSentence(value: string | null | undefined, max = 220): string {
@@ -290,6 +304,20 @@ function collectMathSource(mission: MissionSection, session?: SessionPlan): stri
 
 function formatCoef(value: number): string {
   return Number.isInteger(value) ? String(value) : Number(value.toFixed(2)).toString();
+}
+
+function parseSignedCoef(raw: string | undefined): number {
+  const cleaned = (raw ?? '').replace(/\s+/g, '');
+  if (!cleaned || cleaned === '+') return 1;
+  if (cleaned === '-') return -1;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 1;
+}
+
+function formatLeadingQuadCoef(a: number): string {
+  if (a === 1) return '';
+  if (a === -1) return '-';
+  return formatCoef(a);
 }
 
 function parseNumber(text: string, symbol: 'm' | 'b'): number | null {
@@ -553,19 +581,19 @@ function parseLinearEquationModel(source: string, extendedSource: string): Parse
   return parseLinearFromText(source) || (extendedSource && extendedSource !== source ? parseLinearFromText(extendedSource) : null);
 }
 
-function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
+export function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
   if (!source) return null;
   const quadEqMatch = source.match(
-    /(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+    /([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
   );
   const quadFuncMatch = source.match(
-    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
+    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)/i
   );
   const quadTwoTermFuncMatch = source.match(
-    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x(?![0-9A-Za-z+-])/i
+    /(?:[A-Za-z]\([a-z]\)|y)\s*=\s*([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)?\s*x(?![0-9A-Za-z+-])/i
   );
   const quadPureMatch = source.match(
-    /(?:(?:[A-Za-z]\([a-z]\)|y)\s*=\s*)?(-?\d+(?:\.\d+)?)?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
+    /(?:(?:[A-Za-z]\([a-z]\)|y)\s*=\s*)?([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x(?:²|\^2)\s*([+-])\s*(\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i
   );
   const quadFactoredMatch = source.match(
     /\bx\s*\(\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*(\d+(?:\.\d+)?)/i
@@ -584,27 +612,27 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
   let a = 0;
   let b = 0;
   let c = 0;
-  let equation = 'Modelo por construir';
+  let equation = '';
 
   const m = quadEqMatch || quadFuncMatch;
   if (m) {
-    a = m[1] ? Number(m[1]) : 1;
-    if (a === 0) a = 1;
+    a = parseSignedCoef(m[1]);
+    if (a === 0) return null;
     b = (m[2] === '-' ? -1 : 1) * (m[3] ? Number(m[3]) : 1);
     const rhs = m[6] ? Number(m[6]) : 0;
     c = (m[4] === '-' ? -1 : 1) * Number(m[5]) - (quadEqMatch ? rhs : 0);
     const signB = b >= 0 ? '+' : '-';
     const signC = c >= 0 ? '+' : '-';
     equation = quadEqMatch
-      ? `${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`
-      : `f(x) = ${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))}`;
+      ? `${formatLeadingQuadCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`
+      : `f(x) = ${formatLeadingQuadCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))}`;
   } else if (quadTwoTermFuncMatch) {
-    a = quadTwoTermFuncMatch[1] ? Number(quadTwoTermFuncMatch[1]) : 1;
-    if (a === 0) a = 1;
+    a = parseSignedCoef(quadTwoTermFuncMatch[1]);
+    if (a === 0) return null;
     b = (quadTwoTermFuncMatch[2] === '-' ? -1 : 1) * (quadTwoTermFuncMatch[3] ? Number(quadTwoTermFuncMatch[3]) : 1);
     c = 0;
     const signB = b >= 0 ? '+' : '-';
-    equation = `f(x) = ${formatCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x`;
+    equation = `f(x) = ${formatLeadingQuadCoef(a)}x² ${signB} ${formatCoef(Math.abs(b))}x`;
   } else if (quadExplicitCoeffMatch && Number(quadExplicitCoeffMatch[1]) !== 0) {
     a = Number(quadExplicitCoeffMatch[1]);
     b = Number(quadExplicitCoeffMatch[2]);
@@ -632,18 +660,18 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
     const signC = c >= 0 ? '+' : '-';
     equation = `x² ${signB} ${formatCoef(Math.abs(b))}x ${signC} ${formatCoef(Math.abs(c))} = 0`;
   } else if (quadPureMatch) {
-    a = quadPureMatch[1] ? Number(quadPureMatch[1]) : 1;
-    if (a === 0) a = 1;
+    a = parseSignedCoef(quadPureMatch[1]);
+    if (a === 0) return null;
     b = 0;
     const rhs = quadPureMatch[4] ? Number(quadPureMatch[4]) : 0;
     c = (quadPureMatch[2] === '-' ? -1 : 1) * Number(quadPureMatch[3]) - rhs;
     const signC = c >= 0 ? '+' : '-';
-    equation = `${formatCoef(a)}x² ${signC} ${formatCoef(Math.abs(c))} = 0`;
+    equation = `${formatLeadingQuadCoef(a)}x² ${signC} ${formatCoef(Math.abs(c))} = 0`;
   } else if (isQuadraticTopic) {
     return {
       kind: 'quadratic',
       available: false,
-      equation: 'Modelo por construir',
+      equation: '',
       a: 0,
       b: 0,
       c: 0,
@@ -656,7 +684,7 @@ function tryBuildQuadraticDiagram(source: string): QuadraticDiagramSpec | null {
       yMax: 5,
       samples: [],
       xLabel: 'Eje x (variable)',
-      yLabel: 'Modelo por construir',
+      yLabel: 'Eje y',
     };
   } else {
     return null;
@@ -717,18 +745,18 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
     /sistema[s]?\s+(?:de\s+ecuaciones|lineal(?:es)?(?:\s*2x2)?)|\b2x2\b|m[eé]todo\s+de\s+(?:igualaci[oó]n|sustituci[oó]n|reducci[oó]n|eliminaci[oó]n|determinantes|cramer)|regla\s+de\s+cramer/i.test(
       source
     );
-  const twoVarEqRe = /(-?\d+(?:\.\d+)?)?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)?\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi;
+  const twoVarEqRe = /([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x\s*([+-])\s*(\d+(?:\.\d+)?)?\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi;
   const parsed: Array<{ a: number; b: number; c: number; eq: string }> = [];
   const collinearFallback: Array<{ a: number; b: number; c: number; eq: string }> = [];
 
   for (const m of source.matchAll(twoVarEqRe)) {
-    const a = m[1] ? Number(m[1]) : 1;
+    const a = parseSignedCoef(m[1]);
     const bSign = m[2] === '-' ? -1 : 1;
     const bMag = m[3] ? Number(m[3]) : 1;
     const b = bSign * bMag;
     const c = Number(m[4]);
     if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(c) && b !== 0) {
-      const label = `${formatCoef(a)}x ${m[2]} ${formatCoef(bMag)}y = ${formatCoef(c)}`;
+      const label = `${formatLeadingQuadCoef(a)}x ${m[2]} ${bMag === 1 ? '' : formatCoef(bMag)}y = ${formatCoef(c)}`;
       if (!parsed.some((p) => p.eq === label)) {
         if (parsed.length === 1 && Math.abs(parsed[0].a * b - a * parsed[0].b) < 1e-6) {
           collinearFallback.push({ a, b, c, eq: label });
@@ -764,17 +792,17 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
 
   // Ecuaciones de sustitución despejadas: x = ky, y = kx, x = c - ky, y = c - kx
   if (parsed.length === 1) {
-    const subXEqKy = source.match(/\bx\s*=\s*(-?\d+(?:\.\d+)?)?\s*y(?![0-9A-Za-z+-])/i);
-    const subYEqKx = source.match(/\by\s*=\s*(-?\d+(?:\.\d+)?)?\s*x(?![0-9A-Za-z+-])/i);
+    const subXEqKy = source.match(/\bx\s*=\s*([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*y(?![0-9A-Za-z+-])/i);
+    const subYEqKx = source.match(/\by\s*=\s*([+-]?\s*\d+(?:\.\d+)?|[+-])?\s*x(?![0-9A-Za-z+-])/i);
     if (subXEqKy) {
-      const k = subXEqKy[1] ? Number(subXEqKy[1]) : 1;
+      const k = parseSignedCoef(subXEqKy[1]);
       if (k !== 0) {
         parsed.push({ a: 1, b: -k, c: 0, eq: `x - ${formatCoef(k)}y = 0` });
       }
     } else if (subYEqKx) {
-      const k = subYEqKx[1] ? Number(subYEqKx[1]) : 1;
+      const k = parseSignedCoef(subYEqKx[1]);
       if (k !== 0) {
-        parsed.push({ a: k, b: -1, c: 0, eq: `${formatCoef(k)}x - y = 0` });
+        parsed.push({ a: k, b: -1, c: 0, eq: `${formatLeadingQuadCoef(k)}x - y = 0` });
       }
     }
   }
@@ -788,8 +816,8 @@ function tryBuildSystem2x2Diagram(source: string): System2x2DiagramSpec | null {
     return {
       kind: 'system-2x2',
       available: false,
-      equation1: 'Modelo por construir',
-      equation2: 'Modelo por construir',
+      equation1: '',
+      equation2: '',
       a1: 0,
       b1: 1,
       c1: 0,
@@ -884,7 +912,7 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     return {
       kind: 'exponential',
       available: false,
-      equation: 'Modelo por construir',
+      equation: '',
       principal: 0,
       rate: 0,
       periods: 6,
@@ -1060,12 +1088,12 @@ function buildReactionDiagram(mission: MissionSection): ReactionDiagramSpec {
   const procedure = detail(
     mission.iDoSection?.stepByStepDemo || mission.sessionFocus,
     110,
-    'Proceso por documentar.'
+    ''
   );
   const evidence = detail(
     mission.conceptZero?.solvedExample?.interpretation || mission.formativeCheckpoint?.question,
     130,
-    'Evidencia por construir.'
+    ''
   );
 
   if (equation) {
@@ -1084,7 +1112,7 @@ function buildReactionDiagram(mission: MissionSection): ReactionDiagramSpec {
         label: formula,
         detail: `PRODUCTO ${index + 1}`,
       })),
-      condition: detail(mission.sessionTopic, 80, 'Transformación por describir.'),
+      condition: detail(mission.sessionTopic, 80, ''),
       note: evidence,
     };
   }
@@ -1092,17 +1120,17 @@ function buildReactionDiagram(mission: MissionSection): ReactionDiagramSpec {
   return {
     kind: 'reaction',
     available: false,
-    equation: 'ECUACIÓN POR CONSTRUIR',
+    equation: '',
     reactants: [
       {
         label: 'SISTEMA INICIAL',
-        detail: detail(mission.conceptZero?.physicalAnalogy || mission.conceptZero?.coreExplanation, 120),
+        detail: detail(mission.conceptZero?.physicalAnalogy || mission.conceptZero?.coreExplanation, 120, ''),
       },
     ],
     products: [
       {
         label: 'SISTEMA RESULTANTE',
-        detail: detail(mission.conceptZero?.solvedExample?.interpretation || mission.formativeCheckpoint?.question, 120),
+        detail: detail(mission.conceptZero?.solvedExample?.interpretation || mission.formativeCheckpoint?.question, 120, ''),
       },
     ],
     condition: procedure,
@@ -1111,7 +1139,8 @@ function buildReactionDiagram(mission: MissionSection): ReactionDiagramSpec {
 }
 
 function buildArgumentDiagram(mission: MissionSection): ArgumentDiagramSpec {
-  const contrast = mission.conceptZero?.contrastTable?.[0];
+  const contrastList = mission.conceptZero?.contrastTable ?? [];
+  const contrast = contrastList.find((c) => Boolean(c?.commonMisconception?.trim())) ?? contrastList[0];
   const thesisDetail = detail(mission.sessionFocus || mission.conceptZero?.coreExplanation || mission.sessionTopic, 160);
   const solvedPremises = (mission.conceptZero?.solvedExample?.solutionSteps ?? [])
     .map(clean)
@@ -1121,21 +1150,21 @@ function buildArgumentDiagram(mission: MissionSection): ArgumentDiagramSpec {
     detail(mission.conceptZero?.physicalAnalogy, 135),
     detail(contrast?.reasoning || mission.conceptZero?.coreExplanation, 135),
   ];
-  const premiseDetails = [...solvedPremises, ...fallbackPremises].slice(0, 2);
-  const objectionDetail = detail(contrast?.commonMisconception, 160, 'Sin objeción registrada.');
+  const premiseDetails = [...solvedPremises, ...fallbackPremises].filter(Boolean).slice(0, 2);
+  const objectionDetail = detail(contrast?.commonMisconception, 160, '');
   const conclusionDetail = detail(
     contrast?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
     160,
-    'Conclusión por construir.'
+    ''
   );
 
   return {
     kind: 'argument',
-    available: Boolean(thesisDetail && conclusionDetail !== 'Conclusión por construir.'),
-    thesis: { label: 'TESIS', detail: thesisDetail || 'Tesis por construir.' },
+    available: Boolean(thesisDetail && conclusionDetail),
+    thesis: { label: 'TESIS', detail: thesisDetail },
     premises: premiseDetails.map((premise, index) => ({
       label: `PREMISA ${index + 1}`,
-      detail: premise || 'Premisa por construir.',
+      detail: premise,
     })),
     objection: { label: 'OBJECIÓN', detail: objectionDetail },
     conclusion: { label: 'CONCLUSIÓN', detail: conclusionDetail },
@@ -1143,17 +1172,17 @@ function buildArgumentDiagram(mission: MissionSection): ArgumentDiagramSpec {
 }
 
 function buildLanguageDiagram(mission: MissionSection): LanguageDiagramSpec {
-  const input = detail(mission.sessionFocus || mission.sessionTopic, 150, 'Entrada por construir.');
-  const rule = detail(mission.conceptZero?.coreExplanation, 160, 'Regla por construir.');
+  const input = detail(mission.sessionFocus || mission.sessionTopic, 150, '');
+  const rule = detail(mission.conceptZero?.coreExplanation, 160, '');
   const output = detail(
     mission.youDoSection?.autonomousChallenge || mission.weDoSection?.guidedPractice,
     160,
-    'Producción por construir.'
+    ''
   );
   const context = detail(
     mission.phenomenonHook?.detonatingQuestion || mission.formativeCheckpoint?.question,
     150,
-    'Propósito por construir.'
+    ''
   );
 
   return {
@@ -1168,18 +1197,19 @@ function buildLanguageDiagram(mission: MissionSection): LanguageDiagramSpec {
 
 function buildConceptDiagram(mission: MissionSection): ConceptDiagramSpec {
   const nodes: SacrintDiagramNode[] = [
-    { label: 'FENÓMENO', detail: detail(mission.phenomenonHook?.story, 120) },
-    { label: 'CONCEPTO', detail: detail(mission.conceptZero?.coreExplanation, 120) },
-    { label: 'PRÁCTICA', detail: detail(mission.weDoSection?.guidedPractice, 120) },
-    { label: 'PROYECTO', detail: detail(mission.youDoSection?.autonomousChallenge, 120) },
+    { label: 'FENÓMENO', detail: detail(mission.phenomenonHook?.story, 120, '') },
+    { label: 'CONCEPTO', detail: detail(mission.conceptZero?.coreExplanation, 120, '') },
+    { label: 'PRÁCTICA', detail: detail(mission.weDoSection?.guidedPractice, 120, '') },
+    { label: 'PROYECTO', detail: detail(mission.youDoSection?.autonomousChallenge, 120, '') },
   ];
 
+  const filledCount = nodes.filter((node) => Boolean(node.detail)).length;
   return {
     kind: 'concept',
-    available: nodes.some((node) => node.detail !== 'Sin registro.'),
+    available: filledCount >= 2,
     center: {
       label: 'CONCEPTO CENTRAL',
-      detail: detail(mission.sessionTopic || mission.title, 90, 'Concepto por construir.'),
+      detail: detail(mission.sessionTopic || mission.title, 90, ''),
     },
     nodes,
   };
@@ -1211,18 +1241,18 @@ function buildTimelineDiagram(mission: MissionSection): TimelineDiagramSpec {
 
 function buildSystemMapDiagram(mission: MissionSection): SystemMapDiagramSpec {
   const components: SacrintDiagramNode[] = [
-    { label: 'ESTÍMULO', detail: detail(mission.phenomenonHook?.story, 110) },
-    { label: 'MECANISMO', detail: detail(mission.conceptZero?.coreExplanation, 110) },
-    { label: 'RESPUESTA', detail: detail(mission.weDoSection?.guidedPractice, 110) },
-    { label: 'ADAPTACIÓN', detail: detail(mission.youDoSection?.autonomousChallenge, 110) },
+    { label: 'ESTÍMULO', detail: detail(mission.phenomenonHook?.story, 110, '') },
+    { label: 'MECANISMO', detail: detail(mission.conceptZero?.coreExplanation, 110, '') },
+    { label: 'RESPUESTA', detail: detail(mission.weDoSection?.guidedPractice, 110, '') },
+    { label: 'ADAPTACIÓN', detail: detail(mission.youDoSection?.autonomousChallenge, 110, '') },
   ];
 
   return {
     kind: 'system-map',
-    available: components.some((node) => node.detail !== 'Sin registro.'),
+    available: components.filter((node) => Boolean(node.detail)).length >= 2,
     center: {
       label: 'SISTEMA',
-      detail: detail(mission.sessionTopic || mission.title, 80, 'Sistema por construir.'),
+      detail: detail(mission.sessionTopic || mission.title, 80, ''),
     },
     components,
     environment: {
@@ -1230,7 +1260,7 @@ function buildSystemMapDiagram(mission: MissionSection): SystemMapDiagramSpec {
       detail: detail(
         mission.formativeCheckpoint?.question || mission.phenomenonHook?.detonatingQuestion,
         130,
-        'Entorno por describir.'
+        ''
       ),
     },
   };
@@ -1241,36 +1271,36 @@ const CLINICAL_STAGE_LABELS = ['SÍNTOMA', 'EVALUACIÓN', 'DIAGNÓSTICO', 'CUIDA
 function buildClinicalFlowDiagram(mission: MissionSection): ClinicalFlowDiagramSpec {
   const sources = [
     firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.formativeCheckpoint?.question, 110),
-    detail(mission.conceptZero?.coreExplanation, 110),
-    detail(mission.weDoSection?.guidedPractice || mission.youDoSection?.autonomousChallenge, 110),
+    detail(mission.formativeCheckpoint?.question, 110, ''),
+    detail(mission.conceptZero?.coreExplanation, 110, ''),
+    detail(mission.weDoSection?.guidedPractice || mission.youDoSection?.autonomousChallenge, 110, ''),
   ];
   const stages = sources.map((text, index) => ({
     label: CLINICAL_STAGE_LABELS[index] ?? `ETAPA ${index + 1}`,
-    detail: text || 'Sin registro.',
+    detail: text || '',
   }));
 
   return {
     kind: 'clinical-flow',
-    available: stages.some((stage) => stage.detail !== 'Sin registro.'),
+    available: stages.filter((stage) => Boolean(stage.detail)).length >= 2,
     stages,
     note: detail(
       mission.conceptZero?.solvedExample?.interpretation || mission.metacognitiveTrafficLight?.green,
       140,
-      'Evidencia por documentar.'
+      ''
     ),
   };
 }
 
 function buildBlockDiagram(mission: MissionSection): BlockDiagramSpec {
-  const input = detail(mission.sessionFocus || mission.sessionTopic, 130, 'Entrada por definir.');
-  const process = detail(mission.conceptZero?.coreExplanation, 140, 'Proceso por construir.');
+  const input = detail(mission.sessionFocus || mission.sessionTopic, 130, '');
+  const process = detail(mission.conceptZero?.coreExplanation, 140, '');
   const output = detail(
     mission.youDoSection?.autonomousChallenge || mission.weDoSection?.guidedPractice,
     130,
-    'Salida por producir.'
+    ''
   );
-  const feedback = detail(mission.formativeCheckpoint?.question, 130, 'Control por definir.');
+  const feedback = detail(mission.formativeCheckpoint?.question, 130, '');
 
   return {
     kind: 'block-diagram',
@@ -1287,25 +1317,25 @@ const SOP_STEP_LABELS = ['PREPARACIÓN', 'EJECUCIÓN', 'VERIFICACIÓN', 'ENTREGA
 function buildSopFlowDiagram(mission: MissionSection): SopFlowDiagramSpec {
   const solved = (mission.conceptZero?.solvedExample?.solutionSteps ?? []).map(clean).filter(Boolean);
   const fallback = [
-    detail(mission.iDoSection?.stepByStepDemo, 120),
-    detail(mission.weDoSection?.guidedPractice, 120),
-    detail(mission.youDoSection?.autonomousChallenge, 120),
-    detail(mission.metacognitiveTrafficLight?.green, 120),
+    detail(mission.iDoSection?.stepByStepDemo, 120, ''),
+    detail(mission.weDoSection?.guidedPractice, 120, ''),
+    detail(mission.youDoSection?.autonomousChallenge, 120, ''),
+    detail(mission.metacognitiveTrafficLight?.green, 120, ''),
   ];
   const source = solved.length >= 4 ? solved.slice(0, 4) : [...solved, ...fallback].filter(Boolean).slice(0, 4);
   const steps = source.map((text, index) => ({
     label: SOP_STEP_LABELS[index] ?? `PASO ${index + 1}`,
-    detail: detail(text, 120),
+    detail: detail(text, 120, ''),
   }));
 
   return {
     kind: 'sop-flow',
-    available: steps.length >= 3 && steps.some((step) => step.detail !== 'Sin registro.'),
+    available: steps.length >= 3 && steps.some((step) => Boolean(step.detail)),
     steps,
     standard: detail(
       mission.conceptZero?.contrastTable?.[0]?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
       130,
-      'Estándar por definir.'
+      ''
     ),
   };
 }
@@ -1315,23 +1345,23 @@ const CREATIVE_PHASE_LABELS = ['DETONANTE', 'EXPLORACIÓN', 'OBRA', 'DIFUSIÓN']
 function buildCreativeCycleDiagram(mission: MissionSection): CreativeCycleDiagramSpec {
   const sources = [
     firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.conceptZero?.coreExplanation, 110),
-    detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110),
-    detail(mission.youDoSection?.autonomousChallenge, 110),
+    detail(mission.conceptZero?.coreExplanation, 110, ''),
+    detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110, ''),
+    detail(mission.youDoSection?.autonomousChallenge, 110, ''),
   ];
   const phases = sources.map((text, index) => ({
     label: CREATIVE_PHASE_LABELS[index] ?? `FASE ${index + 1}`,
-    detail: text || 'Sin registro.',
+    detail: text || '',
   }));
 
   return {
     kind: 'creative-cycle',
-    available: phases.some((phase) => phase.detail !== 'Sin registro.'),
+    available: phases.filter((phase) => Boolean(phase.detail)).length >= 2,
     phases,
     statement: detail(
       mission.conceptZero?.solvedExample?.interpretation || mission.conceptZero?.contrastTable?.[0]?.correctConcept,
       140,
-      'Declaración artística por construir.'
+      ''
     ),
   };
 }
@@ -1341,23 +1371,23 @@ const TRAINING_PHASE_LABELS = ['CALENTAMIENTO', 'ACTIVACIÓN', 'ESFUERZO', 'RECU
 function buildTrainingCycleDiagram(mission: MissionSection): TrainingCycleDiagramSpec {
   const sources = [
     firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.conceptZero?.coreExplanation, 110),
-    detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110),
-    detail(mission.youDoSection?.autonomousChallenge, 110),
+    detail(mission.conceptZero?.coreExplanation, 110, ''),
+    detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110, ''),
+    detail(mission.youDoSection?.autonomousChallenge, 110, ''),
   ];
   const phases = sources.map((text, index) => ({
     label: TRAINING_PHASE_LABELS[index] ?? `FASE ${index + 1}`,
-    detail: text || 'Sin registro.',
+    detail: text || '',
   }));
 
   return {
     kind: 'training-cycle',
-    available: phases.some((phase) => phase.detail !== 'Sin registro.'),
+    available: phases.filter((phase) => Boolean(phase.detail)).length >= 2,
     phases,
     principle: detail(
       mission.conceptZero?.contrastTable?.[0]?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
       140,
-      'Principio de entrenamiento por definir.'
+      ''
     ),
   };
 }
@@ -1367,23 +1397,23 @@ const REGULATION_STAGE_LABELS = ['EMOCIÓN', 'INTERPRETACIÓN', 'RESPUESTA', 'RE
 function buildRegulationFlowDiagram(mission: MissionSection): RegulationFlowDiagramSpec {
   const sources = [
     firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.conceptZero?.coreExplanation, 110),
-    detail(mission.weDoSection?.guidedPractice || mission.iDoSection?.stepByStepDemo, 110),
-    detail(mission.youDoSection?.autonomousChallenge, 110),
+    detail(mission.conceptZero?.coreExplanation, 110, ''),
+    detail(mission.weDoSection?.guidedPractice || mission.iDoSection?.stepByStepDemo, 110, ''),
+    detail(mission.youDoSection?.autonomousChallenge, 110, ''),
   ];
   const stages = sources.map((text, index) => ({
     label: REGULATION_STAGE_LABELS[index] ?? `ETAPA ${index + 1}`,
-    detail: text || 'Sin registro.',
+    detail: text || '',
   }));
 
   return {
     kind: 'regulation-flow',
-    available: stages.some((stage) => stage.detail !== 'Sin registro.'),
+    available: stages.filter((stage) => Boolean(stage.detail)).length >= 2,
     stages,
     anchor: detail(
       mission.conceptZero?.solvedExample?.interpretation || mission.metacognitiveTrafficLight?.green,
       140,
-      'Anclaje de regulación por definir.'
+      ''
     ),
   };
 }
@@ -1392,7 +1422,7 @@ function buildUnavailableLinearDiagram(options: DiagramBuildOptions): LinearDiag
   return {
     kind: 'linear',
     available: false,
-    equation: 'y = mx + b',
+    equation: '',
     slope: 0,
     intercept: 0,
     domainMax: 10,
@@ -1547,32 +1577,39 @@ function toSessionScopedMission(
     .filter(Boolean)
     .join(' ');
   const sessionSteps = (session.ejemploResuelto ?? '')
-    .split(/\r?\n|(?=\b\d+[.)]\s)/)
+    .split(/\r?\n|(?=[ \t]+[1-9]\d?[.)][ \t]+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ(¿¡])/)
     .map((s) => s.trim())
     .filter(Boolean);
 
   if (!allowMissionFallback) {
+    const cleanField = (val?: string | null) =>
+      sanitizePedagogicalMetaPhrases(stripSessionLead(val || ''));
+    const cleanSaberes = cleanField(session.saberesPrevios);
+    const cleanContenido = cleanField(session.contenido);
+    const cleanObjetivo = cleanField(session.objetivo);
+    const cleanEjemplo = cleanField(session.ejemploResuelto);
+    const cleanAplicacion = cleanField(session.aplicacion);
     return {
       ...mission,
-      title: session.objetivo || `Sesión ${session.sessionNumber}`,
-      sessionTopic: session.objetivo || '',
-      sessionFocus: session.objetivo || '',
+      title: cleanObjetivo || `Sesión ${session.sessionNumber}`,
+      sessionTopic: cleanObjetivo,
+      sessionFocus: cleanObjetivo,
       phenomenonHook: {
-        story: session.motivacion || session.saberesPrevios || '',
+        story: cleanField(session.motivacion) || cleanSaberes,
         detonatingQuestion: '',
       },
       conceptZero: {
-        physicalAnalogy: session.saberesPrevios || '',
-        coreExplanation: session.contenido || '',
+        physicalAnalogy: cleanSaberes,
+        coreExplanation: cleanContenido,
         contrastTable: [],
         solvedExample: {
-          problemStatement: session.ejemploResuelto || '',
+          problemStatement: cleanEjemplo,
           solutionSteps: sessionSteps,
-          interpretation: session.aplicacion || '',
+          interpretation: cleanAplicacion,
         },
       },
       iDoSection: {
-        stepByStepDemo: session.ejemploResuelto || '',
+        stepByStepDemo: cleanEjemplo,
         visualOrDiagram: '',
       },
       weDoSection: {
@@ -1580,7 +1617,7 @@ function toSessionScopedMission(
         workbookElements: [],
       },
       youDoSection: {
-        autonomousChallenge: session.aplicacion || session.productoIntegrador || '',
+        autonomousChallenge: cleanAplicacion || cleanField(session.productoIntegrador),
         workbookElements: [],
       },
       troubleshooting: [],
@@ -1625,6 +1662,120 @@ function toSessionScopedMission(
   };
 }
 
+function stripSessionLead(text: string): string {
+  let out = cleanSacrintText(text);
+  let prev = '';
+  while (out !== prev) {
+    prev = out;
+    out = out.replace(/^(?:sesi[oó]n\s*\d{1,2}\s*[:.\-–—]\s*)/i, '').trim();
+  }
+  return out;
+}
+
+function compactDiagramDetail(raw: string, maxChars = 48, maxWords = 7): string {
+  const cleaned = sanitizePedagogicalMetaPhrases(stripSessionLead(raw));
+  if (!cleaned) return '';
+  return (
+    fitPedagogicalText(cleaned, {
+      maxChars,
+      maxWords,
+      role: 'concept',
+      ensurePeriod: false,
+    }) || cleaned
+  );
+}
+
+function compactNode(node: SacrintDiagramNode): SacrintDiagramNode {
+  return { ...node, detail: compactDiagramDetail(node.detail) };
+}
+
+function compactNonQuantitativeDiagram(diagram: SacrintDiagramSpec): SacrintDiagramSpec {
+  switch (diagram.kind) {
+    case 'argument': {
+      const thesis = compactNode(diagram.thesis);
+      const thesisNorm = thesis.detail.toLowerCase();
+      const premises = diagram.premises
+        .map(compactNode)
+        .filter((p) => p.detail && p.detail.toLowerCase() !== thesisNorm)
+        .map((p, index) => ({ ...p, label: `PREMISA ${index + 1}` }));
+      return {
+        ...diagram,
+        thesis,
+        premises,
+        objection: compactNode(diagram.objection),
+        conclusion: compactNode(diagram.conclusion),
+      };
+    }
+    case 'language':
+      return {
+        ...diagram,
+        input: compactNode(diagram.input),
+        rule: compactNode(diagram.rule),
+        output: compactNode(diagram.output),
+        context: compactNode(diagram.context),
+      };
+    case 'concept':
+      return {
+        ...diagram,
+        center: compactNode(diagram.center),
+        nodes: diagram.nodes.map(compactNode),
+      };
+    case 'timeline':
+      return {
+        ...diagram,
+        span: compactDiagramDetail(diagram.span, 56, 8),
+        events: diagram.events.map(compactNode),
+      };
+    case 'system-map':
+      return {
+        ...diagram,
+        center: compactNode(diagram.center),
+        components: diagram.components.map(compactNode),
+        environment: compactNode(diagram.environment),
+      };
+    case 'clinical-flow':
+      return {
+        ...diagram,
+        stages: diagram.stages.map(compactNode),
+        note: compactDiagramDetail(diagram.note, 64, 10),
+      };
+    case 'block-diagram':
+      return {
+        ...diagram,
+        input: compactNode(diagram.input),
+        process: compactNode(diagram.process),
+        output: compactNode(diagram.output),
+        feedback: compactNode(diagram.feedback),
+      };
+    case 'sop-flow':
+      return {
+        ...diagram,
+        steps: diagram.steps.map(compactNode),
+        standard: compactDiagramDetail(diagram.standard, 64, 10),
+      };
+    case 'creative-cycle':
+      return {
+        ...diagram,
+        phases: diagram.phases.map(compactNode),
+        statement: compactDiagramDetail(diagram.statement, 64, 10),
+      };
+    case 'training-cycle':
+      return {
+        ...diagram,
+        phases: diagram.phases.map(compactNode),
+        principle: compactDiagramDetail(diagram.principle, 64, 10),
+      };
+    case 'regulation-flow':
+      return {
+        ...diagram,
+        stages: diagram.stages.map(compactNode),
+        anchor: compactDiagramDetail(diagram.anchor, 64, 10),
+      };
+    default:
+      return diagram;
+  }
+}
+
 export function buildSacrintDiagram(
   mission: MissionSection,
   pack: SacrintPack,
@@ -1634,38 +1785,43 @@ export function buildSacrintDiagram(
     ? toSessionScopedMission(mission, options.session, options.allowMissionFallback ?? true)
     : mission;
 
-  switch (pack.diagram) {
-    case 'linear-model':
-      return buildMathDiagram(mission, options);
-    case 'reaction-scheme':
-      return buildReactionDiagram(effectiveMission);
-    case 'argument-map':
-    case 'rhetorical-map':
-      return buildArgumentDiagram(effectiveMission);
-    case 'word-map':
-      return buildLanguageDiagram(effectiveMission);
-    case 'timeline':
-      return buildTimelineDiagram(effectiveMission);
-    case 'system-map':
-      return buildSystemMapDiagram(effectiveMission);
-    case 'clinical-flow':
-      return buildClinicalFlowDiagram(effectiveMission);
-    case 'block-diagram':
-      return buildBlockDiagram(effectiveMission);
-    case 'sop-flow':
-      return buildSopFlowDiagram(effectiveMission);
-    case 'creative-cycle':
-      return buildCreativeCycleDiagram(effectiveMission);
-    case 'training-cycle':
-      return buildTrainingCycleDiagram(effectiveMission);
-    case 'regulation-flow':
-      return buildRegulationFlowDiagram(effectiveMission);
-    default:
-      return buildConceptDiagram(effectiveMission);
-  }
+  const built = ((): SacrintDiagramSpec => {
+    switch (pack.diagram) {
+      case 'linear-model':
+        return buildMathDiagram(mission, options);
+      case 'reaction-scheme':
+        return buildReactionDiagram(effectiveMission);
+      case 'argument-map':
+      case 'rhetorical-map':
+        return buildArgumentDiagram(effectiveMission);
+      case 'word-map':
+        return buildLanguageDiagram(effectiveMission);
+      case 'timeline':
+        return buildTimelineDiagram(effectiveMission);
+      case 'system-map':
+        return buildSystemMapDiagram(effectiveMission);
+      case 'clinical-flow':
+        return buildClinicalFlowDiagram(effectiveMission);
+      case 'block-diagram':
+        return buildBlockDiagram(effectiveMission);
+      case 'sop-flow':
+        return buildSopFlowDiagram(effectiveMission);
+      case 'creative-cycle':
+        return buildCreativeCycleDiagram(effectiveMission);
+      case 'training-cycle':
+        return buildTrainingCycleDiagram(effectiveMission);
+      case 'regulation-flow':
+        return buildRegulationFlowDiagram(effectiveMission);
+      default:
+        return buildConceptDiagram(effectiveMission);
+    }
+  })();
+
+  return options.allowMissionFallback === false ? compactNonQuantitativeDiagram(built) : built;
 }
 
 export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVariable[] {
+  if (!diagram.available) return [];
   switch (diagram.kind) {
     case 'linear': {
       const isDefaultX = /^(?:eje\s+x|variable\s+independiente)/i.test(diagram.xLabel);
@@ -1674,32 +1830,26 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         {
           symbol: 'x',
           label: 'Eje X',
-          meaning: isDefaultX
-            ? diagram.available
-              ? `Dominio [0, ${diagram.domainMax}]`
-              : 'Por construir'
-            : diagram.xLabel,
+          meaning: isDefaultX ? `Dominio [0, ${diagram.domainMax}]` : diagram.xLabel,
         },
         {
           symbol: 'y',
           label: 'Eje Y',
           meaning: isDefaultY
-            ? diagram.available
-              ? diagram.targetY !== undefined
-                ? `Meta: y = ${diagram.targetY}`
-                : `Rango [0, ${diagram.rangeMax}]`
-              : 'Por construir'
+            ? diagram.targetY !== undefined
+              ? `Meta: y = ${diagram.targetY}`
+              : `Rango [0, ${diagram.rangeMax}]`
             : diagram.yLabel,
         },
         {
           symbol: 'm',
           label: 'Pendiente',
-          meaning: diagram.available ? `Pendiente ${diagram.slope}` : 'Por construir',
+          meaning: `Pendiente ${diagram.slope}`,
         },
         {
           symbol: 'b',
           label: 'Valor inicial',
-          meaning: diagram.available ? `Intersección ${diagram.intercept}` : 'Por construir',
+          meaning: `Intersección ${diagram.intercept}`,
         },
       ];
     }
@@ -1708,51 +1858,39 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         {
           symbol: 'a',
           label: 'Concavidad',
-          meaning: diagram.available
-            ? `a = ${diagram.a} (abre hacia ${diagram.a >= 0 ? 'arriba' : 'abajo'})`
-            : 'Por construir',
+          meaning: `a = ${diagram.a} (abre hacia ${diagram.a >= 0 ? 'arriba' : 'abajo'})`,
         },
         {
           symbol: 'V',
           label: 'Vértice óptimo',
-          meaning: diagram.available ? `(${diagram.vertexX}, ${diagram.vertexY})` : 'Por construir',
+          meaning: `(${diagram.vertexX}, ${diagram.vertexY})`,
         },
         {
           symbol: 'Δ',
           label: 'Discriminante',
-          meaning: diagram.available
-            ? `b² - 4ac = ${Number((diagram.b * diagram.b - 4 * diagram.a * diagram.c).toFixed(2))}`
-            : 'Por construir',
+          meaning: `b² - 4ac = ${Number((diagram.b * diagram.b - 4 * diagram.a * diagram.c).toFixed(2))}`,
         },
         {
           symbol: 'x₁,₂',
           label: 'Raíces reales',
-          meaning: diagram.available
-            ? diagram.roots.length > 0
-              ? diagram.roots.join(' y ')
-              : 'Sin raíces reales'
-            : 'Por construir',
+          meaning: diagram.roots.length > 0 ? diagram.roots.join(' y ') : 'Sin raíces reales',
         },
       ];
     case 'system-2x2':
       return [
-        { symbol: 'L₁', label: 'Ecuación 1', meaning: diagram.available ? diagram.equation1 : 'Por construir' },
-        { symbol: 'L₂', label: 'Ecuación 2', meaning: diagram.available ? diagram.equation2 : 'Por construir' },
+        { symbol: 'L₁', label: 'Ecuación 1', meaning: diagram.equation1 },
+        { symbol: 'L₂', label: 'Ecuación 2', meaning: diagram.equation2 },
         {
           symbol: 'P*',
           label: 'Intersección',
-          meaning: diagram.available
-            ? diagram.intersection
-              ? `x = ${diagram.intersection.x}, y = ${diagram.intersection.y}`
-              : 'Rectas paralelas'
-            : 'Por construir',
+          meaning: diagram.intersection
+            ? `x = ${diagram.intersection.x}, y = ${diagram.intersection.y}`
+            : 'Rectas paralelas',
         },
         {
           symbol: 'Δ',
           label: 'Determinante',
-          meaning: diagram.available
-            ? `Δ = ${Number((diagram.a1 * diagram.b2 - diagram.a2 * diagram.b1).toFixed(2))}`
-            : 'Por construir',
+          meaning: `Δ = ${Number((diagram.a1 * diagram.b2 - diagram.a2 * diagram.b1).toFixed(2))}`,
         },
       ];
     case 'exponential': {
@@ -1764,22 +1902,22 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
           {
             symbol: 'P₀',
             label: 'Pob. inicial',
-            meaning: diagram.available ? `${diagram.principal.toLocaleString('en-US')} hab.` : 'Por construir',
+            meaning: `${diagram.principal.toLocaleString('en-US')} hab.`,
           },
           {
             symbol: 'r',
             label: 'Tasa anual',
-            meaning: diagram.available ? `${ratePct}%` : 'Por construir',
+            meaning: `${ratePct}%`,
           },
           {
             symbol: 't',
             label: 'Horizonte',
-            meaning: diagram.available ? `0 a ${diagram.periods} períodos` : 'Por construir',
+            meaning: `0 a ${diagram.periods} períodos`,
           },
           {
             symbol: 'P(t)',
             label: 'Pob. proyectada',
-            meaning: diagram.available ? `${finalVal.toLocaleString('en-US')} hab.` : 'Por construir',
+            meaning: `${finalVal.toLocaleString('en-US')} hab.`,
           },
         ];
       }
@@ -1787,22 +1925,22 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         {
           symbol: 'C₀',
           label: 'Capital inicial',
-          meaning: diagram.available ? `$${diagram.principal.toLocaleString('en-US')}` : 'Por construir',
+          meaning: `$${diagram.principal.toLocaleString('en-US')}`,
         },
         {
           symbol: 'r',
           label: 'Tasa por período',
-          meaning: diagram.available ? `${ratePct}%` : 'Por construir',
+          meaning: `${ratePct}%`,
         },
         {
           symbol: 't',
           label: 'Horizonte',
-          meaning: diagram.available ? `0 a ${diagram.periods} períodos` : 'Por construir',
+          meaning: `0 a ${diagram.periods} períodos`,
         },
         {
           symbol: 'M',
           label: 'Monto compuesto',
-          meaning: diagram.available ? `$${finalVal.toLocaleString('en-US')}` : 'Por construir',
+          meaning: `$${finalVal.toLocaleString('en-US')}`,
         },
       ];
     }
@@ -1818,13 +1956,13 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         {
           symbol: 'R',
           label: 'Reactivos',
-          meaning: clip(diagram.reactants.map((node) => node.label).join(' + '), 72) || 'Por construir',
+          meaning: clip(diagram.reactants.map((node) => node.label).join(' + '), 72),
         },
         { symbol: 'Δ', label: 'Transformación', meaning: clip(diagram.condition, 72) },
         {
           symbol: 'P',
           label: 'Productos',
-          meaning: clip(diagram.products.map((node) => node.label).join(' + '), 72) || 'Por construir',
+          meaning: clip(diagram.products.map((node) => node.label).join(' + '), 72),
         },
         { symbol: 'E', label: 'Evidencia', meaning: clip(diagram.note, 72) },
       ];
@@ -1832,7 +1970,9 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
       return [
         { symbol: 'T', label: 'Tesis', meaning: clip(diagram.thesis.detail, 72) },
         { symbol: 'P', label: 'Premisas', meaning: clip(diagram.premises.map((node) => node.detail).join(' '), 72) },
-        { symbol: 'O', label: 'Objeción', meaning: clip(diagram.objection.detail, 72) },
+        ...(diagram.objection.detail.trim()
+          ? [{ symbol: 'O', label: 'Objeción', meaning: clip(diagram.objection.detail, 72) }]
+          : []),
         { symbol: 'C', label: 'Conclusión', meaning: clip(diagram.conclusion.detail, 72) },
       ];
     case 'language':
@@ -1909,6 +2049,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
 }
 
 export function diagramFormula(diagram: SacrintDiagramSpec): string {
+  if (!diagram.available) return '';
   switch (diagram.kind) {
     case 'linear':
     case 'quadratic':
@@ -1917,7 +2058,7 @@ export function diagramFormula(diagram: SacrintDiagramSpec): string {
     case 'reaction':
       return diagram.equation;
     case 'system-2x2':
-      return diagram.available ? `${diagram.equation1}  |  ${diagram.equation2}` : 'Modelo por construir';
+      return `${diagram.equation1}  |  ${diagram.equation2}`;
     case 'argument':
       return 'P1 + P2 → T';
     case 'language':

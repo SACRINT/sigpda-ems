@@ -105,7 +105,7 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
     expect(mediaFiles.length).toBeGreaterThanOrEqual(1);
   }, 30000);
 
-  it('T-03: fallback Capa 0 sintético vectorial se activa en PDF y DOCX cuando readMaterialPng devuelve null', async () => {
+  it('T-03: no fabrica fallback vacío sin datos y renderiza Capa 0 vectorial en PDF y DOCX cuando hay modelo real y readMaterialPng devuelve null', async () => {
     const visualSpy = vi.spyOn(visualAssetManager, 'resolveVisualForMission').mockResolvedValue({
       type: 'material_png',
       caption: 'Multímetro Digital',
@@ -117,33 +117,53 @@ describe('visual-material-png-render — Renderizado de figura de misión con ma
     const dispatchSpy = vi.spyOn(visualDispatcher, 'dispatchVisual');
     const svgSpy = vi.spyOn(svgToPngModule, 'svgToPngBuffer');
     try {
-      // 1. PDF: al fallar readMaterialPng, debe invocar dispatchVisual y svgToPngBuffer para generar el vector
-      const pdfBuffer = await renderWorkbookToPdf(
+      // 1. Sin modelo cuantitativo ni datos técnicos reales, no debe inventar figuras sintéticas
+      const emptyPdf = await renderWorkbookToPdf(
         mockWorkbook as ActiveWorkTextbook,
         mockPlanning as unknown as Planning,
         { forceFallbackCover: true }
       );
+      expect(emptyPdf.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+      expect(dispatchSpy).toHaveBeenCalled();
+      expect(svgSpy).not.toHaveBeenCalled();
+
+      // 2. Con ecuación real en el contenido, PDF y DOCX deben invocar svgToPngBuffer al fallar readMaterialPng
+      dispatchSpy.mockClear();
+      svgSpy.mockClear();
+      const stemWb: Partial<ActiveWorkTextbook> = {
+        ...mockWorkbook,
+        coverData: {
+          ...mockWorkbook.coverData!,
+          subjectName: 'Física y Circuitos',
+        },
+        missions: [
+          {
+            ...mockWorkbook.missions![0]!,
+            sessionTopic: 'Modelación cuadrática de potencia',
+            iDoSection: {
+              stepByStepDemo: 'Analiza la función f(x) = x² + 2x - 3 para estimar máximos en el circuito.',
+            },
+          },
+        ],
+      };
+      const stemPlanning = { ...mockPlanning, uacName: 'Física y Circuitos' };
+
+      const pdfBuffer = await renderWorkbookToPdf(
+        stemWb as ActiveWorkTextbook,
+        stemPlanning as unknown as Planning,
+        { forceFallbackCover: true }
+      );
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
-      // Hero (fallback Capa 0) + figura por sesión de la rama ≤3 = 2 llamadas exactas
-      expect(dispatchSpy).toHaveBeenCalledTimes(2);
-      expect(dispatchSpy).toHaveBeenNthCalledWith(
-        1,
-        'Taller de Instrumentación',
-        expect.stringContaining('Multímetro'),
-        expect.any(String),
-        1
-      );
       expect(svgSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+      const pdfCalls = svgSpy.mock.calls.length;
 
-      // 2. DOCX: al fallar readMaterialPng, debe invocar dispatchVisual y svgToPngBuffer para generar el vector
       const docxBuffer = await renderWorkbookToDocx(
-        mockWorkbook as ActiveWorkTextbook,
-        mockPlanning as unknown as Planning
+        stemWb as ActiveWorkTextbook,
+        stemPlanning as unknown as Planning
       );
       expect(docxBuffer).toBeInstanceOf(Buffer);
-      expect(dispatchSpy).toHaveBeenCalledTimes(4);
-      expect(svgSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(svgSpy.mock.calls.length).toBeGreaterThan(pdfCalls);
 
       const zip = await JSZip.loadAsync(Buffer.from(docxBuffer));
       const mediaFiles = Object.keys(zip.files).filter((f) => f.startsWith('word/media/'));

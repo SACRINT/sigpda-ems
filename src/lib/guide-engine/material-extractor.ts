@@ -21,6 +21,12 @@ import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-ca
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import { normalizeBlockTitle } from '@/lib/document-branding';
 import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
+import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
+import {
+  composeSessionHeading,
+  sanitizeMissionFocus,
+  sanitizeWorkbookTocTitle,
+} from '@/lib/editorial/topic-title-resolver';
 
 function formatExtractedBlockName(rawBlockName: string | undefined, blockNum: number): string {
   const normalized = normalizeBlockTitle(rawBlockName, blockNum);
@@ -470,13 +476,24 @@ function buildPlanDeClase(
   // estudiante refleja lo que realmente hará en el libro (teoría, ejemplo, práctica) e
   // incluye LOS MISMOS enunciados con sus pistas (1:1 con el libro del estudiante y
   // con el solucionario docente — Fase B de alineación).
+  const missionTopicLabel = finalizeVisibleText(
+    sanitizeWorkbookTocTitle(mission.sessionTopic || mission.title, mission.title),
+    { fallback: 'el tema de la misión', ensurePeriod: false }
+  );
   const bookPlan = mission.sessionPlans?.find((p) => p.sessionNumber === sessionNum);
   if (bookPlan) {
+    const cleanObjetivo = finalizeVisibleText(
+      composeSessionHeading({ number: sessionNum, objective: bookPlan.objetivo }).replace(
+        new RegExp(`^Sesi[oó]n\\s*${sessionNum}\\s*:\\s*`, 'i'),
+        ''
+      ),
+      { fallback: missionTopicLabel, ensurePeriod: false }
+    );
     const ejercicios = bookPlan.practica
       .map((pr, i) => `${i + 1}. ${pr.enunciado}${pr.pista ? ` Pista: ${pr.pista}` : ''}`)
       .join('\n');
     const bookAct =
-      `Libro del estudiante: estudia "${bookPlan.objetivo}" — lee la teoría y el ejemplo resuelto, ` +
+      `Libro del estudiante: estudia "${cleanObjetivo}" — lee la teoría y el ejemplo resuelto, ` +
       `resuelve ${bookPlan.practica.length} ejercicio(s) de práctica con pistas y registra tu evidencia.` +
       (ejercicios
         ? `\nEjercicios de la sesión (mismos enunciados que el libro y el solucionario docente):\n${ejercicios}`
@@ -486,13 +503,16 @@ function buildPlanDeClase(
       : bookAct;
   }
 
-  // Título pedagógico desacoplado
-  const rawTitle = sessionFromSeq?.title;
-  const tituloSesion = rawTitle
-    ? (rawTitle.toLowerCase().includes(`sesión ${sessionNum}`) || rawTitle.toLowerCase().includes(`sesion ${sessionNum}`)
-        ? rawTitle
-        : `${rawTitle} · Sesión ${sessionNum}`)
-    : `${mission.title || 'Misión de Aprendizaje'} · Sesión ${sessionNum}`;
+  // Título pedagógico desacoplado e idempotente (sin duplicar "Sesión N:" ni cortes colgantes)
+  const rawTitle = sanitizeWorkbookTocTitle(
+    sessionFromSeq?.title || mission.title || 'Misión de Aprendizaje',
+    mission.sessionTopic
+  );
+  const tituloSesion = composeSessionHeading({
+    number: sessionNum,
+    objective: rawTitle,
+    fallback: missionTopicLabel,
+  });
 
   const propósitoOMeta = sessionFromSeq?.evidence
     ? `Consolidar: ${sessionFromSeq.evidence} (${sessionFromSeq.phase || 'Formativa'})`
@@ -508,12 +528,12 @@ function buildPlanDeClase(
 
   const metodologiaActiva = sessionFromSeq?.procesoPensamiento
     ? `Aprendizaje Activo focalizado en ${sessionFromSeq.procesoPensamiento} y Modelado Cognitivo (I Do - We Do - You Do)`
-    : `Modelado Cognitivo (I Do - We Do - You Do) aplicado a "${mission.sessionTopic || mission.title}"`;
+    : `Modelado Cognitivo (I Do - We Do - You Do) aplicado a "${missionTopicLabel}"`;
 
   const recursosDidacticos = sessionFromSeq?.garantiaDualOffline
     ? `Cuaderno de Trabajo Activo, bitácora de trabajo. Estrategia dual sin conectividad: ${autoTokenizeMaterials(sessionFromSeq.garantiaDualOffline)}`
     : autoTokenizeMaterials(
-        `Cuaderno de Trabajo Activo y bitácora para "${mission.sessionTopic || mission.title}".`
+        `Cuaderno de Trabajo Activo y bitácora para "${missionTopicLabel}".`
       );
 
   const productoEsperado = sessionFromSeq?.evidence
@@ -523,10 +543,10 @@ function buildPlanDeClase(
   const evaluacionFormativa =
     sessionFromSeq?.evaluation ||
     mission.formativeCheckpoint?.question ||
-    `Checkpoint de comprensión sobre "${mission.sessionTopic || mission.title}"`;
+    `Checkpoint de comprensión sobre "${missionTopicLabel}"`;
   const metacognicion =
     mission.formativeCheckpoint?.reflectionPrompts?.join(' ') ||
-    `Reflexión sobre el proceso de aprendizaje de "${mission.sessionTopic || mission.title}".`;
+    `Reflexión sobre el proceso de aprendizaje de "${missionTopicLabel}".`;
 
   return {
     numeroSesion: sessionNum,
@@ -560,7 +580,7 @@ function buildPlanDeClase(
     },
     instrumentoEvaluacion: sessionFromSeq?.evaluation
       ? `${sessionFromSeq.evaluation} · Sesión ${sessionNum}`
-      : `Rúbrica de Desempeño y Lista de Cotejo · ${mission.title} · Sesión ${sessionNum}`,
+      : `Rúbrica de Desempeño y Lista de Cotejo · ${missionTopicLabel} · Sesión ${sessionNum}`,
   };
 }
 
@@ -699,8 +719,17 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
     isFirstMission = false;
     const sStart = mission.coveredSessions?.[0] ?? (mission.missionIndex * 3 - 2);
     const sEnd = mission.coveredSessions?.[mission.coveredSessions.length - 1] ?? (mission.missionIndex * 3);
-    parts.push(`### MISIÓN ${mission.missionIndex}: ${stripLeadingMissionLabel(mission.title).toUpperCase()} (Sesiones ${sStart} a ${sEnd})`);
-    parts.push(`*Foco instruccional:* ${mission.sessionTopic || mission.title} — ${mission.sessionFocus || 'Desarrollo de competencias situadas'}\n`);
+    const cleanMissionHead = finalizeVisibleText(
+      sanitizeWorkbookTocTitle(stripLeadingMissionLabel(mission.title), mission.sessionTopic),
+      { fallback: `Misión ${mission.missionIndex}`, ensurePeriod: false }
+    );
+    const cleanTopic = finalizeVisibleText(
+      sanitizeWorkbookTocTitle(mission.sessionTopic || mission.title, mission.title),
+      { fallback: cleanMissionHead, ensurePeriod: false }
+    );
+    const cleanFocus = sanitizeMissionFocus(mission.sessionFocus, 'Desarrollo de competencias situadas');
+    parts.push(`### MISIÓN ${mission.missionIndex}: ${cleanMissionHead.toUpperCase()} (Sesiones ${sStart} a ${sEnd})`);
+    parts.push(`*Foco instruccional:* ${cleanTopic} — ${cleanFocus}\n`);
 
     // A. Activación y preguntas detonadoras
     if (mission.phenomenonHook?.detonatingQuestion) {
@@ -734,7 +763,7 @@ function buildSolucionarioDocenteMarkdown(workbook: ActiveWorkTextbook): string 
       .sort((a, b) => a.sessionNumber - b.sessionNumber);
     if (sessionPlans.length > 0) {
       for (const plan of sessionPlans) {
-        parts.push(`#### Sesión ${plan.sessionNumber} — ${plan.objetivo}`);
+        parts.push(`#### ${composeSessionHeading({ number: plan.sessionNumber, objective: plan.objetivo })}`);
         plan.practica.forEach((item, idx) => {
           parts.push(`${idx + 1}. **${item.enunciado}**`);
           if (item.pista) parts.push(`   - *Pista (visible en el libro):* ${item.pista}`);

@@ -372,10 +372,15 @@ export class ColumnFlowManager {
 
     while (this.sidebarQueue.length > 0 && widgetsDrawn < maxWidgetsThisPage) {
       const nextWidget = this.sidebarQueue[0];
-      if (sy + nextWidget.minHeight <= sideBottom - 20) {
-        this.sidebarQueue.shift();
-        sy = nextWidget.draw(this.doc, this.sideXAbs, this.sideW, sy, sideBottom);
-        widgetsDrawn++;
+      if (sy + nextWidget.minHeight <= sideBottom - 10) {
+        const nextSy = nextWidget.draw(this.doc, this.sideXAbs, this.sideW, sy, sideBottom);
+        if (nextSy > sy) {
+          this.sidebarQueue.shift();
+          sy = nextSy;
+          widgetsDrawn++;
+        } else {
+          break;
+        }
       } else {
         break;
       }
@@ -401,8 +406,8 @@ export class ColumnFlowManager {
       let notesTitle = 'BITÁCORA DE APERTURA';
       let notesSubtitle = 'Preguntas y notas clave';
       if (this.missionPageIndex === 2) {
-        notesTitle = 'NOTAS DE TALLER';
-        notesSubtitle = 'Cálculos y mediciones en aula';
+        notesTitle = 'NOTAS DE TRABAJO';
+        notesSubtitle = 'Síntesis y evidencias de sesión';
       } else if (this.missionPageIndex >= 3) {
         notesTitle = 'REGISTRO DE EVIDENCIA';
         notesSubtitle = 'Conclusiones y compromisos';

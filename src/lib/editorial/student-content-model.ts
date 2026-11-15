@@ -13,6 +13,8 @@
 import { z } from 'zod';
 import type { SessionPlan } from '@/types/work-textbook';
 import { stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
+import { formatSolvedExampleBlocks } from '@/lib/editorial/text-normalization';
+import { composeSessionHeading } from '@/lib/editorial/topic-title-resolver';
 
 // ============================================================================
 // 1. Tipos e Interfaces Fundamentales
@@ -339,9 +341,7 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
   }
 
   // Expand inline step markers ("... Paso 1: ... Paso 2: ...") into separate segments
-  const normalizedRaw = rawEjemplo
-    .replace(/\s+(?=\bPaso\s*\d+\s*[:.\-–])/gi, '\n')
-    .replace(/\s+(?=(?:Conclusi[oó]n|Resultado\s+final|Interpretaci[oó]n)\s*:)/gi, '\n');
+  const normalizedRaw = formatSolvedExampleBlocks(rawEjemplo);
 
   const lines = normalizedRaw
     .split(/\r?\n/)
@@ -363,7 +363,9 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
       enunciadoLines.push(line);
     } else {
       const prev = pasos[pasos.length - 1];
-      const sep = !/[.:;?!]$/.test(prev) && /^\d+[.)]/.test(line) ? '; ' : ' ';
+      const hasUnclosedParen = (prev.match(/\(/g) || []).length > (prev.match(/\)/g) || []).length;
+      const endsWithOperator = /[=+\-*/×÷^(]$/.test(prev.trimEnd());
+      const sep = !hasUnclosedParen && !endsWithOperator && !/[.:;?!]$/.test(prev) && /^\d+[.)]/.test(line) ? '; ' : ' ';
       pasos[pasos.length - 1] = `${prev}${sep}${line}`;
     }
   }
@@ -420,15 +422,14 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
 const TITULO_SESION_MAX = 300;
 
 function tituloDeSesion(numero: number, objetivo: unknown): string {
-  const base = `Sesión ${numero}:`;
-  const limpio = String(objetivo ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[.:;,]+$/, '');
-  if (limpio.length <= TITULO_SESION_MAX) return `${base} ${limpio}`;
-  const corte = limpio.slice(0, TITULO_SESION_MAX);
+  const full = composeSessionHeading({
+    number: numero,
+    objective: objetivo == null ? '' : String(objetivo),
+  });
+  if (full.length <= TITULO_SESION_MAX) return full;
+  const corte = full.slice(0, TITULO_SESION_MAX);
   const espacio = corte.lastIndexOf(' ');
-  return `${base} ${(espacio > 40 ? corte.slice(0, espacio) : corte).trim()}…`;
+  return `${(espacio > 40 ? corte.slice(0, espacio) : corte).trim()}…`;
 }
 
 export function adaptSessionPlanToStudentSession(

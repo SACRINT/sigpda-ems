@@ -571,15 +571,15 @@ export async function generatePlanningPDF(
       ]);
       macroRows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
-        { content: act.saberes.saber || 'No especificado' },
+        { content: normalizePdfEditorialText(stripMaterialTokens(act.saberes.saber || '')) || 'No especificado' },
       ]);
       macroRows.push([
         { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
-        { content: act.saberes.saberHacer || 'No especificado' },
+        { content: normalizePdfEditorialText(stripMaterialTokens(act.saberes.saberHacer || '')) || 'No especificado' },
       ]);
       macroRows.push([
         { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 38 } },
-        { content: act.saberes.saberSer || 'No especificado' },
+        { content: normalizePdfEditorialText(stripMaterialTokens(act.saberes.saberSer || '')) || 'No especificado' },
       ]);
     }
 
@@ -1189,15 +1189,15 @@ export async function generateSecuenciaPDF(
       ]);
       rows.push([
         { content: 'Saber (Teórico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG, cellWidth: 38 } },
-        { content: act.saberes.saber || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+        { content: normalizePdfEditorialText(stripMaterialTokens(act.saberes.saber || '')) || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
       ]);
       rows.push([
         { content: 'Saber Hacer (Práctico):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG } },
-        { content: act.saberes.saberHacer || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+        { content: normalizePdfEditorialText(stripMaterialTokens(act.saberes.saberHacer || '')) || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
       ]);
       rows.push([
         { content: 'Saber Ser (Actitudinal):', styles: { fontStyle: 'bold', fontSize: 6.5, fillColor: GRAY_BG } },
-        { content: act.saberes.saberSer || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
+        { content: normalizePdfEditorialText(stripMaterialTokens(act.saberes.saberSer || '')) || 'N/A', colSpan: 3, styles: { fontSize: 6.5 } },
       ]);
     }
 

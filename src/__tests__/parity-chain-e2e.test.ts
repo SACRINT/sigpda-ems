@@ -177,7 +177,8 @@ describe('Cadena de paridad E2E: writer raw → sanitizador → extractor (docen
   it('el solucionario docente destaca cada sesión y conserva el orden con pasos completos', () => {
     const solucionario = extractSpecificMaterial(workbook, 'solucionario');
 
-    expect(solucionario).toContain('#### Sesión 1 —');
+    expect(solucionario).toContain('#### Sesión 1:');
+    expect(solucionario).not.toContain('Sesión 1: Sesión 1');
     expect(solucionario).toContain('#### C. Criterios de Acreditación');
     expect(solucionario).toContain(ENUNCIADO_1);
     expect(solucionario).toContain(ENUNCIADO_1B);

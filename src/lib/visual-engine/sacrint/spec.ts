@@ -34,7 +34,7 @@ import {
   resolveInfographicConceptTitle,
   sanitizeWorkbookTocTitle,
 } from '@/lib/editorial/topic-title-resolver';
-import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
+import { finalizeVisibleText, fitPedagogicalText, repairDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
 import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
 
 export const LESSON_GUIDE_NO_SESSIONS_CODE = 'LESSON_GUIDE_NO_SESSIONS';
@@ -176,6 +176,8 @@ export interface SacrintPracticeSlide extends SacrintSlideBase {
   kind: 'practice';
   practiceText: string;
   checkpoints: string[];
+  objectiveBullets?: string[];
+  evaluationCriteria?: string[];
   hint?: string;
   activities?: DistilledPracticeActivity[];
   applicationText?: string;
@@ -244,6 +246,25 @@ export interface SacrintRubricItem {
   weight?: number;
 }
 
+export interface ConceptMapNode {
+  concept: string;
+  relation: string;
+  detail: string;
+}
+
+export interface ConceptManualDefinition {
+  term: string;
+  definition: string;
+}
+
+export interface ConceptManualSection {
+  centralConcept: string;
+  conceptMap: ConceptMapNode[];
+  definitions: ConceptManualDefinition[];
+  usageGuidance: string[];
+  masteryChecklist: string[];
+}
+
 export interface SacrintInfographicSpec {
   format: SacrintInfographicFormat;
   theme?: SacrintThemeMode;
@@ -257,6 +278,7 @@ export interface SacrintInfographicSpec {
   formula: string;
   formulasList?: string[];
   keyConcepts?: string[];
+  conceptManual?: ConceptManualSection;
   quickExample?: DistilledExample;
   variables: SacrintVariable[];
   diagram: SacrintDiagramSpec;
@@ -416,6 +438,43 @@ function resolveSessionPlans(mission: MissionSection): SessionPlan[] {
   return [...plans].sort((a, b) => (a.sessionNumber ?? 0) - (b.sessionNumber ?? 0));
 }
 
+function stripLeadingSessionTag(value: string): string {
+  let out = cleanSacrintText(value);
+  let prev = '';
+  while (out !== prev) {
+    prev = out;
+    out = out.replace(/^(?:sesi[oó]n\s*\d+\s*[:.\-–—]*\s*)/i, '').trim();
+  }
+  return out;
+}
+
+function extractShortConceptAnchor(topicTitle?: string, fallback?: string): string {
+  const cleaned = stripLeadingSessionTag(topicTitle || fallback || '')
+    .replace(/^(?:taller\s+de\s+|introducci[oó]n\s+a(?:l|\s+la)?\s+|fundamentos\s+de\s+)/i, '')
+    .trim();
+  if (!cleaned) return '';
+  const headClause = cleaned.includes(':') ? cleaned.split(':')[0]!.trim() : cleaned;
+  const source = headClause.length >= 12 ? headClause : cleaned;
+  const rawWords = source
+    .replace(/[¿?¡!.:;,]+$/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4);
+  while (
+    rawWords.length > 2 &&
+    /^(?:de|del|la|el|los|las|un|una|en|con|por|para|sobre|entre|dentro|y|e|o|a|al|su|sus)$/i.test(
+      rawWords[rawWords.length - 1]!
+    )
+  ) {
+    rawWords.pop();
+  }
+  let candidate = rawWords.join(' ').trim();
+  if (candidate.length > 32) {
+    candidate = candidate.slice(0, 32).replace(/\s+\S*$/, '').trim();
+  }
+  return repairDanglingEnding(candidate, false).replace(/[¿?¡!.:;,]+$/g, '').trim();
+}
+
 function resolveMissionMisconceptionParts(
   mission: MissionSection,
   bundle?: DistilledLessonBundle,
@@ -451,76 +510,405 @@ function resolveMissionMisconceptionParts(
         example: options.session?.ejemploResuelto,
       };
   const contextText = Object.values(classifierInput).filter(Boolean).join(' ').trim();
-
   const classification = classifyTopic(classifierInput);
+  const sessionIdx = Math.max(0, (options.session?.sessionNumber ?? 1) - 1);
+  const rawAnchor = extractShortConceptAnchor(bundle?.topicTitle, options.session?.objetivo)
+    .replace(/[¿?¡!.:;,]+$/g, '')
+    .trim();
+  const anchor = rawAnchor;
+
+  const withAnchor = (chosen: { error: string; correction: string }): { error: string; correction: string } => {
+    if (allowMission || !anchor) return chosen;
+    const base = chosen.error.replace(/\.+$/, '').trim();
+    if (base.toLowerCase().includes(anchor.toLowerCase())) {
+      return { error: `${base}.`, correction: chosen.correction };
+    }
+    const lowerFirst = base.charAt(0).toLowerCase() + base.slice(1);
+    return {
+      error: `${anchor}: ${lowerFirst}.`,
+      correction: chosen.correction,
+    };
+  };
+
+  const pickByKeywordAndSession = (
+    subRules: Array<{ pattern: RegExp; error: string; correction: string }>,
+    variants: Array<{ error: string; correction: string }>
+  ): { error: string; correction: string } => {
+    const matched = subRules.filter((rule) => rule.pattern.test(contextText));
+    const chosen =
+      matched.length > 0
+        ? matched[sessionIdx % matched.length]!
+        : variants[sessionIdx % variants.length]!;
+    return withAnchor(chosen);
+  };
 
   if (classification.kind === 'exponential') {
-    return {
-      error: 'Multiplicar la tasa por el número de periodos como si fuera crecimiento lineal.',
-      correction: 'Aplicar la potencia (1 + r)ᵗ sobre el valor acumulado en cada periodo.',
-    };
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /poblaci[oó]n|crecimiento|bacteri|duplic/i,
+          error: 'Sumar un incremento fijo en lugar de factor exponencial.',
+          correction: 'Aplicar P(t) = P₀(1 + r)ᵗ sobre el total vigente de cada periodo.',
+        },
+        {
+          pattern: /depreciaci[oó]n|descuento|p[eé]rdida|decaimiento/i,
+          error: 'Usar (1 + r)ᵗ en lugar del factor de reducción (1 - r)ᵗ.',
+          correction: 'Verificar si la magnitud crece o decrece antes de fijar el signo de la tasa.',
+        },
+      ],
+      [
+        {
+          error: 'Multiplicar tasa por periodos como si fuera lineal.',
+          correction: 'Aplicar la potencia (1 + r)ᵗ sobre el capital acumulado en cada periodo.',
+        },
+        {
+          error: 'Usar tasa anual sin ajustar al periodo de capitalización.',
+          correction: 'Homologar la unidad temporal de la tasa r y del exponente t antes de calcular.',
+        },
+        {
+          error: 'Sustituir porcentaje entero sin convertir a decimal.',
+          correction: 'Convertir r% a decimal (r/100) antes de elevar el binomio (1 + r)ᵗ.',
+        },
+        {
+          error: 'Confundir valor final compuesto con ganancia neta.',
+          correction: 'Restar el capital inicial C₀ al monto M cuando se pida solo el interés ganado.',
+        },
+      ]
+    );
   }
   if (classification.kind === 'statistics') {
-    return {
-      error: 'Usar el porcentaje de margen de error sin convertirlo a decimal al sustituir en la fórmula.',
-      correction: 'Convertir porcentajes a decimales (ej. 5% = 0.05) y respetar los paréntesis del denominador.',
-    };
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /muestra|margen de error|encuesta/i,
+          error: 'Usar margen porcentual sin pasarlo a decimal.',
+          correction: 'Expresar el margen como decimal (ej. 5% = 0.05) y verificar el tamaño muestral.',
+        },
+        {
+          pattern: /promedio|media|mediana|moda|desviaci[oó]n/i,
+          error: 'Calcular mediana sin ordenar previamente los datos.',
+          correction: 'Ordenar el conjunto, revisar valores atípicos y elegir la medida representativa.',
+        },
+      ],
+      [
+        {
+          error: 'Leer frecuencias aisladas sin compararlas al total.',
+          correction: 'Calcular proporciones relativas y verificar que las frecuencias sumen el total.',
+        },
+        {
+          error: 'Inferir causalidad directa desde una correlación simple.',
+          correction: 'Distinguir asociación estadística de relación causa-efecto con evidencia contextual.',
+        },
+        {
+          error: 'Omitir valores atípicos al interpretar el promedio.',
+          correction: 'Contrastar media, mediana y rango para describir la dispersión real.',
+        },
+        {
+          error: 'Comparar categorías con tamaños muestrales distintos sin proporción.',
+          correction: 'Normalizar mediante porcentajes o frecuencias relativas sobre cada grupo.',
+        },
+      ]
+    );
   }
   if (classification.kind === 'quadratic') {
-    return {
-      error: 'Omitir el signo del coeficiente lineal o descartar raíces sin evaluar el discriminante.',
-      correction: 'Evaluar b² - 4ac y verificar ambas raíces en el contexto real del problema.',
-    };
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /discriminante|b\^?2\s*-\s*4ac|f[oó]rmula general/i,
+          error: 'Omitir el signo de b al evaluar b² - 4ac.',
+          correction: 'Encerrar cada coeficiente con su signo entre paréntesis al evaluar el discriminante.',
+        },
+        {
+          pattern: /v[eé]rtice|m[aá]ximo|m[ií]nimo|altura|par[aá]bola/i,
+          error: 'Omitir el signo negativo en x_v = -b/(2a).',
+          correction: 'Calcular primero x_v = -b/(2a) y evaluar f(x_v) para obtener el extremo exacto.',
+        },
+        {
+          pattern: /factoriz|producto|ra[ií]ces|terreno|[aá]rea/i,
+          error: 'Factorizar o despejar sin igualar antes a cero.',
+          correction: 'Llevar la ecuación a ax² + bx + c = 0 antes de factorizar o aplicar raíces.',
+        },
+      ],
+      [
+        {
+          error: 'Omitir el signo del coeficiente cuadrático principal.',
+          correction: 'Conservar el signo de a en la forma estándar y validar cada raíz en el enunciado.',
+        },
+        {
+          error: 'Aceptar raíces fuera del dominio físico del problema.',
+          correction: 'Descartar soluciones negativas o fuera de dominio que no tengan sentido real.',
+        },
+        {
+          error: 'Invertir los signos de las raíces al factorizar binomios.',
+          correction: 'Igualar cada factor (x - r) = 0 por separado y comprobar sustituyendo.',
+        },
+        {
+          error: 'Confundir el término cuadrático con variación lineal.',
+          correction: 'Verificar si aparece x² o producto de dos variables antes de elegir modelo.',
+        },
+      ]
+    );
   }
   if (classification.kind === 'system-2x2') {
-    return {
-      error: 'Sustituir la variable despejada en la misma ecuación origen sin cruzar con la segunda.',
-      correction: 'Sustituir en la ecuación complementaria y comprobar el par (x, y) en ambas.',
-    };
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /sustituci[oó]n/i,
+          error: 'Sustituir el despeje en la misma ecuación origen.',
+          correction: 'Reemplazar la variable en la ecuación contraria para evitar identidades triviales.',
+        },
+        {
+          pattern: /reducci[oó]n|eliminaci[oó]n|suma y resta/i,
+          error: 'Multiplicar solo un término al igualar coeficientes.',
+          correction: 'Multiplicar toda la fila (izquierda y derecha) para conservar la equivalencia.',
+        },
+        {
+          pattern: /gr[aá]fic|intersecci[oó]n/i,
+          error: 'Graficar ejes con distinta escala y leer mal el cruce.',
+          correction: 'Usar escala uniforme y verificar el punto (x, y) por sustitución algebraica.',
+        },
+      ],
+      [
+        {
+          error: 'Plantear una ecuación cuando hay dos restricciones.',
+          correction: 'Definir claramente cada incógnita y verificar que el par (x, y) cumpla ambas ecuaciones.',
+        },
+        {
+          error: 'Invertir signos al despejar una incógnita inicial.',
+          correction: 'Comprobar cada transformación sustituyendo un par de prueba en la ecuación original.',
+        },
+        {
+          error: 'Hallar x sin sustituir para obtener la segunda variable y.',
+          correction: 'Completar el par (x, y) y validar ambas igualdades antes de concluir.',
+        },
+        {
+          error: 'Suponer solución única sin revisar si las rectas son paralelas.',
+          correction: 'Comparar pendientes o determinante Δ antes de interpretar el sistema.',
+        },
+      ]
+    );
   }
   if (classification.kind === 'geometry') {
-    return {
-      error: 'Aplicar fórmulas de área o ángulos sin comprobar congruencia o perpendicularidad.',
-      correction: 'Identificar dimensiones base y propiedades geométricas antes de resolver.',
-    };
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /congruen|semejan|criterio|lal|ala|lll/i,
+          error: 'Asumir congruencia sin comprobar criterio ni orden angular.',
+          correction: 'Justificar el criterio (LLL, LAL o ALA) con correspondencia explícita de vértices.',
+        },
+        {
+          pattern: /pit[aá]goras|hipotenusa|cateto/i,
+          error: 'Confundir un cateto con la hipotenusa del triángulo.',
+          correction: 'Identificar el ángulo recto primero para aislar la hipotenusa c² = a² + b².',
+        },
+        {
+          pattern: /per[ií]metro|[aá]rea|superficie|volumen/i,
+          error: 'Mezclar unidades lineales y cuadráticas o usar lado inclinado.',
+          correction: 'Confirmar dimensiones perpendiculares y expresar áreas en unidades cuadradas.',
+        },
+      ],
+      [
+        {
+          error: 'Aplicar fórmula geométrica sin identificar datos de la figura.',
+          correction: 'Trazar el esquema con medidas etiquetadas y verificar qué relación geométrica aplica.',
+        },
+        {
+          error: 'Operar medidas en distintas unidades sin homogeneizar.',
+          correction: 'Expresar todas las medidas en la misma unidad antes de operar.',
+        },
+        {
+          error: 'Sumar ángulos suplementarios como si sumaran 90°.',
+          correction: 'Distinguir complementarios (90°) de suplementarios (180°) antes de despejar.',
+        },
+        {
+          error: 'Calcular el perímetro completo omitiendo un tramo del contorno.',
+          correction: 'Recorrer todos los lados de la figura verificando cierres y longitudes parciales.',
+        },
+      ]
+    );
   }
   if (classification.kind === 'proportion') {
-    return {
-      error: 'Confundir variación proporcional directa con inversa o sumar porcentajes de forma directa.',
-      correction: 'Verificar si las magnitudes crecen juntas o inversamente antes de plantear la razón.',
-    };
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /inversa|obrero|velocidad|tiempo/i,
+          error: 'Usar regla directa cuando la relación es inversa.',
+          correction: 'Comprobar si k = x·y es constante (inversa) o y/x es constante (directa).',
+        },
+        {
+          pattern: /porcentaje|descuento|iva|aumento/i,
+          error: 'Sumar porcentajes sucesivos sin aplicar al nuevo valor.',
+          correction: 'Calcular cada variación porcentual en cadena usando factores decimales.',
+        },
+      ],
+      [
+        {
+          error: 'Acomodar magnitudes en orden cruzado al despejar.',
+          correction: 'Alinear cada columna con la misma unidad antes de multiplicar en cruz.',
+        },
+        {
+          error: 'Confundir razón unitaria con cambio absoluto total.',
+          correction: 'Dividir siempre la magnitud dependiente entre la unidad de referencia.',
+        },
+        {
+          error: 'Aplicar proporcionalidad cuando existe costo fijo inicial.',
+          correction: 'Revisar si la recta pasa por (0, 0) antes de aplicar regla de tres.',
+        },
+        {
+          error: 'Omitir la unidad de comparación entre dos razones.',
+          correction: 'Expresar ambas razones sobre la misma base antes de concluir.',
+        },
+      ]
+    );
   }
-  if (classification.kind === 'linear' || /ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal/i.test(contextText)) {
-    return {
-      error: 'Confundir el término independiente con la razón de cambio o despejar un solo miembro.',
-      correction: 'Aplicar operaciones inversas simétricas en ambos lados de la igualdad.',
-    };
+  if (classification.kind === 'linear' || /ecuaci[oó]n|algebraic|inc[oó]gnita|balanza|lineal|pendiente|recta/i.test(contextText)) {
+    return pickByKeywordAndSession(
+      [
+        {
+          pattern: /pendiente|raz[oó]n de cambio|m\s*=|tasa/i,
+          error: 'Invertir cociente vertical y horizontal al calcular pendiente.',
+          correction: 'Mantener el mismo orden (y₂ - y₁)/(x₂ - x₁) en numerador y denominador.',
+        },
+        {
+          pattern: /par[eé]ntesis|distributiv|signo/i,
+          error: 'Distribuir factor o signo solo al primer término.',
+          correction: 'Distribuir factor y signo sobre cada término interior antes de agrupar semejantes.',
+        },
+        {
+          pattern: /fracci[oó]n|denominador/i,
+          error: 'Quitar un denominador sin multiplicar toda la ecuación.',
+          correction: 'Multiplicar toda la ecuación por el mínimo común múltiplo para conservar el equilibrio.',
+        },
+        {
+          pattern: /balanza|despej|inc[oó]gnita/i,
+          error: 'Mover términos sin aplicar operación inversa bilateral.',
+          correction: 'Aplicar la misma operación inversa en ambos miembros y comprobar sustituyendo.',
+        },
+      ],
+      [
+        {
+          error: 'Confundir término fijo b con tasa de cambio m.',
+          correction: 'Separar la tasa por unidad m del valor inicial fijo b en y = mx + b.',
+        },
+        {
+          error: 'Sumar constantes sueltas con coeficientes algebraicos.',
+          correction: 'Agrupar únicamente términos con igual literal y exponente antes de despejar.',
+        },
+        {
+          error: 'Concluir el valor de x sin verificar la igualdad original.',
+          correction: 'Sustituir la solución en la ecuación inicial para validar ambos miembros.',
+        },
+        {
+          error: 'Elegir incógnita distinta a la magnitud preguntada.',
+          correction: 'Definir explícitamente qué representa x y sus unidades antes de plantear.',
+        },
+      ]
+    );
   }
 
-  const sessionCheck = cleanSacrintText(options.session?.autoevaluacion?.[0]);
-  if (!allowMission && sessionCheck && !isRubricOrBoilerplateLeak(sessionCheck)) {
-    return {
-      error: `Omitir la revisión de: ${distillConciseText(sessionCheck, 115, 18)}`,
-      correction: 'Comprobar la conclusión con evidencia y criterios de esta sesión.',
-    };
+  // Dominios no matemáticos (Historia, Lengua, Ciencias Experimentales, Humanidades)
+  if (/historia|proceso|siglo|revoluci[oó]n|independencia|guerra|cronolog|fuente/i.test(contextText)) {
+    return pickByKeywordAndSession([], [
+      {
+        error: 'Memorizar fechas aisladas sin explicar causas ni actores.',
+        correction: 'Relacionar contexto previo, detonante y transformación social o política del periodo.',
+      },
+      {
+        error: 'Tomar una opinión posterior como fuente primaria histórica.',
+        correction: 'Identificar autoría, época y propósito de cada fuente histórica antes de concluir.',
+      },
+      {
+        error: 'Juzgar hechos históricos sin situar el contexto de la época.',
+        correction: 'Explicar las condiciones sociales, económicas y políticas vigentes en ese periodo.',
+      },
+      {
+        error: 'Omitir consecuencias de mediano plazo al describir un suceso.',
+        correction: 'Conectar el evento detonante con sus cambios institucionales y cotidianos.',
+      },
+      {
+        error: 'Mezclar causas estructurales con detonantes inmediatos.',
+        correction: 'Distinguir condiciones acumuladas de hechos puntuales que desataron el proceso.',
+      },
+    ]);
+  }
+  if (/texto|ensayo|argument|tesis|lectura|p[aá]rrafo|discurso|lengua|gram[aá]tica|oral|comunica|escrito|mensaje|redacci[oó]n|cr[oó]nica|peri[oó]dico|noticia|reportaje|entrevista|rese[ñn]a|literat|narrat|lead|titular|editorial|debate|di[aá]log|falacia/i.test(contextText)) {
+    return pickByKeywordAndSession([], [
+      {
+        error: 'Emitir opiniones sin respaldar la tesis con evidencia textual.',
+        correction: 'Articular postura clara, evidencia verificable y conectores lógicos entre párrafos.',
+      },
+      {
+        error: 'Copiar oraciones sueltas sin jerarquizar la idea principal.',
+        correction: 'Jerarquizar tesis central, evidencias de apoyo y conclusión con palabras propias.',
+      },
+      {
+        error: 'Confundir la intención comunicativa con un simple resumen.',
+        correction: 'Identificar propósito del emisor, destinatario y tono antes de interpretar el texto.',
+      },
+      {
+        error: 'Encadenar ideas sin conectores ni progresión temática.',
+        correction: 'Enlazar cada párrafo con un marcador lógico que sostenga la tesis central.',
+      },
+      {
+        error: 'Interpretar el vocabulario fuera de su contexto comunicativo.',
+        correction: 'Contrastar el sentido literal y contextual según la situación del intercambio.',
+      },
+    ]);
+  }
+  if (/c[eé]lula|ecosistema|energ[ií]a|materia|experimento|hip[oó]tesis|variable|reacci[oó]n|qu[ií]m|f[ií]sica|biolog/i.test(contextText)) {
+    return pickByKeywordAndSession([], [
+      {
+        error: 'Concluir sin aislar variables ni respaldar con mediciones.',
+        correction: 'Contrastarla directamente contra la hipótesis inicial y los registros observados.',
+      },
+      {
+        error: 'Confundir el efecto observado con su mecanismo científico.',
+        correction: 'Vincular evidencia empírica, variables de control y principio científico del tema.',
+      },
+      {
+        error: 'Plantear una hipótesis sin forma comprobable ni evidencia.',
+        correction: 'Formular una predicción medible que conecte causa observable y resultado.',
+      },
+      {
+        error: 'Ignorar unidades o condiciones de control durante el registro.',
+        correction: 'Estandarizar unidades y registrar variables constantes en cada ensayo.',
+      },
+    ]);
   }
 
   if (allowMission) {
     const firstCriterion = cleanSacrintText(mission.formativeCheckpoint?.criteriaChecklist?.[0]);
     if (firstCriterion && !isRubricOrBoilerplateLeak(firstCriterion)) {
       return {
-        error: `Omitir la verificación de: ${distillConciseText(firstCriterion, 115, 18)}`,
+        error: `Omitir la verificación de: ${distillConciseText(firstCriterion, 110, 17)}`,
         correction: 'Validar paso a paso con evidencia e instrumentos de la sesión.',
       };
     }
   }
 
-  const refLabel =
-    !allowMission && options.session?.sessionNumber ? ` en la sesión ${options.session.sessionNumber}` : '';
-  return {
-    error: `Aplicar un procedimiento sin revisar la consigna ni validar la coherencia contextual${refLabel}.`,
-    correction: 'Comprobar la conclusión con la información relevante y la evidencia del tema.',
-  };
+  const genericPool = [
+    {
+      error: 'Ejecutar pasos mecánicamente sin validar los datos iniciales.',
+      correction: 'Contrastar el resultado con las condiciones iniciales y los criterios de la sesión.',
+    },
+    {
+      error: 'Responder de forma general sin justificar el criterio clave.',
+      correction: 'Explicar explícitamente la regla o evidencia que sostiene la respuesta final.',
+    },
+    {
+      error: 'Omitir la revisión al pasar del análisis a la conclusión.',
+      correction: 'Validar coherencia entre datos de partida, desarrollo y conclusión final.',
+    },
+    {
+      error: 'Confundir un ejemplo particular con la regla general.',
+      correction: 'Comprobar que el criterio se cumpla en toda la situación planteada.',
+    },
+    {
+      error: 'Dejar el resultado aislado sin interpretarlo en contexto.',
+      correction: 'Explicar qué significa la conclusión frente a la pregunta detonadora.',
+    },
+  ];
+  return withAnchor(genericPool[sessionIdx % genericPool.length]!);
 }
 
 function resolveMissionMisconception(
@@ -581,22 +969,26 @@ function buildLessonGuideSlidesForSession(
     session,
     allowMissionFallback: false,
   });
-  const variables = buildDiagramVariables(diagram);
+  const isQuantOrReactionDiagram =
+    diagram.available &&
+    (diagram.kind === 'linear' ||
+      diagram.kind === 'quadratic' ||
+      diagram.kind === 'system-2x2' ||
+      diagram.kind === 'exponential' ||
+      diagram.kind === 'geometry' ||
+      diagram.kind === 'reaction');
+  const variables = isQuantOrReactionDiagram ? buildDiagramVariables(diagram) : [];
   const formula = diagramFormula(diagram);
   const facts = baseFacts(meta, mission, bundle.sessionNumber);
   const misconceptionParts = resolveMissionMisconceptionParts(mission, bundle, {
     session,
     allowMissionFallback: false,
   });
-  const combinedMisconception = `${misconceptionParts.error} → ${misconceptionParts.correction}`;
-  const rawMisconception =
-    combinedMisconception.split(/\s+/).length <= 14
-      ? combinedMisconception
-      : fitPedagogicalText(sanitizePedagogicalMetaPhrases(misconceptionParts.error), {
-          maxChars: 92,
-          maxWords: 14,
-          role: 'hint',
-        });
+  const rawMisconception = fitPedagogicalText(sanitizePedagogicalMetaPhrases(misconceptionParts.error), {
+    maxChars: 112,
+    maxWords: 16,
+    role: 'hint',
+  });
   const misconception = preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
 
   const rawArtifactTitle = sanitizePedagogicalMetaPhrases(
@@ -605,8 +997,8 @@ function buildLessonGuideSlidesForSession(
   const deOverlappedArtifact = preventSixGramTheoryOverlap(rawArtifactTitle, workbookTheorySources);
   const fittedArtifactTitle =
     fitPedagogicalText(deOverlappedArtifact, {
-      maxChars: 54,
-      maxWords: 8,
+      maxChars: 44,
+      maxWords: 6,
       role: 'concept',
       ensurePeriod: false,
     }) || `Producto de la sesión ${sesLabel}`;
@@ -615,29 +1007,61 @@ function buildLessonGuideSlidesForSession(
     artifactName = `${artifactName} · Sesión ${sesLabel}`;
   }
 
-  const fittedTopicTitle =
-    bundle.topicTitle.length > 140
-      ? fitPedagogicalText(bundle.topicTitle, {
-          maxChars: 140,
-          maxWords: 16,
-          role: 'concept',
-          ensurePeriod: false,
-        }) || bundle.topicTitle.slice(0, 140).replace(/\s+\S*$/, '')
-      : bundle.topicTitle;
+  const fittedTopicTitle = finalizeVisibleText(
+    stripLeadingSessionTag(
+      bundle.topicTitle.length > 120
+        ? fitPedagogicalText(bundle.topicTitle, {
+            maxChars: 118,
+            maxWords: 15,
+            role: 'concept',
+            ensurePeriod: false,
+          }) || stripLeadingSessionTag(meta.missionTitle)
+        : bundle.topicTitle
+    ),
+    { fallback: stripLeadingSessionTag(meta.missionTitle), ensurePeriod: false }
+  );
+  const cleanObjective = stripLeadingSessionTag(bundle.objective);
+  const cleanExplanation =
+    fitPedagogicalText(
+      preventSixGramTheoryOverlap(
+        bundle.concepts.definition || cleanObjective || fittedTopicTitle,
+        workbookTheorySources
+      ),
+      { maxChars: 92, maxWords: 14, role: 'concept' }
+    ) || cleanObjective;
+  const conceptTakeaways = (
+    bundle.concepts.keyRules.length > 0 ? bundle.concepts.keyRules : []
+  )
+    .map((rule) =>
+      fitPedagogicalText(
+        preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(rule), workbookTheorySources),
+        { maxChars: 64, maxWords: 10, role: 'concept', ensurePeriod: false }
+      )
+    )
+    .filter(
+      (item, idx, arr) =>
+        Boolean(item) &&
+        !isRubricOrBoilerplateLeak(item) &&
+        item !== cleanExplanation &&
+        arr.indexOf(item) === idx
+    )
+    .slice(0, 2);
+  const validFormulas = bundle.concepts.formulas.filter((item) => isValidRenderableFormula(item));
+  const effectiveFormulas = validFormulas.length > 0 ? validFormulas.slice(0, 2) : formula ? [formula] : [];
 
   const conceptSlide: SacrintConceptSlide = {
     kind: 'concept',
-    eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 1/2 · CONOCIMIENTO NUEVO Y EJEMPLO`,
+    eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 1/2 · CONOCIMIENTO NUEVO`,
     title: fittedTopicTitle,
-    subtitle: bundle.objective,
+    subtitle: '',
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
     isLessonGuide: true,
     activationNote: bundle.activation,
     analogy: bundle.question || bundle.activation,
-    explanation: bundle.example.problemStatement,
-    formulas: bundle.concepts.formulas.length > 0 ? bundle.concepts.formulas : [formula],
-    keyTakeaways: bundle.example.steps,
+    explanation: cleanExplanation,
+    formulas: effectiveFormulas,
+    keyTakeaways: conceptTakeaways,
     workedExample: bundle.example,
     misconception,
     formula,
@@ -646,17 +1070,60 @@ function buildLessonGuideSlidesForSession(
     facts,
   };
 
+  const primaryObjective = fitPedagogicalText(cleanObjective, {
+    maxChars: 80,
+    maxWords: 12,
+    role: 'concept',
+    ensurePeriod: false,
+  });
+  const objectiveBullets = primaryObjective
+    ? [primaryObjective]
+    : [
+        fitPedagogicalText(
+          bundle.concepts.keyRules[0] || `Aplicar ${fittedTopicTitle.toLowerCase()} en clase`,
+          { maxChars: 76, maxWords: 11, role: 'concept', ensurePeriod: false }
+        ) || `Comprender ${fittedTopicTitle.toLowerCase()}`,
+      ];
+
+  const isLabOrWorkshopSubject = /qu[ií]m|biolog|f[ií]sica|ecolog|salud|laborat|taller|mec[aá]n|electr[oó]n|industrial|agropec/i.test(
+    `${pack.id} ${meta.subjectName}`
+  );
+  const rawAutoChecks = (session.autoevaluacion ?? [])
+    .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
+    .filter(
+      (item) =>
+        Boolean(item) &&
+        !isRubricOrBoilerplateLeak(item) &&
+        (isLabOrWorkshopSubject || !/normas\s+de\s+seguridad\s+e\s+higiene/i.test(item))
+    );
+  const rawEvalPool = [...rawAutoChecks, ...bundle.exitChecks.filter((c) => isLabOrWorkshopSubject || !/normas\s+de\s+seguridad\s+e\s+higiene/i.test(c))];
+  const evaluationCriteriaRaw = rawEvalPool
+    .map((item) =>
+      fitPedagogicalText(
+        preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(item), workbookTheorySources),
+        { maxChars: 66, maxWords: 10, role: 'general', ensurePeriod: false }
+      )
+    )
+    .filter((item, idx, arr): item is string => Boolean(item) && arr.indexOf(item) === idx)
+    .slice(0, 2);
+  const evaluationCriteria =
+    evaluationCriteriaRaw.length > 0
+      ? evaluationCriteriaRaw
+      : ['Procedimiento ordenado y conclusión coherente con el planteamiento.'];
+
   const practiceSlide: SacrintPracticeSlide = {
     kind: 'practice',
     eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 2/2 · EJERCICIOS Y APLICACIÓN`,
-    title: `Ejercicios y aplicación · Sesión ${sesLabel}`,
-    subtitle: preventSixGramTheoryOverlap(fittedTopicTitle, workbookTheorySources),
+    title: fittedTopicTitle,
+    subtitle: '',
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
     isLessonGuide: true,
     practiceText: bundle.application,
-    activities: bundle.activities,
-    checkpoints: bundle.activities.map((item) => `${item.label}: ${item.statement}`),
+    activities: bundle.activities.slice(0, 2),
+    checkpoints: bundle.activities.slice(0, 2).map((item) => `${item.label}: ${item.statement}`),
+    objectiveBullets,
+    evaluationCriteria,
     hint: bundle.activities[0]?.hint,
     applicationText: bundle.application,
     artifactName,
@@ -734,28 +1201,36 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     mode === 'lesson-guide' ? 10 : 28
   );
 
+  const coverSubtitleCleanRaw =
+    mode === 'lesson-guide' ? stripLeadingSessionTag(coverSubtitleRaw) : coverSubtitleRaw;
+
   const rawCoverTitle =
     mode === 'lesson-guide'
-      ? preventSixGramTheoryOverlap(meta.missionTitle, workbookTheorySources)
+      ? preventSixGramTheoryOverlap(
+          meta.missionTitle.replace(/\s*[—–\-:]\s*Sesi[oó]n\s+\d+\s*$/i, '').trim() || meta.missionTitle,
+          workbookTheorySources
+        )
       : meta.missionTitle;
   const coverTitle =
-    mode === 'lesson-guide' && rawCoverTitle.length > 140
+    mode === 'lesson-guide' && rawCoverTitle.length > 120
       ? fitPedagogicalText(rawCoverTitle, {
-          maxChars: 140,
-          maxWords: 16,
+          maxChars: 118,
+          maxWords: 15,
           role: 'concept',
           ensurePeriod: false,
-        }) || rawCoverTitle.slice(0, 140).replace(/\s+\S*$/, '')
+        }) || stripLeadingSessionTag(meta.missionTitle)
       : rawCoverTitle;
+
+  const coverSubtitleFinal =
+    mode === 'lesson-guide'
+      ? preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(coverSubtitleCleanRaw), workbookTheorySources)
+      : coverSubtitleCleanRaw;
 
   const cover: SacrintCoverSlide = {
     kind: 'cover',
     eyebrow: `MISIÓN ${String(meta.missionNumber).padStart(2, '0')} // ${pack.label.toLocaleUpperCase('es-MX')}`,
     title: coverTitle,
-    subtitle:
-      mode === 'lesson-guide'
-        ? preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(coverSubtitleRaw), workbookTheorySources)
-        : coverSubtitleRaw,
+    subtitle: coverSubtitleFinal.toLowerCase() === coverTitle.toLowerCase() ? '' : coverSubtitleFinal,
     missionIndex: meta.missionNumber,
     metaLine: `${meta.subjectName} · SEMESTRE ${meta.semester} · BLOQUE ${meta.blockNumber}`,
     facts,
@@ -1029,13 +1504,13 @@ function buildSteps(
     .map((s) => distillStepPreservingMath(s, 200))
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
   const sessionExample = selectedSession ? extractWorkedExample(mission, selectedSession).steps : [];
-  const effectiveSolved = solved.length > 0 ? solved : sessionExample;
+  const effectiveSolved = sessionExample.length > 0 ? sessionExample : solved;
 
   const fallback = [
-    sanitizeField(mission.phenomenonHook?.story, '', 200, 32),
-    sanitizeField(mission.iDoSection?.stepByStepDemo, '', 200, 32),
-    sanitizeField(mission.weDoSection?.guidedPractice, '', 200, 32),
-    sanitizeField(mission.youDoSection?.autonomousChallenge, '', 200, 32),
+    sanitizeField(selectedSession?.motivacion || mission.phenomenonHook?.story, '', 200, 32),
+    sanitizeField(selectedSession?.contenido || mission.iDoSection?.stepByStepDemo, '', 200, 32),
+    sanitizeField(selectedSession?.practica?.[0]?.enunciado || mission.weDoSection?.guidedPractice, '', 200, 32),
+    sanitizeField(selectedSession?.aplicacion || mission.youDoSection?.autonomousChallenge, '', 200, 32),
     'Verificar que el resultado responda con coherencia al contexto del planteamiento inicial.',
     'Integrar el procedimiento y la conclusión con evidencia en el producto del bloque.',
   ];
@@ -1074,6 +1549,43 @@ function buildRubric(workbook: ActiveWorkTextbook): SacrintRubricItem[] {
     .slice(0, 4);
 }
 
+function isInfographicDiagramCoherent(
+  diagram: SacrintDiagramSpec,
+  contextText: string,
+  validFormulas: string[],
+  problemStatement: string
+): boolean {
+  if (!diagram.available) return false;
+  const combined = `${contextText} ${problemStatement} ${validFormulas.join(' ')}`;
+
+  if (diagram.kind === 'exponential') {
+    const pctMatches = Array.from(combined.matchAll(/(\d+(?:[.,]\d+)?)\s*%/g))
+      .map((m) => Number(m[1].replace(',', '.')))
+      .filter((n) => Number.isFinite(n) && n > 0 && n < 200);
+    if (pctMatches.length > 0 && Number.isFinite(diagram.rate)) {
+      const diagramPct = diagram.rate * 100;
+      const matchesRate = pctMatches.some((pct) => Math.abs(pct - diagramPct) <= 0.15);
+      if (!matchesRate) return false;
+    }
+  }
+
+  if (diagram.kind === 'geometry') {
+    const asksTriangleCongruence = /congruen|semejan|criterio\s+(?:lll|lal|ala)|tri[aá]ngulo/i.test(combined);
+    const geometryText = `${diagram.primaryLabel} ${diagram.secondaryLabel} ${diagram.equation} ${(diagram.highlights || [])
+      .map((h) => `${h.label} ${h.detail ?? ''}`)
+      .join(' ')}`;
+    const diagramLooksRectangle = /rect[aá]ngulo|largo|ancho|base\s*[×*x]\s*altura|b\s*[×*]\s*h|2l\s*\+\s*2a/i.test(
+      geometryText
+    );
+    const diagramHasTriangle = /tri[aá]ngulo|congruen|semejan|hipotenusa|cateto/i.test(geometryText);
+    if (asksTriangleCongruence && diagramLooksRectangle && !diagramHasTriangle) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function buildSacrintInfographic(
   workbook: ActiveWorkTextbook,
   format: SacrintInfographicFormat = 'wide',
@@ -1090,19 +1602,24 @@ export function buildSacrintInfographic(
 
   const bundle = selectedSession ? distillLessonBundle(mission, selectedSession) : undefined;
   const facts = baseFacts(meta, mission);
-  const diagram = buildSacrintDiagram(mission, pack, { ...options, session: selectedSession });
-  const formula = diagramFormula(diagram);
-  const criteria = (mission.formativeCheckpoint?.criteriaChecklist ?? [])
+  const rawCriteriaPool =
+    selectedSession?.autoevaluacion && selectedSession.autoevaluacion.length > 0
+      ? selectedSession.autoevaluacion
+      : mission.formativeCheckpoint?.criteriaChecklist ?? [];
+  const criteria = rawCriteriaPool
     .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
   const project = workbook.projectSection;
 
   const conceptHighlights = extractConceptHighlights(mission, selectedSession);
   const quickExample = extractWorkedExample(mission, selectedSession);
-  const misconceptionFixRaw = resolveMissionMisconceptionParts(mission, bundle);
+  const misconceptionFixRaw = resolveMissionMisconceptionParts(mission, bundle, {
+    session: selectedSession,
+    allowMissionFallback: !selectedSession,
+  });
   const misconceptionFix = {
-    error: sanitizePedagogicalMetaPhrases(misconceptionFixRaw.error),
-    correction: sanitizePedagogicalMetaPhrases(misconceptionFixRaw.correction),
+    error: finalizeVisibleText(sanitizePedagogicalMetaPhrases(misconceptionFixRaw.error), { ensurePeriod: true }),
+    correction: finalizeVisibleText(sanitizePedagogicalMetaPhrases(misconceptionFixRaw.correction), { ensurePeriod: true }),
   };
   const nonClosureSessionObjective = sessionPlans
     .map((s) => s.objetivo)
@@ -1116,20 +1633,159 @@ export function buildSacrintInfographic(
       missionTitle: meta.missionTitle,
     })
   );
-  const applicationSummary = sanitizePedagogicalMetaPhrases(
-    bundle?.application ||
-      sanitizeField(mission.youDoSection?.autonomousChallenge, 'Aplica el concepto en situaciones reales del proyecto.', 170, 26)
+  const applicationSummary = finalizeVisibleText(
+    sanitizePedagogicalMetaPhrases(
+      bundle?.application ||
+        sanitizeField(mission.youDoSection?.autonomousChallenge, 'Aplica el concepto en situaciones reales de la asignatura.', 170, 26)
+    ),
+    { ensurePeriod: true }
   );
 
   const validFormulas = conceptHighlights.formulas.filter(isValidRenderableFormula);
-  const cleanTitle = sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle);
-  const cleanClaim = sanitizePedagogicalMetaPhrases(
-    cleanMissionTopicLine(
-      mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
-      conceptHighlights.definition
-    )
+  const cleanTitle = stripLeadingSessionTag(sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle));
+  const rawClaimCandidate = cleanMissionTopicLine(
+    conceptHighlights.definition || mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
+    conceptHighlights.definition || meta.missionTitle
   );
-  const rawKeyConcepts = conceptHighlights.keyRules.length > 0 ? conceptHighlights.keyRules : [conceptHighlights.definition];
+  const cleanClaim = finalizeVisibleText(
+    fitPedagogicalText(sanitizePedagogicalMetaPhrases(rawClaimCandidate), {
+      maxChars: 175,
+      maxWords: 28,
+      role: 'concept',
+    }) || conceptHighlights.definition || cleanTitle,
+    { ensurePeriod: true }
+  );
+
+  const sessionDiagram = selectedSession
+    ? buildSacrintDiagram(mission, pack, { ...options, session: selectedSession, allowMissionFallback: false })
+    : undefined;
+  const candidateDiagram =
+    sessionDiagram?.available
+      ? sessionDiagram
+      : buildSacrintDiagram(mission, pack, { ...options, session: selectedSession });
+  const coherent = isInfographicDiagramCoherent(
+    candidateDiagram,
+    `${cleanTitle} ${cleanClaim}`,
+    validFormulas,
+    quickExample.problemStatement
+  );
+  const diagram: SacrintDiagramSpec = coherent
+    ? candidateDiagram
+    : { ...candidateDiagram, available: false };
+  const isQuantitativeOrReaction =
+    diagram.kind === 'linear' ||
+    diagram.kind === 'quadratic' ||
+    diagram.kind === 'system-2x2' ||
+    diagram.kind === 'exponential' ||
+    diagram.kind === 'geometry' ||
+    diagram.kind === 'reaction';
+  const formula =
+    validFormulas[0] ?? (diagram.available && isQuantitativeOrReaction ? diagramFormula(diagram) : '');
+
+  const rawKeyConcepts = (
+    conceptHighlights.keyRules.length > 0 ? conceptHighlights.keyRules : [conceptHighlights.definition]
+  )
+    .map((c) => finalizeVisibleText(sanitizePedagogicalMetaPhrases(c), { ensurePeriod: true }))
+    .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
+  const steps = buildSteps(mission, pack, selectedSession).map((step) => ({
+    ...step,
+    title: sanitizePedagogicalMetaPhrases(step.title),
+    body: finalizeVisibleText(sanitizePedagogicalMetaPhrases(step.body), { ensurePeriod: true }),
+  }));
+  const variables = diagram.available ? buildDiagramVariables(diagram) : [];
+
+  const definitions: ConceptManualDefinition[] = [
+    {
+      term: cleanTitle,
+      definition:
+        fitPedagogicalText(conceptHighlights.definition || cleanClaim, {
+          maxChars: 145,
+          maxWords: 22,
+          role: 'concept',
+        }) || cleanClaim,
+    },
+    ...rawKeyConcepts.slice(0, 2).map((rule, idx) => {
+      const colonIdx = rule.indexOf(':');
+      if (colonIdx > 3 && colonIdx < 36) {
+        return {
+          term: rule.slice(0, colonIdx).trim(),
+          definition: finalizeVisibleText(rule.slice(colonIdx + 1).trim(), { ensurePeriod: true }),
+        };
+      }
+      return {
+        term: idx === 0 ? 'Principio operativo' : 'Condición clave',
+        definition: fitPedagogicalText(rule, { maxChars: 135, maxWords: 21, role: 'concept' }) || rule,
+      };
+    }),
+  ];
+
+  const conceptMap: ConceptMapNode[] = [
+    {
+      concept: cleanTitle,
+      relation: 'Núcleo conceptual',
+      detail:
+        fitPedagogicalText(conceptHighlights.definition || cleanClaim, {
+          maxChars: 95,
+          maxWords: 15,
+          role: 'concept',
+          ensurePeriod: false,
+        }) || cleanClaim,
+    },
+    ...(validFormulas[0] || formula
+      ? [
+          {
+            concept: 'Expresión / Regla',
+            relation: 'Formaliza',
+            detail: validFormulas[0] || formula,
+          },
+        ]
+      : []),
+    ...(rawKeyConcepts[0]
+      ? [
+          {
+            concept: 'Criterio de desarrollo',
+            relation: 'Conduce',
+            detail:
+              fitPedagogicalText(rawKeyConcepts[0], {
+                maxChars: 95,
+                maxWords: 15,
+                role: 'concept',
+                ensurePeriod: false,
+              }) || rawKeyConcepts[0],
+          },
+        ]
+      : []),
+    {
+      concept: 'Transferencia',
+      relation: 'Aplica en',
+      detail:
+        fitPedagogicalText(applicationSummary, {
+          maxChars: 95,
+          maxWords: 15,
+          role: 'application',
+          ensurePeriod: false,
+        }) || applicationSummary,
+    },
+  ];
+
+  const usageGuidance: string[] = [
+    `Cuándo emplearlo: ${fitPedagogicalText(cleanClaim, { maxChars: 112, maxWords: 17, role: 'concept', ensurePeriod: true })}`,
+    `Qué vigilar: ${fitPedagogicalText(misconceptionFix.error, { maxChars: 105, maxWords: 16, role: 'hint', ensurePeriod: true })}`,
+    `Criterio de verificación: ${fitPedagogicalText(misconceptionFix.correction, { maxChars: 105, maxWords: 16, role: 'hint', ensurePeriod: true })}`,
+  ];
+
+  const masteryChecklist =
+    criteria.length >= 2
+      ? criteria.slice(0, 3).map((item) => finalizeVisibleText(item, { ensurePeriod: true }))
+      : [
+          'Identificar datos clave, relaciones y condiciones iniciales del planteamiento.',
+          'Aplicar el procedimiento o argumento paso a paso justificando cada transformación.',
+          'Interpretar el resultado final y validar su coherencia con el contexto real.',
+        ];
+
+  const cleanCommunityUtility = sanitizePedagogicalMetaPhrases(
+    sanitizeField(project?.communityUtility, '', 110, 16)
+  );
 
   return {
     format,
@@ -1139,33 +1795,35 @@ export function buildSacrintInfographic(
     style: resolveSacrintStyle(pack.id),
     title: cleanTitle,
     topicTitle: cleanTitle,
-    subtitle: `${meta.subjectName} · MISIÓN ${String(meta.missionNumber).padStart(2, '0')} · BLOQUE ${meta.blockNumber}`,
+    subtitle: `${meta.subjectName} · BLOQUE ${meta.blockNumber} · MISIÓN ${String(meta.missionNumber).padStart(2, '0')}`,
     claim: cleanClaim,
     formula,
-    formulasList: validFormulas.length > 0 ? validFormulas : [formula],
-    keyConcepts: rawKeyConcepts.map((c) => sanitizePedagogicalMetaPhrases(c)),
-    quickExample: {
-      problemStatement: sanitizePedagogicalMetaPhrases(quickExample.problemStatement),
-      steps: quickExample.steps.map((s) => sanitizePedagogicalMetaPhrases(s)),
-      interpretation: sanitizePedagogicalMetaPhrases(quickExample.interpretation),
+    formulasList: validFormulas.length > 0 ? validFormulas : formula ? [formula] : [],
+    keyConcepts: rawKeyConcepts,
+    conceptManual: {
+      centralConcept: cleanTitle,
+      conceptMap,
+      definitions,
+      usageGuidance,
+      masteryChecklist,
     },
-    variables: buildDiagramVariables(diagram),
+    quickExample: {
+      problemStatement: finalizeVisibleText(sanitizePedagogicalMetaPhrases(quickExample.problemStatement), { ensurePeriod: true }),
+      steps: quickExample.steps.map((s) => finalizeVisibleText(sanitizePedagogicalMetaPhrases(s), { ensurePeriod: true })),
+      interpretation: finalizeVisibleText(sanitizePedagogicalMetaPhrases(quickExample.interpretation), { ensurePeriod: true }),
+    },
+    variables,
     diagram,
-    steps: buildSteps(mission, pack, selectedSession).map((step) => ({
-      ...step,
-      title: sanitizePedagogicalMetaPhrases(step.title),
-      body: sanitizePedagogicalMetaPhrases(step.body),
-    })),
+    steps,
     misconception: `${misconceptionFix.error} → ${misconceptionFix.correction}`,
     misconceptionFix,
     applicationSummary,
-    criteria,
+    criteria: masteryChecklist,
     rubric: buildRubric(workbook),
     project: {
-      artifactName: sanitizePedagogicalMetaPhrases(cleanSacrintText(project?.artifactName)) || 'Producto integrador',
-      communityUtility: sanitizePedagogicalMetaPhrases(
-        sanitizeField(project?.communityUtility, 'Utilidad comunitaria por definir.', 170, 26)
-      ),
+      artifactName:
+        sanitizePedagogicalMetaPhrases(cleanSacrintText(project?.artifactName)) || 'Producto integrador',
+      communityUtility: cleanCommunityUtility || 'Vínculo con el proyecto formativo del bloque.',
     },
     facts,
   };

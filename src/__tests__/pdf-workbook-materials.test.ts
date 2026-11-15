@@ -94,24 +94,41 @@ describe('T-IMG-05: Renderizado de Figuras de Materiales en Libro PDF', () => {
     expect(pdfBuffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
   });
 
-  it('F-13: activa el fallback sintético determinista Capa 0 cuando la resolución STEM no encuentra asset ni SVG', async () => {
-    // Espiar resolveVisualForMission para simular fallo/ausencia de asset primario
+  it('F-13: omite fallback vacío sin ecuaciones reales y renderiza Capa 0 vectorial cuando hay modelo cuantitativo', async () => {
     const resolveSpy = vi.spyOn(visualAssetManager, 'resolveVisualForMission').mockResolvedValue(null);
+    try {
+      const noMathPdf = await renderWorkbookToPdf(
+        mockWorkbook as ActiveWorkTextbook,
+        mockPlanning as unknown as Planning,
+        { forceFallbackCover: true }
+      );
+      const noMathText = await extractPdfText(noMathPdf);
+      expect(noMathText).not.toContain('Figura M1.1');
+      expect(noMathText).not.toContain('Modelo por construir');
+      expect(noMathText).not.toContain('Representación gráfica conceptual y espacio de tabulación guiada');
 
-    const pdfBuffer = await renderWorkbookToPdf(
-      mockWorkbook as ActiveWorkTextbook,
-      mockPlanning as unknown as Planning,
-      { forceFallbackCover: true }
-    );
-
-    resolveSpy.mockRestore();
-
-    expect(pdfBuffer).toBeInstanceOf(Buffer);
-    const pdfText = await extractPdfText(pdfBuffer);
-
-    // Debe contener el pie de figura del fallback determinista Capa 0
-    expect(pdfText).toContain('Representación gráfica conceptual y espacio de tabulación guiada');
-    expect(pdfText).toContain('Figura M1.1');
+      const withEquationWb = {
+        ...mockWorkbook,
+        missions: [
+          {
+            ...mockWorkbook.missions![0],
+            sessionTopic: 'Función cuadrática en circuitos',
+            iDoSection: { stepByStepDemo: 'Analiza la curva f(x) = x² + 2x - 3 para determinar raíces y vértice.' },
+          },
+        ],
+      };
+      const mathPdf = await renderWorkbookToPdf(
+        withEquationWb as ActiveWorkTextbook,
+        mockPlanning as unknown as Planning,
+        { forceFallbackCover: true }
+      );
+      expect(mathPdf).toBeInstanceOf(Buffer);
+      const mathText = await extractPdfText(mathPdf);
+      expect(mathText).toContain('Figura M1.1');
+      expect(mathText).not.toContain('Representación gráfica conceptual');
+    } finally {
+      resolveSpy.mockRestore();
+    }
   }, 25000);
 
   it('F-01: los tokens [[material:...]] de mission.* (iDo/weDo/youDo) NO se imprimen crudos en el libro PDF', async () => {
