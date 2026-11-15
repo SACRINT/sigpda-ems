@@ -454,20 +454,12 @@ describe('PlaneacionOrchestrator (Piloto Nivel 1 & Strangler Fig)', () => {
     ).rejects.toThrow(PlaneacionOrchestratorError);
   });
 
-  it('13. Fase 3 / Strangler Fig: /api/planeaciones/[id]/pdf conmuta entre 501 legacy y 200 orquestador con paridad HTTP y ownership F-49', async () => {
+  it('13. Fase 3: /api/planeaciones/[id]/pdf renderiza siempre en servidor con ownership F-49', async () => {
     mockDb.mockReset();
     vi.mocked(auth).mockResolvedValue({ user: { email: 'docente@bachillerato.edu.mx' } } as never);
     vi.mocked(isAdmin).mockResolvedValue(false);
 
-    // 1. Con flag OFF (default legacy): responde 501
-    setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', false);
-    const reqOff = new Request('http://localhost:3000/api/planeaciones/plan-pdf-1/pdf');
-    const resOff = await handlePlaneacionPdfGet(reqOff as never, { params: Promise.resolve({ id: 'plan-pdf-1' }) });
-    expect(resOff.status).toBe(501);
-    const jsonOff = await resOff.json();
-    expect(jsonOff.error).toContain('Exportación a PDF en servidor no habilitada en modo legacy');
-
-    // 2. Con flag ON: ownership OK (docente dueña) → delega a planeacionesOrchestrator.renderPDF()
+    // El PDF de planeación se renderiza siempre en servidor (sin fallback jsPDF en navegador).
     setFeatureFlag('PLANEACION_ORCHESTRATOR_V2', true);
     const pdfOwnerRow = {
       id: 'plan-pdf-1',

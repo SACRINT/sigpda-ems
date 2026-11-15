@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Planning, PlanningExtra, SecuenciaBloque } from '@/types/planning';
 import type { MaterialReviewReport } from '@/lib/guide-engine/material-review';
 import { summarizeMaterialReviewStatus } from '@/hooks/useBlockMaterialReviews';
@@ -18,6 +18,164 @@ import {
   Image as ImageIcon,
   Archive,
 } from 'lucide-react';
+
+function BulkDownloadButton({
+  href,
+  label,
+  title,
+  style,
+  icon,
+}: {
+  href: string;
+  label: string;
+  title: string;
+  style: React.CSSProperties;
+  icon: React.ReactNode;
+}) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (status !== 'loading') return;
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [status]);
+
+  const start = async () => {
+    if (status === 'loading') return;
+    setStatus('loading');
+    setElapsed(0);
+    setError('');
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const res = await fetch(href, { signal: controller.signal });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(
+          res.status === 504
+            ? 'El paquete tardó demasiado en generarse (timeout del servidor). Intenta de nuevo o descarga los entregables por separado.'
+            : detail || `No se pudo generar el paquete (HTTP ${res.status}).`
+        );
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = match?.[1] || 'Paquete_Entregables.zip';
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setStatus('idle');
+    } catch (err) {
+      if (controller.signal.aborted) {
+        setStatus('idle');
+      } else {
+        setError(err instanceof Error ? err.message : 'Error al descargar el paquete.');
+        setStatus('error');
+      }
+    } finally {
+      abortRef.current = null;
+    }
+  };
+
+  return (
+    <>
+      <style>{`@keyframes sigpda-indeterminate { 0% { transform: translateX(-120%); } 50% { transform: translateX(120%); } 100% { transform: translateX(260%); } }`}</style>
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          void start();
+        }}
+        aria-disabled={status === 'loading'}
+        className="btn btn-secondary btn-sm"
+        style={{ ...style, cursor: status === 'loading' ? 'wait' : 'pointer' }}
+        title={title}
+      >
+        {status === 'loading' ? <Clock size={13} /> : icon}
+        {status === 'loading' ? `${label} (${elapsed}s)` : label}
+      </a>
+      {status !== 'idle' && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(2, 6, 23, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 'min(520px, 100%)',
+              background: '#0f172a',
+              border: '1px solid rgba(148, 163, 184, 0.35)',
+              borderRadius: 14,
+              padding: 22,
+              color: '#e2e8f0',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
+            }}
+          >
+            <strong style={{ display: 'block', fontSize: 15, marginBottom: 8 }}>
+              {status === 'loading' ? 'Generando paquete de materiales…' : 'No se pudo descargar el paquete'}
+            </strong>
+            {status === 'loading' ? (
+              <>
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: '#94a3b8' }}>
+                  El servidor está compilando los PDF/PPTX. Puede tardar varios minutos; no cierres esta pestaña.
+                </p>
+                <div style={{ height: 6, borderRadius: 999, background: 'rgba(148,163,184,0.2)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: '35%',
+                      borderRadius: 999,
+                      background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
+                      animation: 'sigpda-indeterminate 1.2s ease-in-out infinite',
+                    }}
+                  />
+                </div>
+                <p style={{ margin: '10px 0 0', fontSize: 12, color: '#94a3b8' }}>
+                  Tiempo transcurrido: {elapsed}s
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#fca5a5' }}>{error}</p>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              {status === 'loading' ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => abortRef.current?.abort()}
+                >
+                  Cancelar
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus('idle')}>
+                  Cerrar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export interface PlanningDownloadsHubProps {
   planning: Planning;
@@ -125,9 +283,11 @@ export default function PlanningDownloadsHub({
             Todos los entregables en un solo paquete:
           </span>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <a
+            <BulkDownloadButton
               href={`/api/planeaciones/${planning.id}/paquete-aula`}
-              className="btn btn-primary btn-sm"
+              label="Paquete Integral de Aula (ZIP)"
+              title="Descargar Paquete Integral de Aula (ZIP)"
+              icon={<Archive size={14} />}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -135,20 +295,18 @@ export default function PlanningDownloadsHub({
                 fontSize: '12px',
                 padding: '6px 12px',
                 borderRadius: '7px',
-                textDecoration: 'none',
                 background: 'linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,0.95))',
                 border: '1px solid rgba(52,211,153,0.75)',
                 color: '#ffffff',
                 fontWeight: 800,
                 boxShadow: '0 2px 10px rgba(16,185,129,0.25)',
               }}
-              title="📦 Descargar Paquete Integral de Aula (ZIP): planeación, secuencias, rúbricas, fichas, PPTX y tickets de salida"
-            >
-              <Archive size={14} /> Paquete Integral de Aula (ZIP)
-            </a>
-            <a
+            />
+            <BulkDownloadButton
               href={`/api/docx/extra/bulk?planningId=${planning.id}`}
-              className="btn btn-secondary btn-sm"
+              label="Paquete Completo (Word + PPTX ZIP)"
+              title="Descargar los 9 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
+              icon={<Archive size={12} />}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -156,19 +314,17 @@ export default function PlanningDownloadsHub({
                 fontSize: '11.5px',
                 padding: '4px 9px',
                 borderRadius: '6px',
-                textDecoration: 'none',
                 background: 'rgba(99, 102, 241, 0.12)',
                 border: '1px solid rgba(99, 102, 241, 0.35)',
                 color: '#c7d2fe',
                 fontWeight: 600,
               }}
-              title="Descargar los 9 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
-            >
-              <Archive size={12} /> Paquete Completo (Word + PPTX ZIP)
-            </a>
-            <a
+            />
+            <BulkDownloadButton
               href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
-              className="btn btn-secondary btn-sm"
+              label="Paquete Completo (PDF + PPTX ZIP)"
+              title="Descargar los 9 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
+              icon={<Archive size={12} />}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -176,16 +332,12 @@ export default function PlanningDownloadsHub({
                 fontSize: '11.5px',
                 padding: '4px 9px',
                 borderRadius: '6px',
-                textDecoration: 'none',
                 background: 'rgba(239, 68, 68, 0.12)',
                 border: '1px solid rgba(239, 68, 68, 0.35)',
                 color: '#fca5a5',
                 fontWeight: 600,
               }}
-              title="Descargar los 9 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
-            >
-              <Archive size={12} /> Paquete Completo (PDF + PPTX ZIP)
-            </a>
+            />
           </div>
         </div>
       </div>

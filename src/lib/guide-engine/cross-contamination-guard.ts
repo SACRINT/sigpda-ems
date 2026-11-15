@@ -292,7 +292,8 @@ function findIssues(
       // contaminación: es aplicación situada.
       const mathContext =
         /matem/i.test(expectedDiscipline) &&
-        /[=]|\d[\d.,]*\s*(?:pesos|m²|m|cm|%|horas|unidades|personas|años)/i.test(value);
+        (/[=]|\d[\d.,]*\s*(?:pesos|m²|m|cm|%|horas|unidades|personas|años)/i.test(value) ||
+          /motivacion|aplicacion|practica|ejemplo|problema|contexto/i.test(name));
       if (
         mathContext &&
         /construccion|ciencias naturales|telecomunicaciones|gastronomia|cultura digital/i.test(

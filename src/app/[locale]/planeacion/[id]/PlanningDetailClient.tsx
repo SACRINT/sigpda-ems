@@ -9,7 +9,6 @@ import DeletePlanningButton from '@/components/planeacion/DeletePlanningButton';
 import PlanningDetailHero from '@/components/planeacion/PlanningDetailHero';
 import DocumentA4Modal from '@/components/planeacion/DocumentA4Modal';
 import ChecklistSupervisionModal from '@/components/planeacion/ChecklistSupervisionModal';
-import { generatePlanningPDF, generateSecuenciaPDF } from '@/lib/planning-pdf-renderer';
 import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSession } from '@/lib/session-progression-engine';
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { exportPlanningPdfWithFallback, generateSequenceWithFallback } from '@/lib/planeaciones/strangler-client';
@@ -964,8 +963,8 @@ function PlanningDetailModular({
         planningId: planning.id,
         filename,
         onLegacyFallback: async () => {
-          const pdf = await generatePlanningPDF({ ...planning, sequenceJson: sequenceData });
-          pdf.save(filename);
+          // No generar PDF pesado en el hilo principal del navegador.
+          toast.error('El servidor no pudo renderizar el PDF. Reintenta en unos segundos.');
         },
       });
       if (result.error) {
@@ -982,9 +981,19 @@ function PlanningDetailModular({
   const handleDownloadSecuenciaPdf = async () => {
     try {
       setDownloadingSeqPdf(true);
-      const pdf = await generateSecuenciaPDF({ ...planning, sequenceJson: sequenceData });
-      const filename = `Secuencia_Didactica_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
-      pdf.save(filename);
+      const res = await fetch(`/api/planeaciones/${planning.id}/secuencia/pdf`);
+      if (!res.ok) {
+        throw new Error('No se pudo generar el PDF de la secuencia didáctica.');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `Secuencia_Didactica_${planning.uacName.replace(/\s+/g, '_')}_Semestre_${planning.semester}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
       console.error('Error generating Secuencia PDF:', e);
       toast.error('Hubo un error al generar el archivo PDF de la secuencia didáctica.');

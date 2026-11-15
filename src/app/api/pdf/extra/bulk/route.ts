@@ -273,6 +273,15 @@ async function handleBulkPdf(request: NextRequest) {
         updatedAt: planning.updated_at,
       };
 
+      // El libro semestral es el entregable más pesado: inícialo en paralelo
+      // mientras se generan los demás para no sumar su tiempo al total del ZIP.
+      const semestralPdfPromise = compileSemestralWorkbook(planning.id, planningObj, { format: 'pdf' })
+        .then(({ pdf }) => pdf)
+        .catch((err) => {
+          logger.warn('Error compiling Semestral Workbook PDF for bulk zip (paralelo):', { error: err });
+          return undefined;
+        });
+
       // 1. Planeación Didáctica Semestral (PDF)
       if (contentJson) {
         try {
@@ -335,9 +344,9 @@ async function handleBulkPdf(request: NextRequest) {
         }
       }
 
-      // 6. Libro de Texto Semestral Consolidado (PDF)
+      // 6. Libro de Texto Semestral Consolidado (PDF) — ya iniciado en paralelo
       try {
-        const { pdf } = await compileSemestralWorkbook(planning.id, planningObj, { format: 'pdf' });
+        const pdf = await semestralPdfPromise;
         if (pdf) {
           zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.pdf`, pdf);
         }

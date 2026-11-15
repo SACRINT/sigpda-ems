@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { sql } from '@/lib/db/client';
 import { isAdmin } from '@/lib/admin-unified';
-import { isFeatureEnabled } from '@/lib/platform/feature-flags';
 import { planeacionesOrchestrator, PlaneacionOrchestratorError } from '@/lib/planeaciones/orchestrator';
 import { logger } from '@/lib/logger';
 
@@ -55,14 +54,8 @@ export async function GET(
 
     const { id } = await params;
 
-    // Strangler Fig: Si la feature flag está inactiva (legacy default = false), retornar 501
-    if (!isFeatureEnabled('PLANEACION_ORCHESTRATOR_V2')) {
-      return NextResponse.json(
-        { error: 'Exportación a PDF en servidor no habilitada en modo legacy (controlado por PLANEACION_ORCHESTRATOR_V2).' },
-        { status: 501 }
-      );
-    }
-
+    // El PDF de planeación se renderiza SIEMPRE en servidor para no bloquear
+    // el hilo principal del navegador con jsPDF en planeaciones grandes.
     const db = sql();
     const userEmail = session.user.email;
     const isUserAdmin = await isAdmin(userEmail);
