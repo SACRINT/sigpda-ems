@@ -4,6 +4,7 @@ import { getTeacherByEmail, getAllBlockWorkbooks, sql } from '@/lib/db';
 import { isAdmin } from '@/lib/admin-unified';
 import {
   buildSacrintInfographic,
+  dedupeInfographicSpecs,
   selectInfographicTargets,
   type SacrintInfographicSpec,
 } from '@/lib/visual-engine/sacrint/spec';
@@ -110,11 +111,12 @@ export async function GET(
       }
     }
 
-    if (specs.length === 0) {
+    const dedupedSpecs = dedupeInfographicSpecs(specs);
+    if (dedupedSpecs.length === 0) {
       return NextResponse.json({ error: 'No se pudo generar ninguna infografía' }, { status: 500 });
     }
 
-    const mergedBytes = await renderCombinedSacrintInfographicsPdf(specs, layout);
+    const mergedBytes = await renderCombinedSacrintInfographicsPdf(dedupedSpecs, layout);
     const safeName = (planRows[0].uac_name || 'infografias')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')

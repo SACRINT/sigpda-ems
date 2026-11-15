@@ -1822,6 +1822,23 @@ export function selectInfographicTargets(workbook: ActiveWorkTextbook): SacrintI
   return targets;
 }
 
+export function dedupeInfographicSpecs(specs: SacrintInfographicSpec[]): SacrintInfographicSpec[] {
+  const seen = new Set<string>();
+  const out: SacrintInfographicSpec[] = [];
+  for (const spec of specs) {
+    const key = spec.title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(spec);
+  }
+  return out;
+}
+
 export function buildSacrintInfographic(
   workbook: ActiveWorkTextbook,
   format: SacrintInfographicFormat = 'wide',
@@ -1846,6 +1863,9 @@ export function buildSacrintInfographic(
     .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
   const project = workbook.projectSection;
+  const infographicSources = collectWorkbookTheorySources(workbook);
+  const deOverlap = (value: string) =>
+    preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(value), infographicSources);
 
   const conceptHighlights = extractConceptHighlights(mission, selectedSession);
   const quickExample = extractWorkedExample(mission, selectedSession);
@@ -1888,7 +1908,7 @@ export function buildSacrintInfographic(
     })
   );
   const applicationSummary = finalizeVisibleText(
-    sanitizePedagogicalMetaPhrases(
+    deOverlap(
       bundle?.application ||
         sanitizeField(mission.youDoSection?.autonomousChallenge, 'Aplica el concepto en situaciones reales de la asignatura.', 170, 26)
     ),
@@ -1897,18 +1917,20 @@ export function buildSacrintInfographic(
 
   const validFormulas = conceptHighlights.formulas.filter(isValidRenderableFormula);
   const cleanTitle = stripLeadingSessionTag(sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle));
-  const rawClaimCandidate = cleanMissionTopicLine(
-    conceptHighlights.definition || mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
-    conceptHighlights.definition || meta.missionTitle
+  const rawClaimCandidate = deOverlap(
+    cleanMissionTopicLine(
+      conceptHighlights.definition || mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
+      conceptHighlights.definition || meta.missionTitle
+    )
   );
   const cleanClaim = finalizeVisibleText(
     rawClaimCandidate.length <= 220
       ? rawClaimCandidate
-      : fitPedagogicalText(sanitizePedagogicalMetaPhrases(rawClaimCandidate), {
+      : fitPedagogicalText(rawClaimCandidate, {
           maxChars: 220,
           maxWords: 34,
           role: 'concept',
-        }) || conceptHighlights.definition || cleanTitle,
+        }) || rawClaimCandidate || cleanTitle,
     { ensurePeriod: true }
   );
 
@@ -1946,19 +1968,14 @@ export function buildSacrintInfographic(
   const steps = buildSteps(mission, pack, selectedSession).map((step) => ({
     ...step,
     title: sanitizePedagogicalMetaPhrases(step.title),
-    body: finalizeVisibleText(sanitizePedagogicalMetaPhrases(step.body), { ensurePeriod: true }),
+    body: finalizeVisibleText(deOverlap(step.body), { ensurePeriod: true }),
   }));
   const variables = diagram.available ? buildDiagramVariables(diagram) : [];
 
   const definitions: ConceptManualDefinition[] = [
     {
       term: cleanTitle,
-      definition:
-        fitPedagogicalText(conceptHighlights.definition || cleanClaim, {
-          maxChars: 145,
-          maxWords: 22,
-          role: 'concept',
-        }) || cleanClaim,
+      definition: cleanClaim,
     },
     ...rawKeyConcepts.slice(0, 2).map((rule, idx) => {
       const colonIdx = rule.indexOf(':');
@@ -1980,9 +1997,9 @@ export function buildSacrintInfographic(
       concept: cleanTitle,
       relation: 'Núcleo conceptual',
       detail:
-        fitPedagogicalText(conceptHighlights.definition || cleanClaim, {
-          maxChars: 95,
-          maxWords: 15,
+        fitPedagogicalText(cleanClaim, {
+          maxChars: 110,
+          maxWords: 17,
           role: 'concept',
           ensurePeriod: false,
         }) || cleanClaim,
@@ -2064,9 +2081,9 @@ export function buildSacrintInfographic(
       masteryChecklist,
     },
     quickExample: {
-      problemStatement: finalizeVisibleText(sanitizePedagogicalMetaPhrases(quickExample.problemStatement), { ensurePeriod: true }),
-      steps: quickExample.steps.map((s) => finalizeVisibleText(sanitizePedagogicalMetaPhrases(s), { ensurePeriod: true })),
-      interpretation: finalizeVisibleText(sanitizePedagogicalMetaPhrases(quickExample.interpretation), { ensurePeriod: true }),
+      problemStatement: finalizeVisibleText(deOverlap(quickExample.problemStatement), { ensurePeriod: true }),
+      steps: quickExample.steps.map((s) => finalizeVisibleText(deOverlap(s), { ensurePeriod: true })),
+      interpretation: finalizeVisibleText(deOverlap(quickExample.interpretation), { ensurePeriod: true }),
     },
     variables,
     diagram,

@@ -20,7 +20,8 @@ function rawPlan(overrides: Record<string, unknown> = {}): Record<string, unknow
     saberesPrevios: 'Ya dominas operaciones básicas, porcentajes y tabulación de datos.',
     contenido:
       'Parrafo: La variación porcentual describe la diferencia entre dos cantidades.\n\nDefinicion: Relación de cambio proporcional expresada en porcentaje.',
-    ejemploResuelto: 'Un vendedor vendió 5 artículos en 2 días.\nPaso 1: 5 / 2 = 2.5 artículos/día.',
+    ejemploResuelto:
+      'Un vendedor vendió 5 artículos en 2 días.\nPaso 1: 5 / 2 = 2.5 artículos/día.\nConclusión: vende 2.5 artículos por día.',
     practica: [
       { enunciado: 'Calcula la variación cuando el precio pasa de 20 a 25 pesos.', pista: '' },
     ],
@@ -124,6 +125,23 @@ describe('sanitizeSessionPlans — sin relleno genérico', () => {
 
   it('campo teórico ausente (productoIntegrador) → descarta el plan para forzar reintento', () => {
     expect(sanitize(rawPlan({ productoIntegrador: undefined }))).toBeUndefined();
+  });
+
+  it('ejemplo sin cierre o práctica sin consigna → descarta el plan', () => {
+    expect(
+      sanitize(
+        rawPlan({
+          ejemploResuelto: 'Planteamiento: se compran materiales para el taller.',
+        })
+      )
+    ).toBeUndefined();
+    expect(
+      sanitize(
+        rawPlan({
+          practica: [{ enunciado: 'El presupuesto total es de 2,500 pesos.', pista: 'Organiza los datos.' }],
+        })
+      )
+    ).toBeUndefined();
   });
 
   it('plan con sessionNumber fuera de coveredSessions → se ignora', () => {

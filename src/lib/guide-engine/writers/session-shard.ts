@@ -21,6 +21,8 @@ import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
 import { runScheduled } from '../writer-scheduler';
 import {
   completeSessionPlans,
+  hasCompleteWorkedExampleClosure,
+  hasExplicitPracticeTask,
   resolveRemainingBudgetMs,
   sanitizeSessionPlans,
   type FallbackPlanContext,
@@ -134,9 +136,16 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
   if (steps < t.minEjemploSteps) {
     deficits.push(`ejemploResuelto tiene ${steps} pasos numerados (mínimo ${t.minEjemploSteps})`);
   }
+  if (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '')) {
+    deficits.push('ejemploResuelto no cierra con resultado, ecuación o conclusión verificable');
+  }
   const practica = plan.practica || [];
   const goodPractica = practica.filter(
-    (p) => wordCount(p.enunciado) >= t.minPracticaEnunciadoWords && p.pista && !isGenericText(p.pista)
+    (p) =>
+      wordCount(p.enunciado) >= t.minPracticaEnunciadoWords &&
+      hasExplicitPracticeTask(p.enunciado) &&
+      p.pista &&
+      !isGenericText(p.pista)
   ).length;
   if (goodPractica < t.minPractica) {
     deficits.push(`solo ${goodPractica} ejercicios completos con enunciado y pista propia (mínimo ${t.minPractica})`);
@@ -290,8 +299,8 @@ CONTENIDO POR SESIÓN (OBLIGATORIO — un objeto por cada sesión de ${packSessi
 (b) motivacion: (80 a 120 palabras) ${v.motivacion};
 (c) saberesPrevios: (50 a 80 palabras) ${v.saberesPrevios};
 (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) ${v.contenido}. PROHIBIDO redactar menos de 440 palabras en contenido;
-(e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ${v.ejemplo}. PROHIBIDO redactar menos de 300 palabras en ejemploResuelto;
-(f) practica: ${v.practica};
+(e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ${v.ejemplo}. PROHIBIDO redactar menos de 300 palabras en ejemploResuelto. Debe cerrar con resultado numérico, ecuación resuelta o conclusión verificable; PROHIBIDO terminar en el planteamiento sin resolver;
+(f) practica: ${v.practica}. Cada enunciado DEBE contener datos concretos y una pregunta o verbo de tarea explícito; PROHIBIDO entregar solo datos sin consigna;
 (g) aplicacion: (80 a 120 palabras) tarea de transferencia aplicada al entorno real o comunitario del estudiante en Puebla;
 (h) autoevaluacion: 2-3 preguntas reflexivas metacognitivas;
 (i) recursos: ${v.recursos};

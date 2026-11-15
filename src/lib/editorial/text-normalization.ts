@@ -313,6 +313,39 @@ function unwrapLatexMathDelimiters(input: string): string {
     .replace(/\$(\d+(?:[.,]\d+)?(?:\^\d+|[²³¹⁰⁴⁵⁶⁷⁸⁹ⁿ]))/g, '$1');
 }
 
+function replaceLiteralSqrtFunctions(text: string): string {
+  let out = '';
+  let index = 0;
+  while (index < text.length) {
+    const match = text.slice(index).match(/^(?:raiz|sqrt)\s*\(/i);
+    if (!match) {
+      out += text[index];
+      index += 1;
+      continue;
+    }
+    const openIndex = index + match[0].length - 1;
+    let depth = 0;
+    let closeIndex = -1;
+    for (let i = openIndex; i < text.length; i++) {
+      if (text[i] === '(') depth++;
+      else if (text[i] === ')') {
+        depth--;
+        if (depth === 0) {
+          closeIndex = i;
+          break;
+        }
+      }
+    }
+    if (closeIndex < 0) {
+      out += text.slice(index);
+      break;
+    }
+    out += `V(${text.slice(openIndex + 1, closeIndex).trim()})`;
+    index = closeIndex + 1;
+  }
+  return out;
+}
+
 function repairTabTimesCorruption(text: string): string {
   return text
     // Reparar "\t + imes" originado por literales "\times" sin doble barra invertida
@@ -488,8 +521,7 @@ export function normalizeEditorialText(
 
   // 6.9. Normalizar notación ASCII de raíz, subíndices crudos y superíndices partidos.
   // Se usa la convención editorial existente del proyecto: `V(...)` representa √(...).
-  text = text
-    .replace(/\b(?:raiz|sqrt)\s*\(([^()]*)\)/gi, (_m, inner: string) => `V(${inner.trim()})`)
+  text = replaceLiteralSqrtFunctions(text)
     .replace(/\bM_\((simple|compuesto)\)/gi, (_m, sub: string) => `M ${sub}`)
     .replace(/¹2\b/g, '¹²')
     .replace(/²2\b/g, '²²')

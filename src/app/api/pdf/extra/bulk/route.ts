@@ -16,6 +16,7 @@ import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import {
   buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
+  dedupeInfographicSpecs,
   selectInfographicTargets,
   type SacrintDeckSpec,
   type SacrintInfographicSpec,
@@ -430,8 +431,9 @@ async function handleBulkPdf(request: NextRequest) {
               );
             }
           }
-          if (specs.length > 0) {
-            const infoBytes = await renderCombinedSacrintInfographicsPdf(specs, 'wide');
+          const dedupedSpecs = dedupeInfographicSpecs(specs);
+          if (dedupedSpecs.length > 0) {
+            const infoBytes = await renderCombinedSacrintInfographicsPdf(dedupedSpecs, 'wide');
             zip.file(`09_Infografias_Sinteticas_${cleanSubject}.pdf`, infoBytes);
           }
         }

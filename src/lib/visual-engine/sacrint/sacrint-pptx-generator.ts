@@ -1,4 +1,4 @@
-import PptxGenJS from 'pptxgenjs';
+﻿import PptxGenJS from 'pptxgenjs';
 import type {
   ArgumentDiagramSpec,
   BlockDiagramSpec,
@@ -513,7 +513,7 @@ function drawCartesianFrame(
 
   const stepY = niceTickStep(ySpan, 5);
   const firstY = Math.ceil(yMin / stepY) * stepY;
-  for (let v = firstY, count = 0; v <= yMax + stepY * 0.001 && count < 8; v += stepY, count += 1) {
+  for (let v = firstY, count = 0; v <= yMax + stepY * 0.001 && count < 5; v += stepY, count += 1) {
     const py = yToPx(v);
     addLine(slide, plotX, py, plotX + plotW, py, C.stroke, 0.5, 'dash');
     addText(slide, formatTickLabel(v), plotX - 70, py - 9, 62, 18, { fontSize: pt(14), color: C.muted, align: 'right', maxLines: 1 });
@@ -521,7 +521,7 @@ function drawCartesianFrame(
 
   const stepX = niceTickStep(xSpan, 5);
   const firstX = Math.ceil(xMin / stepX) * stepX;
-  for (let v = firstX, count = 0; v <= xMax + stepX * 0.001 && count < 8; v += stepX, count += 1) {
+  for (let v = firstX, count = 0; v <= xMax + stepX * 0.001 && count < 5; v += stepX, count += 1) {
     const px = xToPx(v);
     addLine(slide, px, plotY, px, plotY + plotH, C.stroke, 0.5, 'dash');
     addText(slide, formatTickLabel(v), px - 28, plotY + plotH + 8, 56, 18, { fontSize: pt(14), color: C.muted, align: 'center', maxLines: 1 });

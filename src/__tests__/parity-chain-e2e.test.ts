@@ -62,7 +62,8 @@ const RAW_PLANS = [
     motivacion: 'Verificar la solución evita errores al preparar mezclas en el laboratorio escolar.',
     saberesPrevios: 'Ya sabes sustituir valores numéricos en una ecuación lineal.',
     contenido: 'La verificación consiste en sustituir la pareja solución en ambas ecuaciones del sistema.',
-    ejemploResuelto: 'Si x = 3 e y = 1, entonces 2(3) + 1 = 7 y 3 − 1 = 2; ambas igualdades se cumplen.',
+    ejemploResuelto:
+      'Si x = 3 e y = 1, entonces 2(3) + 1 = 7 y 3 − 1 = 2; ambas igualdades se cumplen. Conclusión: x = 3, y = 1.',
     aplicacion: 'Comprueba tus resultados antes de entregar el reporte de la práctica de laboratorio.',
     productoIntegrador: 'Incluye la verificación del sistema en tu reporte de práctica.',
     practica: [

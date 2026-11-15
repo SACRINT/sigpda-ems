@@ -1555,7 +1555,12 @@ export function geometryDiagram(
   const cardsY = y + figH + 12;
   const cardH = Math.max(58, height - figH - 14);
   const gap = 10;
-  const cards = diagram.highlights.slice(0, 3);
+  const cards = diagram.highlights
+    .filter((node) => {
+      const label = (node.label || '').trim();
+      return label.length > 1 && !/^[A-ZÁÉÍÓÚÑ]$/i.test(label);
+    })
+    .slice(0, 3);
   const cardW = (width - gap * Math.max(0, cards.length - 1)) / Math.max(1, cards.length);
   cards.forEach((node, idx) => {
     const cx = x + idx * (cardW + gap);

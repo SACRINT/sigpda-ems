@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Writer Contract & Shared Quality Scoring
  * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
@@ -275,6 +275,29 @@ export function ensureCuratedResourceList(
  * heredada (docente) y la mapea al modelo de estudiante para no romper datos
  * viejos. Descarta planes inválidos. Devuelve `undefined` si no hay utilizables.
  */
+export function hasExplicitPracticeTask(text: string): boolean {
+  return (
+    /[?¿]/.test(text) ||
+    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica)\b/i.test(
+      text
+    )
+  );
+}
+
+export function hasCompleteWorkedExampleClosure(text: string): boolean {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (!clean || /(?:,|\b(?:de|del|en|para|con|la|el|los|las|un|una|que|y|o|su|sus))\s*$/i.test(clean)) {
+    return false;
+  }
+  return (
+    /[=]|\d/.test(clean) &&
+    (/\b(?:respuesta final|resultado|conclusi[oó]n|por lo tanto|en consecuencia|se obtiene|se concluye|queda|equivale)\b/i.test(
+      clean
+    ) ||
+      /=\s*-?\d+(?:[.,]\d+)?\s*(?:[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ²³%°]+)?\.?$/i.test(clean))
+  );
+}
+
 export function sanitizeSessionPlans(
   raw: unknown,
   coveredSessions: number[],
@@ -424,6 +447,10 @@ export function sanitizeSessionPlans(
       !saberesPrevios ? 'saberesPrevios' : null,
       !contenido ? 'contenido' : null,
       !ejemploResuelto ? 'ejemploResuelto' : null,
+      !hasCompleteWorkedExampleClosure(ejemploResuelto) ? 'ejemploResuelto sin cierre/resultado' : null,
+      practica.some((item) => !hasExplicitPracticeTask(item.enunciado))
+        ? 'practica sin consigna explícita'
+        : null,
       !aplicacion ? 'aplicacion' : null,
       !productoIntegrador ? 'productoIntegrador' : null,
     ].filter((field): field is string => field !== null);

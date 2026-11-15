@@ -81,7 +81,8 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
           motivacion: `El consumo de agua del plantel cambia cada semana y podemos medirlo en la sesión ${sessionNumber}.`,
           saberesPrevios: 'Ya interpretas tablas de datos y calculas diferencias entre valores.',
           contenido: `La razón de cambio compara dos variables y permite modelar el fenómeno de la sesión ${sessionNumber}.`,
-          ejemploResuelto: 'Si el consumo pasa de 20 a 25 litros, la razón de cambio es 5 litros por periodo.',
+          ejemploResuelto:
+            'Si el consumo pasa de 20 a 25 litros, la razón de cambio es 5 litros por periodo. Conclusión: la razón de cambio es 5 litros por periodo.',
           practica: [
             {
               enunciado: `Calcula la razón de cambio con los datos del plantel en la sesión ${sessionNumber}.`,

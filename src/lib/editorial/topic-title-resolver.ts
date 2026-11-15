@@ -282,13 +282,18 @@ export function resolveInfographicConceptTitle(input: TopicTitleInput): string {
 
   // En infografías misionales, si el objetivo de la sesión es de evaluación/cierre, priorizar missionSessionTopic / missionFocus / sectionTitle
   const objectiveIsClosure = isEvaluationOrClosureObjective(input.sessionObjective);
+  const objectiveIsMeta =
+    objectiveIsClosure ||
+    /\b(?:evidencia|bit[aá]cora|portafolio|evaluaci[oó]n|metacognici[oó]n|cierre|defiende|argumenta|sintetiza)\b/i.test(
+      input.sessionObjective || ''
+    );
 
-  const orderedRaw = objectiveIsClosure
+  const orderedRaw = objectiveIsMeta
     ? [
         input.missionSessionTopic,
         input.missionFocus,
-        input.sectionTitle,
         extractSectionHeadingFromConceptos(input.conceptosClave),
+        input.sectionTitle,
         input.sessionObjective,
         input.missionTitle,
       ]

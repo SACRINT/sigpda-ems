@@ -32,10 +32,10 @@ function goodPlan(n: number, over: Record<string, unknown> = {}) {
     motivacion: words(90),
     saberesPrevios: words(60),
     contenido: [para(160), para(160), para(160)].join('\n\n'),
-    ejemploResuelto: `Planteamiento: ${words(60)}\nPaso 1: ${words(70)}\nPaso 2: ${words(70)}\nPaso 3: ${words(70)}\nPaso 4: ${words(70)}`,
+    ejemploResuelto: `Planteamiento: ${words(60)}\nPaso 1: ${words(70)}\nPaso 2: ${words(70)}\nPaso 3: ${words(70)}\nPaso 4: ${words(70)}\nConclusión: x = 7.`,
     practica: [
-      { enunciado: words(70), pista: words(35), solucion: ['Paso 1: x', 'Paso 2: y', 'Respuesta final: z'] },
-      { enunciado: words(70), pista: words(35), solucion: ['Paso 1: x', 'Respuesta final: z'] },
+      { enunciado: `${words(70)} Calcula el valor de x.`, pista: words(35), solucion: ['Paso 1: x', 'Paso 2: y', 'Respuesta final: z'] },
+      { enunciado: `${words(70)} Determina el resultado del caso.`, pista: words(35), solucion: ['Paso 1: x', 'Respuesta final: z'] },
     ],
     aplicacion: words(90),
     autoevaluacion: ['¿Puedo explicar el concepto central?', '¿Logré la práctica sin mirar?'],
