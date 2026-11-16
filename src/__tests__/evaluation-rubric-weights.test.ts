@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildRubricDescription,
   ensureChecklistCoversSaberes,
   normalizeRubricWeights,
 } from '@/lib/guide-engine/writers/evaluation-writer';
@@ -23,6 +24,13 @@ describe('normalizeRubricWeights', () => {
     const result = normalizeRubricWeights([criterion(25)]);
     expect(result).toHaveLength(1);
     expect(result[0]?.weightPercent).toBe(100);
+  });
+
+  it('el texto derivado de la misión usa la ponderación normalizada', () => {
+    const rubric = normalizeRubricWeights([criterion(25)]);
+    const description = buildRubricDescription(rubric);
+    expect(description).toContain('Ponderación: 100%');
+    expect(description).not.toContain('Ponderación: 25%');
   });
 
   it('normaliza varios criterios para que sumen exactamente 100%', () => {

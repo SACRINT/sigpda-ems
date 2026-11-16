@@ -568,6 +568,20 @@ function resolveMetacognitiveReflection(parsed: {
   return { prompts: fromQuiz };
 }
 
+export function buildRubricDescription(
+  rubric: EvaluationSection['rubric']
+): string {
+  return rubric
+    .map(
+      (criterion) =>
+        `### Criterio: ${criterion.criterion} (Ponderación: ${criterion.weightPercent}%)\n` +
+        criterion.levels
+          .map((level) => `- **${level.levelName} (${level.points} pts):** ${level.descriptor}`)
+          .join('\n')
+    )
+    .join('\n\n');
+}
+
 function buildEvaluationMissionSection(
   input: WriterInput,
   evaluation: EvaluationSection,
@@ -595,15 +609,7 @@ function buildEvaluationMissionSection(
     },
   ];
 
-  const rubricDescription = evaluation.rubric
-    .map(
-      (r) =>
-        `### Criterio: ${r.criterion} (Ponderación: ${r.weightPercent}%)\n` +
-        r.levels
-          .map((l) => `- **${l.levelName} (${l.points} pts):** ${l.descriptor}`)
-          .join('\n')
-    )
-    .join('\n\n');
+  const rubricDescription = buildRubricDescription(evaluation.rubric);
 
   const firstQuiz = evaluation.criticalThinkingQuiz?.[0];
   const advancedExercise =
