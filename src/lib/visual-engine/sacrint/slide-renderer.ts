@@ -316,7 +316,7 @@ function renderConcept(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kin
     const exH = Math.max(240, 940 - exTop);
     parts.push(panel(colRightX, exTop, colRightW, exH, { fill: 'rgba(8,17,29,0.82)', radius: 18 }));
     parts.push(sectionLabel(colRightX + 24, exTop + 26, colRightW - 48, 'Ejemplo resuelto', accent, 'E'));
-    const exStatement = slide.workedExample?.problemStatement || slide.explanation;
+    const exStatement = slide.workedExample?.problemStatement || '';
     const exSteps = (slide.workedExample?.steps ?? []).slice(0, 3);
     const exResult = slide.workedExample?.interpretation;
     const exLines = [exStatement, ...exSteps.map((step, idx) => `0${idx + 1}. ${step}`), exResult ? `Conclusión: ${exResult}` : '']
@@ -343,7 +343,7 @@ function renderConcept(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kin
     const knowledgeH = 390;
     parts.push(panel(leftX, knowledgeY, leftW, knowledgeH, { fill: 'rgba(8,17,29,0.82)', radius: 18 }));
     parts.push(sectionLabel(leftX + 24, knowledgeY + 26, leftW - 48, 'Conocimiento nuevo y ejemplo', accent, '1'));
-    const exStatement = slide.workedExample?.problemStatement || slide.explanation;
+    const exStatement = slide.workedExample?.problemStatement || '';
     const exSteps = (slide.workedExample?.steps ?? []).slice(0, 3);
     const exResult = slide.workedExample?.interpretation;
     const bulletLines = [
@@ -748,12 +748,12 @@ function renderPractice(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { ki
       parts.push(singleLine(uppercaseLabel(act.label), leftX + 22, y + 26, { fill: accent2, fontSize: 11, weight: 'semibold', letterSpacing: 1.5 }));
       const body = textBlock(act.statement, gLeftW - 44, {
         x: leftX + 22,
-        y: y + 48,
+        y: y + 44,
         fill: SACRINT.text,
-        maxFontSize: 15.5,
-        minFontSize: 10.5,
-        maxLines: 5,
-        lineHeightRatio: 1.24,
+        maxFontSize: 14.5,
+        minFontSize: 9.8,
+        maxLines: 7,
+        lineHeightRatio: 1.2,
         truncate: false,
       });
       parts.push(body.svg);

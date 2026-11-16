@@ -32,6 +32,7 @@ import {
   type PlanDeClaseDerivado,
 } from './material-extractor';
 import { logger } from '@/lib/logger';
+import { isCompleteProblemStatement } from '@/lib/visual-engine/sacrint/content-distiller';
 import { detectFallbackWords } from './writers/writer-contract';
 import { validateBlockCrossContamination } from './cross-contamination-guard';
 
@@ -770,15 +771,37 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
           severity: 'error',
           message: `La diapositiva #${sIdx + 1} (${slide?.kind || 'desconocida'}) carece de título o encabezado obligatorio.`,
         });
-      } else if (title.length > 180) {
-        pushIssue({
-          code: 'S6_SLIDE_TITLE_TOO_LONG',
-          material: 'deck',
-          severity: 'warning',
-          message: `El título de la diapositiva #${sIdx + 1} excede el límite visual recomendado (${title.length} > 180 caracteres).`,
-        });
+        } else if (title.length > 180) {
+          pushIssue({
+            code: 'S6_SLIDE_TITLE_TOO_LONG',
+            material: 'deck',
+            severity: 'warning',
+            message: `El título de la diapositiva #${sIdx + 1} excede el límite visual recomendado (${title.length} > 180 caracteres).`,
+          });
+        }
+
+        if (slide?.kind === 'concept' && (slide as { isLessonGuide?: boolean }).isLessonGuide) {
+          const worked = (slide as {
+            workedExample?: { problemStatement?: string; steps?: string[]; interpretation?: string };
+          }).workedExample;
+          const hasStatement =
+            typeof worked?.problemStatement === 'string' &&
+            isCompleteProblemStatement(worked.problemStatement);
+          const validSteps = Array.isArray(worked?.steps)
+            ? worked.steps.filter((step) => typeof step === 'string' && step.trim().length >= 8)
+            : [];
+          const equationCount = validSteps.join(' ').match(/=/g)?.length ?? 0;
+          const hasSteps = validSteps.length >= 2 || (validSteps.length === 1 && equationCount >= 2);
+          if (!hasStatement || !hasSteps) {
+            pushIssue({
+              code: 'S6_MISSING_WORKED_EXAMPLE',
+              material: 'deck',
+              severity: 'error',
+              message: `La diapositiva #${sIdx + 1} (${slide?.kind}) es de conocimiento nuevo pero no contiene un ejemplo resuelto completo (planteamiento + al menos 2 pasos). No se permite clonar la definición como ejemplo.`,
+            });
+          }
+        }
       }
-    }
   }
 
   if (infographic) {

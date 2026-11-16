@@ -115,7 +115,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['raw_subscript_formula', /\bM_\((?:simple|compuesto)\)/i],
     [
       'dangling_question',
-      /¿[^?]{0,90}\b(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|y|o|sus?)\s*\?/i,
+      /¿[^?]{0,90}(?<![\p{L}\p{N}_])(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|y|o|sus?)\s*\?/iu,
     ],
     [
       'incomplete_concept_ending',
@@ -277,7 +277,7 @@ export async function auditPdfFile(filePath: string): Promise<PdfQaReport> {
       }
       page.cleanup();
     }
-    await pdfDoc.destroy();
+    await (pdfDoc as unknown as { destroy?: () => Promise<void> }).destroy?.();
   } catch (err) {
     if (process.env.DEBUG_QA) {
       console.warn(`[qa] pdfjs inspection failed for ${fileName}:`, err);

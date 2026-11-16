@@ -6,8 +6,8 @@ import {
   cleanMissionTopicLine,
   cleanSacrintText,
   distillConciseText,
-  distillExerciseStatement,
   distillLessonBundle,
+  distillProblemOrExerciseText,
   distillStepPreservingMath,
   extractBulletSentences,
   extractChalkboardTopicTitle,
@@ -45,6 +45,7 @@ import {
   fitPedagogicalText,
   hasDanglingEnding,
   repairDanglingEnding,
+  splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import {
   isValidRenderableFormula,
@@ -1136,8 +1137,8 @@ export function countSlideWords(slide: SacrintSlide): number {
   return visibleWords + chromeWords;
 }
 
-function hasNumericContext(value: string): boolean {
-  return /\d/.test(value) && /(?:[=+*/^$\u00B0\u00B2]|\b(?:m|cm|mm|km|kg|g|l|ml|pesos|unidades|horas|a\u00F1os|personas|sillas)\b)/i.test(value);
+function compactActivityStatement(statement: string): string {
+  return String(statement || '').trim();
 }
 
 function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
@@ -1164,9 +1165,7 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
         .filter((item): item is string => Boolean(item)),
       workedExample: cs.workedExample
         ? {
-            problemStatement:
-              fitShort(cs.workedExample.problemStatement, 180, 28, 'problem') ||
-              cs.workedExample.problemStatement,
+            problemStatement: cs.workedExample.problemStatement,
             steps: cs.workedExample.steps
               .slice(0, 3)
               .map((step) => compactMathStep(step, 60, 9))
@@ -1185,14 +1184,11 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
   }
   if (slide.kind === 'practice') {
     const ps = slide as SacrintPracticeSlide;
-    const hasMathData = hasNumericContext;
     return {
       ...ps,
       activities: (ps.activities ?? []).slice(0, 2).map((activity) => ({
         ...activity,
-        statement: hasMathData(activity.statement)
-          ? distillExerciseStatement(activity.statement, 190, 30) || activity.statement
-          : fitShort(activity.statement, 150, 23, 'activity') || activity.statement,
+        statement: compactActivityStatement(activity.statement),
         hint: fitShort(activity.hint, 70, 11, 'hint'),
       })),
       applicationText: fitShort(ps.applicationText, 90, 14, 'application'),
@@ -1290,9 +1286,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       ...first,
       activities: (first.activities ?? []).slice(0, 2).map((activity) => ({
         ...activity,
-        statement: hasNumericContext(activity.statement)
-          ? distillExerciseStatement(activity.statement, 190, 30) || activity.statement
-          : fitShort(activity.statement, 140, 21, 'activity') || activity.statement,
+        statement: compactActivityStatement(activity.statement),
         hint: fitShort(activity.hint, 50, 7, 'hint'),
       })),
       applicationText: fitShort(first.applicationText, 70, 11, 'application'),
@@ -1313,9 +1307,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       ...second,
       activities: (second.activities ?? []).slice(0, 2).map((activity) => ({
         ...activity,
-        statement: hasNumericContext(activity.statement)
-          ? distillExerciseStatement(activity.statement, 190, 30) || activity.statement
-          : fitShort(activity.statement, 120, 18, 'activity') || activity.statement,
+        statement: compactActivityStatement(activity.statement),
       })),
       applicationText: fitShort(second.applicationText, 60, 9, 'application'),
       artifactStep: fitShort(second.artifactStep, 40, 6, 'application'),
@@ -2018,7 +2010,8 @@ function isInfographicDiagramCoherent(
   diagram: SacrintDiagramSpec,
   contextText: string,
   validFormulas: string[],
-  problemStatement: string
+  problemStatement: string,
+  title: string
 ): boolean {
   if (!diagram.available) return false;
   const combined = `${contextText} ${problemStatement} ${validFormulas.join(' ')}`;
@@ -2040,7 +2033,16 @@ function isInfographicDiagramCoherent(
   const contextIsGeometry = /geometr|angul|triangulo|poligono|perimetro|area|cateto|hipotenusa|congruen|semejan/i.test(
     normalize(contextText)
   );
-  const diagramText = `${diagram.kind} ${diagramFormula(diagram)}`;
+  const diagramText = `${diagram.kind} ${diagramFormula(diagram)} ${'primaryLabel' in diagram ? diagram.primaryLabel : ''} ${'secondaryLabel' in diagram ? diagram.secondaryLabel : ''}`;
+  const titleFamily = conceptFamily(title);
+  const diagramFamily = conceptFamily(diagramText);
+  if (
+    titleFamily !== 'other' &&
+    diagramFamily !== 'other' &&
+    titleFamily !== diagramFamily
+  ) {
+    return false;
+  }
   const diagramIsStatistics = /muestra|poblacion|estadistica|demograf|encuesta|frecuencia|media aritm|mediana|moda/i.test(
     normalize(diagramText)
   );
@@ -2264,32 +2266,40 @@ function enforceInfographicOverlap(
     ) {
       return compacted;
     }
-    return fallback || rewritten || spec.title;
+    return fallback;
   };
   const deOverlapList = (values: string[] | undefined): string[] =>
     (values ?? []).map((value) => deOverlapField(value));
 
-  spec.claim = deOverlapField(
-    spec.claim,
-    `El concepto central es ${spec.title.toLowerCase()} y se aplica en situaciones del entorno.`
-  );
+  spec.claim = deOverlapField(spec.claim, spec.applicationSummary || spec.title);
   if (spec.conceptManual) {
     spec.conceptManual = {
       ...spec.conceptManual,
       centralConcept: deOverlapField(spec.conceptManual.centralConcept),
-      conceptMap: spec.conceptManual.conceptMap.map((node) => ({
-        ...node,
-        concept: deOverlapField(node.concept),
-        relation: deOverlapField(node.relation),
-        detail: deOverlapField(node.detail),
-      })),
-      definitions: spec.conceptManual.definitions.map((definition) => ({
-        term: deOverlapField(definition.term),
-        definition: deOverlapField(
-          definition.definition,
-          `Definición de ${definition.term || spec.title}: concepto clave para interpretar y aplicar en situaciones del entorno.`
-        ),
-      })),
+      conceptMap: spec.conceptManual.conceptMap
+        .map((node) => ({
+          ...node,
+          concept: deOverlapField(node.concept),
+          relation: deOverlapField(node.relation),
+          detail: deOverlapField(
+            node.detail,
+            node.relation === 'Aplica en'
+              ? spec.applicationSummary || spec.criteria[0] || spec.claim
+              : node.relation === 'Conduce'
+                ? spec.criteria[0] || spec.applicationSummary || spec.claim
+                : spec.claim
+          ),
+        }))
+        .filter((node) => Boolean(node.detail.trim())),
+      definitions: spec.conceptManual.definitions
+        .map((definition) => ({
+          term: deOverlapField(definition.term),
+          definition: deOverlapField(
+            definition.definition,
+            spec.applicationSummary || spec.claim || definition.term
+          ),
+        }))
+        .filter((definition) => Boolean(definition.definition.trim())),
       usageGuidance: deOverlapList(spec.conceptManual.usageGuidance),
       masteryChecklist: deOverlapList(spec.conceptManual.masteryChecklist),
     };
@@ -2498,7 +2508,8 @@ export function buildSacrintInfographic(
       candidateDiagram,
       `${cleanTitle} ${cleanClaim}`,
       formula ? [formula] : [],
-      quickExample.problemStatement
+      quickExample.problemStatement,
+      cleanTitle
     );
   const diagram: SacrintDiagramSpec = coherent
     ? candidateDiagram
@@ -2547,15 +2558,22 @@ export function buildSacrintInfographic(
         definition: finalizeVisibleText(deOverlap(rule), { ensurePeriod: true }),
       };
     });
-  const definitions: ConceptManualDefinition[] =
-    distinctDefinitionEntries.length > 0
-      ? distinctDefinitionEntries
-      : [
-          {
-            term: cleanTitle,
-            definition: `Concepto clave para interpretar ${cleanTitle.toLowerCase()} y aplicarlo en situaciones del entorno.`,
-          },
-        ];
+  if (distinctDefinitionEntries.length === 0) {
+    const definitionSource =
+      conceptHighlights.definition ||
+      selectedSession?.contenido ||
+      mission.conceptZero?.coreExplanation ||
+      '';
+    if (definitionSource.trim().length >= 24) {
+      distinctDefinitionEntries.push({
+        term: cleanTitle,
+        definition: finalizeVisibleText(sanitizePedagogicalMetaPhrases(definitionSource), {
+          ensurePeriod: true,
+        }),
+      });
+    }
+  }
+  const definitions: ConceptManualDefinition[] = distinctDefinitionEntries;
 
   const conceptMap: ConceptMapNode[] = [
     {
@@ -2587,6 +2605,20 @@ export function buildSacrintInfographic(
       detail: applicationSummary,
     },
   ];
+
+  const seenConceptMapDetails = new Set<string>();
+  for (const node of conceptMap) {
+    const normalizeDetail = (value: string) => value.toLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, ' ').trim();
+    let detail = node.detail;
+    if (seenConceptMapDetails.has(normalizeDetail(detail))) {
+      const fallback = [cleanClaim, formula, misconceptionFix.correction, cleanTitle].find(
+        (candidate) => candidate && !seenConceptMapDetails.has(normalizeDetail(candidate))
+      );
+      if (fallback) detail = fallback;
+    }
+    node.detail = detail;
+    if (normalizeDetail(detail)) seenConceptMapDetails.add(normalizeDetail(detail));
+  }
 
   const usageGuidance: string[] = [
     `Cuándo emplearlo: ${applicationSummary || distinctKeyConcepts[0] || cleanClaim}`,

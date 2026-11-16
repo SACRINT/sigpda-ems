@@ -1034,7 +1034,7 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
 
   if (!isAngle && !isTriangle && !isCongruence && !isPolygon) return null;
 
-  if (isCongruence && (!isTriangle || /criterios\s+de\s+congruencia|napole[oó]n/i.test(source))) {
+  if (isCongruence && !isAngle && (!isTriangle || /criterios\s+de\s+congruencia|napole[oó]n/i.test(source))) {
     return {
       kind: 'geometry',
       variant: 'polygon',
@@ -1050,7 +1050,7 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
     };
   }
 
-  if (isTriangle) {
+  if (isTriangle && !isAngle) {
     return {
       kind: 'geometry',
       variant: 'right-triangle',

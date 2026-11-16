@@ -129,7 +129,7 @@ const UNICODE_TO_WINANSI_MAP: Record<string, string> = {
   'Ω': 'Ohm',
   'ω': 'omega',
   'φ': 'fi',
-  '√': 'raiz',
+  '√': 'V',
   '⁰': '^0',
   '¹': '^1',
   '⁴': '^4',

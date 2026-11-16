@@ -1611,7 +1611,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
 
     const exPanelY = hasFormula ? topY + 134 : topY;
     const exPanelH = 948 - exPanelY;
-    const exStatement = spec.workedExample?.problemStatement || spec.explanation;
+    const exStatement = spec.workedExample?.problemStatement || '';
     const exSteps = (spec.workedExample?.steps ?? []).slice(0, 3);
     const exResult = spec.workedExample?.interpretation;
 
@@ -1646,7 +1646,7 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
   }
 
   if (isGuide) {
-    const exStatement = spec.workedExample?.problemStatement || spec.explanation;
+    const exStatement = spec.workedExample?.problemStatement || '';
     const exSteps = (spec.workedExample?.steps ?? []).slice(0, 3);
     const exResult = spec.workedExample?.interpretation;
     const leftTopY = hasSubtitle ? 276 : 228;

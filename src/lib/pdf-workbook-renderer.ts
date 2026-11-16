@@ -246,10 +246,10 @@ function cleanBookText(value: string | null | undefined): string {
  * de un párrafo sin salto previo, inserta doble salto para que el renderer lo
  * trate como nuevo bloque.
  */
-function separatePasoInline(text: string): string {
+export function separatePasoInline(text: string): string {
   return text
-    .replace(/([^\n])\s+(Paso\s+\d+\s*[:\-])/gi, '$1\n\n$2')
-    .replace(/([^\n])\s+(Ecuaci[oó]n\s+\d+\s*:)/gi, '$1\n\n$2');
+    .replace(/([^\n])([.;:]?)\s*(Paso\s+\d+\s*[:\-])/gi, '$1$2\n\n$3')
+    .replace(/([^\n])([.;:]?)\s*(Ecuaci[oó]n\s+\d+\s*:)/gi, '$1$2\n\n$3');
 }
 
 function identidadDelLibro(
