@@ -212,6 +212,17 @@ function appendPdfSemanticFindings(
         }
       }
     });
+    // Detectar títulos duplicados entre páginas de infografía (H1 repetidos)
+    const h1Titles: string[] = [];
+    for (const pTxt of pageTexts) {
+      const firstMeaningfulLine = pTxt.split('\n').map((l) => l.trim()).find((l) => l.length > 5 && l.length < 100);
+      if (firstMeaningfulLine) h1Titles.push(firstMeaningfulLine.toLowerCase().replace(/\s+/g, ' ').trim());
+    }
+    const titleCounts = new Map<string, number>();
+    for (const t of h1Titles) titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
+    for (const [title, count] of titleCounts) {
+      if (count > 1) pushFinding('duplicate_infographic_title', `"${title.slice(0, 60)}" aparece ${count} veces`);
+    }
   }
 }
 

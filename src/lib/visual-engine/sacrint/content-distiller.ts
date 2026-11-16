@@ -1,4 +1,4 @@
-﻿/**
+/**
  * content-distiller.ts — Destilador Pedagógico SSoT para SACRINT (08_Presentaciones y 09_Infografias)
  *
  * Centraliza:
@@ -13,6 +13,7 @@ import { stripWorkbookTags } from '@/lib/guide-engine/workbook-tags';
 import { stripMaterialTokens } from '@/lib/materials/material-tokens';
 import { getMaterial } from '@/lib/materials/materials-catalog';
 import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
+import { stripMarkdownTables } from '@/lib/editorial/markdown-table-sanitizer';
 import { parseContenidoToBloques, parseEjemploResuelto } from '@/lib/editorial/student-content-model';
 import { fitPedagogicalText, hasDanglingEnding, repairDanglingEnding, splitSpanishSentences } from '@/lib/editorial/pedagogical-text-fitter';
 import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
@@ -71,6 +72,7 @@ export function cleanSacrintText(value: string | null | undefined): string {
   if (!value) return '';
   let text = stripWorkbookTags(value);
   text = stripMaterialTagsForSlide(text);
+  text = stripMarkdownTables(text);
   // Quitar reglas horizontales y encabezados Markdown manteniendo el título textual
   text = text
     .replace(/^\s*[-*_]{3,}\s*$/gm, ' ')
@@ -86,6 +88,7 @@ function cleanSacrintTextPreservingLines(value: string | null | undefined): stri
   if (!value) return '';
   let text = stripWorkbookTags(value);
   text = stripMaterialTagsForSlide(text);
+  text = stripMarkdownTables(text);
   text = text
     .replace(/^\s*[-*_]{3,}\s*$/gm, ' ')
     .replace(/(^|\r?\n)\s{0,3}#{1,6}\s+/g, '$1')
@@ -1422,6 +1425,127 @@ function extractExampleConclusion(
 }
 
 /**
+ * Un paso matemático es completo si no termina colgado y contiene operación/igualdad real.
+ * Rechaza pasos sintácticamente cerrados pero semánticamente cortados ("...que multiplicados.").
+ */
+export function isCompleteMathStep(step: string): boolean {
+  const clean = (step || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return false;
+  if (hasDanglingEnding(clean)) return false;
+  const body = clean.replace(/[.;:]+$/, '').trim();
+
+  // Participios/verbos de acción sin objeto ni resultado
+  if (
+    /\b(?:multiplicad[oa]s|sumad[oa]s|obtenemos|obtenido|obtiene|obtenemos|resolver|sustituir|aplicamos|calculamos|despejamos|factorizamos|igualamos|completamos|resulta|queda|vale)\s*$/i.test(
+      body
+    )
+  ) {
+    return false;
+  }
+  // "y x₂." / "y y₁" : segunda variable sin valor
+  if (/\by\s+[xyab]\s*[₀₁₂₃₄₅₆₇₈₉\d]*\s*$/i.test(body)) return false;
+  if (/(?:^|[\s,;])[xy]\s*[₀₁₂₃₄₅₆₇₈₉\d]*\s*$/i.test(body) && !body.includes('=')) return false;
+
+  return /=|[+\-−*/^√×÷]|\b(?:suma|resta|multiplica|divide|factoriza|sustituye)\b/i.test(body);
+}
+
+/** Conclusión completa: contiene un valor numérico/resultado explícito y no queda abierta. */
+export function isCompleteConclusion(value: string): boolean {
+  const clean = (value || '').replace(/\s+/g, ' ').trim();
+  if (!clean || clean.length < 14) return false;
+  if (hasDanglingEnding(clean)) return false;
+  const body = clean.replace(/[.;:]+$/, '').trim();
+  if (/^resultados?\s+obtenidos/i.test(body)) return false;
+  if (/\by\s+[xy]\s*[₀₁₂₃₄₅₆₇₈₉\d]*\s*$/i.test(body)) return false;
+  if (/=\s*$/.test(body)) return false;
+  if (!/\d/.test(body)) return false;
+  return (
+    /=\s*-?\d+(?:[.,]\d+)?/.test(body) ||
+    /\b\d+(?:[.,]\d+)?\s*(?:m²|cm²|m|cm|mm|km|u|unidades|pesos|\$|°|grados|años|horas|sillas|personas|%)/i.test(body) ||
+    /\$\s*\d/.test(body)
+  );
+}
+
+/** Enunciado de ejemplo completo: datos + unidad/contexto + consigna o pregunta. */
+export function isCompleteProblemStatement(value: string): boolean {
+  const clean = (value || '').replace(/\s+/g, ' ').trim();
+  if (clean.length < 30) return false;
+  if (hasDanglingEnding(clean)) return false;
+  if (!/\d/.test(clean)) return false;
+  return (
+    /\?/.test(clean) ||
+    /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|delimita|dise[ñn]a|traza|completa|obt[eé]n|verifica|demuestra|justifica|identifica|compara|analiza)\b/i.test(
+      clean
+    )
+  );
+}
+
+/** Un error común genérico no explica ningún error conceptual real. */
+export function isGenericMisconception(value: string): boolean {
+  const clean = (value || '').trim();
+  if (clean.length < 25) return true;
+  return /^(?:resultados?\s+obtenidos|error\s+com[uú]n|revisar|analizar|evaluar|comprobar|verificar)\b/i.test(clean);
+}
+
+interface ExampleBudgets {
+  stmtBudget: number;
+  stmtWords?: number;
+  stepBudget: number;
+  stepWords?: number;
+  interpBudget: number;
+  interpWords?: number;
+}
+
+/**
+ * Construye un ejemplo resuelto desde la práctica de la sesión cuando el ejemplo original
+ * está incompleto. Prefiere ejercicios que no se muestran como actividad (índice >= 2) para
+ * no duplicar la consigna. Solo devuelve un ejemplo con enunciado completo, >= 2 pasos
+ * matemáticos completos y conclusión con resultado; si no, null.
+ */
+function buildExampleFromPractice(
+  session: SessionPlan | undefined,
+  topicLead: string,
+  b: ExampleBudgets
+): DistilledExample | null {
+  const items = session?.practica ?? [];
+  if (items.length === 0) return null;
+  const order = [...items.keys()].sort((a, c) => {
+    const aShown = a < 2 ? 1 : 0;
+    const cShown = c < 2 ? 1 : 0;
+    return aShown - cShown || a - c;
+  });
+  for (const idx of order) {
+    const item = items[idx]!;
+    const solution = (item.solucion ?? []).map(cleanStepLine).filter((l) => l.length >= 8);
+    if (solution.length < 2) continue;
+    const statement = distillExerciseStatement(stripSessionLeadPrefix(item.enunciado, topicLead), b.stmtBudget, b.stmtWords);
+    if (!isCompleteProblemStatement(statement)) continue;
+    const mathSteps = solution
+      .map((l) => distillStepPreservingMath(l, b.stepBudget, b.stepWords))
+      .filter(Boolean)
+      .filter((l) => isSubstantiveStep(l) && isCompleteMathStep(l));
+    if (mathSteps.length < 2) continue;
+    const conclusionRaw = [...solution]
+      .reverse()
+      .map((l) =>
+        fitPedagogicalText(simplifyNumericEqualsChains(l.replace(CONCLUSION_HEADING_PREFIX_RE, '').trim()), {
+          maxChars: b.interpBudget,
+          maxWords: b.interpWords,
+          role: 'conclusion',
+        })
+      )
+      .find((c) => isSubstantiveConclusion(c) && isCompleteConclusion(c));
+    if (!conclusionRaw) continue;
+    return {
+      problemStatement: statement,
+      steps: mathSteps.slice(0, 3),
+      interpretation: conclusionRaw,
+    };
+  }
+  return null;
+}
+
+/**
  * Extrae el ejemplo resuelto con pasos reales evitando fugas de rúbrica y mensajes vacíos.
  */
 export function extractWorkedExample(
@@ -1433,11 +1557,11 @@ export function extractWorkedExample(
   const topicLead = deriveRepeatedTopicLead(session);
   const solved = allowMission ? mission.conceptZero?.solvedExample : undefined;
   const rawSessionExample = stripSessionLeadPrefix(session?.ejemploResuelto, topicLead);
-  const stmtBudget = allowMission ? 245 : 148;
-  const stmtWords = allowMission ? undefined : 22;
-  const stepBudget = allowMission ? 180 : 78;
-  const stepWords = allowMission ? undefined : 12;
-  const interpBudget = allowMission ? 155 : 94;
+  const stmtBudget = allowMission ? 245 : 165;
+  const stmtWords = allowMission ? undefined : 24;
+  const stepBudget = allowMission ? 180 : 110;
+  const stepWords = allowMission ? undefined : 16;
+  const interpBudget = allowMission ? 155 : 100;
   const interpWords = allowMission ? undefined : 15;
 
   if (rawSessionExample && !isRubricOrBoilerplateLeak(rawSessionExample)) {
@@ -1459,7 +1583,23 @@ export function extractWorkedExample(
       .map((step) => distillStepPreservingMath(step, stepBudget, stepWords))
       .filter(Boolean)
       .filter(isSubstantiveStep)
+      .filter((step) => allowMission || isCompleteMathStep(step))
       .slice(0, allowMission ? 4 : 3);
+
+    // Guía de sesión: un ejemplo con menos de 2 pasos completos o sin enunciado completo
+    // no se renderiza (el writer debe repararlo en origen; no se maquilla en la diapositiva).
+    if (!allowMission && (steps.length < 2 || !isCompleteProblemStatement(statement))) {
+      const fromPractice = buildExampleFromPractice(session, topicLead, {
+        stmtBudget,
+        stmtWords,
+        stepBudget,
+        stepWords,
+        interpBudget,
+        interpWords,
+      });
+      if (fromPractice) return fromPractice;
+      return { problemStatement: '', steps: [], interpretation: '' };
+    }
 
     if (steps.length > 0) {
       const fourthRawStep = cleanedRawSteps.length >= 4 ? cleanedRawSteps[cleanedRawSteps.length - 1] : undefined;
@@ -1494,7 +1634,7 @@ export function extractWorkedExample(
           '',
         steps,
         interpretation:
-          cleanInterpretation ||
+          (allowMission || isCompleteConclusion(cleanInterpretation) ? cleanInterpretation : '') ||
           (allowMission ? distillConciseText(solved?.interpretation, interpBudget, interpWords ?? 26) : '') ||
           (allowMission ? 'Verifica el resultado con el planteamiento.' : ''),
       };
@@ -1611,7 +1751,7 @@ export function extractWorkedExample(
 /**
  * Sintetiza el enunciado de un ejercicio preservando los datos numéricos, ecuaciones y la pregunta/consigna.
  */
-function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 220, maxWords?: number): string {
+export function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 220, maxWords?: number): string {
   const impMap: Record<string, string> = {
     determinar: 'Determina',
     calcular: 'Calcula',
@@ -1664,7 +1804,18 @@ function distillExerciseStatement(rawEnunciado: string | null | undefined, maxCh
   // No se fabrican consignas genéricas. Si el enunciado de origen no trae
   // datos + tarea explícita, se conserva tal cual y el gate de calidad lo
   // reporta para que el writer lo corrija en origen.
-  const ensureActivityTask = (text: string): string => text.trim();
+  const ensureActivityTask = (text: string): string => {
+    const value = text.trim();
+    if (!value) return '';
+    const words = value.replace(/[.!?]+$/, '').split(/\s+/);
+    const last = words[words.length - 1] ?? '';
+    // Nunca terminar en una letra suelta sin contexto de variable ("señala c").
+    if (words.length > 3 && hasDanglingEnding(value) && /^[A-Za-z]$/.test(last)) {
+      const trimmed = words.slice(0, -1).join(' ').replace(/[,;:\s]+$/, '').trim();
+      return trimmed ? `${trimmed}.` : '';
+    }
+    return value;
+  };
 
   // Quitar primera oración si es puramente introductoria sin datos numéricos ni consigna
   let sentences = clean
@@ -1700,7 +1851,7 @@ function distillExerciseStatement(rawEnunciado: string | null | undefined, maxCh
     );
   const dataSentences = sentences.filter((s) => s !== questionSentence && /\d|=/.test(s));
 
-  if (questionSentence && questionSentence.length <= maxChars + 40) {
+  if (questionSentence && questionSentence.length <= maxChars + 60) {
     const compactTask = questionSentence
       .replace(/\by\s+(?:redacta|prepara|documenta|elabora)\s+(?:la\s+|el\s+)?(?:justificaci[oó]n|reporte|evidencia|argumento)[^?]*([?.!])?$/i, '$1')
       .replace(/\s+y\s+(?:verifica|comprueba|confirma)\s+que\b[^?.]*/gi, '')
@@ -1759,8 +1910,8 @@ export function extractPracticeActivities(
 ): DistilledPracticeActivity[] {
   const allowMission = options.allowMissionFallback ?? true;
   const topicLead = deriveRepeatedTopicLead(session);
-  const stmtMax = allowMission ? 235 : 158;
-  const stmtWords = allowMission ? undefined : 23;
+  const stmtMax = allowMission ? 235 : 190;
+  const stmtWords = allowMission ? undefined : 30;
   const hintMax = allowMission ? 135 : 82;
   const hintWords = allowMission ? undefined : 12;
   const maxItems = allowMission ? 3 : 2;
@@ -2061,4 +2212,36 @@ export function distillLessonBundle(
     artifactStep: sanitizePedagogicalMetaPhrases(artifactStep),
     exitChecks: exitChecks.map((c) => sanitizePedagogicalMetaPhrases(c)),
   };
+}
+
+
+// ─── 7.1 — Six-gram overlap ratio (for infographic de-overlap check) ─────────
+export function sixGramOverlapRatio(text: string, sources: string[]): number {
+  const normalize = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const makeGrams = (s: string): Set<string> => {
+    const tokens = normalize(s).split(' ');
+    const grams = new Set<string>();
+    for (let i = 0; i <= tokens.length - 6; i++) {
+      grams.add(tokens.slice(i, i + 6).join(' '));
+    }
+    return grams;
+  };
+  const textGrams = makeGrams(text);
+  if (textGrams.size === 0) return 0;
+  const sourceGrams = new Set<string>();
+  for (const src of sources) {
+    for (const g of makeGrams(src)) sourceGrams.add(g);
+  }
+  let overlap = 0;
+  for (const g of textGrams) {
+    if (sourceGrams.has(g)) overlap++;
+  }
+  return overlap / textGrams.size;
 }

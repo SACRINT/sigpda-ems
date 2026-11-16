@@ -12,9 +12,11 @@ import {
   extractCleanTopicTitle,
   extractConceptHighlights,
   extractWorkedExample,
+  isGenericMisconception,
   isRubricOrBoilerplateLeak,
   preventSixGramTheoryOverlap,
   sanitizePedagogicalMetaPhrases,
+  sixGramOverlapRatio,
   type DistilledExample,
   type DistilledLessonBundle,
   type DistilledPracticeActivity,
@@ -552,6 +554,22 @@ function resolveMissionMisconceptionParts(
 
   const withAnchor = (chosen: { error: string; correction: string }): { error: string; correction: string } => {
     if (allowMission || !anchor || INVALID_CONCEPT_ANCHOR_RE.test(anchor)) return chosen;
+    // Anclas vacías, explícitamente genéricas o colgadas no son un tema real.
+    // NOTA: No usar isGenericMisconception() directamente porque su umbral length<25
+    // rechaza anclas cortas pero conceptualmente específicas (ej. "margen de error").
+    // En su lugar comprobamos: ancla trivialmente corta (<8 chars) O frases genéricas
+    // por regex O patrones de colgado.
+    const anchorIsVagueGeneric =
+      anchor.length < 8 ||
+      /^(?:resultados?\s+obtenidos|error\s+com[uú]n|revisar|analizar|evaluar|comprobar|verificar)\b/i.test(anchor);
+    if (
+      anchorIsVagueGeneric ||
+      /^(?:resultados?|procedimiento|proceso)\b/i.test(anchor) ||
+      /\b(?:al|para|de|por)\s+[a-záéíóúñ]+(?:ar|er|ir)$/i.test(anchor) ||
+      hasDanglingEnding(anchor)
+    ) {
+      return chosen;
+    }
     const base = chosen.error.replace(/\.+$/, '').trim();
     if (base.toLowerCase().includes(anchor.toLowerCase())) {
       return { error: `${base}.`, correction: chosen.correction };
@@ -1039,6 +1057,103 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
   return sources;
 }
 
+function countSlideWords(slide: SacrintSlide): number {
+  return JSON.stringify(slide)
+    .replace(/"[^"]*":\s*/g, ' ')
+    .replace(/[{}[\],":]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => /[a-záéíóúñA-ZÁÉÍÓÚÑ]{3,}/.test(token)).length;
+}
+
+function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
+  if (slide.kind === 'concept') {
+    const cs = slide as SacrintConceptSlide;
+    return {
+      ...cs,
+      explanation: fitPedagogicalText(cs.explanation, { maxChars: 150, maxWords: 22, role: 'concept' }) || cs.explanation,
+      analogy: cs.analogy
+        ? fitPedagogicalText(cs.analogy, { maxChars: 70, maxWords: 11, role: 'hint', ensurePeriod: false }) || cs.analogy
+        : cs.analogy,
+      keyTakeaways: (cs.keyTakeaways ?? []).slice(0, 1).map((item) =>
+        fitPedagogicalText(item, { maxChars: 46, maxWords: 7, role: 'concept', ensurePeriod: false }) || item
+      ),
+      workedExample: cs.workedExample
+        ? {
+            problemStatement:
+              fitPedagogicalText(cs.workedExample.problemStatement, { maxChars: 120, maxWords: 18, role: 'concept' }) ||
+              cs.workedExample.problemStatement,
+            steps: cs.workedExample.steps.slice(0, 3).map((step) => {
+              // Preserve steps with mathematical expressions intact (don't truncate equations)
+              const hasMathExpr = /[=+\-×÷√∑∫]|[\d]+x|x\s*=|[₀-₉²³⁴⁵⁶⁷⁸⁹]|\$\d/.test(step);
+              if (hasMathExpr) return step;
+              return fitPedagogicalText(step, { maxChars: 90, maxWords: 14, role: 'concept' }) || step;
+            }),
+            interpretation:
+              fitPedagogicalText(cs.workedExample.interpretation, { maxChars: 70, maxWords: 10, role: 'concept' }) ||
+              cs.workedExample.interpretation,
+          }
+        : cs.workedExample,
+      variables: (cs.variables ?? []).slice(0, 3).map((v) => ({
+        ...v,
+        meaning: fitPedagogicalText(v.meaning, { maxChars: 32, maxWords: 5, role: 'concept', ensurePeriod: false }) || v.meaning,
+      })),
+      facts: (cs.facts ?? []).slice(0, 1),
+    } as unknown as SacrintConceptSlide;
+  }
+  if (slide.kind === 'practice') {
+    const ps = slide as SacrintPracticeSlide;
+    const hasMathData = (s: string) => /\d[\s,.]*(?:m|kg|cm|km|s|°|€|\$|%|g|l|Lt|ml)|\d+\s*[×x\-+÷=]\s*\d|\d+\.\d|\d{2,}/.test(s);
+    return {
+      ...ps,
+      activities: (ps.activities ?? []).slice(0, 2).map((act) => ({
+        ...act,
+        statement: hasMathData(act.statement)
+          ? act.statement  // preserve statements with numeric data intact
+          : fitPedagogicalText(act.statement, { maxChars: 170, maxWords: 26, role: 'concept' }) || act.statement,
+        hint: act.hint
+          ? fitPedagogicalText(act.hint, { maxChars: 70, maxWords: 11, role: 'hint', ensurePeriod: false }) || act.hint
+          : act.hint,
+      })),
+      applicationText: ps.applicationText
+        ? fitPedagogicalText(ps.applicationText, { maxChars: 110, maxWords: 17, role: 'application' }) || ps.applicationText
+        : ps.applicationText,
+      practiceText: ps.practiceText
+        ? fitPedagogicalText(ps.practiceText, { maxChars: 110, maxWords: 17, role: 'application' }) || ps.practiceText
+        : ps.practiceText,
+      objectiveBullets: (ps.objectiveBullets ?? []).slice(0, 1).map((item) =>
+        fitPedagogicalText(item, { maxChars: 60, maxWords: 9, role: 'concept', ensurePeriod: false }) || item
+      ),
+      evaluationCriteria: (ps.evaluationCriteria ?? []).slice(0, 2).map((item) =>
+        fitPedagogicalText(item, { maxChars: 48, maxWords: 8, role: 'general', ensurePeriod: false }) || item
+      ),
+      exitChecks: (ps.exitChecks ?? []).slice(0, 2).map((item) =>
+        fitPedagogicalText(item, { maxChars: 48, maxWords: 8, role: 'general', ensurePeriod: false }) || item
+      ),
+      artifactName: ps.artifactName
+        ? fitPedagogicalText(ps.artifactName, { maxChars: 40, maxWords: 6, role: 'concept', ensurePeriod: false }) || ps.artifactName
+        : ps.artifactName,
+      artifactStep: ps.artifactStep
+        ? fitPedagogicalText(ps.artifactStep, { maxChars: 60, maxWords: 9, role: 'concept' }) || ps.artifactStep
+        : ps.artifactStep,
+      facts: (ps.facts ?? []).slice(0, 1),
+    } as unknown as SacrintPracticeSlide;
+  }
+  return slide;
+}
+
+function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
+  if (countSlideWords(slide) <= maxWords) return slide;
+  if (slide.kind === 'concept') {
+    const cs = slide as SacrintConceptSlide;
+    return { ...cs, analogy: undefined, keyTakeaways: [], facts: [] } as unknown as SacrintConceptSlide;
+  }
+  if (slide.kind === 'practice') {
+    const ps = slide as SacrintPracticeSlide;
+    return { ...ps, exitChecks: [], facts: [] } as unknown as SacrintPracticeSlide;
+  }
+  return slide;
+}
+
 function buildLessonGuideSlidesForSession(
   workbook: ActiveWorkTextbook,
   mission: MissionSection,
@@ -1284,7 +1399,9 @@ function buildLessonGuideSlidesForSession(
     facts,
   };
 
-  return [conceptSlide, practiceSlide];
+  const budgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide));
+  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide));
+  return [budgetedConcept, budgetedPractice];
 }
 
 export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintBuildOptions = {}): SacrintDeckSpec {
@@ -1839,6 +1956,20 @@ export function dedupeInfographicSpecs(specs: SacrintInfographicSpec[]): Sacrint
   return out;
 }
 
+// ─── 7.3 — Strip single-letter R/A/B nodes from infographic diagram ───────────
+function sanitizeInfographicDiagram(diagram: SacrintDiagramSpec): SacrintDiagramSpec {
+  const isSingleLetter = (s: string | undefined) =>
+    /^\s*[A-Za-z\u00C0-\u017E]\s*$/u.test(s ?? '');
+  const cleanArr = <T extends { label?: string; detail?: string }>(arr: T[] | undefined): T[] =>
+    (arr ?? []).filter((item) => !isSingleLetter(item.label) && !isSingleLetter(item.detail));
+  const d = diagram as unknown as Record<string, unknown>;
+  return {
+    ...diagram,
+    ...(d.highlights !== undefined ? { highlights: cleanArr(d.highlights as { label?: string; detail?: string }[]) } : {}),
+    ...(d.nodes !== undefined ? { nodes: cleanArr(d.nodes as { label?: string; detail?: string }[]) } : {}),
+  } as SacrintDiagramSpec;
+}
+
 export function buildSacrintInfographic(
   workbook: ActiveWorkTextbook,
   format: SacrintInfographicFormat = 'wide',
@@ -2059,6 +2190,7 @@ export function buildSacrintInfographic(
   const cleanCommunityUtility = sanitizePedagogicalMetaPhrases(
     sanitizeField(project?.communityUtility, '', 110, 16)
   );
+  const sanitizedDiagram = sanitizeInfographicDiagram(diagram);
 
   return {
     format,
@@ -2086,7 +2218,7 @@ export function buildSacrintInfographic(
       interpretation: finalizeVisibleText(deOverlap(quickExample.interpretation), { ensurePeriod: true }),
     },
     variables,
-    diagram,
+    diagram: sanitizedDiagram,
     steps,
     misconception: `${misconceptionFix.error} → ${misconceptionFix.correction}`,
     misconceptionFix,

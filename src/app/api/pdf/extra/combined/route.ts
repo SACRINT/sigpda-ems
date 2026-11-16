@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFDocument } from 'pdf-lib';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType, getPlanningExtras, getBlockWorkbook } from '@/lib/db';
-import { generateExtraPdfDocument } from '@/lib/pdf-extra-renderer';
+import { mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
 import { resolveBlockNumber, resolveCurricularBlocks } from '@/lib/curricular-blocks';
@@ -242,31 +241,28 @@ async function handleCombinedPdf(request: NextRequest) {
       );
     }
 
-    // Generar PDF individual por extra y fusionar con pdf-lib
-    const mergedPdf = await PDFDocument.create();
+    // Fusionar con paginación continua única (sin pies locales "Página 1 de N")
+    const mergeItems = allExtras.map((extra) => {
+      const rawKey = extra.key_index;
+      const resolved = rawKey !== null && rawKey !== undefined ? resolveBlockNumber(rawKey) : null;
+      return {
+        id: extra.id,
+        title: extra.title,
+        type: extra.type,
+        content_text: extra.content_text,
+        keyIndex: resolved !== null ? resolved - 1 : rawKey,
+      };
+    });
+
     let generatedCount = 0;
+    const mergedBytes = await mergeCompiledExtrasPdf(mergeItems, brandingCtx, {
+      compiledLabel: typeLabel(cleanType).replace(/_/g, ' ').toUpperCase(),
+      onItemRendered: () => {
+        generatedCount += 1;
+      },
+    });
 
-    for (const extra of allExtras) {
-      try {
-        const canonicalKeyIndex = extra.key_index !== null && extra.key_index !== undefined
-          ? (resolveBlockNumber(extra.key_index) !== null ? resolveBlockNumber(extra.key_index)! - 1 : extra.key_index)
-          : null;
-        const pdfDoc = generateExtraPdfDocument({ ...extra, keyIndex: canonicalKeyIndex }, brandingCtx);
-        const bytes = Buffer.from(pdfDoc.output('arraybuffer'));
-        const individualPdf = await PDFDocument.load(bytes);
-        const pages = await mergedPdf.copyPages(individualPdf, individualPdf.getPageIndices());
-        for (const page of pages) {
-          mergedPdf.addPage(page);
-        }
-        generatedCount++;
-      } catch (err) {
-        logger.warn(`Error generando PDF para extra ${extra.id}:`, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-
-    if (generatedCount === 0) {
+    if (!mergedBytes || generatedCount === 0) {
       return new Response('No se pudo generar ningún documento', { status: 500 });
     }
     // En descarga por bloque nunca entregar un archivo incompleto en silencio
@@ -277,7 +273,6 @@ async function handleCombinedPdf(request: NextRequest) {
       );
     }
 
-    const mergedBytes = await mergedPdf.save();
     const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
     const fileName = blockIndex !== null
       ? `${typeLabel(cleanType)}_Bloque_${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${cleanSubject}.pdf`

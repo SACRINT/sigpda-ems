@@ -374,7 +374,9 @@ export function renderExtraDocument(
     formatSolvedExampleBlocks(repairedContent),
     { target: 'winansi' }
   );
-  const lines = contentToParse.split('\n');
+  // Fix orphan_numbered_lines: join "3.\n next content" into "3. next content"
+  const contentNormalized = contentToParse.replace(/^(\s*\d+\.\s*)\n+([^\n])/gm, '$1 $2');
+  const lines = contentNormalized.split('\n');
   let inTable = false;
   let tableHeaders: string[] = [];
   let tableData: string[][] = [];
@@ -1001,7 +1003,7 @@ export interface CompiledMergeExtraItem {
 export async function mergeCompiledExtrasPdf(
   items: CompiledMergeExtraItem[],
   context?: BrandingContext,
-  options?: { compiledLabel?: string }
+  options?: { compiledLabel?: string; onItemRendered?: () => void }
 ): Promise<Buffer | null> {
   if (!items || items.length === 0) return null;
   try {
@@ -1030,6 +1032,7 @@ export async function mergeCompiledExtrasPdf(
           mergedPdf.addPage(page);
         }
         count++;
+        options?.onItemRendered?.();
       } catch (err) {
         logger.warn(`Error rendering individual PDF for extra ${extra.id}:`, {
           error: err instanceof Error ? err.message : String(err),

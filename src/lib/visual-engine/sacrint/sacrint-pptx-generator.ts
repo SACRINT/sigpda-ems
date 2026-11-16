@@ -552,6 +552,34 @@ function drawCartesianFrame(
   return { plotX, plotY, plotW, plotH, xToPx, yToPx };
 }
 
+type MarkerPlacement = 'right' | 'left' | 'below' | 'above-left';
+interface MarkerRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Calcula la caja de la etiqueta de un marcador según la colocación solicitada. */
+function markerRect(px: number, py: number, label: string, width: number, placement: MarkerPlacement): MarkerRect {
+  const pillW = Math.max(width, Math.min(186, Math.round(label.length * 10 + 22)));
+  let pillX = Math.min(1816 - pillW, px + 8);
+  let pillY = Math.max(336, py - 26);
+  if (placement === 'left') {
+    pillX = Math.max(16, px - pillW - 8);
+  } else if (placement === 'below') {
+    pillY = Math.min(1040, py + 10);
+  } else if (placement === 'above-left') {
+    pillX = Math.max(16, px - pillW - 8);
+    pillY = Math.max(336, py - 34);
+  }
+  return { x: pillX, y: pillY, w: pillW, h: 24 };
+}
+
+function rectsOverlap(a: MarkerRect, b: MarkerRect, pad = 4): boolean {
+  return a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+}
+
 function addPointMarker(
   slide: PptxGenJS.Slide,
   px: number,
@@ -559,11 +587,13 @@ function addPointMarker(
   label: string,
   accent: string,
   accent2: string,
-  width = 88
-) {
-  const pillW = Math.max(width, Math.min(186, Math.round(label.length * 10 + 22)));
-  const pillX = Math.min(1816 - pillW, px + 8);
-  const pillY = Math.max(336, py - 26);
+  width = 88,
+  placement: MarkerPlacement = 'right'
+): MarkerRect {
+  const rect = markerRect(px, py, label, width, placement);
+  const pillW = rect.w;
+  const pillX = rect.x;
+  const pillY = rect.y;
   addEllipse(slide, px - 5, py - 5, 10, 10, { fill: accent2, stroke: accent, strokeWidth: 1.2 });
   slide.addShape('roundRect', {
     x: inch(pillX),
@@ -580,6 +610,7 @@ function addPointMarker(
     maxLines: 1,
     valign: 'middle',
   });
+  return rect;
 }
 
 function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: string, accent2: string) {
@@ -672,7 +703,7 @@ function addQuadraticDiagram(slide: PptxGenJS.Slide, diagram: QuadraticDiagramSp
     tangentRoot !== undefined
       ? `V(${formatTickLabel(diagram.vertexX)}, ${formatTickLabel(diagram.vertexY)})=x₁`
       : `V(${formatTickLabel(diagram.vertexX)}, ${formatTickLabel(diagram.vertexY)})`;
-  addPointMarker(slide, vx, vy, vertexLabel, accent2, accent, 114);
+  const usedLabelRects: MarkerRect[] = [addPointMarker(slide, vx, vy, vertexLabel, accent2, accent, 114)];
 
   diagram.roots.slice(0, 2).forEach((root, idx) => {
     // En parábolas tangentes al eje X, la etiqueta del vértice ya contiene x₁.
@@ -680,7 +711,13 @@ function addQuadraticDiagram(slide: PptxGenJS.Slide, diagram: QuadraticDiagramSp
     if (tangentRoot !== undefined && Math.abs(root - tangentRoot) <= 1e-6) return;
     const rx = Math.max(plotX + 8, Math.min(plotX + plotW - 96, xToPx(root)));
     const ry = yToPx(0);
-    addPointMarker(slide, rx, ry, `x${idx + 1}=${formatTickLabel(root)}`, accent, accent2, 92);
+    const label = `x${idx + 1}=${formatTickLabel(root)}`;
+    // Elegir la primera colocación cuya caja no choque con etiquetas ya dibujadas
+    // (vértice u otra raíz), incluso cuando la parábola no es tangente.
+    const placements: MarkerPlacement[] = ['right', 'left', 'below', 'above-left'];
+    const placement =
+      placements.find((pl) => !usedLabelRects.some((r) => rectsOverlap(markerRect(rx, ry, label, 92, pl), r))) ?? 'below';
+    usedLabelRects.push(addPointMarker(slide, rx, ry, label, accent, accent2, 92, placement));
   });
 }
 

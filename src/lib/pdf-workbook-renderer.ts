@@ -97,10 +97,12 @@ import {
   formatSolvedExampleBlocks,
   normalizePdfEditorialText,
   normalizeSolvedExampleSteps,
+  normalizeMathNotation,
   toWinAnsiMathSafe,
 } from '@/lib/editorial/text-normalization';
 import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
+import { stripMarkdownTables } from '@/lib/editorial/markdown-table-sanitizer';
 import { parseLabStepsFromProse } from '@/lib/guide-engine/lab-step-parser';
 import {
   ColumnFlowManager,
@@ -222,6 +224,34 @@ export function sanitizePdfText(text: string | null | undefined): string {
   return str.replace(WIN_ANSI_REGEX, '');
 }
 
+/**
+ * cleanBookText — Pipeline completo para texto del libro PDF.
+ * Aplica: quita tablas Markdown → normaliza notación matemática (raiz → √) →
+ * separa pasos pegados inline → quita Markdown → sanitiza para PDF.
+ */
+function cleanBookText(value: string | null | undefined): string {
+  return sanitizePdfText(
+    normalizeMathNotation(
+      stripMarkdown(
+        separatePasoInline(
+          stripMarkdownTables(value || '')
+        )
+      )
+    )
+  );
+}
+
+/**
+ * Repara pasos pegados inline: si "Paso N:" o "Ecuación N:" aparece en medio
+ * de un párrafo sin salto previo, inserta doble salto para que el renderer lo
+ * trate como nuevo bloque.
+ */
+function separatePasoInline(text: string): string {
+  return text
+    .replace(/([^\n])\s+(Paso\s+\d+\s*[:\-])/gi, '$1\n\n$2')
+    .replace(/([^\n])\s+(Ecuaci[oó]n\s+\d+\s*:)/gi, '$1\n\n$2');
+}
+
 function identidadDelLibro(
   workbook: ActiveWorkTextbook,
   planning?: Planning | null
@@ -303,7 +333,7 @@ export async function renderWorkbookToPdf(
     cicloEscolar: SCHOOL_YEAR,
     blockName: workbook.blockName,
     blockIndex: workbook.blockIndex,
-    subsystem: sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))),
+    subsystem: cleanBookText(stripWorkbookTags(workbook.subsystem || 'BGE')),
     paecProjectName: workbook.coverData?.paecProjectName,
     docente: workbook.coverData?.teacherName,
     forceFallback: options.forceFallbackCover,
@@ -392,9 +422,9 @@ export async function renderWorkbookToPdf(
     doc.addPage();
     const missionStartPage = doc.getNumberOfPages();
 
-    const cleanTitle = sanitizePdfText(stripMarkdown(
+    const cleanTitle = cleanBookText(
       sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
-    ));
+    );
 
     const cov = mission.coveredSessions;
     const sessionsRange = cov && cov.length > 0
@@ -690,7 +720,7 @@ function drawCoverPage(
   doc.text(schoolLines[0], margin + 6, 34);
 
   const cct = identidad.cct;
-  const subsistema = sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))).toUpperCase();
+  const subsistema = cleanBookText(stripWorkbookTags(workbook.subsystem || 'BGE')).toUpperCase();
   const rawSem = workbook.coverData?.semester;
   const semStr = rawSem ? (String(rawSem).toLowerCase().includes('semestre') ? String(rawSem) : `${rawSem}° Semestre`) : 'Segundo Semestre';
 
@@ -904,7 +934,7 @@ function drawCoverPage(
   setFontBody(doc, 'normal');
   doc.setFontSize(6.2);
   doc.setTextColor(203, 213, 225);
-  doc.text(`Subsistema Oficial: ${sanitizePdfText(stripMarkdown(stripWorkbookTags(workbook.subsystem || 'BGE'))).toUpperCase()} · Modalidad Escolarizada · Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 8, 255);
+  doc.text(`Subsistema Oficial: ${cleanBookText(stripWorkbookTags(workbook.subsystem || 'BGE')).toUpperCase()} · Modalidad Escolarizada · Ciclo Escolar: ${SCHOOL_YEAR}`, margin + 8, 255);
 
   // 6. Cintillo de Pie Oficial (y: 266 - 279.4mm)
   doc.setFillColor(4, 8, 16);
@@ -967,11 +997,11 @@ function drawCreditsPage(
 
   if (uniqueAssets.length > 0) {
     const tableBody = uniqueAssets.map((asset, idx) => {
-      const cleanTitle = sanitizePdfText(stripMarkdown(asset.title || 'Fotografía didáctica'));
-      const cleanCreator = sanitizePdfText(stripMarkdown(asset.creator || 'Autor no especificado'));
-      const cleanLic = sanitizePdfText(stripMarkdown(asset.license || 'CC BY-SA'));
+      const cleanTitle = cleanBookText(asset.title || 'Fotografía didáctica');
+      const cleanCreator = cleanBookText(asset.creator || 'Autor no especificado');
+      const cleanLic = cleanBookText(asset.license || 'CC BY-SA');
       const rawSource = asset.sourceUrl || asset.externalId || 'Openverse API';
-      const cleanSource = sanitizePdfText(stripMarkdown(rawSource));
+      const cleanSource = cleanBookText(rawSource);
       return [
         `Fig. ${idx + 1}`,
         cleanTitle.length > 35 ? cleanTitle.slice(0, 32) + '...' : cleanTitle,
@@ -1125,7 +1155,7 @@ function drawContraportadaPage(
   const dataItems = [
     { label: 'PLANTEL:', value: data.plantelNombre },
     { label: 'CLAVE C.C.T.:', value: data.cct },
-    { label: 'SUBSISTEMA:', value: `${sanitizePdfText(stripMarkdown(stripWorkbookTags(data.subsystem)))} · BACHILLERATO ESTATAL` },
+    { label: 'SUBSISTEMA:', value: `${cleanBookText(stripWorkbookTags(data.subsystem))} · BACHILLERATO ESTATAL` },
     { label: 'ASIGNATURA (UAC):', value: data.uacName },
     { label: 'SEMESTRE / CICLO:', value: `${data.semestre} · CICLO ESCOLAR ${data.cicloEscolar}` },
     { label: 'DOCENTE TITULAR:', value: data.docente },
@@ -1336,7 +1366,7 @@ export function printParagraph(
   } = options;
 
   // Sanitizar texto en una sola pasada al inicio: elimina asteriscos markdown y caracteres no-WinAnsi
-  const cleanText = sanitizePdfText(stripMarkdown(text || ''));
+  const cleanText = cleanBookText(text || '');
 
   doc.setFont(fontName, fontStyle);
   doc.setFontSize(size);
@@ -1435,9 +1465,9 @@ function renderTocPart(
   );
 
   const tableBody = entries.map((e) => [
-    sanitizePdfText(stripMarkdown(e.sectionLabel)),
-    sanitizePdfText(stripMarkdown(e.title)),
-    sanitizePdfText(stripMarkdown(e.sessionsRange)),
+    cleanBookText(e.sectionLabel),
+    cleanBookText(e.title),
+    cleanBookText(e.sessionsRange),
     `Pág. ${e.pageNumber}`,
   ]);
 
@@ -1555,13 +1585,13 @@ function drawPlantelComunidadPage(
   y += 6;
 
   const rawSchoolName = identidad.schoolName;
-  const schoolName = sanitizePdfText(stripMarkdown(rawSchoolName));
+  const schoolName = cleanBookText(rawSchoolName);
   const cct = sanitizePdfText(identidad.cct);
   const subsystem = sanitizePdfText((workbook.subsystem || planning?.contentJson?.sectionI?.subsystem || 'BGE').toUpperCase());
   const coverExtra = workbook.coverData as Record<string, unknown> | undefined;
   const municipality = sanitizePdfText(identidad.municipality);
-  const teacherName = sanitizePdfText(stripMarkdown(workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel'));
-  const subjectName = sanitizePdfText(stripMarkdown(workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental'));
+  const teacherName = cleanBookText(workbook.coverData?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Academia Docente del Plantel');
+  const subjectName = cleanBookText(workbook.coverData?.subjectName || workbook.blockName || planning?.uacName || 'Formación Fundamental');
 
   const semRaw = workbook.coverData?.semester;
   const semClean = semRaw !== undefined
@@ -1569,9 +1599,9 @@ function drawPlantelComunidadPage(
     : 'Segundo Semestre';
   const semesterStr = sanitizePdfText(/\bsemestre\b/i.test(semClean) ? semClean : `${semClean}° Semestre`);
 
-  const paecProjectName = sanitizePdfText(stripMarkdown(workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria'));
+  const paecProjectName = cleanBookText(workbook.coverData?.paecProjectName || workbook.projectSection?.artifactName || planning?.paecContext || 'Transformación Productiva y Social Comunitaria');
   const paecProblem = typeof coverExtra?.paecProblem === 'string' ? coverExtra.paecProblem : undefined;
-  const paecChallenge = sanitizePdfText(stripMarkdown(workbook.projectSection?.communityUtility || paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.'));
+  const paecChallenge = cleanBookText(workbook.projectSection?.communityUtility || paecProblem || planning?.paecContext || 'Atención prioritaria al desarrollo comunitario y sustentabilidad local.');
 
   const rawMet = resolveWorkbookMethodology(workbook, planning);
   const metBadge = formatearBadgeMetodologia(rawMet);
@@ -1747,7 +1777,7 @@ function drawPdfComparisonTable(
 ): number {
   if (!tableData.rows || tableData.rows.length === 0) return y;
 
-  const cleanTitle = tableData.title ? sanitizePdfText(stripMarkdown(tableData.title)) : '';
+  const cleanTitle = tableData.title ? cleanBookText(tableData.title) : '';
   setFontBody(doc, 'bold');
   doc.setFontSize(8.2);
   const titleLines: string[] = cleanTitle
@@ -1769,12 +1799,12 @@ function drawPdfComparisonTable(
   }
 
   const cleanHeaders = [
-    sanitizePdfText(stripMarkdown(tableData.headers[0] || 'Criterio')),
-    sanitizePdfText(stripMarkdown(tableData.headers[1] || 'Descripción')),
+    cleanBookText(tableData.headers[0] || 'Criterio'),
+    cleanBookText(tableData.headers[1] || 'Descripción'),
   ];
   const cleanRows = tableData.rows.map((r) => [
-    sanitizePdfText(stripMarkdown(r[0])),
-    sanitizePdfText(stripMarkdown(r[1])),
+    cleanBookText(r[0]),
+    cleanBookText(r[1]),
   ]);
 
   autoTable(doc, {
@@ -1859,12 +1889,12 @@ function drawPracticeTasksWithDottedLines(
   }
 
   const validTasks = tasks
-    .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
+    .map((t) => cleanBookText(t).trim())
     .filter((t) => t.length > 5);
 
   const selectedTasks = validTasks;
   if (selectedTasks.length === 0) {
-    const cleanRaw = sanitizePdfText(stripMarkdown(rawText)).trim();
+    const cleanRaw = cleanBookText(rawText).trim();
     if (!cleanRaw) return y;
     return printParagraph(doc, cleanRaw, y, margin, drawWidth, pageHeight, {
       size: 8,
@@ -1997,7 +2027,7 @@ function extractTaskStrings(rawText: string, defaultTaskCount: number = 3): stri
   }
 
   return tasks
-    .map((t) => sanitizePdfText(stripMarkdown(t)).trim())
+    .map((t) => cleanBookText(t).trim())
     .filter((t) => t.length > 5);
 }
 
@@ -2039,7 +2069,7 @@ function printPdfCheckItem(
   text: string,
   startY: number
 ): number {
-  return flow.printMainParagraph(`☐ ${sanitizePdfText(stripMarkdown(text))}`, startY, {
+  return flow.printMainParagraph(`☐ ${cleanBookText(text)}`, startY, {
     size: 7.0,
     lineHeight: 3.6,
     justify: true,
@@ -2052,7 +2082,7 @@ function printPdfCheckItem(
  * en una consulta de búsqueda educativa funcional.
  */
 export function sanitizeEducationalResourceUrl(url: string, titulo: string, tipo: string): string {
-  const cleanTitle = sanitizePdfText(stripMarkdown(titulo || 'Recurso educativo EMS')).trim();
+  const cleanTitle = cleanBookText(titulo || 'Recurso educativo EMS').trim();
   const rawUrl = (url || '').trim();
 
   // P0: una búsqueda o placeholder no es un recurso didáctico. Se sustituye por la biblioteca curada.
@@ -2078,7 +2108,7 @@ function printPdfResourceLine(
 ): number {
   const icono = tipo === 'video' ? '[Video]' : tipo === 'lectura' ? '[Lectura]' : '[Web]';
   const safeUrl = sanitizeEducationalResourceUrl(url, titulo, tipo);
-  return flow.printMainParagraph(`${icono} ${sanitizePdfText(stripMarkdown(titulo))} — ${safeUrl}`, startY, {
+  return flow.printMainParagraph(`${icono} ${cleanBookText(titulo)} — ${safeUrl}`, startY, {
     size: 6.8,
     color: [37, 99, 235] as RGB,
     lineHeight: 3.4,
@@ -2112,8 +2142,8 @@ function drawSingleTaskWithDottedLines(
   checkSpace: (y: number, neededH: number) => number,
   pista?: string
 ): number {
-  const cleanTaskText = sanitizePdfText(stripMarkdown(taskText)).trim();
-  const cleanPista = pista ? sanitizePdfText(stripMarkdown(pista)).trim() : '';
+  const cleanTaskText = cleanBookText(taskText).trim();
+  const cleanPista = pista ? cleanBookText(pista).trim() : '';
   // GUARDIÁN: Configurar fuente BOLD ANTES de splitTextToSize para evitar desborde al sidebar
   setFontBody(doc, 'bold');
   doc.setFontSize(7.8);
@@ -2184,9 +2214,9 @@ async function drawMission(
   const sideXAbs = margin + mainW + SIDEBAR_GAP;
 
   // Sanitizar título de misión
-  const cleanMissionTitle = sanitizePdfText(stripMarkdown(
+  const cleanMissionTitle = cleanBookText(
     sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
-  ));
+  );
 
   // Glosario para sidebar (extraído del coreExplanation)
   const sidebarGlossary = extractGlossaryTerms(mission.conceptZero?.coreExplanation || '');
@@ -2407,9 +2437,9 @@ async function drawMission(
     // humana del catálogo (mismo texto que imprime el plan de clase).
     plan = plan ? stripMaterialTokensDeep(plan) : plan;
     const para = (text: string): number =>
-      flow.printMainParagraph(sanitizePdfText(stripMarkdown(text)), y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true, parseParagraphs: true });
+      flow.printMainParagraph(cleanBookText(text), y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true, parseParagraphs: true });
     const lead = (l: string, t: string): number =>
-      flow.printMainParagraph(`${sanitizePdfText(stripMarkdown(l))} ${sanitizePdfText(stripMarkdown(t))}`, y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true });
+      flow.printMainParagraph(`${cleanBookText(l)} ${cleanBookText(t)}`, y, { size: 6.7, lineHeight: 3.10, paragraphSpacing: 0.8, justify: true });
 
     // ── EMPIEZA AQUÍ (~10 min) ──
     y = printSessionPhaseLabel(flow, 'EMPIEZA AQUÍ · Objetivo y motivación (~10 min)', phaseColor, y);
@@ -2573,7 +2603,7 @@ async function drawMission(
   y += 2;
 
   // Pregunta Detonadora en caja destacada
-  const detText = sanitizePdfText(stripMarkdown(`Pregunta Detonadora: ${mission.phenomenonHook.detonatingQuestion}`));
+  const detText = cleanBookText(`Pregunta Detonadora: ${mission.phenomenonHook.detonatingQuestion}`);
   setFontBody(doc, 'bold');
   doc.setFontSize(8.5);
   const detLines = doc.splitTextToSize(detText, mainW - 12);
@@ -2665,9 +2695,9 @@ async function drawMission(
     y += 4.5;
 
     const contrastBody = mission.conceptZero.contrastTable.map((row) => [
-      sanitizePdfText(stripMarkdown(row.correctConcept)),
-      sanitizePdfText(stripMarkdown(row.commonMisconception)),
-      sanitizePdfText(stripMarkdown(row.reasoning)),
+      cleanBookText(row.correctConcept),
+      cleanBookText(row.commonMisconception),
+      cleanBookText(row.reasoning),
     ]);
 
     autoTable(doc, {
@@ -3147,12 +3177,12 @@ async function drawMission(
 
     const troubleItems = mission.troubleshooting.slice(0, 4);
     const troubleBody = troubleItems.map((t) => [
-      sanitizePdfText(stripMarkdown(t.symptom)),
-      sanitizePdfText(stripMarkdown(t.rootCause || t.cause || 'Desajuste')),
+      cleanBookText(t.symptom),
+      cleanBookText(t.rootCause || t.cause || 'Desajuste'),
       Array.isArray(t.solutionSteps)
-        ? t.solutionSteps.map((s) => sanitizePdfText(stripMarkdown(s))).join('; ')
-        : sanitizePdfText(stripMarkdown(String(t.solutionSteps || t.solution || ''))),
-      sanitizePdfText(stripMarkdown(t.preventionTip || t.prevention || 'Revisar manual')),
+        ? t.solutionSteps.map((s) => cleanBookText(s)).join('; ')
+        : cleanBookText(String(t.solutionSteps || t.solution || '')),
+      cleanBookText(t.preventionTip || t.prevention || 'Revisar manual'),
     ]);
 
     autoTable(doc, {

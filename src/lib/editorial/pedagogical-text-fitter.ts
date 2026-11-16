@@ -114,10 +114,21 @@ export function hasDanglingEnding(raw: string): boolean {
   const lastWord = rawLastToken.toLowerCase();
 
   // Si la última palabra es una letra aislada ('x', 'y', 'a', 'b'), es válida solo si va precedida de variable/ecuación ("variable y", "valor de x", "para x")
-  if (/^[xyzabcmn]$/.test(lastWord)) {
-    if (/\b(?:variable|inc[oó]gnita|valor(?:\s+de)?|despejar|eliminar|para|eje|cateto|lado|ángulo|angulo)\s+[xyzabcmn]$/i.test(withoutTrailingDot)) {
+  if (/^[xyzbcmn]$/.test(lastWord) || (lastWord === 'a' && /[=+\-−*/×·(]\s*a$|\d\s*a$|\b(?:variable|inc[oó]gnita|coeficiente|lado|cateto)\s+a$/i.test(withoutTrailingDot))) {
+    const hasVariableContext =
+      // Variable/incógnita nombrada o verbo matemático de operación sobre la variable
+      /\b(?:variable|inc[oó]gnita|valor(?:\s+de)?|despejar|despeja|despejas|aisla|a[ií]sla|eliminar|elimina|calcula|calcular|halla|hallar|encuentra|determina|resuelve|sustituye|eval[uú]a|grafica|define|vale|para|de|en|con|si|entre|por|eje|cateto|lado|[aá]ngulo|punto|punto\s+de|recta|coeficiente|t[eé]rmino|miembro)\s+[xyzabcmn]$/i.test(
+        withoutTrailingDot
+      ) ||
+      // Variable tras operador, igualdad, número o paréntesis: "2 x", "= x", "(x", "+ y"
+      /(?:[=+\-−*/×·(,;:]|\d)\s*[xyzabcmn]$/i.test(withoutTrailingDot) ||
+      // Letra única que es toda la expresión (p. ej. "x")
+      withoutTrailingDot.split(/\s+/).length === 1;
+    if (hasVariableContext) {
       return false;
     }
+    // Letra suelta sin contexto matemático ("señala c"): recorte mutilado
+    return true;
   }
 
   if (DANGLING_WORDS_SET.has(lastWord)) {

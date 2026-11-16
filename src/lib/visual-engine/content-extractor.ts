@@ -37,6 +37,7 @@ import { extractDisciplinaryConceptPhrase } from '@/lib/editorial/topic-title-re
 import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
 import { normalizeEditorialText } from '@/lib/editorial/text-normalization';
 import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
+import { stripMarkdownTables } from '@/lib/editorial/markdown-table-sanitizer';
 
 const STAT_COLORS = ['#2563eb', '#d97706', '#059669', '#7c3aed', '#dc2626', '#0284c7'];
 const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
@@ -47,7 +48,7 @@ const GANTT_COLORS = ['#2563eb', '#0284c7', '#059669', '#d97706', '#7c3aed'];
  */
 export function stripMarkdown(text: string | null | undefined): string {
   if (!text) return '';
-  const structuralCleaned = text
+  const structuralCleaned = stripMarkdownTables(text)
     // Comentarios HTML o etiquetas de control de workbook (<!--...-->)
     .replace(/<!--[\s\S]*?-->/g, '')
     // Encabezados Markdown (# Título)

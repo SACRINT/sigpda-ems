@@ -27,6 +27,7 @@ function BulkDownloadButton({
   style,
   icon,
   items,
+  zipFileName,
 }: {
   href: string;
   label: string;
@@ -34,6 +35,7 @@ function BulkDownloadButton({
   style: React.CSSProperties;
   icon: React.ReactNode;
   items?: Array<{ label: string; url: string; fileName: string }>;
+  zipFileName?: string;
 }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [elapsed, setElapsed] = useState(0);
@@ -75,7 +77,9 @@ function BulkDownloadButton({
           setProgress(Math.round(((index + 1) / items.length) * 100));
         }
         blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-        filename = `${label.replace(/[^\wáéíóúñÁÉÍÓÚÑ -]+/g, '').trim() || 'Paquete_Entregables'}.zip`;
+        filename =
+          zipFileName ||
+          `${label.replace(/[^\wáéíóúñÁÉÍÓÚÑ -]+/g, '').trim() || 'Paquete_Entregables'}.zip`;
       } else {
         const res = await fetch(href, { signal: controller.signal });
         if (!res.ok) {
@@ -246,6 +250,11 @@ export default function PlanningDownloadsHub({
 }: PlanningDownloadsHubProps) {
   const hasSequences = Object.keys(sequenceData).length > 0;
   const cleanSubject = (planning.uacName || 'UAC').replace(/\s+/g, '_').replace(/[^\wáéíóúñÁÉÍÓÚÑ_-]+/g, '');
+  const zipSubject = (planning.uacName || 'UAC')
+    .split('.')[0]
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^\wáéíóúñÁÉÍÓÚÑ_-]+/g, '');
   const pdfPackageItems = [
     { label: '01 Planeación', url: `/api/planeaciones/${planning.id}/pdf`, fileName: `01_Planeacion_Didactica_Semestral_${cleanSubject}.pdf` },
     { label: '02 Secuencia', url: `/api/planeaciones/${planning.id}/secuencia/pdf`, fileName: `02_Secuencia_Didactica_${cleanSubject}.pdf` },
@@ -356,6 +365,7 @@ export default function PlanningDownloadsHub({
             <BulkDownloadButton
               href={`/api/docx/extra/bulk?planningId=${planning.id}`}
               items={docxPackageItems}
+              zipFileName={`Paquete_${zipSubject}_Word_PPTX.zip`}
               label="Paquete Completo (Word + PPTX ZIP)"
               title="Descargar los 9 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
               icon={<Archive size={12} />}
@@ -375,6 +385,7 @@ export default function PlanningDownloadsHub({
             <BulkDownloadButton
               href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
               items={pdfPackageItems}
+              zipFileName={`Paquete_${zipSubject}_PDF_PPTX.zip`}
               label="Paquete Completo (PDF + PPTX ZIP)"
               title="Descargar los 9 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
               icon={<Archive size={12} />}

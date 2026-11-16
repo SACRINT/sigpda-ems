@@ -16,12 +16,15 @@ import {
 } from '@/lib/editorial/pedagogical-text-fitter';
 import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
 import { mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
+import { stripMarkdown } from '@/lib/visual-engine/content-extractor';
 import {
   distillLessonBundle,
   extractApplicationAndExit,
   extractConceptHighlights,
   extractPracticeActivities,
   extractWorkedExample,
+  isCompleteMathStep,
+  isCompleteConclusion,
 } from '@/lib/visual-engine/sacrint/content-distiller';
 import {
   buildSacrintDeck,
@@ -461,5 +464,41 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     expect(targets[1]!.sessionIndex).toBe(1);
     expect(targets[2]!.missionIndex).toBe(1);
     expect(targets[2]!.sessionIndex).toBe(1);
+  });
+});
+
+// ─── Punto 11 — Tests de regresión para correcciones PM3 ──────────────────────
+describe('PM3 Correcciones — Punto 11', () => {
+  // Punto 2: stripMarkdown elimina tablas Markdown crudas
+  it('stripMarkdown elimina tablas Markdown crudas', () => {
+    const input = '| y | Par ordenado |\n|---|---|\n| 0 | (0, 3) |';
+    const result = stripMarkdown(input);
+    expect(result).not.toContain('|');
+    expect(result).not.toContain('---');
+  });
+
+  // Punto 3: hasDanglingEnding detecta letra suelta al final
+  it('hasDanglingEnding detecta letra suelta al final de texto', () => {
+    expect(hasDanglingEnding('señala c')).toBe(true);
+    expect(hasDanglingEnding('encuentra el valor de x en la ecuación')).toBe(false);
+    expect(hasDanglingEnding('x₁ = 15 y x₂ = 14')).toBe(false);
+  });
+
+  // Punto 4: isCompleteMathStep discrimina pasos completos vs incompletos
+  it('isCompleteMathStep rechaza paso incompleto sin operación o resultado', () => {
+    expect(isCompleteMathStep('Aplicamos factorización buscando dos números que multiplicados.')).toBe(false);
+  });
+
+  it('isCompleteMathStep acepta paso con resultado numérico explícito', () => {
+    expect(isCompleteMathStep('x₁ = 14 y x₂ = 15.')).toBe(true);
+  });
+
+  // Punto 4: isCompleteConclusion discrimina conclusiones completas vs truncadas
+  it('isCompleteConclusion rechaza conclusión truncada con variable suelta', () => {
+    expect(isCompleteConclusion('x₁ = 15, y x₂.')).toBe(false);
+  });
+
+  it('isCompleteConclusion acepta conclusión con resultado y unidades', () => {
+    expect(isCompleteConclusion('x₁ = 15 y x₂ = 14; el área es 210 m².')).toBe(true);
   });
 });
