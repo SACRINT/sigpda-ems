@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import toast from 'react-hot-toast';
 import type { GeneratedPlanningContent, Planning, PlanningExtra, SecuenciaBloque } from '@/types/planning';
 import type { ActiveWorkTextbook, GenerationProgressState } from '@/types/work-textbook';
 import GenerationFeedback from '@/components/feedback/GenerationFeedback';
@@ -81,6 +82,7 @@ export default function PlanningTabMateriales({
   blockWorkbooks,
   handleGenerateExtra,
   handleSyncSuite,
+  handleGenerateWorkbook,
   handleDeleteExtra,
   findExtra,
   setPreviewExtra,
@@ -732,6 +734,7 @@ export default function PlanningTabMateriales({
                     {blockReview && (() => {
                       const isClean = blockReview.ok && blockReview.warnings.length === 0;
                       const isWarn = blockReview.ok && blockReview.warnings.length > 0;
+                      const isError = !blockReview.ok;
                       const bg = isClean
                         ? 'rgba(16, 185, 129, 0.15)'
                         : isWarn
@@ -749,13 +752,63 @@ export default function PlanningTabMateriales({
                         : isWarn
                           ? `Materiales: ${blockReview.warnings.length} advertencia${blockReview.warnings.length === 1 ? '' : 's'}`
                           : `Materiales: ${blockReview.errors.length} error${blockReview.errors.length === 1 ? '' : 'es'}`;
+                      const issueList = (blockReview.ok ? blockReview.warnings : blockReview.errors);
                       const tooltip = isClean
                         ? `Revisión determinista R1 aprobada (${blockReview.score}/100)`
-                        : (blockReview.ok ? blockReview.warnings : blockReview.errors)
-                            .map((iss) => `${iss.code}: ${iss.message}`)
-                            .join('\n');
+                        : issueList.map((iss) => `${iss.code}: ${iss.message}`).join('\n');
+
+                      // Códigos reparables por PATCH sin regenerar el libro completo:
+                      // S4 (rúbrica): pesos en workbook.evaluationSection.rubric
+                      // S6 (deck/infografía): re-renderizados en memoria
+                      // S2 y S1 requieren regeneración completa
+                      const REPARABLE_CODES = new Set([
+                        'S4_RUBRIC_WEIGHT_SUM_MISMATCH', 'S4_RUBRIC_LEVEL_MISSING',
+                        'S6_INVALID_SLIDE_COUNT', 'S6_PLACEHOLDER_IN_DECK',
+                        'S6_EMPTY_SLIDE_CONTENT', 'S6_PLACEHOLDER_IN_INFOGRAPHIC',
+                        'S6_INVALID_VISUAL_JSON',
+                      ]);
+                      const errorCodes = issueList.map((iss) => iss.code);
+                      const allReparable = isError && errorCodes.length > 0 && errorCodes.every((c) => REPARABLE_CODES.has(c));
+                      const anyIssue = isError || isWarn;
+                      const isGenerating = Boolean(blockWorkbooks[block.blockIndex]?.generating);
+
+                      const handleBadgeClick = async () => {
+                        if (!anyIssue || isGenerating) return;
+                        if (allReparable) {
+                          const tid = toast.loading(`Reparando Bloque ${block.blockIndex + 1}…`);
+                          try {
+                            const planningId = planning.id;
+                            const res = await fetch(`/api/planeaciones/${planningId}/libro-bloque`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ blockIndex: block.blockIndex, repairCodes: errorCodes }),
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              toast.success(
+                                `✅ Bloque ${block.blockIndex + 1} reparado (v${data.version}): ${(data.repairs as string[]).join(' · ')}`,
+                                { id: tid, duration: 6000 }
+                              );
+                              window.location.reload();
+                            } else {
+                              toast.error(data.error || 'Error en la reparación', { id: tid });
+                            }
+                          } catch {
+                            toast.error('Error de red al reparar', { id: tid });
+                          }
+                        } else {
+                          toast(`El error requiere regenerar el Libro Bloque ${block.blockIndex + 1} completo.`, { icon: '⚠️' });
+                          handleGenerateWorkbook(block.blockIndex);
+                        }
+                      };
+
+                      const isClickable = anyIssue && !isGenerating;
                       return (
                         <span
+                          role={isClickable ? 'button' : undefined}
+                          tabIndex={isClickable ? 0 : undefined}
+                          onClick={isClickable ? handleBadgeClick : undefined}
+                          onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleBadgeClick(); } : undefined}
                           style={{
                             fontSize: '11.5px',
                             fontWeight: 700,
@@ -767,10 +820,18 @@ export default function PlanningTabMateriales({
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
+                            cursor: isClickable ? 'pointer' : 'default',
+                            userSelect: 'none',
+                            transition: 'opacity 0.15s',
                           }}
-                          title={tooltip}
+                          title={
+                            isClickable
+                              ? `${tooltip}\n\n🔧 Clic para ${allReparable ? 'reparar automáticamente' : 'regenerar el libro'}`
+                              : tooltip
+                          }
                         >
                           {dot} {label}
+                          {isClickable && <span style={{ fontSize: '10px' }}>{allReparable ? '🔧' : '⚠️'}</span>}
                         </span>
                       );
                     })()}

@@ -1372,6 +1372,7 @@ export default function PlanningTabDocumento({
                               const matReview = blockMaterialReviews[i];
                               const isClean = matReview.ok && matReview.warnings.length === 0;
                               const isWarn = matReview.ok && matReview.warnings.length > 0;
+                              const isError = !matReview.ok;
                               const bg = isClean
                                 ? 'rgba(16, 185, 129, 0.15)'
                                 : isWarn
@@ -1388,13 +1389,64 @@ export default function PlanningTabDocumento({
                                 : isWarn
                                   ? `Materiales: ${matReview.warnings.length} advertencia${matReview.warnings.length === 1 ? '' : 's'}`
                                   : `Materiales: ${matReview.errors.length} error${matReview.errors.length === 1 ? '' : 'es'}`;
+                              const issueList = (matReview.ok ? matReview.warnings : matReview.errors);
                               const tooltip = isClean
                                 ? `Revisión determinista R1 aprobada (${matReview.score}/100)`
-                                : (matReview.ok ? matReview.warnings : matReview.errors)
-                                    .map((iss) => `${iss.code}: ${iss.message}`)
-                                    .join('\n');
+                                : issueList.map((iss) => `${iss.code}: ${iss.message}`).join('\n');
+
+                              // Códigos reparables por PATCH sin regenerar el libro completo:
+                              // S4 (rúbrica): pesos en workbook.evaluationSection.rubric
+                              // S6 (deck/infografía): re-renderizados en memoria, no requieren IA
+                              // S2 y S1 requieren regeneración completa (contenido derivado en exportación)
+                              const REPARABLE_CODES = new Set([
+                                'S4_RUBRIC_WEIGHT_SUM_MISMATCH', 'S4_RUBRIC_LEVEL_MISSING',
+                                'S6_INVALID_SLIDE_COUNT', 'S6_PLACEHOLDER_IN_DECK',
+                                'S6_EMPTY_SLIDE_CONTENT', 'S6_PLACEHOLDER_IN_INFOGRAPHIC',
+                                'S6_INVALID_VISUAL_JSON',
+                              ]);
+                              const errorCodes = issueList.map((iss) => iss.code);
+                              const allReparable = isError && errorCodes.length > 0 && errorCodes.every((c) => REPARABLE_CODES.has(c));
+                              const anyError = isError || isWarn;
+
+                              const handleBadgeClick = async () => {
+                                if (!anyError) return;
+                                if (allReparable) {
+                                  // Reparación puntual: PATCH sin regenerar el libro completo
+                                  const tid = toast.loading(`Reparando Bloque ${i + 1}…`);
+                                  try {
+                                    const res = await fetch(`/api/planeaciones/${planning.id}/libro-bloque`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ blockIndex: i, repairCodes: errorCodes }),
+                                    });
+                                    const data = await res.json();
+                                    if (res.ok && data.success) {
+                                      toast.success(
+                                        `✅ Bloque ${i + 1} reparado (v${data.version}): ${(data.repairs as string[]).join(' · ')}`,
+                                        { id: tid, duration: 6000 }
+                                      );
+                                      // Recargar workbook actualizado
+                                      window.location.reload();
+                                    } else {
+                                      toast.error(data.error || 'Error en la reparación', { id: tid });
+                                    }
+                                  } catch (err) {
+                                    toast.error('Error de red al reparar', { id: tid });
+                                  }
+                                } else {
+                                  // Errores estructurales: regenerar libro completo
+                                  toast(`El error requiere regenerar el Libro Bloque ${i + 1} completo.`, { icon: '⚠️' });
+                                  handleGenerateWorkbook(i);
+                                }
+                              };
+
+                              const isClickable = anyError && !wbItem.generating;
                               return (
                                 <span
+                                  role={isClickable ? 'button' : undefined}
+                                  tabIndex={isClickable ? 0 : undefined}
+                                  onClick={isClickable ? handleBadgeClick : undefined}
+                                  onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleBadgeClick(); } : undefined}
                                   style={{
                                     fontSize: '11px',
                                     fontWeight: 700,
@@ -1403,9 +1455,20 @@ export default function PlanningTabDocumento({
                                     background: bg,
                                     color: fg,
                                     border: `1px solid ${border}`,
+                                    cursor: isClickable ? 'pointer' : 'default',
+                                    userSelect: 'none',
+                                    transition: 'opacity 0.15s, transform 0.1s',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
                                   }}
-                                  title={tooltip}
+                                  title={
+                                    isClickable
+                                      ? `${tooltip}\n\n🔧 Clic para ${allReparable ? 'reparar automáticamente' : 'regenerar el libro'}`
+                                      : tooltip
+                                  }
                                 >
+                                  {isClickable && <span style={{ fontSize: '10px' }}>{allReparable ? '🔧' : '⚠️'}</span>}
                                   {label}
                                 </span>
                               );
