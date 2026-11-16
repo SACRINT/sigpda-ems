@@ -2042,10 +2042,10 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
     }
     case 'geometry':
       return [
-        { symbol: '90°', label: 'Figura', meaning: clip(diagram.primaryLabel, 38) },
-        { symbol: 'R', label: 'Regla', meaning: clip(diagram.secondaryLabel, 38) },
-        { symbol: 'A', label: diagram.highlights[0]?.label ?? 'Elemento 1', meaning: clip(diagram.highlights[0]?.detail ?? '', 38) },
-        { symbol: 'B', label: diagram.highlights[1]?.label ?? 'Elemento 2', meaning: clip(diagram.highlights[1]?.detail ?? '', 38) },
+        { symbol: '90\u00B0', label: 'Figura', meaning: clip(diagram.primaryLabel, 38) },
+        { symbol: 'REGLA', label: 'Regla', meaning: clip(diagram.secondaryLabel, 38) },
+        { symbol: 'E1', label: diagram.highlights[0]?.label ?? 'Elemento 1', meaning: clip(diagram.highlights[0]?.detail ?? '', 38) },
+        { symbol: 'E2', label: diagram.highlights[1]?.label ?? 'Elemento 2', meaning: clip(diagram.highlights[1]?.detail ?? '', 38) },
       ];
     case 'reaction':
       return [

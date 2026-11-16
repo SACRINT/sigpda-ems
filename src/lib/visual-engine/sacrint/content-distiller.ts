@@ -1469,15 +1469,21 @@ export function isCompleteConclusion(value: string): boolean {
 /** Enunciado de ejemplo completo: datos + unidad/contexto + consigna o pregunta. */
 export function isCompleteProblemStatement(value: string): boolean {
   const clean = (value || '').replace(/\s+/g, ' ').trim();
-  if (clean.length < 30) return false;
+  if (clean.length < 45) return false;
   if (hasDanglingEnding(clean)) return false;
   if (!/\d/.test(clean)) return false;
-  return (
+
+  const hasTask =
     /\?/.test(clean) ||
-    /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|delimita|dise[ñn]a|traza|completa|obt[eé]n|verifica|demuestra|justifica|identifica|compara|analiza)\b/i.test(
+    /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|delimita(?:r)?|dise\u00F1a|traza|completa|obt[e\u00E9]n|verifica|demuestra|justifica|identifica|compara|analiza|localiza|se\u00F1ala(?:r)?)\b/i.test(
       clean
-    )
-  );
+    );
+  const hasUnitOrMoney =
+    /(?:m\u00B2|cm\u00B2|\bm\b|\bcm\b|\bmm\b|\bkm\b|\bu\b|\bunidades\b|\bpesos\b|\$|\u00B0|\bgrados\b|\ba\u00F1os\b|\bhoras\b|\bsillas\b|\bpersonas\b|\blitros\b|\bkg\b)/i.test(
+      clean
+    );
+
+  return hasTask && hasUnitOrMoney;
 }
 
 /** Un error común genérico no explica ningún error conceptual real. */

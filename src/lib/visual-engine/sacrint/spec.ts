@@ -6,13 +6,13 @@ import {
   cleanMissionTopicLine,
   cleanSacrintText,
   distillConciseText,
+  distillExerciseStatement,
   distillLessonBundle,
   distillStepPreservingMath,
   extractChalkboardTopicTitle,
   extractCleanTopicTitle,
   extractConceptHighlights,
   extractWorkedExample,
-  isGenericMisconception,
   isRubricOrBoilerplateLeak,
   preventSixGramTheoryOverlap,
   sanitizePedagogicalMetaPhrases,
@@ -1057,84 +1057,134 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
   return sources;
 }
 
-function countSlideWords(slide: SacrintSlide): number {
-  return JSON.stringify(slide)
-    .replace(/"[^"]*":\s*/g, ' ')
-    .replace(/[{}[\],":]/g, ' ')
-    .split(/\s+/)
-    .filter((token) => /[a-záéíóúñA-ZÁÉÍÓÚÑ]{3,}/.test(token)).length;
+function slideVisibleText(slide: SacrintSlide): string {
+  const parts: string[] = [];
+  const add = (value: string | undefined | null) => {
+    if (value && value.trim()) parts.push(value.trim());
+  };
+  add(slide.title);
+  add(slide.subtitle);
+  if (slide.kind === 'concept') {
+    add(slide.explanation);
+    add(slide.analogy);
+    add(slide.misconception);
+    add(slide.formulas && slide.formulas.length > 0 ? slide.formulas[0] : slide.formula);
+    for (const item of slide.keyTakeaways ?? []) add(item);
+    if (slide.workedExample) {
+      add(slide.workedExample.problemStatement);
+      for (const step of slide.workedExample.steps) add(step);
+      add(slide.workedExample.interpretation);
+    }
+    for (const variable of slide.variables ?? []) {
+      add(variable.label);
+      add(variable.meaning);
+    }
+  }
+  if (slide.kind === 'practice') {
+    const activities =
+      slide.activities && slide.activities.length > 0
+        ? slide.activities
+        : slide.checkpoints.map((checkpoint, index) => ({
+            label: `Actividad ${index + 1}`,
+            statement: checkpoint,
+            hint: '',
+          }));
+    for (const activity of activities) {
+      add(activity.label);
+      add(activity.statement);
+      add(activity.hint);
+    }
+    add(slide.applicationText || slide.practiceText);
+    for (const item of slide.objectiveBullets ?? []) add(item);
+    for (const item of slide.evaluationCriteria ?? []) add(item);
+    add(slide.artifactName);
+    add(slide.artifactStep);
+  }
+  return parts.join(' ');
+}
+
+export function countSlideWords(slide: SacrintSlide): number {
+  const text = slideVisibleText(slide);
+  const visibleWords = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  const chromeWords = slide.kind === 'concept' ? 22 : slide.kind === 'practice' ? 26 : 0;
+  return visibleWords + chromeWords;
+}
+
+function hasNumericContext(value: string): boolean {
+  return /\d/.test(value) && /(?:[=+*/^$\u00B0\u00B2]|\b(?:m|cm|mm|km|kg|g|l|ml|pesos|unidades|horas|a\u00F1os|personas|sillas)\b)/i.test(value);
 }
 
 function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
+  const fitShort = (
+    value: string | undefined,
+    maxChars: number,
+    maxWords: number,
+    role: 'concept' | 'problem' | 'step' | 'conclusion' | 'activity' | 'application' | 'hint' | 'general'
+  ): string | undefined =>
+    value ? fitPedagogicalText(value, { maxChars, maxWords, role }) || value : value;
+  const compactMathStep = (step: string, maxChars: number, maxWords: number): string =>
+    /[=+\-*/^]|\d/.test(step) ? step : distillStepPreservingMath(step, maxChars, maxWords);
+
   if (slide.kind === 'concept') {
     const cs = slide as SacrintConceptSlide;
     return {
       ...cs,
-      explanation: fitPedagogicalText(cs.explanation, { maxChars: 150, maxWords: 22, role: 'concept' }) || cs.explanation,
-      analogy: cs.analogy
-        ? fitPedagogicalText(cs.analogy, { maxChars: 70, maxWords: 11, role: 'hint', ensurePeriod: false }) || cs.analogy
-        : cs.analogy,
-      keyTakeaways: (cs.keyTakeaways ?? []).slice(0, 1).map((item) =>
-        fitPedagogicalText(item, { maxChars: 46, maxWords: 7, role: 'concept', ensurePeriod: false }) || item
-      ),
+      explanation: fitShort(cs.explanation, 150, 22, 'concept') || cs.explanation,
+      analogy: fitShort(cs.analogy, 70, 11, 'hint'),
+      misconception: fitShort(cs.misconception, 100, 15, 'concept') || cs.misconception,
+      keyTakeaways: (cs.keyTakeaways ?? [])
+        .slice(0, 1)
+        .map((item) => fitShort(item, 46, 7, 'concept'))
+        .filter((item): item is string => Boolean(item)),
       workedExample: cs.workedExample
         ? {
             problemStatement:
-              fitPedagogicalText(cs.workedExample.problemStatement, { maxChars: 120, maxWords: 18, role: 'concept' }) ||
+              fitShort(cs.workedExample.problemStatement, 110, 16, 'problem') ||
               cs.workedExample.problemStatement,
-            steps: cs.workedExample.steps.slice(0, 3).map((step) => {
-              // Preserve steps with mathematical expressions intact (don't truncate equations)
-              const hasMathExpr = /[=+\-×÷√∑∫]|[\d]+x|x\s*=|[₀-₉²³⁴⁵⁶⁷⁸⁹]|\$\d/.test(step);
-              if (hasMathExpr) return step;
-              return fitPedagogicalText(step, { maxChars: 90, maxWords: 14, role: 'concept' }) || step;
-            }),
+            steps: cs.workedExample.steps
+              .slice(0, 3)
+              .map((step) => compactMathStep(step, 60, 9))
+              .filter(Boolean),
             interpretation:
-              fitPedagogicalText(cs.workedExample.interpretation, { maxChars: 70, maxWords: 10, role: 'concept' }) ||
+              fitShort(cs.workedExample.interpretation, 55, 8, 'conclusion') ||
               cs.workedExample.interpretation,
           }
         : cs.workedExample,
-      variables: (cs.variables ?? []).slice(0, 3).map((v) => ({
-        ...v,
-        meaning: fitPedagogicalText(v.meaning, { maxChars: 32, maxWords: 5, role: 'concept', ensurePeriod: false }) || v.meaning,
+      variables: (cs.variables ?? []).slice(0, 3).map((variable) => ({
+        ...variable,
+        meaning: fitShort(variable.meaning, 32, 5, 'concept') || variable.meaning,
       })),
       facts: (cs.facts ?? []).slice(0, 1),
     } as unknown as SacrintConceptSlide;
   }
   if (slide.kind === 'practice') {
     const ps = slide as SacrintPracticeSlide;
-    const hasMathData = (s: string) => /\d[\s,.]*(?:m|kg|cm|km|s|°|€|\$|%|g|l|Lt|ml)|\d+\s*[×x\-+÷=]\s*\d|\d+\.\d|\d{2,}/.test(s);
+    const hasMathData = hasNumericContext;
     return {
       ...ps,
-      activities: (ps.activities ?? []).slice(0, 2).map((act) => ({
-        ...act,
-        statement: hasMathData(act.statement)
-          ? act.statement  // preserve statements with numeric data intact
-          : fitPedagogicalText(act.statement, { maxChars: 170, maxWords: 26, role: 'concept' }) || act.statement,
-        hint: act.hint
-          ? fitPedagogicalText(act.hint, { maxChars: 70, maxWords: 11, role: 'hint', ensurePeriod: false }) || act.hint
-          : act.hint,
+      activities: (ps.activities ?? []).slice(0, 2).map((activity) => ({
+        ...activity,
+        statement: hasMathData(activity.statement)
+          ? distillExerciseStatement(activity.statement, 190, 30) || activity.statement
+          : fitShort(activity.statement, 150, 23, 'activity') || activity.statement,
+        hint: fitShort(activity.hint, 70, 11, 'hint'),
       })),
-      applicationText: ps.applicationText
-        ? fitPedagogicalText(ps.applicationText, { maxChars: 110, maxWords: 17, role: 'application' }) || ps.applicationText
-        : ps.applicationText,
-      practiceText: ps.practiceText
-        ? fitPedagogicalText(ps.practiceText, { maxChars: 110, maxWords: 17, role: 'application' }) || ps.practiceText
-        : ps.practiceText,
-      objectiveBullets: (ps.objectiveBullets ?? []).slice(0, 1).map((item) =>
-        fitPedagogicalText(item, { maxChars: 60, maxWords: 9, role: 'concept', ensurePeriod: false }) || item
-      ),
-      evaluationCriteria: (ps.evaluationCriteria ?? []).slice(0, 2).map((item) =>
-        fitPedagogicalText(item, { maxChars: 48, maxWords: 8, role: 'general', ensurePeriod: false }) || item
-      ),
-      exitChecks: (ps.exitChecks ?? []).slice(0, 2).map((item) =>
-        fitPedagogicalText(item, { maxChars: 48, maxWords: 8, role: 'general', ensurePeriod: false }) || item
-      ),
-      artifactName: ps.artifactName
-        ? fitPedagogicalText(ps.artifactName, { maxChars: 40, maxWords: 6, role: 'concept', ensurePeriod: false }) || ps.artifactName
-        : ps.artifactName,
-      artifactStep: ps.artifactStep
-        ? fitPedagogicalText(ps.artifactStep, { maxChars: 60, maxWords: 9, role: 'concept' }) || ps.artifactStep
-        : ps.artifactStep,
+      applicationText: fitShort(ps.applicationText, 90, 14, 'application'),
+      practiceText: fitShort(ps.practiceText, 90, 14, 'application'),
+      objectiveBullets: (ps.objectiveBullets ?? [])
+        .slice(0, 1)
+        .map((item) => fitShort(item, 60, 9, 'concept'))
+        .filter((item): item is string => Boolean(item)),
+      evaluationCriteria: (ps.evaluationCriteria ?? [])
+        .slice(0, 2)
+        .map((item) => fitShort(item, 48, 8, 'general'))
+        .filter((item): item is string => Boolean(item)),
+      exitChecks: (ps.exitChecks ?? [])
+        .slice(0, 2)
+        .map((item) => fitShort(item, 48, 8, 'general'))
+        .filter((item): item is string => Boolean(item)),
+      artifactName: fitShort(ps.artifactName, 40, 6, 'concept'),
+      artifactStep: fitShort(ps.artifactStep, 60, 9, 'application'),
       facts: (ps.facts ?? []).slice(0, 1),
     } as unknown as SacrintPracticeSlide;
   }
@@ -1143,14 +1193,109 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
 
 function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
   if (countSlideWords(slide) <= maxWords) return slide;
+
+  const fitShort = (
+    value: string | undefined,
+    maxChars: number,
+    maxWordsValue: number,
+    role: 'concept' | 'problem' | 'step' | 'conclusion' | 'activity' | 'application' | 'hint' | 'general'
+  ): string | undefined =>
+    value ? fitPedagogicalText(value, { maxChars, maxWords: maxWordsValue, role }) || value : value;
+  const compactMathStep = (step: string, maxChars: number, maxWordsValue: number): string =>
+    /[=+\-*/^]|\d/.test(step) ? step : distillStepPreservingMath(step, maxChars, maxWordsValue);
+
   if (slide.kind === 'concept') {
-    const cs = slide as SacrintConceptSlide;
-    return { ...cs, analogy: undefined, keyTakeaways: [], facts: [] } as unknown as SacrintConceptSlide;
+    const first = {
+      ...(slide as SacrintConceptSlide),
+      analogy: undefined,
+      keyTakeaways: [],
+      facts: [],
+      variables: (slide.variables ?? []).slice(0, 2),
+    } as unknown as SacrintConceptSlide;
+    if (countSlideWords(first) <= maxWords) return first;
+
+    const second = {
+      ...first,
+      explanation: fitShort(first.explanation, 120, 18, 'concept') || first.explanation,
+      misconception: fitShort(first.misconception, 80, 12, 'concept') || first.misconception,
+      workedExample: first.workedExample
+        ? {
+            problemStatement:
+              fitShort(first.workedExample.problemStatement, 90, 14, 'problem') ||
+              first.workedExample.problemStatement,
+            steps: first.workedExample.steps
+              .slice(0, 3)
+              .map((step) => compactMathStep(step, 55, 8))
+              .filter(Boolean),
+            interpretation:
+              fitShort(first.workedExample.interpretation, 45, 7, 'conclusion') ||
+              first.workedExample.interpretation,
+          }
+        : first.workedExample,
+      variables: (first.variables ?? []).slice(0, 1),
+    } as SacrintConceptSlide;
+    if (countSlideWords(second) <= maxWords) return second;
+
+    return {
+      ...second,
+      explanation: fitShort(second.explanation, 100, 15, 'concept') || second.explanation,
+      misconception: fitShort(second.misconception, 60, 9, 'concept') || second.misconception,
+      variables: [],
+      workedExample: second.workedExample
+        ? {
+            ...second.workedExample,
+            steps: second.workedExample.steps.slice(0, 3),
+          }
+        : second.workedExample,
+    } as SacrintConceptSlide;
   }
+
   if (slide.kind === 'practice') {
-    const ps = slide as SacrintPracticeSlide;
-    return { ...ps, exitChecks: [], facts: [] } as unknown as SacrintPracticeSlide;
+    const first = {
+      ...(slide as SacrintPracticeSlide),
+      objectiveBullets: (slide.objectiveBullets ?? []).slice(0, 1),
+      exitChecks: [],
+      facts: [],
+      checkpoints: [],
+    } as SacrintPracticeSlide;
+    if (countSlideWords(first) <= maxWords) return first;
+
+    const second = {
+      ...first,
+      activities: (first.activities ?? []).slice(0, 2).map((activity) => ({
+        ...activity,
+        statement: hasNumericContext(activity.statement)
+          ? distillExerciseStatement(activity.statement, 190, 30) || activity.statement
+          : fitShort(activity.statement, 140, 21, 'activity') || activity.statement,
+        hint: fitShort(activity.hint, 50, 7, 'hint'),
+      })),
+      applicationText: fitShort(first.applicationText, 70, 11, 'application'),
+      practiceText: fitShort(first.practiceText, 70, 11, 'application'),
+      objectiveBullets: (first.objectiveBullets ?? [])
+        .slice(0, 1)
+        .map((item) => fitShort(item, 50, 7, 'concept'))
+        .filter((item): item is string => Boolean(item)),
+      evaluationCriteria: (first.evaluationCriteria ?? [])
+        .slice(0, 1)
+        .map((item) => fitShort(item, 44, 7, 'general'))
+        .filter((item): item is string => Boolean(item)),
+      artifactStep: fitShort(first.artifactStep, 45, 7, 'application'),
+    } as SacrintPracticeSlide;
+    if (countSlideWords(second) <= maxWords) return second;
+
+    return {
+      ...second,
+      activities: (second.activities ?? []).slice(0, 2).map((activity) => ({
+        ...activity,
+        statement: hasNumericContext(activity.statement)
+          ? distillExerciseStatement(activity.statement, 190, 30) || activity.statement
+          : fitShort(activity.statement, 120, 18, 'activity') || activity.statement,
+      })),
+      applicationText: fitShort(second.applicationText, 60, 9, 'application'),
+      artifactStep: fitShort(second.artifactStep, 40, 6, 'application'),
+    } as SacrintPracticeSlide;
   }
+
   return slide;
 }
 
@@ -1902,6 +2047,74 @@ function isInfographicDiagramCoherent(
   return true;
 }
 
+export type ConceptFamily =
+  | 'angles'
+  | 'pythagoras'
+  | 'area-perimeter'
+  | 'congruence'
+  | 'linear'
+  | 'quadratic'
+  | 'statistics'
+  | 'other';
+
+function normalizeConceptFamilyText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function conceptFamily(text: string): ConceptFamily {
+  const t = normalizeConceptFamilyText(text);
+  if (/pitagor|hipotenusa|cateto|triangulo\s+rectangulo|c\s*(?:\u00B2|\^?2)\s*=\s*a\s*(?:\u00B2|\^?2)\s*\+\s*b/.test(t)) {
+    return 'pythagoras';
+  }
+  if (/angul|complement|suplement|paralel|transversal|grados|\u00B0/.test(t)) return 'angles';
+  if (/perimetro|area|superficie|rectangulo|triangulo|poligono/.test(t)) return 'area-perimeter';
+  if (/congruen|semejan|\blll\b|\blal\b|\bala\b/.test(t)) return 'congruence';
+  if (/ecuacion\s+lineal|pendiente|interseccion|recta/.test(t)) return 'linear';
+  if (/cuadratica|parabola|vertice|raices/.test(t)) return 'quadratic';
+  if (/estadistica|muestra|poblacion|frecuencia|media|mediana|moda/.test(t)) return 'statistics';
+  return 'other';
+}
+
+function isFormulaPartCoherentWithTitle(title: string, part: string): boolean {
+  const titleFamily = conceptFamily(title);
+  const partFamily = conceptFamily(part);
+  if (titleFamily === 'other' || partFamily === 'other' || partFamily === titleFamily) return true;
+  if (
+    (titleFamily === 'angles' && partFamily === 'pythagoras') ||
+    (titleFamily === 'pythagoras' && partFamily === 'angles')
+  ) {
+    return /pitagor|hipotenusa|cateto|triangulo\s+rectangulo/.test(
+      normalizeConceptFamilyText(title)
+    );
+  }
+  return false;
+}
+
+export function isFormulaCoherentWithTitle(title: string, formula: string): boolean {
+  if (!formula.trim()) return false;
+  return formula
+    .split('|')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .some((part) => isFormulaPartCoherentWithTitle(title, part));
+}
+
+function selectCoherentFormula(title: string, candidates: string[]): string {
+  for (const candidate of candidates) {
+    if (!candidate.trim()) continue;
+    const part = candidate
+      .split('|')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .find((value) => isFormulaPartCoherentWithTitle(title, value));
+    if (part) return part;
+  }
+  return '';
+}
+
 export interface SacrintInfographicTarget {
   missionIndex: number;
   sessionIndex: number;
@@ -1968,6 +2181,101 @@ function sanitizeInfographicDiagram(diagram: SacrintDiagramSpec): SacrintDiagram
     ...(d.highlights !== undefined ? { highlights: cleanArr(d.highlights as { label?: string; detail?: string }[]) } : {}),
     ...(d.nodes !== undefined ? { nodes: cleanArr(d.nodes as { label?: string; detail?: string }[]) } : {}),
   } as SacrintDiagramSpec;
+}
+
+function enforceInfographicOverlap(
+  spec: SacrintInfographicSpec,
+  sources: string[],
+  maxRatio = 0.15
+): SacrintInfographicSpec {
+  const deOverlapField = (value: string): string => {
+    const clean = (value || '').trim();
+    if (!clean) return clean;
+    const rewritten = preventSixGramTheoryOverlap(
+      sanitizePedagogicalMetaPhrases(clean),
+      sources
+    );
+    if (sixGramOverlapRatio(rewritten, sources) <= maxRatio) return rewritten;
+
+    const keptSentences = rewritten
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(
+        (sentence) =>
+          Boolean(sentence) && sixGramOverlapRatio(sentence, sources) <= maxRatio
+      );
+    if (keptSentences.length > 0) {
+      const joined = keptSentences.join(' ');
+      if (sixGramOverlapRatio(joined, sources) <= maxRatio) return joined;
+    }
+
+    const formulaClause = spec.formula ? ` Se modela con ${spec.formula}.` : '';
+    const synthesis = `${spec.title}.${formulaClause}`.trim();
+    if (sixGramOverlapRatio(synthesis, sources) <= maxRatio) return synthesis;
+    return spec.title;
+  };
+  const deOverlapList = (values: string[] | undefined): string[] =>
+    (values ?? []).map(deOverlapField);
+
+  spec.claim = deOverlapField(spec.claim);
+  if (spec.conceptManual) {
+    spec.conceptManual = {
+      ...spec.conceptManual,
+      centralConcept: deOverlapField(spec.conceptManual.centralConcept),
+      conceptMap: spec.conceptManual.conceptMap.map((node) => ({
+        ...node,
+        concept: deOverlapField(node.concept),
+        relation: deOverlapField(node.relation),
+        detail: deOverlapField(node.detail),
+      })),
+      definitions: spec.conceptManual.definitions.map((definition) => ({
+        term: deOverlapField(definition.term),
+        definition: deOverlapField(definition.definition),
+      })),
+      usageGuidance: deOverlapList(spec.conceptManual.usageGuidance),
+      masteryChecklist: deOverlapList(spec.conceptManual.masteryChecklist),
+    };
+  }
+  spec.keyConcepts = deOverlapList(spec.keyConcepts);
+  spec.criteria = deOverlapList(spec.criteria);
+  spec.steps = (spec.steps ?? []).map((step) => ({
+    ...step,
+    title: deOverlapField(step.title),
+    body: deOverlapField(step.body),
+  }));
+  if (spec.quickExample) {
+    spec.quickExample = {
+      problemStatement: deOverlapField(spec.quickExample.problemStatement),
+      steps: spec.quickExample.steps.map(deOverlapField),
+      interpretation: deOverlapField(spec.quickExample.interpretation),
+    };
+  }
+  if (spec.applicationSummary) spec.applicationSummary = deOverlapField(spec.applicationSummary);
+  if (spec.misconceptionFix) {
+    spec.misconceptionFix = {
+      error: deOverlapField(spec.misconceptionFix.error),
+      correction: deOverlapField(spec.misconceptionFix.correction),
+    };
+    spec.misconception = `${spec.misconceptionFix.error} ${spec.misconceptionFix.correction}`;
+  }
+  spec.project = {
+    artifactName: deOverlapField(spec.project.artifactName),
+    communityUtility: deOverlapField(spec.project.communityUtility),
+  };
+  spec.facts = (spec.facts ?? []).map((fact) => ({
+    label: deOverlapField(fact.label),
+    value: deOverlapField(fact.value),
+  }));
+  spec.rubric = (spec.rubric ?? []).map((item) => ({
+    ...item,
+    label: deOverlapField(item.label),
+  }));
+  spec.variables = (spec.variables ?? []).map((variable) => ({
+    ...variable,
+    label: deOverlapField(variable.label),
+    meaning: deOverlapField(variable.meaning),
+  }));
+  return spec;
 }
 
 export function buildSacrintInfographic(
@@ -2072,53 +2380,77 @@ export function buildSacrintInfographic(
     sessionDiagram?.available
       ? sessionDiagram
       : buildSacrintDiagram(mission, pack, { ...options, session: selectedSession });
-  const coherent = isInfographicDiagramCoherent(
-    candidateDiagram,
-    `${cleanTitle} ${cleanClaim}`,
-    validFormulas,
-    quickExample.problemStatement
-  );
+  const isQuantitativeOrReaction =
+    candidateDiagram.kind === 'linear' ||
+    candidateDiagram.kind === 'quadratic' ||
+    candidateDiagram.kind === 'system-2x2' ||
+    candidateDiagram.kind === 'exponential' ||
+    candidateDiagram.kind === 'geometry' ||
+    candidateDiagram.kind === 'reaction';
+  const diagramEquation = candidateDiagram.available ? diagramFormula(candidateDiagram) : '';
+  const formulaCandidates = [
+    ...validFormulas,
+    ...(candidateDiagram.available && isQuantitativeOrReaction && diagramEquation ? [diagramEquation] : []),
+  ].filter(Boolean);
+  const rawFormula = formulaCandidates[0] ?? '';
+  const formula = selectCoherentFormula(cleanTitle, formulaCandidates);
+  const diagramFormulaCoherent =
+    !diagramEquation || isFormulaCoherentWithTitle(cleanTitle, diagramEquation);
+  const coherent =
+    Boolean(formula || !rawFormula) &&
+    diagramFormulaCoherent &&
+    isInfographicDiagramCoherent(
+      candidateDiagram,
+      `${cleanTitle} ${cleanClaim}`,
+      formula ? [formula] : [],
+      quickExample.problemStatement
+    );
   const diagram: SacrintDiagramSpec = coherent
     ? candidateDiagram
     : { ...candidateDiagram, available: false };
-  const isQuantitativeOrReaction =
-    diagram.kind === 'linear' ||
-    diagram.kind === 'quadratic' ||
-    diagram.kind === 'system-2x2' ||
-    diagram.kind === 'exponential' ||
-    diagram.kind === 'geometry' ||
-    diagram.kind === 'reaction';
-  const formula =
-    validFormulas[0] ?? (diagram.available && isQuantitativeOrReaction ? diagramFormula(diagram) : '');
+  const sanitizedDiagram = sanitizeInfographicDiagram(diagram);
+  const variables = sanitizedDiagram.available ? buildDiagramVariables(sanitizedDiagram) : [];
 
   const rawKeyConcepts = (
     conceptHighlights.keyRules.length > 0 ? conceptHighlights.keyRules : [conceptHighlights.definition]
   )
-    .map((c) => finalizeVisibleText(sanitizePedagogicalMetaPhrases(c), { ensurePeriod: true }))
+    .map((c) =>
+      finalizeVisibleText(deOverlap(sanitizePedagogicalMetaPhrases(c)), { ensurePeriod: true })
+    )
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
   const steps = buildSteps(mission, pack, selectedSession).map((step) => ({
     ...step,
-    title: sanitizePedagogicalMetaPhrases(step.title),
+    title: finalizeVisibleText(deOverlap(sanitizePedagogicalMetaPhrases(step.title)), {
+      ensurePeriod: false,
+    }),
     body: finalizeVisibleText(deOverlap(step.body), { ensurePeriod: true }),
   }));
-  const variables = diagram.available ? buildDiagramVariables(diagram) : [];
 
   const definitions: ConceptManualDefinition[] = [
     {
-      term: cleanTitle,
+      term: finalizeVisibleText(deOverlap(cleanTitle), { ensurePeriod: false }),
       definition: cleanClaim,
     },
     ...rawKeyConcepts.slice(0, 2).map((rule, idx) => {
       const colonIdx = rule.indexOf(':');
       if (colonIdx > 3 && colonIdx < 36) {
         return {
-          term: rule.slice(0, colonIdx).trim(),
-          definition: finalizeVisibleText(rule.slice(colonIdx + 1).trim(), { ensurePeriod: true }),
+          term: finalizeVisibleText(deOverlap(rule.slice(0, colonIdx).trim()), {
+            ensurePeriod: false,
+          }),
+          definition: finalizeVisibleText(deOverlap(rule.slice(colonIdx + 1).trim()), {
+            ensurePeriod: true,
+          }),
         };
       }
       return {
         term: idx === 0 ? 'Principio operativo' : 'Condición clave',
-        definition: fitPedagogicalText(rule, { maxChars: 135, maxWords: 21, role: 'concept' }) || rule,
+        definition: finalizeVisibleText(
+          deOverlap(
+            fitPedagogicalText(rule, { maxChars: 135, maxWords: 21, role: 'concept' }) || rule
+          ),
+          { ensurePeriod: true }
+        ),
       };
     }),
   ];
@@ -2135,12 +2467,12 @@ export function buildSacrintInfographic(
           ensurePeriod: false,
         }) || cleanClaim,
     },
-    ...(validFormulas[0] || formula
+    ...(formula
       ? [
           {
             concept: 'Expresión / Regla',
             relation: 'Formaliza',
-            detail: validFormulas[0] || formula,
+            detail: formula,
           },
         ]
       : []),
@@ -2190,9 +2522,8 @@ export function buildSacrintInfographic(
   const cleanCommunityUtility = sanitizePedagogicalMetaPhrases(
     sanitizeField(project?.communityUtility, '', 110, 16)
   );
-  const sanitizedDiagram = sanitizeInfographicDiagram(diagram);
 
-  return {
+  const spec: SacrintInfographicSpec = {
     format,
     theme: options.theme ?? 'light',
     meta,
@@ -2203,7 +2534,7 @@ export function buildSacrintInfographic(
     subtitle: `${meta.subjectName} · BLOQUE ${meta.blockNumber} · MISIÓN ${String(meta.missionNumber).padStart(2, '0')}`,
     claim: cleanClaim,
     formula,
-    formulasList: validFormulas.length > 0 ? validFormulas : formula ? [formula] : [],
+    formulasList: formula ? [formula] : [],
     keyConcepts: rawKeyConcepts,
     conceptManual: {
       centralConcept: cleanTitle,
@@ -2232,4 +2563,5 @@ export function buildSacrintInfographic(
     },
     facts,
   };
+  return enforceInfographicOverlap(spec, infographicSources, 0.15);
 }

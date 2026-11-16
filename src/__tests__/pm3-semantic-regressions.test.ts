@@ -23,8 +23,8 @@ import {
   extractConceptHighlights,
   extractPracticeActivities,
   extractWorkedExample,
-  isCompleteMathStep,
   isCompleteConclusion,
+  isCompleteMathStep,
 } from '@/lib/visual-engine/sacrint/content-distiller';
 import {
   buildSacrintDeck,

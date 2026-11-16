@@ -542,7 +542,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
         const txt = bodyBox?.text.trim() ?? '';
         const hasTaskOrQuestion =
           txt.includes('?') ||
-          /\b(?:resuelve|calcula|determina|encuentra|halla|plantea|construye|verifica|comprueba|analiza|transforma|convierte|grafica|traza|dibuja|explica|revisa|identifica|modela|estima|proyecta|dise[ñn]a|elabora|aplica|eval[uú]a|indica|compara|justifica)\b/i.test(
+          /\b(?:resuelve|calcula|determina|encuentra|halla|plantea|construye|verifica|comprueba|analiza|transforma|convierte|grafica|traza|dibuja|explica|revisa|identifica|modela|estima|proyecta|dise[ñn]a|elabora|aplica|eval[uú]a|indica|compara|justifica|formula|se\u00F1ala|localiza|completa|escribe|obt[e\u00E9]n|delimita)\b/i.test(
             txt
           );
         const isTruncated =
