@@ -14,7 +14,9 @@ import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+// El render combinado de infografías vectoriales puede superar los 120 s.
+// Vercel corta la función con 504 si el límite coincide con el tiempo real de render.
+export const maxDuration = 300;
 
 export async function GET(
   request: NextRequest,
