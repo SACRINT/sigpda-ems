@@ -73,6 +73,7 @@ vi.mock('@/lib/guide-engine/quality-validator', () => ({
 }));
 vi.mock('@/lib/guide-engine/session-plan-expansion', () => ({
   expandDeficientSessionPlans: vi.fn().mockResolvedValue({ expandedPlans: 0, addedWords: 0 }),
+  compactOversizedSessionPlans: vi.fn().mockReturnValue({ compactedPlans: 0, removedWords: 0 }),
 }));
 
 const CONTENIDO = 'Estudio profundo de la fotónica cuántica aplicada a interferometría';

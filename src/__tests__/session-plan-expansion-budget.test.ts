@@ -7,9 +7,14 @@
  * con minRemainingBudgetMs=30s el lote se ejecuta.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { expandDeficientSessionPlans } from '@/lib/guide-engine/session-plan-expansion';
+import {
+  compactOversizedSessionPlans,
+  expandDeficientSessionPlans,
+} from '@/lib/guide-engine/session-plan-expansion';
 import { generateWithRotation } from '@/lib/ai-provider';
+import { countSessionPlanWords } from '@/lib/guide-engine/content-budget';
 import type { WriterOutput } from '@/lib/guide-engine/writers/writer-contract';
+import type { SessionPlan } from '@/types/work-textbook';
 
 vi.mock('@/lib/ai-provider', () => ({
   generateWithRotation: vi.fn(),
@@ -98,5 +103,123 @@ describe('expandDeficientSessionPlans — piso de presupuesto', () => {
     expect(generateWithRotation).toHaveBeenCalledTimes(1);
     expect(result.expandedPlans).toBeGreaterThan(0);
     expect(result.addedWords).toBeGreaterThan(0);
+  });
+});
+
+function sentence(prefix: string, index: number, words: number): string {
+  const body = Array.from({ length: Math.max(1, words - 1) }, (_, i) => `${prefix}${index}${i}`).join(' ');
+  return `${body} con datos ${index}.`;
+}
+
+function makeSessionPlan(sessionNumber: number): SessionPlan {
+  return {
+    sessionNumber,
+    objetivo: sentence('objetivo', sessionNumber, 12),
+    motivacion: sentence('motivacion', sessionNumber, 60),
+    saberesPrevios: sentence('saberes', sessionNumber, 40),
+    contenido: Array.from({ length: 20 }, (_, i) => sentence('contenido', sessionNumber * 100 + i, 15)).join(' '),
+    ejemploResuelto: Array.from({ length: 10 }, (_, i) => sentence('ejemplo', sessionNumber * 100 + i, 20)).join(' '),
+    practica: [
+      {
+        enunciado: sentence('practica', sessionNumber, 30),
+        pista: sentence('pista', sessionNumber, 20),
+      },
+    ],
+    aplicacion: sentence('aplicacion', sessionNumber, 30),
+    autoevaluacion: [sentence('autoevaluacion', sessionNumber, 12)],
+    recursos: [{ titulo: 'Recurso de ampliación', url: 'https://example.com', tipo: 'web' }],
+    productoIntegrador: sentence('producto', sessionNumber, 20),
+  };
+}
+
+function makeOversizedOutput(): WriterOutput {
+  const plans = [makeSessionPlan(1), makeSessionPlan(2)];
+  const wordCount = plans.reduce((acc, plan) => acc + countSessionPlanWords(plan), 0);
+  return {
+    type: 'foundation',
+    section: { sessionPlans: plans, wordCount },
+    wordCount,
+    tokensUsed: 0,
+    qualityScore: 80,
+    warnings: [],
+  } as unknown as WriterOutput;
+}
+
+describe('compactOversizedSessionPlans', () => {
+  const missionBudget = {
+    targetWords: { min: 400, ideal: 450, max: 500 },
+    targetPages: { min: 1, ideal: 1, max: 1 },
+    sessionsCount: 1,
+  };
+
+  it('recorta un bloque excedido sin cruzar el mínimo ni romper los planes', () => {
+    const output = makeOversizedOutput();
+    const before = output.wordCount;
+
+    const result = compactOversizedSessionPlans({
+      writerOutputs: [output],
+      missionBudgets: {
+        foundation: missionBudget,
+        lab: missionBudget,
+        project: missionBudget,
+        evaluation: missionBudget,
+      },
+      blockTargetWords: { min: 800, max: 1000 },
+      subsystem: 'bge',
+    });
+
+    expect(result.removedWords).toBeGreaterThan(0);
+    expect(output.wordCount).toBeLessThan(before);
+    expect(output.wordCount).toBeLessThanOrEqual(1000);
+    expect(output.wordCount).toBeGreaterThanOrEqual(800);
+    expect(output.wordCount).toBe(output.section.wordCount);
+    expect(output.section.sessionPlans?.map((plan) => plan.sessionNumber)).toEqual([1, 2]);
+    for (const plan of output.section.sessionPlans || []) {
+      expect(plan.contenido.trim().length).toBeGreaterThan(0);
+      expect(plan.ejemploResuelto.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('no modifica un bloque dentro del máximo formal', () => {
+    const output = makeOversizedOutput();
+    output.wordCount = 700;
+    output.section.wordCount = 700;
+    const before = JSON.stringify(output);
+
+    const result = compactOversizedSessionPlans({
+      writerOutputs: [output],
+      missionBudgets: {
+        foundation: missionBudget,
+        lab: missionBudget,
+        project: missionBudget,
+        evaluation: missionBudget,
+      },
+      blockTargetWords: { min: 600, max: 1000 },
+      subsystem: 'bge',
+    });
+
+    expect(result).toEqual({ compactedPlans: 0, removedWords: 0 });
+    expect(JSON.stringify(output)).toBe(before);
+  });
+
+  it('respeta la tolerancia editorial si el exceso no supera el umbral de disparo', () => {
+    const output = makeOversizedOutput();
+    const before = JSON.stringify(output);
+
+    const result = compactOversizedSessionPlans({
+      writerOutputs: [output],
+      missionBudgets: {
+        foundation: missionBudget,
+        lab: missionBudget,
+        project: missionBudget,
+        evaluation: missionBudget,
+      },
+      blockTargetWords: { min: 800, max: 1000 },
+      triggerWords: 2000,
+      subsystem: 'bge',
+    });
+
+    expect(result).toEqual({ compactedPlans: 0, removedWords: 0 });
+    expect(JSON.stringify(output)).toBe(before);
   });
 });

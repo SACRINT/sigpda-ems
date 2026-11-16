@@ -47,7 +47,10 @@ import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
 import { findGenericContent } from './quality/no-generic-content';
 import { validateBlockGuideQuality } from './quality-validator';
-import { expandDeficientSessionPlans } from './session-plan-expansion';
+import {
+  compactOversizedSessionPlans,
+  expandDeficientSessionPlans,
+} from './session-plan-expansion';
 import * as aiProvider from '@/lib/ai-provider';
 import { getInstitutionalContext } from '@/lib/institutional-context';
 import { createWriterScheduler, resolveWriterConcurrency } from './writer-scheduler';
@@ -540,6 +543,30 @@ export async function generateBlockWorkTextbook(
     targetWords: budget.targetWords,
   });
 
+  const compactOversizedIfNeeded = async (stage: 'pre-expansion' | 'post-expansion') => {
+    const compaction = compactOversizedSessionPlans({
+      writerOutputs,
+      missionBudgets: effectiveMissionBudgets,
+      blockTargetWords: budget.targetWords,
+      subsystem: curriculumContext.subsystem,
+      // Solo intervenir cuando el exceso ya supera la tolerancia del gate.
+      triggerWords: Math.round(budget.targetWords.max * 1.1),
+    });
+    if (compaction.removedWords <= 0) return compaction;
+
+    logger.warn(
+      `[orchestrator] Compactación determinista ${stage}: ${compaction.compactedPlans} planes ajustados, ` +
+        `-${compaction.removedWords} palabras para respetar el máximo formal (${budget.targetWords.max}).`
+    );
+    validation = validateBlockGuideQuality({
+      writerOutputs,
+      subsystem: curriculumContext.subsystem,
+      targetWords: budget.targetWords,
+    });
+    await persistCheckpoint();
+    return compaction;
+  };
+
   // Si hay redactores reintentables, ejecutar reintentos específicos (máx 1 por redactor).
   // En expandOnly se conservan los 4 redactores del checkpoint: la recuperación
   // es exclusivamente por expansión dirigida de sesiones deficientes (Fase 8.7).
@@ -714,6 +741,8 @@ export async function generateBlockWorkTextbook(
     logger.warn(`[Orchestrator] Alineación planeación↔libro bajo umbral: ${alignmentReport.summary}`);
   }
 
+  await compactOversizedIfNeeded('pre-expansion');
+
   if (options.expandDeficientSessions || expandOnly) {
     const remainingForExpansion = MAX_ORCHESTRATOR_BUDGET_MS - (Date.now() - startTime);
     const expansionBudgetFloorMs = expandOnly ? 30_000 : 60_000;
@@ -752,6 +781,8 @@ export async function generateBlockWorkTextbook(
   }
 
   // ── Fase 9: Ensamblado del ActiveWorkTextbook ───────────────────────────
+  await compactOversizedIfNeeded('post-expansion');
+
   await reportProgress(planningId, blockIndex, {
     phase: 'assembling',
     currentStep: 'Compilando libro de trabajo activo y tabla de contenido...',

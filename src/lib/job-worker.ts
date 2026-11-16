@@ -109,7 +109,15 @@ export function isVolumeOnlyBlockIntegrity(errorMsg: string): boolean {
   ) {
     return false;
   }
-  return true;
+
+  // Solo un déficit es recuperable expandiendo sesiones. Un exceso debe
+  // compactarse o regenerarse: expandOnly lo agravaría en cada reintento.
+  const volumeMatch = lower.match(/palabras_ai=(\d+)\/(\d+)(?:-(\d+))?/);
+  if (!volumeMatch) return false;
+  const aiWords = Number.parseInt(volumeMatch[1], 10);
+  const maxWords = Number.parseInt(volumeMatch[3] ?? volumeMatch[2], 10);
+  if (!Number.isFinite(aiWords) || !Number.isFinite(maxWords)) return false;
+  return aiWords < maxWords;
 }
 
 /**

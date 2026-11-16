@@ -82,4 +82,12 @@ describe('JobWorker - Descarte selectivo de redactor en errores post-redacción'
       )
     ).toBe(false);
   });
+
+  it('NO trata un exceso de volumen como déficit recuperable por expansión', () => {
+    const errorMsg =
+      '[BlockIntegrity] El bloque 1 de "PM3" no cumple el gate editorial: ' +
+      'palabras_ai=34269/27000-30000 (fuera de rango permitido con tolerancia editorial [24300-33000]). ' +
+      'No se persiste; reintente el bloque.';
+    expect(isVolumeOnlyBlockIntegrity(errorMsg)).toBe(false);
+  });
 });
