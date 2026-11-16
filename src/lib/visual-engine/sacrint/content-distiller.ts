@@ -771,24 +771,25 @@ export function distillProblemOrExerciseText(
   });
 }
 
-/**
- * Garantiza que un texto de lámina expositiva (`08`) no contenga ninguna secuencia de 6 palabras
- * consecutivas idéntica a la teoría del libro (`Nuevos conceptos`).
- */
-export function preventSixGramTheoryOverlap(
-  text: string,
+function toAsciiLower(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizeWord(word: string): string {
+  return toAsciiLower(word).replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+}
+
+const theorySixGramCache = new WeakMap<
+  Array<string | null | undefined>,
+  Set<string>
+>();
+
+function buildTheorySixGrams(
   theorySources: Array<string | null | undefined>
-): string {
-  if (!text) return '';
-  const toAsciiLower = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-  const normalizeWord = (w: string) =>
-    toAsciiLower(w).replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
-
+): Set<string> {
   const theorySixGrams = new Set<string>();
   for (const src of theorySources) {
     const cleanSrc = cleanSacrintText(src);
@@ -802,6 +803,30 @@ export function preventSixGramTheoryOverlap(
       theorySixGrams.add(subWords.slice(i, i + 6).join(' '));
     }
   }
+  return theorySixGrams;
+}
+
+function getTheorySixGrams(
+  theorySources: Array<string | null | undefined>
+): Set<string> {
+  const cached = theorySixGramCache.get(theorySources);
+  if (cached) return cached;
+  const built = buildTheorySixGrams(theorySources);
+  theorySixGramCache.set(theorySources, built);
+  return built;
+}
+
+/**
+ * Garantiza que un texto de lámina expositiva (`08`) no contenga ninguna secuencia de 6 palabras
+ * consecutivas idéntica a la teoría del libro (`Nuevos conceptos`).
+ */
+export function preventSixGramTheoryOverlap(
+  text: string,
+  theorySources: Array<string | null | undefined>
+): string {
+  if (!text) return '';
+
+  const theorySixGrams = getTheorySixGrams(theorySources);
   if (theorySixGrams.size === 0) return text;
 
   const TIER_1_SYNONYMS: Record<string, string> = {
@@ -2222,6 +2247,8 @@ export function distillLessonBundle(
 
 
 // ─── 7.1 — Six-gram overlap ratio (for infographic de-overlap check) ─────────
+const sixGramSourceCache = new WeakMap<string[], Set<string>>();
+
 export function sixGramOverlapRatio(text: string, sources: string[]): number {
   const normalize = (s: string) =>
     s
@@ -2241,9 +2268,13 @@ export function sixGramOverlapRatio(text: string, sources: string[]): number {
   };
   const textGrams = makeGrams(text);
   if (textGrams.size === 0) return 0;
-  const sourceGrams = new Set<string>();
-  for (const src of sources) {
-    for (const g of makeGrams(src)) sourceGrams.add(g);
+  let sourceGrams = sixGramSourceCache.get(sources);
+  if (!sourceGrams) {
+    sourceGrams = new Set<string>();
+    for (const src of sources) {
+      for (const g of makeGrams(src)) sourceGrams.add(g);
+    }
+    sixGramSourceCache.set(sources, sourceGrams);
   }
   let overlap = 0;
   for (const g of textGrams) {

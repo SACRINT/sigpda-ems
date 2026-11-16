@@ -1038,7 +1038,12 @@ function pushTheoryStrings(out: string[], value: unknown): void {
   }
 }
 
+const workbookTheorySourcesCache = new WeakMap<ActiveWorkTextbook, string[]>();
+
 export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): string[] {
+  const cached = workbookTheorySourcesCache.get(workbook);
+  if (cached) return cached;
+
   const sources: string[] = [];
   for (const m of workbook.missions ?? []) {
     if (m.conceptZero) pushTheoryStrings(sources, m.conceptZero);
@@ -1054,6 +1059,7 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
       }
     }
   }
+  workbookTheorySourcesCache.set(workbook, sources);
   return sources;
 }
 
@@ -1559,14 +1565,18 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     typeof options.sessionIndex === 'number'
       ? sessionPlans[Math.max(0, Math.min(options.sessionIndex, sessionPlans.length - 1))]
       : sessionPlans[0];
+  const baseTheorySources =
+    mode === 'lesson-guide' ? collectWorkbookTheorySources(workbook) : [];
+  const extraTheorySources = (options.extraTheorySources ?? []).filter(
+    (s): s is string => typeof s === 'string' && s.trim().length > 0
+  );
+  // Reutilizar la misma referencia permite que el caché de 6-gramas se comparta
+  // entre las misiones del libro sin cambiar el contenido de las láminas.
   const workbookTheorySources: string[] =
     mode === 'lesson-guide'
-      ? [
-          ...collectWorkbookTheorySources(workbook),
-          ...(options.extraTheorySources ?? []).filter(
-            (s): s is string => typeof s === 'string' && s.trim().length > 0
-          ),
-        ]
+      ? extraTheorySources.length > 0
+        ? [...baseTheorySources, ...extraTheorySources]
+        : baseTheorySources
       : [];
 
   const topicsCovered = sessionPlans
