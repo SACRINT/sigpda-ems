@@ -49,6 +49,84 @@ import {
   resolvePhenomenonHook,
 } from './mission-narrative';
 
+/**
+ * SSoT de ponderaciones: el LLM puede devolver una rúbrica con suma 25/80/120.
+ * El contrato NEM exige 100% ±0.5, así que se normaliza antes de persistir.
+ */
+export function normalizeRubricWeights(
+  rubric: EvaluationSection['rubric'] | undefined
+): EvaluationSection['rubric'] {
+  if (!Array.isArray(rubric) || rubric.length === 0) return [];
+  const sanitized = rubric.map((item) => {
+    const value = Number(item.weightPercent);
+    return {
+      ...item,
+      weightPercent: Number.isFinite(value) ? Math.max(0, value) : 0,
+    };
+  });
+  if (sanitized.length === 1) {
+    return [{ ...sanitized[0]!, weightPercent: 100 }];
+  }
+
+  const total = sanitized.reduce((acc, item) => acc + item.weightPercent, 0);
+  const raw = sanitized.map((item) =>
+    total > 0 ? (item.weightPercent / total) * 100 : 100 / sanitized.length
+  );
+  const rounded = raw.map((value) => Math.round(value * 10) / 10);
+  const sum = rounded.reduce((acc, value) => acc + value, 0);
+  const diff = Math.round((100 - sum) * 10) / 10;
+  rounded[rounded.length - 1] = Math.round((rounded[rounded.length - 1]! + diff) * 10) / 10;
+
+  return sanitized.map((item, index) => ({
+    ...item,
+    weightPercent: rounded[index]!,
+  }));
+}
+
+const normalizeAlignmentText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * Garantiza que los saberes de la planeación queden explícitamente evaluados.
+ * No inventa contenido: agrega el saber textual a la lista de cotejo cuando el
+ * rubric/checklist generado no lo cubre.
+ */
+export function ensureChecklistCoversSaberes(
+  checklist: EvaluationSection['checklist'],
+  rubric: EvaluationSection['rubric'],
+  planningActivities: WriterInput['planningActivities']
+): EvaluationSection['checklist'] {
+  const saberes = [
+    planningActivities?.saberes?.saber,
+    planningActivities?.saberes?.saberHacer,
+    planningActivities?.saberes?.saberSer,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length >= 12);
+  if (saberes.length === 0) return checklist;
+
+  const existing = normalizeAlignmentText(
+    [...checklist.map((item) => item.item), ...rubric.map((item) => item.criterion)].join(' ')
+  );
+  const additions = saberes
+    .filter((saber) => {
+      const normalized = normalizeAlignmentText(saber);
+      if (!normalized) return false;
+      if (existing.includes(normalized.slice(0, 48))) return false;
+      const words = normalized.split(' ').filter((word) => word.length >= 5);
+      if (words.length === 0) return false;
+      const hits = words.filter((word) => existing.includes(word)).length;
+      return hits / words.length < 0.7;
+    })
+    .map((saber) => ({ item: `Demuestra: ${saber}`, category: 'Saberes' }));
+
+  return additions.length > 0 ? [...checklist, ...additions] : checklist;
+}
+
 export async function generateEvaluationSection(input: WriterInput): Promise<WriterOutput> {
   const { evalMission, coveredSessions, title: missionTitle } = resolveEvaluationMission(input);
   const discipline = getDisciplinaryAdapter(
@@ -104,7 +182,7 @@ Tu tarea es redactar el paquete integral de instrumentos y componentes de evalua
 ${planningAlignmentChunk}
 
 ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
-1. Rúbrica analítica (300 a 500 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios (suma 100%).
+1. Rúbrica analítica (300 a 500 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios. La suma de weightPercent debe ser EXACTAMENTE 100. Si devuelves un solo criterio, su weightPercent debe ser 100.
 2. Lista de verificación técnica (200 a 350 palabras): 10 a 15 reactivos medibles clasificados por categorías.
 3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con justificación formativa.
 4. Autoevaluación metacognitiva (150 a 250 palabras): 4 a 6 preguntas abiertas de reflexión y transferencia.
@@ -143,7 +221,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "rubric": [
     {
       "criterion": "Rigor metodológico y procedimental",
-      "weightPercent": 25,
+      "weightPercent": 100,
       "levels": [
         { "levelName": "Excelente", "points": 10, "descriptor": "Sobresaliente (10-9): Dominio autónomo y riguroso..." },
         { "levelName": "Bueno", "points": 8, "descriptor": "Notable (8-7): Procedimientos precisos..." },
@@ -366,10 +444,15 @@ Genera los instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesio
       }
     }
 
+    const normalizedRubric = normalizeRubricWeights(parsed.rubric);
     const evaluationSection: EvaluationSection = {
       source: 'generated_fresh',
-      rubric: parsed.rubric || [],
-      checklist: parsed.checklist || [],
+      rubric: normalizedRubric,
+      checklist: ensureChecklistCoversSaberes(
+        parsed.checklist || [],
+        normalizedRubric,
+        input.planningActivities
+      ),
       tieredExercises: Array.isArray(parsed.tieredExercises) && parsed.tieredExercises.length > 0
         ? parsed.tieredExercises
         : undefined,

@@ -85,7 +85,7 @@ function distinctiveWords(s: string): string[] {
 /** Divide listas de la planeación en ítems individuales. */
 function splitItems(raw: string | null | undefined, opts: { minLen: number; forceComma?: boolean }): string[] {
   if (!raw) return [];
-  let parts = raw.split(/[;\n•]+/).map((s) => s.trim()).filter(Boolean);
+    let parts = raw.split(/[;\n·•]+/).map((s) => s.trim()).filter(Boolean);
   if ((parts.length === 1 && raw.length > 160) || opts.forceComma) {
     parts = parts.flatMap((p) => p.split(/,/g)).map((s) => s.trim()).filter(Boolean);
   }
