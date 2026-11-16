@@ -1320,7 +1320,14 @@ export function extractConceptHighlights(
     .join(' ');
   const allCandidateRules = extractBulletSentences(rulePoolText, 6, 155).filter((r) => {
     const rNorm = r.toLowerCase().replace(/[^a-záéíóúñ0-9]+/gi, ' ').trim();
-    if (r === definition || r.length < 25 || isRubricOrBoilerplateLeak(r)) return false;
+    if (
+      r === definition ||
+      r.length < 35 ||
+      /^(?:en el contexto|de acuerdo con|por otro lado|asimismo)\b/i.test(r) ||
+      isRubricOrBoilerplateLeak(r)
+    ) {
+      return false;
+    }
     if (defPrefix && (rNorm.startsWith(defPrefix) || defNorm.includes(rNorm.slice(0, 26)))) return false;
     if (hasDanglingEnding(r)) return false;
     return (
@@ -1576,6 +1583,36 @@ function buildExampleFromPractice(
   return null;
 }
 
+function buildCompleteSlideProblemStatement(
+  raw: string | null | undefined,
+  topicLead: string,
+  stmtBudget: number,
+  stmtWords?: number
+): string {
+  const clean = stripSessionLeadPrefix(cleanSacrintText(raw), topicLead);
+  if (!clean) return '';
+  const sentences = splitSpanishSentences(clean).filter((sentence) => sentence.trim().length >= 18);
+  const isTask = (sentence: string) =>
+    /\?/.test(sentence) ||
+    /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica)\b/i.test(
+      sentence
+    );
+  const taskSentence = sentences.find((sentence) => isTask(sentence) && /\d|\$|pesos|m\b|cm\b/i.test(sentence));
+  if (taskSentence) {
+    return distillProblemOrExerciseText(taskSentence, stmtBudget, stmtWords);
+  }
+
+  const dataSentence = [...sentences]
+    .reverse()
+    .find((sentence) => /\d|\$|pesos|m\b|cm\b/i.test(sentence) && sentence !== taskSentence);
+  const taskWithoutData = sentences.find(isTask);
+  if (taskWithoutData && dataSentence) {
+    return distillProblemOrExerciseText(`${dataSentence} ${taskWithoutData}`, stmtBudget, stmtWords);
+  }
+
+  return distillProblemOrExerciseText(clean, stmtBudget, stmtWords);
+}
+
 /**
  * Extrae el ejemplo resuelto con pasos reales evitando fugas de rúbrica y mensajes vacíos.
  */
@@ -1588,8 +1625,8 @@ export function extractWorkedExample(
   const topicLead = deriveRepeatedTopicLead(session);
   const solved = allowMission ? mission.conceptZero?.solvedExample : undefined;
   const rawSessionExample = stripSessionLeadPrefix(session?.ejemploResuelto, topicLead);
-  const stmtBudget = allowMission ? 245 : 165;
-  const stmtWords = allowMission ? undefined : 24;
+  const stmtBudget = allowMission ? 245 : 235;
+  const stmtWords = allowMission ? undefined : 32;
   const stepBudget = allowMission ? 180 : 110;
   const stepWords = allowMission ? undefined : 16;
   const interpBudget = allowMission ? 155 : 100;
@@ -1599,7 +1636,9 @@ export function extractWorkedExample(
     const preservedSessionExample = cleanSacrintTextPreservingLines(rawSessionExample);
     const cleanedSessionExample = cleanSacrintText(rawSessionExample);
     const parsed = parseEjemploResuelto(preservedSessionExample);
-    const statement = distillProblemOrExerciseText(stripSessionLeadPrefix(parsed.enunciado, topicLead), stmtBudget, stmtWords);
+      const statement = allowMission
+        ? distillProblemOrExerciseText(stripSessionLeadPrefix(parsed.enunciado, topicLead), stmtBudget, stmtWords)
+        : buildCompleteSlideProblemStatement(parsed.enunciado, topicLead, stmtBudget, stmtWords);
     const cleanedRawSteps = parsed.pasos
       .map(cleanStepLine)
       .filter((step) => step.length >= 8 && !SYNTHETIC_PARSER_STEP_RE.test(step) && !isRubricOrBoilerplateLeak(step));
@@ -1616,10 +1655,17 @@ export function extractWorkedExample(
       .filter(isSubstantiveStep)
       .filter((step) => allowMission || isCompleteMathStep(step))
       .slice(0, allowMission ? 4 : 3);
+    // Nunca sustituir un ejemplo resuelto completo por un ejercicio de práctica:
+    // eso cambia el planteamiento y rompe la coherencia ejemplo↔pasos.
+    const rawFallbackSteps = selectedRawSteps
+      .map((step) => distillStepPreservingMath(step, stepBudget, stepWords))
+      .filter(Boolean)
+      .slice(0, allowMission ? 4 : 3);
+    const effectiveSteps = steps.length >= 2 ? steps : rawFallbackSteps;
 
     // Guía de sesión: un ejemplo con menos de 2 pasos completos o sin enunciado completo
     // no se renderiza (el writer debe repararlo en origen; no se maquilla en la diapositiva).
-    if (!allowMission && (steps.length < 2 || !isCompleteProblemStatement(statement))) {
+    if (!allowMission && (effectiveSteps.length < 2 || !isCompleteProblemStatement(statement))) {
       const fromPractice = buildExampleFromPractice(session, topicLead, {
         stmtBudget,
         stmtWords,
@@ -1632,10 +1678,10 @@ export function extractWorkedExample(
       return { problemStatement: '', steps: [], interpretation: '' };
     }
 
-    if (steps.length > 0) {
+    if (effectiveSteps.length > 0) {
       const fourthRawStep = cleanedRawSteps.length >= 4 ? cleanedRawSteps[cleanedRawSteps.length - 1] : undefined;
-      const derivedConclusion = extractExampleConclusion(rawSessionExample, steps, fourthRawStep, interpBudget, interpWords);
-      const lastStepNorm = (steps[steps.length - 1] ?? '').toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim();
+      const derivedConclusion = extractExampleConclusion(rawSessionExample, effectiveSteps, fourthRawStep, interpBudget, interpWords);
+      const lastStepNorm = (effectiveSteps[effectiveSteps.length - 1] ?? '').toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim();
       const conclNorm = (derivedConclusion ?? '').toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim();
       const isDuplicateConclusion =
         !allowMission
@@ -1663,7 +1709,7 @@ export function extractWorkedExample(
           (allowMission ? distillProblemOrExerciseText(solved?.problemStatement, stmtBudget, stmtWords) : '') ||
           distillConciseText(stripSessionLeadPrefix(session?.objetivo, topicLead), 82, 13) ||
           '',
-        steps,
+        steps: effectiveSteps,
         interpretation:
           (allowMission || isCompleteConclusion(cleanInterpretation) ? cleanInterpretation : '') ||
           (allowMission ? distillConciseText(solved?.interpretation, interpBudget, interpWords ?? 26) : '') ||
@@ -1934,24 +1980,91 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
 /**
  * Extrae las actividades prácticas del libro (enunciado + pista pedagógica) sin exponer `solucion`.
  */
+/**
+ * De-overlap de presentación: si tras reescribir el texto aún comparte demasiados
+ * 6-gramas con el libro, conserva solo las oraciones no redundantes y, si hace
+ * falta, comprime el enunciado. No altera datos numéricos ni la tarea central.
+ */
+export function enforceSixGramOverlap(
+  raw: string,
+  sources: Array<string | null | undefined>,
+  maxRatio = 0.12,
+  role: 'problem' | 'concept' | 'general' = 'problem'
+): string {
+  const text = sanitizePedagogicalMetaPhrases(cleanSacrintText(raw));
+  const cleanSources = sources.filter((source): source is string => Boolean(source));
+  if (!text || cleanSources.length === 0) return text;
+  const rewritten = preventSixGramTheoryOverlap(text, cleanSources);
+  if (sixGramOverlapRatio(rewritten, cleanSources) <= maxRatio) return rewritten;
+
+  const sentences = splitSpanishSentences(rewritten);
+  // La tarea central es irrenunciable: si se elimina, la diapositiva deja de
+  // explicar qué debe hacer el alumno. Se conserva aunque comparta terminología.
+  const essentialTask = sentences.find(
+    (sentence) =>
+      sentence.trim().length >= 24 &&
+      !hasDanglingEnding(sentence) &&
+      (/\?/.test(sentence) ||
+        /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica)\b/i.test(
+          sentence
+        ))
+  );
+  if (role === 'problem') {
+    if (!essentialTask || !/\d|\$|pesos|m\b|cm\b/i.test(essentialTask)) return rewritten;
+    if (essentialTask.length > 140 || sixGramOverlapRatio(essentialTask, cleanSources) > maxRatio) {
+      const compactedTask = fitPedagogicalText(essentialTask, {
+        maxChars: 140,
+        maxWords: 20,
+        role: 'problem',
+      });
+      if (
+        compactedTask &&
+        compactedTask.length >= 24 &&
+        !hasDanglingEnding(compactedTask) &&
+        sixGramOverlapRatio(compactedTask, cleanSources) <= maxRatio
+      ) {
+        return compactedTask;
+      }
+    }
+    return essentialTask;
+  }
+
+  const kept = sentences.filter(
+    (sentence) => sentence.trim().length >= 18 && sixGramOverlapRatio(sentence, cleanSources) <= maxRatio
+  );
+  if (kept.length > 0) {
+    const joined = kept.join(' ').trim();
+    if (sixGramOverlapRatio(joined, cleanSources) <= maxRatio) return joined;
+  }
+
+  return rewritten;
+}
+
 export function extractPracticeActivities(
   mission: MissionSection,
   session?: SessionPlan,
   options: DistillOptions = {}
 ): DistilledPracticeActivity[] {
-  const allowMission = options.allowMissionFallback ?? true;
-  const topicLead = deriveRepeatedTopicLead(session);
-  const stmtMax = allowMission ? 235 : 190;
-  const stmtWords = allowMission ? undefined : 30;
-  const hintMax = allowMission ? 135 : 82;
-  const hintWords = allowMission ? undefined : 12;
-  const maxItems = allowMission ? 3 : 2;
-  const seenHints = new Set<string>();
-  const fromSession = (session?.practica ?? [])
-    .filter((item) => cleanSacrintText(stripSessionLeadPrefix(item.enunciado, topicLead)).length >= 10 && !isRubricOrBoilerplateLeak(item.enunciado))
-    .slice(0, maxItems)
-    .map((item, idx) => {
-      const cleanStmt = distillExerciseStatement(stripSessionLeadPrefix(item.enunciado, topicLead), stmtMax, stmtWords);
+    const allowMission = options.allowMissionFallback ?? true;
+    const topicLead = deriveRepeatedTopicLead(session);
+    const theorySources = (options.extraTheorySources ?? []).filter(
+      (source): source is string => typeof source === 'string' && source.trim().length > 0
+    );
+    const stmtMax = allowMission ? 235 : 190;
+    const stmtWords = allowMission ? undefined : 30;
+    const hintMax = allowMission ? 135 : 82;
+    const hintWords = allowMission ? undefined : 12;
+    const maxItems = allowMission ? 3 : 2;
+    const seenHints = new Set<string>();
+    const fromSession = (session?.practica ?? [])
+      .filter((item) => cleanSacrintText(stripSessionLeadPrefix(item.enunciado, topicLead)).length >= 10 && !isRubricOrBoilerplateLeak(item.enunciado))
+      .slice(0, maxItems)
+      .map((item, idx) => {
+        const cleanStmt = distillExerciseStatement(stripSessionLeadPrefix(item.enunciado, topicLead), stmtMax, stmtWords);
+        const presentationStmt =
+          theorySources.length > 0
+            ? enforceSixGramOverlap(cleanStmt, theorySources, 0.12, 'problem') || cleanStmt
+            : cleanStmt;
       const rawHint = cleanSacrintText(stripSessionLeadPrefix(item.pista, topicLead));
       const isPureQuestionTitle = /^¿[^?.!]{3,58}\?$/i.test(rawHint) && rawHint.split(/\s+/).length <= 8;
       const isSameAsLead = Boolean(topicLead && rawHint.toLowerCase().replace(/[.:]+$/, '') === topicLead.toLowerCase().replace(/[.:]+$/, ''));
@@ -1983,11 +2096,11 @@ export function extractPracticeActivities(
       if (fittedHint) {
         seenHints.add(fittedHint.toLowerCase().replace(/[^a-záéíóúñ0-9]+/gi, ' ').trim());
       }
-      return {
-        label: `Actividad ${idx + 1}`,
-        statement: cleanStmt,
-        hint: fittedHint || 'Apóyate en el ejemplo trabajado en clase.',
-      };
+        return {
+          label: `Actividad ${idx + 1}`,
+          statement: presentationStmt,
+          hint: fittedHint || 'Apóyate en el ejemplo trabajado en clase.',
+        };
     });
 
   if (fromSession.length > 0) return fromSession;
@@ -1999,10 +2112,10 @@ export function extractPracticeActivities(
   const guided = cleanSacrintText(mission.weDoSection?.guidedPractice);
   if (guided && !isRubricOrBoilerplateLeak(guided)) {
     const points = extractBulletSentences(guided, 3, 185);
-    return points.map((pt, idx) => ({
-      label: `Actividad ${idx + 1}`,
-      statement: pt,
-      hint:
+      return points.map((pt, idx) => ({
+        label: `Actividad ${idx + 1}`,
+        statement: enforceSixGramOverlap(pt, theorySources, 0.12, 'problem') || pt,
+        hint:
         distillConciseText(mission.conceptZero?.contrastTable?.[0]?.reasoning, 140, 24) ||
         'Contrasta el procedimiento con el ejemplo modelado antes de concluir.',
     }));
@@ -2013,8 +2126,13 @@ export function extractPracticeActivities(
     {
       label: 'Actividad 1',
       statement:
-        distillConciseText(autonomous, 195, 34) ||
-        'Realiza en tu cuaderno una actividad de aplicación del tema vinculada con tu entorno.',
+        enforceSixGramOverlap(
+          distillConciseText(autonomous, 195, 34) ||
+            'Realiza en tu cuaderno una actividad de aplicación del tema vinculada con tu entorno.',
+          theorySources,
+          0.12,
+          'problem'
+        ) || 'Realiza una actividad de aplicación vinculada con tu entorno.',
       hint: 'Identifica la información relevante de la consigna antes de desarrollar el procedimiento.',
     },
   ];
@@ -2173,6 +2291,9 @@ export function distillLessonBundle(
     stripSessionLeadPrefix(session?.motivacion, topicLead) ||
     (allowMission ? mission.phenomenonHook?.story : '');
   const activationBase =
+    (allowMission
+      ? ''
+      : pickCompleteSentences(activationRaw, 140, 1) || distillConciseText(activationRaw, 140, 22)) ||
     distillConciseText(activationRaw, actBudget, actWords) ||
     (allowMission ? distillConciseText(mission.sessionFocus, 175, 30) : '');
 
@@ -2203,6 +2324,10 @@ export function distillLessonBundle(
     ];
     const cleanField = (text: string) =>
       preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(text), theorySources);
+    const cleanPresentationField = (
+      text: string,
+      role: 'problem' | 'concept' | 'general' = 'concept'
+    ) => enforceSixGramOverlap(text, theorySources, 0.12, role);
     return {
       sessionNumber,
       topicTitle: cleanField(topicTitle),
@@ -2210,18 +2335,18 @@ export function distillLessonBundle(
       activation: cleanField(activationBase),
       question: cleanField(questionBase),
       concepts: {
-        definition: cleanField(concepts.definition),
+        definition: cleanPresentationField(concepts.definition, 'concept'),
         formulas: concepts.formulas,
         keyRules: concepts.keyRules.map(cleanField),
       },
       example: {
-        problemStatement: cleanField(example.problemStatement),
+        problemStatement: cleanPresentationField(example.problemStatement, 'problem'),
         steps: example.steps.map(cleanField),
         interpretation: cleanField(example.interpretation),
       },
       activities: activities.map((act) => ({
         ...act,
-        statement: cleanField(act.statement),
+        statement: cleanPresentationField(act.statement, 'problem'),
         hint: cleanField(act.hint),
       })),
       application: cleanField(application),

@@ -15,6 +15,7 @@ import {
 } from '@/lib/guide-engine/material-extractor';
 import { reviewBlockMaterials, type ReviewIssue } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
+import { shortSubjectCode } from '@/lib/short-filename';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 export const runtime = 'nodejs';
@@ -132,12 +133,7 @@ export async function GET(
       title: `Presentación SACRINT completa — ${subjectName}`,
       subjectName,
     });
-    const safeName = subjectName
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 60);
+    const safeName = shortSubjectCode(subjectName);
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

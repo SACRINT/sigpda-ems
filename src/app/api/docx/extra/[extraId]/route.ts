@@ -84,7 +84,7 @@ export async function GET(
     }
 
     const buffer = await buildExtraDocx(extra);
-    const safeFilename = sanitizeDocFilenameWithBlock(extra.title, 70);
+    const safeFilename = sanitizeDocFilenameWithBlock(extra.title, 36);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

@@ -10,6 +10,7 @@ import {
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { logger } from '@/lib/logger';
+import { shortSubjectCode } from '@/lib/short-filename';
 
 /**
  * GET /api/planeaciones/[id]/presentacion?blockIndex=0&format=pptx|json
@@ -87,18 +88,13 @@ export async function GET(
       title: `Presentación SACRINT — ${deck.meta.subjectName} — Bloque ${blockIndex + 1}`,
       subjectName: deck.meta.subjectName,
     });
-    const safeName = (deck.meta.subjectName || 'presentacion')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 60);
+    const safeName = shortSubjectCode(deck.meta.subjectName || 'presentacion');
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'Content-Disposition': `attachment; filename="Presentacion_${safeName}_Bloque_${blockIndex + 1}.pptx"`,
+        'Content-Disposition': `attachment; filename="Presentacion_B${blockIndex + 1}_${safeName}.pptx"`,
         'Cache-Control': 'no-store',
       },
     });

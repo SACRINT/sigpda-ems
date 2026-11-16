@@ -1650,36 +1650,36 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
     const exSteps = (spec.workedExample?.steps ?? []).slice(0, 3);
     const exResult = spec.workedExample?.interpretation;
     const leftTopY = hasSubtitle ? 276 : 228;
-    const conceptBoxH = hasSubtitle ? 132 : 162;
+    const conceptBoxH = hasSubtitle ? 158 : 186;
 
     addPanel(slide, 80, leftTopY, 712, conceptBoxH, { fill: C.panel, transparency: 12 });
     addLabel(slide, 'Conocimiento nuevo', 102, leftTopY + 14, 520, 18, accent2, 9);
     addText(slide, spec.explanation, 102, leftTopY + 40, 668, conceptBoxH - 52, {
-      fontSize: pt(18),
+      fontSize: pt(17),
       color: C.text,
-      lineSpacingMultiple: 1.12,
-      maxLines: 4,
+      lineSpacingMultiple: 1.1,
+      maxLines: 5,
     });
 
     const exBoxY = leftTopY + conceptBoxH + 14;
     const exBoxH = 778 - exBoxY;
     addPanel(slide, 80, exBoxY, 712, exBoxH, { fill: C.panel, transparency: 10 });
     addLabel(slide, 'Ejemplo resuelto', 102, exBoxY + 14, 560, 18, accent, 9);
-    addText(slide, exStatement, 102, exBoxY + 40, 668, 60, {
-      fontSize: pt(18),
+    addText(slide, exStatement, 102, exBoxY + 40, 668, 84, {
+      fontSize: pt(17),
       color: C.white,
       bold: true,
-      lineSpacingMultiple: 1.08,
-      maxLines: 3,
+      lineSpacingMultiple: 1.06,
+      maxLines: 4,
     });
     exSteps.forEach((step, idx) => {
-      const sy = exBoxY + 108 + idx * 62;
-      addText(slide, `0${idx + 1}`, 102, sy, 32, 24, { fontSize: pt(16), bold: true, color: accent2, maxLines: 1 });
-      addText(slide, step, 138, sy - 2, 632, 54, { fontSize: pt(16.5), color: C.textSoft, maxLines: 3 });
+      const sy = exBoxY + 132 + idx * 52;
+      addText(slide, `0${idx + 1}`, 102, sy, 32, 22, { fontSize: pt(15), bold: true, color: accent2, maxLines: 1 });
+      addText(slide, step, 138, sy - 2, 632, 44, { fontSize: pt(15.5), color: C.textSoft, maxLines: 2 });
     });
     if (exResult) {
-      addText(slide, `Conclusión: ${exResult}`, 102, exBoxY + exBoxH - 54, 668, 44, {
-        fontSize: pt(16),
+      addText(slide, `Conclusión: ${exResult}`, 102, exBoxY + exBoxH - 48, 668, 40, {
+        fontSize: pt(15.5),
         color: C.emerald,
         bold: true,
         maxLines: 2,

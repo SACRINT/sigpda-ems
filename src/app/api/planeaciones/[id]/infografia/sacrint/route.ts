@@ -8,17 +8,9 @@ import { renderCombinedSacrintInfographicsPdf, renderInfographicPng } from '@/li
 import { INFOGRAPHIC } from '@/lib/visual-engine/sacrint/tokens';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
+import { shortSubjectCode } from '@/lib/short-filename';
 
 export const runtime = 'nodejs';
-
-function safeFilename(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 50);
-}
 
 /**
  * GET /api/planeaciones/[id]/infografia/sacrint?blockIndex=0&missionIndex=0&layout=letter|wide&format=json|svg|png|pdf
@@ -147,7 +139,7 @@ export async function GET(
       );
     }
 
-    const baseName = `SACRINT_Infografia_${safeFilename(spec.meta.subjectName)}_B${blockIndex + 1}_M${spec.meta.missionNumber}_${layout}`;
+    const baseName = `SACRINT_Infografia_${shortSubjectCode(spec.meta.subjectName)}_B${blockIndex + 1}_M${spec.meta.missionNumber}_${layout}`;
 
     if (format === 'svg') {
       return new NextResponse(renderInfographicSvg(spec), {

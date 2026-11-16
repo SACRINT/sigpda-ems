@@ -578,15 +578,15 @@ describe('Rediseño UI/UX — Componentes Atómicos y Ejes', () => {
     it('El catálogo del paquete maestro define estrictamente los 9 archivos canónicos (01..09) con Instrumentos de Evaluación unificados', () => {
       // Las 9 claves canónicas correspondientes a las 9 tarjetas del Centro de Descargas
       const canonicalDeliverablePrefixes = [
-        '01_Planeacion_Didactica_Semestral_',
-        '02_Secuencia_Didactica_',
-        '03_Planes_de_Clase_Compilado_',
-        '04_Solucionario_Docente_Compilado_',
-        '05_Guias_de_Practica_Compilado_',
-        '06_Libro_de_Texto_Semestral_Consolidado_',
-        '07_Instrumentos_de_Evaluacion_Compilado_',
-        '08_Presentaciones_SACRINT_',
-        '09_Infografias_Sinteticas_',
+        '01_Planeacion_',
+        '02_Secuencia_',
+        '03_Planes_Clase_',
+        '04_Solucionario_',
+        '05_Guias_Practica_',
+        '06_Libro_Semestral_',
+        '07_Instrumentos_',
+        '08_Presentaciones_',
+        '09_Infografias_',
       ];
 
       expect(canonicalDeliverablePrefixes).toHaveLength(9);

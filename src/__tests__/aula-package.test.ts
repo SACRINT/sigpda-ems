@@ -108,12 +108,12 @@ describe('buildAulaPackageZip', () => {
 
     const zip = await JSZip.loadAsync(result.buffer);
     const names = Object.keys(zip.files);
-    expect(names.some((name) => name.startsWith('01_Planeacion_Didactica_Semestral_') && name.endsWith('.pdf'))).toBe(true);
-    expect(names.some((name) => name.startsWith('01_Planeacion_Didactica_Semestral_') && name.endsWith('.docx'))).toBe(true);
-    expect(names.some((name) => name.startsWith('05_Fichas_de_Trabajo_'))).toBe(true);
-    expect(names.some((name) => name.startsWith('07_Instrumentos_de_Evaluacion_'))).toBe(true);
+    expect(names.some((name) => name.startsWith('01_Planeacion_') && name.endsWith('.pdf'))).toBe(true);
+    expect(names.some((name) => name.startsWith('01_Planeacion_') && name.endsWith('.docx'))).toBe(true);
+    expect(names.some((name) => name.startsWith('05_Fichas_Trabajo_'))).toBe(true);
+    expect(names.some((name) => name.startsWith('07_Instrumentos_'))).toBe(true);
     expect(names.some((name) => name.startsWith('08_Presentacion_'))).toBe(true);
-    expect(names.some((name) => name.startsWith('09_Tickets_de_Salida_'))).toBe(true);
+    expect(names.some((name) => name.startsWith('09_Tickets_'))).toBe(true);
     expect(names).toContain('LEEME_PAQUETE_AULA.txt');
   }, 30000);
 });

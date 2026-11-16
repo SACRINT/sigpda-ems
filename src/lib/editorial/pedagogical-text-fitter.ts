@@ -37,7 +37,7 @@ const DANGLING_WORDS_SET = new Set([
   'entre', 'hacia', 'hasta', 'mediante', 'para', 'por', 'segun', 'según', 'sin',
   'sobre', 'tras',
   // Artículos, determinantes, posesivos y demostrativos
-  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'al', 'lo',
+  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'al', 'lo', 'se',
   'su', 'sus', 'tu', 'tus', 'mi', 'mis', 'nuestro', 'nuestra', 'nuestros', 'nuestras',
   'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'esos', 'esas', 'aquel', 'aquella',
   'cada', 'todo', 'toda', 'todos', 'todas', 'otro', 'otra', 'otros', 'otras',
@@ -86,10 +86,11 @@ export function hasDanglingEnding(raw: string): boolean {
 
   if (TRAILING_OPERATOR_RE.test(clean)) return true;
 
-  // Paréntesis abiertos sin cerrar
-  const openParens = (clean.match(/\(/g) || []).length;
-  const closeParens = (clean.match(/\)/g) || []).length;
-  if (openParens > closeParens) return true;
+  // Delimitadores abiertos sin cerrar. Se cuentan juntos porque la notación de
+  // intervalos matemáticos usa pares mixtos válidos, p. ej. (3, 6] o [1, 3).
+  const openDelimiters = (clean.match(/[([{]/g) || []).length;
+  const closeDelimiters = (clean.match(/[)\]}]/g) || []).length;
+  if (openDelimiters > closeDelimiters) return true;
 
   // Detectar cola tipo "). El." o ". Si al." (oración final de 1–2 palabras funcionales tras punto)
   const stubAfterDot = clean.match(/\.\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+)?)\.?$/);

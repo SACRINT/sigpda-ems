@@ -10,6 +10,7 @@ import {
 import { buildCombinedExtraDocx } from '@/lib/docx-helpers';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
+import { shortSubjectCode } from '@/lib/short-filename';
 import { logger } from '@/lib/logger';
 import { resolveBlockNumber, resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
@@ -266,10 +267,10 @@ async function handleCombinedDocx(request: NextRequest) {
       return new Response('No se pudo generar el documento combinado', { status: 500 });
     }
 
-    const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+    const subjectCode = shortSubjectCode(planning.uac_name || 'UAC');
     const fileName = blockIndex !== null
-      ? `${typeLabel(cleanType)}_Bloque_${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${cleanSubject}.docx`
-      : `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.docx`;
+      ? `${typeLabel(cleanType)}_B${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${subjectCode}.docx`
+      : `${typeLabel(cleanType)}_${subjectCode}.docx`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

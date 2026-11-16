@@ -19,7 +19,8 @@ import {
   type ExtractedBlockMaterials,
 } from '@/lib/guide-engine/material-extractor';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
-import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
+import { type BrandingContext } from '@/lib/document-branding';
+import { shortSubjectCode } from '@/lib/short-filename';
 import { logger } from '@/lib/logger';
 import {
   generateExitTicketsPdf,
@@ -102,7 +103,7 @@ export async function buildAulaPackageZip(
     throw new Error('La planeación no tiene contenido generado.');
   }
 
-  const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+  const subjectCode = shortSubjectCode(planning.uac_name || 'UAC');
   const rawSequenceJson = (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> }).sequence_json || null;
   const workbooks = await getAllBlockWorkbooks(planning.id).catch(() => ({}));
   const entries = workbookEntries(workbooks as Record<string, { current?: ActiveWorkTextbook }>);
@@ -143,14 +144,14 @@ export async function buildAulaPackageZip(
   // 1. Planeación semestral (PDF + DOCX)
   try {
     const pdf = await generatePlanningPDF(planningObj);
-    zip.file(`01_Planeacion_Didactica_Semestral_${cleanSubject}.pdf`, Buffer.from(pdf.output('arraybuffer')));
+    zip.file(`01_Planeacion_${subjectCode}.pdf`, Buffer.from(pdf.output('arraybuffer')));
   } catch (error) {
     warnings.push('No se pudo generar la planeación semestral en PDF.');
     logger.warn('[AulaPackage] Error planeación PDF:', { error });
   }
   try {
     zip.file(
-      `01_Planeacion_Didactica_Semestral_${cleanSubject}.docx`,
+      `01_Planeacion_${subjectCode}.docx`,
       await generateDocx(content, rawSequenceJson)
     );
   } catch (error) {
@@ -162,7 +163,7 @@ export async function buildAulaPackageZip(
   if (rawSequenceJson) {
     try {
       const pdf = await generateSecuenciaPDF(planningObj);
-      zip.file(`02_Secuencia_Didactica_${cleanSubject}.pdf`, Buffer.from(pdf.output('arraybuffer')));
+      zip.file(`02_Secuencia_${subjectCode}.pdf`, Buffer.from(pdf.output('arraybuffer')));
     } catch (error) {
       warnings.push('No se pudo generar la secuencia didáctica en PDF.');
       logger.warn('[AulaPackage] Error secuencia PDF:', { error });
@@ -174,7 +175,7 @@ export async function buildAulaPackageZip(
         contentForSeq.sectionI.metodologiaActiva = rawMetodologia;
       }
       zip.file(
-        `02_Secuencia_Didactica_${cleanSubject}.docx`,
+        `02_Secuencia_${subjectCode}.docx`,
         await generateSecuenciaDocx(contentForSeq, rawSequenceJson)
       );
     } catch (error) {
@@ -193,10 +194,10 @@ export async function buildAulaPackageZip(
   );
   if (lessonPlans.length > 0) {
     const lessonPdf = await mergeExtraPdfs(lessonPlans, brandingCtx, 'PLANES DE CLASE COMPILADOS');
-    if (lessonPdf) zip.file(`03_Planes_de_Clase_Compilado_${cleanSubject}.pdf`, lessonPdf);
+    if (lessonPdf) zip.file(`03_Planes_Clase_${subjectCode}.pdf`, lessonPdf);
     try {
       zip.file(
-        `03_Planes_de_Clase_Compilado_${cleanSubject}.docx`,
+        `03_Planes_Clase_${subjectCode}.docx`,
         await buildCombinedExtraDocx(lessonPlans, brandingCtx, `Planes de Clase (50 min) · ${planning.uac_name}`)
       );
     } catch (error) {
@@ -215,10 +216,10 @@ export async function buildAulaPackageZip(
   );
   if (teacherGuides.length > 0) {
     const guidePdf = await mergeExtraPdfs(teacherGuides, brandingCtx, 'SOLUCIONARIO DOCENTE COMPILADO');
-    if (guidePdf) zip.file(`04_Solucionario_Docente_Compilado_${cleanSubject}.pdf`, guidePdf);
+    if (guidePdf) zip.file(`04_Solucionario_${subjectCode}.pdf`, guidePdf);
     try {
       zip.file(
-        `04_Solucionario_Docente_Compilado_${cleanSubject}.docx`,
+        `04_Solucionario_${subjectCode}.docx`,
         await buildCombinedExtraDocx(teacherGuides, brandingCtx, `Solucionario Docente · ${planning.uac_name}`)
       );
     } catch (error) {
@@ -235,10 +236,10 @@ export async function buildAulaPackageZip(
   );
   if (practiceGuides.length > 0) {
     const practicePdf = await mergeExtraPdfs(practiceGuides, brandingCtx, 'GUÍAS DE PRÁCTICA COMPILADAS');
-    if (practicePdf) zip.file(`05_Fichas_de_Trabajo_${cleanSubject}.pdf`, practicePdf);
+    if (practicePdf) zip.file(`05_Fichas_Trabajo_${subjectCode}.pdf`, practicePdf);
     try {
       zip.file(
-        `05_Fichas_de_Trabajo_${cleanSubject}.docx`,
+        `05_Fichas_Trabajo_${subjectCode}.docx`,
         await buildCombinedExtraDocx(practiceGuides, brandingCtx, `Fichas de Trabajo · ${planning.uac_name}`)
       );
     } catch (error) {
@@ -246,7 +247,7 @@ export async function buildAulaPackageZip(
       logger.warn('[AulaPackage] Error fichas DOCX:', { error });
     }
   } else {
-    zip.file(`05_Fichas_de_Trabajo_${cleanSubject}.pdf`, generateWorksheetsPdf(content, meta));
+    zip.file(`05_Fichas_Trabajo_${subjectCode}.pdf`, generateWorksheetsPdf(content, meta));
     warnings.push('Se generaron fichas de trabajo deterministas porque no había guías de práctica persistidas.');
   }
 
@@ -255,10 +256,10 @@ export async function buildAulaPackageZip(
     try {
       const compiled = await compileSemestralWorkbook(planning.id, planningObj, { format: 'both' });
       if (compiled.pdf) {
-        zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.pdf`, compiled.pdf);
+        zip.file(`06_Libro_Semestral_${subjectCode}.pdf`, compiled.pdf);
       }
       if (compiled.docx) {
-        zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.docx`, compiled.docx);
+        zip.file(`06_Libro_Semestral_${subjectCode}.docx`, compiled.docx);
       }
     } catch (error) {
       warnings.push('No se pudo compilar el libro de texto semestral.');
@@ -277,10 +278,10 @@ export async function buildAulaPackageZip(
   const evaluations = evaluationExtras(extras, content);
   if (evaluations.length > 0) {
     const evalPdf = await mergeExtraPdfs(evaluations, brandingCtx, 'INSTRUMENTOS DE EVALUACIÓN COMPILADOS');
-    if (evalPdf) zip.file(`07_Instrumentos_de_Evaluacion_${cleanSubject}.pdf`, evalPdf);
+    if (evalPdf) zip.file(`07_Instrumentos_${subjectCode}.pdf`, evalPdf);
     try {
       zip.file(
-        `07_Instrumentos_de_Evaluacion_${cleanSubject}.docx`,
+        `07_Instrumentos_${subjectCode}.docx`,
         await buildCombinedExtraDocx(evaluations, brandingCtx, `Instrumentos de Evaluación · ${planning.uac_name}`)
       );
     } catch (error) {
@@ -288,12 +289,12 @@ export async function buildAulaPackageZip(
       logger.warn('[AulaPackage] Error instrumentos DOCX:', { error });
     }
   } else {
-    zip.file(`07_Instrumentos_de_Evaluacion_${cleanSubject}.pdf`, generateFallbackRubricsPdf(content, meta));
+    zip.file(`07_Instrumentos_${subjectCode}.pdf`, generateFallbackRubricsPdf(content, meta));
     warnings.push('Se generó una rúbrica determinista porque no había instrumentos persistidos.');
   }
 
   // 8. Presentación PPTX
-  const sacrintFileName = `08_Presentacion_SACRINT_${cleanSubject}.pptx`;
+  const sacrintFileName = `08_Presentacion_${subjectCode}.pptx`;
   if (hasWorkbooks) {
     try {
       const decks: SacrintDeckSpec[] = [];
@@ -372,20 +373,20 @@ export async function buildAulaPackageZip(
           `[Presentación · ${sacrintFileName}] Se excluyeron ${excludedCount} deck(s) por errores estructurales S6 o falta de sesiones en modo guía por clase; se omitió el archivo ${sacrintFileName} sin usar plantilla genérica.`
         );
       } else {
-        zip.file(`08_Presentacion_de_Clase_${cleanSubject}.pptx`, await generateFallbackPptx(content, meta));
+        zip.file(`08_Presentacion_${subjectCode}.pptx`, await generateFallbackPptx(content, meta));
       }
     } catch (error) {
       warnings.push('Se generó una presentación determinista porque falló el deck SACRINT.');
       logger.warn('[AulaPackage] Error PPTX SACRINT:', { error });
-      zip.file(`08_Presentacion_de_Clase_${cleanSubject}.pptx`, await generateFallbackPptx(content, meta));
+      zip.file(`08_Presentacion_${subjectCode}.pptx`, await generateFallbackPptx(content, meta));
     }
   } else {
-    zip.file(`08_Presentacion_de_Clase_${cleanSubject}.pptx`, await generateFallbackPptx(content, meta));
+    zip.file(`08_Presentacion_${subjectCode}.pptx`, await generateFallbackPptx(content, meta));
     warnings.push('Se generó una presentación determinista porque no había libros de bloque.');
   }
 
   // 9. Tickets de salida
-  zip.file(`09_Tickets_de_Salida_${cleanSubject}.pdf`, generateExitTicketsPdf(content, meta));
+  zip.file(`09_Tickets_${subjectCode}.pdf`, generateExitTicketsPdf(content, meta));
 
   // 10. Manifiesto
   const manifest = [
@@ -418,6 +419,6 @@ export async function buildAulaPackageZip(
     compressionOptions: { level: 6 },
   });
 
-  const fileName = `Paquete_Integral_Aula_${cleanSubject}.zip`;
+  const fileName = `Paquete_Aula_${subjectCode}.zip`;
   return { buffer, fileName, warnings };
 }

@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 import type { Planning, PlanningExtra, SecuenciaBloque } from '@/types/planning';
 import type { MaterialReviewReport } from '@/lib/guide-engine/material-review';
 import { summarizeMaterialReviewStatus } from '@/hooks/useBlockMaterialReviews';
+import { shortSubjectCode } from '@/lib/short-filename';
 import ResourceCard from '@/components/planeacion/ResourceCard';
 import {
   FileText,
@@ -249,33 +250,28 @@ export default function PlanningDownloadsHub({
   onNavigateToGuiasPractica,
 }: PlanningDownloadsHubProps) {
   const hasSequences = Object.keys(sequenceData).length > 0;
-  const cleanSubject = (planning.uacName || 'UAC').replace(/\s+/g, '_').replace(/[^\wáéíóúñÁÉÍÓÚÑ_-]+/g, '');
-  const zipSubject = (planning.uacName || 'UAC')
-    .split('.')[0]
-    .trim()
-    .replace(/\s+/g, '_')
-    .replace(/[^\wáéíóúñÁÉÍÓÚÑ_-]+/g, '');
+  const subjectCode = shortSubjectCode(planning.uacName || 'UAC');
   const pdfPackageItems = [
-    { label: '01 Planeación', url: `/api/planeaciones/${planning.id}/pdf`, fileName: `01_Planeacion_Didactica_Semestral_${cleanSubject}.pdf` },
-    { label: '02 Secuencia', url: `/api/planeaciones/${planning.id}/secuencia/pdf`, fileName: `02_Secuencia_Didactica_${cleanSubject}.pdf` },
-    { label: '03 Planes de clase', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=lesson_plan`, fileName: `03_Planes_de_Clase_Compilado_${cleanSubject}.pdf` },
-    { label: '04 Solucionario', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=teacher_guide`, fileName: `04_Solucionario_Docente_Compilado_${cleanSubject}.pdf` },
-    { label: '05 Guías de práctica', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=practice_guide`, fileName: `05_Guias_de_Practica_Compilado_${cleanSubject}.pdf` },
-    { label: '06 Libro semestral', url: `/api/pdf/libro-semestral/${planning.id}`, fileName: `06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.pdf` },
-    { label: '07 Instrumentos', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=evaluation`, fileName: `07_Instrumentos_de_Evaluacion_Compilado_${cleanSubject}.pdf` },
-    { label: '08 Presentaciones', url: `/api/planeaciones/${planning.id}/presentacion/combinada`, fileName: `08_Presentaciones_SACRINT_${cleanSubject}.pptx` },
-    { label: '09 Infografías', url: `/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`, fileName: `09_Infografias_Sinteticas_${cleanSubject}.pdf` },
+    { label: '01 Planeación', url: `/api/planeaciones/${planning.id}/pdf`, fileName: `01_Planeacion_${subjectCode}.pdf` },
+    { label: '02 Secuencia', url: `/api/planeaciones/${planning.id}/secuencia/pdf`, fileName: `02_Secuencia_${subjectCode}.pdf` },
+    { label: '03 Planes de clase', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=lesson_plan`, fileName: `03_Planes_Clase_${subjectCode}.pdf` },
+    { label: '04 Solucionario', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=teacher_guide`, fileName: `04_Solucionario_${subjectCode}.pdf` },
+    { label: '05 Guías de práctica', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=practice_guide`, fileName: `05_Guias_Practica_${subjectCode}.pdf` },
+    { label: '06 Libro semestral', url: `/api/pdf/libro-semestral/${planning.id}`, fileName: `06_Libro_Semestral_${subjectCode}.pdf` },
+    { label: '07 Instrumentos', url: `/api/pdf/extra/combined?planningId=${planning.id}&type=evaluation`, fileName: `07_Instrumentos_${subjectCode}.pdf` },
+    { label: '08 Presentaciones', url: `/api/planeaciones/${planning.id}/presentacion/combinada`, fileName: `08_Presentaciones_${subjectCode}.pptx` },
+    { label: '09 Infografías', url: `/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`, fileName: `09_Infografias_${subjectCode}.pdf` },
   ];
   const docxPackageItems = [
-    { label: '01 Planeación', url: `/api/docx/${planning.id}`, fileName: `01_Planeacion_Didactica_Semestral_${cleanSubject}.docx` },
-    { label: '02 Secuencia', url: `/api/docx/secuencia/${planning.id}`, fileName: `02_Secuencia_Didactica_${cleanSubject}.docx` },
-    { label: '03 Planes de clase', url: `/api/docx/extra/combined?planningId=${planning.id}&type=lesson_plan`, fileName: `03_Planes_de_Clase_Compilado_${cleanSubject}.docx` },
-    { label: '04 Solucionario', url: `/api/docx/extra/combined?planningId=${planning.id}&type=teacher_guide`, fileName: `04_Solucionario_Docente_Compilado_${cleanSubject}.docx` },
-    { label: '05 Guías de práctica', url: `/api/docx/extra/combined?planningId=${planning.id}&type=practice_guide`, fileName: `05_Guias_de_Practica_Compilado_${cleanSubject}.docx` },
-    { label: '06 Libro semestral', url: `/api/docx/libro-semestral/${planning.id}`, fileName: `06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.docx` },
-    { label: '07 Instrumentos', url: `/api/docx/extra/combined?planningId=${planning.id}&type=evaluation`, fileName: `07_Instrumentos_de_Evaluacion_Compilado_${cleanSubject}.docx` },
-    { label: '08 Presentaciones', url: `/api/planeaciones/${planning.id}/presentacion/combinada`, fileName: `08_Presentaciones_SACRINT_${cleanSubject}.pptx` },
-    { label: '09 Infografías', url: `/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`, fileName: `09_Infografias_Sinteticas_${cleanSubject}.pdf` },
+    { label: '01 Planeación', url: `/api/docx/${planning.id}`, fileName: `01_Planeacion_${subjectCode}.docx` },
+    { label: '02 Secuencia', url: `/api/docx/secuencia/${planning.id}`, fileName: `02_Secuencia_${subjectCode}.docx` },
+    { label: '03 Planes de clase', url: `/api/docx/extra/combined?planningId=${planning.id}&type=lesson_plan`, fileName: `03_Planes_Clase_${subjectCode}.docx` },
+    { label: '04 Solucionario', url: `/api/docx/extra/combined?planningId=${planning.id}&type=teacher_guide`, fileName: `04_Solucionario_${subjectCode}.docx` },
+    { label: '05 Guías de práctica', url: `/api/docx/extra/combined?planningId=${planning.id}&type=practice_guide`, fileName: `05_Guias_Practica_${subjectCode}.docx` },
+    { label: '06 Libro semestral', url: `/api/docx/libro-semestral/${planning.id}`, fileName: `06_Libro_Semestral_${subjectCode}.docx` },
+    { label: '07 Instrumentos', url: `/api/docx/extra/combined?planningId=${planning.id}&type=evaluation`, fileName: `07_Instrumentos_${subjectCode}.docx` },
+    { label: '08 Presentaciones', url: `/api/planeaciones/${planning.id}/presentacion/combinada`, fileName: `08_Presentaciones_${subjectCode}.pptx` },
+    { label: '09 Infografías', url: `/api/planeaciones/${planning.id}/infografia/combinada?format=pdf`, fileName: `09_Infografias_${subjectCode}.pdf` },
   ];
   const generatedLessonPlans = extras.filter((ex) => ex.type === 'lesson_plan').length;
   const generatedGuidesCount = extras.filter((ex) => ex.type === 'teacher_guide').length;
@@ -365,7 +361,7 @@ export default function PlanningDownloadsHub({
             <BulkDownloadButton
               href={`/api/docx/extra/bulk?planningId=${planning.id}`}
               items={docxPackageItems}
-              zipFileName={`Paquete_${zipSubject}_Word_PPTX.zip`}
+              zipFileName={`Paquete_${subjectCode}_Word.zip`}
               label="Paquete Completo (Word + PPTX ZIP)"
               title="Descargar los 9 entregables consolidados en un archivo ZIP (Word y Presentaciones PPTX)"
               icon={<Archive size={12} />}
@@ -385,7 +381,7 @@ export default function PlanningDownloadsHub({
             <BulkDownloadButton
               href={`/api/pdf/extra/bulk?planningId=${planning.id}`}
               items={pdfPackageItems}
-              zipFileName={`Paquete_${zipSubject}_PDF_PPTX.zip`}
+              zipFileName={`Paquete_${subjectCode}_PDF.zip`}
               label="Paquete Completo (PDF + PPTX ZIP)"
               title="Descargar los 9 entregables consolidados en un archivo ZIP (PDF y Presentaciones PPTX)"
               icon={<Archive size={12} />}

@@ -175,7 +175,7 @@ describe('SACRINT Part 2 — S6 Review Gate on Combined Decks & Aula Package', (
     const result = await buildAulaPackageZip(fakePlanning, []);
     const zip = await JSZip.loadAsync(result.buffer);
     const names = Object.keys(zip.files);
-    expect(names.some((n) => n.startsWith('08_Presentacion_SACRINT_'))).toBe(true);
+    expect(names.some((n) => n.startsWith('08_Presentacion_'))).toBe(true);
     expect(result.warnings.some((w) => w.includes('Misión 2') && w.includes('S6_PLACEHOLDER_IN_DECK'))).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import { exportSacrintCourseManifest } from '@/lib/sacrint-manifest-exporter';
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
+import { shortSubjectCode } from '@/lib/short-filename';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -70,8 +71,7 @@ export async function GET(
     }
 
     const manifest = exportSacrintCourseManifest(planning, workbooks);
-    const cleanUac = (planning.uacName || 'UAC').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim();
-    const filename = `sacrint_course_manifest_${cleanUac}.json`;
+    const filename = `sacrint_manifest_${shortSubjectCode(planning.uacName)}.json`;
 
     return new NextResponse(JSON.stringify(manifest, null, 2), {
       status: 200,

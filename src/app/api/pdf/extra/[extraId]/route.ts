@@ -97,7 +97,7 @@ export async function GET(
 
     // Safe filename con número de bloque garantizado (anti "…_bloque.pdf"
     // indistinguible entre bloques; ver sanitizeDocFilenameWithBlock).
-    const safeFilename = sanitizeDocFilenameWithBlock(extra.title || 'recurso_extra', 70);
+    const safeFilename = sanitizeDocFilenameWithBlock(extra.title || 'recurso_extra', 36);
 
     const headers: Record<string, string> = {
       'Content-Type':        'application/pdf',

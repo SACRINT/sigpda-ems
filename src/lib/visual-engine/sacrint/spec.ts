@@ -9,8 +9,10 @@ import {
   distillExerciseStatement,
   distillLessonBundle,
   distillStepPreservingMath,
+  extractBulletSentences,
   extractChalkboardTopicTitle,
   extractCleanTopicTitle,
+  enforceSixGramOverlap,
   extractConceptHighlights,
   extractWorkedExample,
   isRubricOrBoilerplateLeak,
@@ -561,6 +563,9 @@ function resolveMissionMisconceptionParts(
     // por regex O patrones de colgado.
     const anchorIsVagueGeneric =
       anchor.length < 8 ||
+      /^(?:definir|analizar|resolver|explorar|comprender|aplicar|identificar|reconocer|explicar|calcular|determinar|modelar|interpretar|evaluar|comparar|justificar|construir|elaborar|realizar|profundizar|estudiar|describir)\b/i.test(
+        anchor
+      ) ||
       /^(?:resultados?\s+obtenidos|error\s+com[uú]n|revisar|analizar|evaluar|comprobar|verificar)\b/i.test(anchor);
     if (
       anchorIsVagueGeneric ||
@@ -585,15 +590,30 @@ function resolveMissionMisconceptionParts(
     subRules: Array<{ pattern: RegExp; error: string; correction: string }>,
     variants: Array<{ error: string; correction: string }>
   ): { error: string; correction: string } => {
+    const countMatches = (pattern: RegExp, text: string): number => {
+      if (!text) return 0;
+      const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+      return text.match(new RegExp(pattern.source, flags))?.length ?? 0;
+    };
     const primaryMatched = subRules.filter((rule) => rule.pattern.test(primaryContextText));
     const matched =
       primaryMatched.length > 0
         ? primaryMatched
         : subRules.filter((rule) => rule.pattern.test(contextText));
-    const chosen =
-      matched.length > 0
-        ? matched[sessionIdx % matched.length]!
-        : variants[sessionIdx % variants.length]!;
+    const scored = matched
+      .map((rule, index) => ({
+        rule,
+        index,
+        score:
+          countMatches(rule.pattern, primaryContextText) * 5 +
+          countMatches(rule.pattern, contextText) * 2 +
+          (rule.pattern.source.match(/\|/g)?.length ?? 0),
+      }))
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+    // Mantener variedad entre sesiones sin perder relevancia: rota entre las
+    // mejores reglas aplicables en lugar de repetir siempre la misma.
+    const pool = scored.slice(0, Math.min(4, scored.length));
+    const chosen = pool[sessionIdx % pool.length]?.rule ?? variants[sessionIdx % variants.length]!;
     return withAnchor(chosen);
   };
 
@@ -1135,24 +1155,24 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
     const cs = slide as SacrintConceptSlide;
     return {
       ...cs,
-      explanation: fitShort(cs.explanation, 150, 22, 'concept') || cs.explanation,
+      explanation: fitShort(cs.explanation, 235, 38, 'concept') || cs.explanation,
       analogy: fitShort(cs.analogy, 70, 11, 'hint'),
-      misconception: fitShort(cs.misconception, 100, 15, 'concept') || cs.misconception,
+      misconception: fitShort(cs.misconception, 140, 22, 'concept') || cs.misconception,
       keyTakeaways: (cs.keyTakeaways ?? [])
         .slice(0, 1)
-        .map((item) => fitShort(item, 46, 7, 'concept'))
+        .map((item) => fitShort(item, 60, 10, 'concept'))
         .filter((item): item is string => Boolean(item)),
       workedExample: cs.workedExample
         ? {
             problemStatement:
-              fitShort(cs.workedExample.problemStatement, 110, 16, 'problem') ||
+              fitShort(cs.workedExample.problemStatement, 180, 28, 'problem') ||
               cs.workedExample.problemStatement,
             steps: cs.workedExample.steps
               .slice(0, 3)
               .map((step) => compactMathStep(step, 60, 9))
               .filter(Boolean),
             interpretation:
-              fitShort(cs.workedExample.interpretation, 55, 8, 'conclusion') ||
+              fitShort(cs.workedExample.interpretation, 90, 14, 'conclusion') ||
               cs.workedExample.interpretation,
           }
         : cs.workedExample,
@@ -1346,7 +1366,9 @@ function buildLessonGuideSlidesForSession(
     maxWords: 13,
     role: 'hint',
   });
-  const misconception = preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
+  const misconception =
+    enforceSixGramOverlap(rawMisconception, workbookTheorySources, 0.12, 'concept') ||
+    preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
 
   const rawArtifactTitle = sanitizePedagogicalMetaPhrases(
     cleanSacrintText(workbook.projectSection?.artifactName) || `Producto de la sesión ${sesLabel}`
@@ -1385,11 +1407,11 @@ function buildLessonGuideSlidesForSession(
     workbookTheorySources
   );
   const rawExplanationBase =
-    completeDefinition.length <= 220
+    completeDefinition.length <= 240
       ? completeDefinition
       : fitPedagogicalText(completeDefinition, {
-          maxChars: 220,
-          maxWords: 34,
+          maxChars: 240,
+          maxWords: 40,
           role: 'concept',
         }) || cleanObjective;
   let cleanExplanation = rawExplanationBase;
@@ -1550,8 +1572,8 @@ function buildLessonGuideSlidesForSession(
     facts,
   };
 
-  const budgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide));
-  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide));
+  const budgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide), 260);
+  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 230);
   return [budgetedConcept, budgetedPractice];
 }
 
@@ -1927,25 +1949,33 @@ function buildSteps(
   const solved = (mission.conceptZero?.solvedExample?.solutionSteps ?? [])
     .map((s) => distillStepPreservingMath(s, 200))
     .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
-  const sessionExample = selectedSession ? extractWorkedExample(mission, selectedSession).steps : [];
-  const effectiveSolved = sessionExample.length > 0 ? sessionExample : solved;
+    const sessionExample = selectedSession ? extractWorkedExample(mission, selectedSession).steps : [];
+    const effectiveSolved = sessionExample.length > 0 ? sessionExample : solved;
+    const demoSteps = extractBulletSentences(mission.iDoSection?.stepByStepDemo, 4, 175)
+      .map((step) => distillStepPreservingMath(step, 225))
+      .filter((step) => Boolean(step) && !isRubricOrBoilerplateLeak(step));
+    const applicationStep = sanitizeField(
+      selectedSession?.aplicacion || mission.youDoSection?.autonomousChallenge,
+      '',
+      220,
+      34
+    );
 
-  const fallback = [
-    sanitizeField(selectedSession?.motivacion || mission.phenomenonHook?.story, '', 200, 32),
-    sanitizeField(selectedSession?.contenido || mission.iDoSection?.stepByStepDemo, '', 200, 32),
-    sanitizeField(selectedSession?.practica?.[0]?.enunciado || mission.weDoSection?.guidedPractice, '', 200, 32),
-    sanitizeField(selectedSession?.practica?.[0]?.pista, '', 200, 32),
-    sanitizeField(selectedSession?.aplicacion || mission.youDoSection?.autonomousChallenge, '', 200, 32),
-    sanitizeField(selectedSession?.productoIntegrador, '', 200, 32),
-  ];
-
-  const prioritizedFallback = [...fallback.slice(effectiveSolved.length), ...fallback];
-  const source =
-    effectiveSolved.length >= 4
-      ? effectiveSolved.slice(0, 4)
-      : [...effectiveSolved, ...prioritizedFallback]
-          .filter((item, index, items) => Boolean(item) && !isRubricOrBoilerplateLeak(item) && items.indexOf(item) === index)
-          .slice(0, 4);
+    // Un manual de conceptos no debe rellenar "pasos" con la definición o la
+    // motivación: eso produce repetición visual. Solo usa procedimientos reales
+    // y, si faltan pasos, cierra con la aplicación autónoma de la sesión.
+    const source =
+      effectiveSolved.length >= 3
+        ? [...effectiveSolved, applicationStep, ...demoSteps]
+        : [...effectiveSolved, ...demoSteps, applicationStep];
+    const orderedSource = source
+      .filter(
+        (item, index, items) =>
+          Boolean(item) &&
+          !isRubricOrBoilerplateLeak(item) &&
+          items.indexOf(item) === index
+      )
+      .slice(0, 4);
 
   const labels = stepLabelsForPack(
     pack,
@@ -1959,7 +1989,7 @@ function buildSteps(
       .filter(Boolean)
       .join(' ')
   );
-  return source.map((body, index) => ({
+  return orderedSource.map((body, index) => ({
     number: index + 1,
     title: labels[index] ?? `PASO ${index + 1}`,
     body: distillStepPreservingMath(body, 225),
@@ -2198,7 +2228,7 @@ function enforceInfographicOverlap(
   sources: string[],
   maxRatio = 0.15
 ): SacrintInfographicSpec {
-  const deOverlapField = (value: string): string => {
+  const deOverlapField = (value: string, fallback = ''): string => {
     const clean = (value || '').trim();
     if (!clean) return clean;
     const rewritten = preventSixGramTheoryOverlap(
@@ -2219,15 +2249,30 @@ function enforceInfographicOverlap(
       if (sixGramOverlapRatio(joined, sources) <= maxRatio) return joined;
     }
 
-    const formulaClause = spec.formula ? ` Se modela con ${spec.formula}.` : '';
-    const synthesis = `${spec.title}.${formulaClause}`.trim();
-    if (sixGramOverlapRatio(synthesis, sources) <= maxRatio) return synthesis;
-    return spec.title;
+    // No sustituir todos los campos por el mismo título+fórmula (eso produce
+    // manuales repetitivos), pero sí compactar el texto propio hasta que sea
+    // distinto del libro y conserve un cierre sintáctico completo.
+    const compacted = fitPedagogicalText(rewritten, {
+      maxChars: 120,
+      maxWords: 18,
+      role: 'concept',
+    });
+    if (
+      compacted &&
+      !hasDanglingEnding(compacted) &&
+      sixGramOverlapRatio(compacted, sources) <= maxRatio
+    ) {
+      return compacted;
+    }
+    return fallback || rewritten || spec.title;
   };
   const deOverlapList = (values: string[] | undefined): string[] =>
-    (values ?? []).map(deOverlapField);
+    (values ?? []).map((value) => deOverlapField(value));
 
-  spec.claim = deOverlapField(spec.claim);
+  spec.claim = deOverlapField(
+    spec.claim,
+    `El concepto central es ${spec.title.toLowerCase()} y se aplica en situaciones del entorno.`
+  );
   if (spec.conceptManual) {
     spec.conceptManual = {
       ...spec.conceptManual,
@@ -2240,13 +2285,18 @@ function enforceInfographicOverlap(
       })),
       definitions: spec.conceptManual.definitions.map((definition) => ({
         term: deOverlapField(definition.term),
-        definition: deOverlapField(definition.definition),
+        definition: deOverlapField(
+          definition.definition,
+          `Definición de ${definition.term || spec.title}: concepto clave para interpretar y aplicar en situaciones del entorno.`
+        ),
       })),
       usageGuidance: deOverlapList(spec.conceptManual.usageGuidance),
       masteryChecklist: deOverlapList(spec.conceptManual.masteryChecklist),
     };
   }
-  spec.keyConcepts = deOverlapList(spec.keyConcepts);
+  spec.keyConcepts = (spec.keyConcepts ?? [])
+    .map((value) => deOverlapField(value, ''))
+    .filter(Boolean);
   spec.criteria = deOverlapList(spec.criteria);
   spec.steps = (spec.steps ?? []).map((step) => ({
     ...step,
@@ -2256,7 +2306,7 @@ function enforceInfographicOverlap(
   if (spec.quickExample) {
     spec.quickExample = {
       problemStatement: deOverlapField(spec.quickExample.problemStatement),
-      steps: spec.quickExample.steps.map(deOverlapField),
+      steps: spec.quickExample.steps.map((step) => deOverlapField(step)),
       interpretation: deOverlapField(spec.quickExample.interpretation),
     };
   }
@@ -2286,6 +2336,41 @@ function enforceInfographicOverlap(
     meaning: deOverlapField(variable.meaning),
   }));
   return spec;
+}
+
+function conceptFingerprint(value: string | null | undefined): string {
+  return normalizeEditorialText(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function hasBalancedDelimiters(value: string): boolean {
+  const pairs: Array<[string, string]> = [
+    ['(', ')'],
+    ['[', ']'],
+    ['{', '}'],
+  ];
+  return pairs.every(([open, close]) => {
+    const opens = (value.match(new RegExp(`\\${open}`, 'g')) ?? []).length;
+    const closes = (value.match(new RegExp(`\\${close}`, 'g')) ?? []).length;
+    return opens === closes;
+  });
+}
+
+function isDistinctConceptText(value: string, references: string[]): boolean {
+  const normalized = conceptFingerprint(value);
+  if (!normalized) return false;
+  return references.every((reference) => {
+    const ref = conceptFingerprint(reference);
+    if (!ref) return true;
+    if (normalized === ref) return false;
+    const prefix = Math.min(64, ref.length, normalized.length);
+    return !(
+      prefix >= 30 &&
+      (normalized.startsWith(ref.slice(0, prefix)) || ref.startsWith(normalized.slice(0, prefix)))
+    );
+  });
 }
 
 export function buildSacrintInfographic(
@@ -2427,7 +2512,16 @@ export function buildSacrintInfographic(
     .map((c) =>
       finalizeVisibleText(deOverlap(sanitizePedagogicalMetaPhrases(c)), { ensurePeriod: true })
     )
-    .filter((item) => Boolean(item) && !isRubricOrBoilerplateLeak(item));
+    .filter(
+      (item) =>
+        Boolean(item) &&
+        !isRubricOrBoilerplateLeak(item) &&
+        !hasDanglingEnding(item) &&
+        hasBalancedDelimiters(item)
+    );
+  const distinctKeyConcepts = rawKeyConcepts
+    .filter((item) => isDistinctConceptText(item, [cleanTitle, cleanClaim]))
+    .slice(0, 3);
   const steps = buildSteps(mission, pack, selectedSession).map((step) => ({
     ...step,
     title: finalizeVisibleText(deOverlap(sanitizePedagogicalMetaPhrases(step.title)), {
@@ -2436,12 +2530,7 @@ export function buildSacrintInfographic(
     body: finalizeVisibleText(deOverlap(step.body), { ensurePeriod: true }),
   }));
 
-  const definitions: ConceptManualDefinition[] = [
-    {
-      term: finalizeVisibleText(deOverlap(cleanTitle), { ensurePeriod: false }),
-      definition: cleanClaim,
-    },
-    ...rawKeyConcepts.slice(0, 2).map((rule, idx) => {
+  const distinctDefinitionEntries: ConceptManualDefinition[] = distinctKeyConcepts.slice(1, 2).map((rule, idx) => {
       const colonIdx = rule.indexOf(':');
       if (colonIdx > 3 && colonIdx < 36) {
         return {
@@ -2455,27 +2544,24 @@ export function buildSacrintInfographic(
       }
       return {
         term: idx === 0 ? 'Principio operativo' : 'Condición clave',
-        definition: finalizeVisibleText(
-          deOverlap(
-            fitPedagogicalText(rule, { maxChars: 135, maxWords: 21, role: 'concept' }) || rule
-          ),
-          { ensurePeriod: true }
-        ),
+        definition: finalizeVisibleText(deOverlap(rule), { ensurePeriod: true }),
       };
-    }),
-  ];
+    });
+  const definitions: ConceptManualDefinition[] =
+    distinctDefinitionEntries.length > 0
+      ? distinctDefinitionEntries
+      : [
+          {
+            term: cleanTitle,
+            definition: `Concepto clave para interpretar ${cleanTitle.toLowerCase()} y aplicarlo en situaciones del entorno.`,
+          },
+        ];
 
   const conceptMap: ConceptMapNode[] = [
     {
       concept: cleanTitle,
       relation: 'Núcleo conceptual',
-      detail:
-        fitPedagogicalText(cleanClaim, {
-          maxChars: 110,
-          maxWords: 17,
-          role: 'concept',
-          ensurePeriod: false,
-        }) || cleanClaim,
+      detail: distinctKeyConcepts[0] || applicationSummary || cleanClaim,
     },
     ...(formula
       ? [
@@ -2486,36 +2572,24 @@ export function buildSacrintInfographic(
           },
         ]
       : []),
-    ...(rawKeyConcepts[0]
+    ...(distinctKeyConcepts[0]
       ? [
           {
             concept: 'Criterio de desarrollo',
             relation: 'Conduce',
-            detail:
-              fitPedagogicalText(rawKeyConcepts[0], {
-                maxChars: 95,
-                maxWords: 15,
-                role: 'concept',
-                ensurePeriod: false,
-              }) || rawKeyConcepts[0],
+            detail: misconceptionFix.correction || distinctKeyConcepts[2] || distinctKeyConcepts[0],
           },
         ]
       : []),
     {
       concept: 'Transferencia',
       relation: 'Aplica en',
-      detail:
-        fitPedagogicalText(applicationSummary, {
-          maxChars: 95,
-          maxWords: 15,
-          role: 'application',
-          ensurePeriod: false,
-        }) || applicationSummary,
+      detail: applicationSummary,
     },
   ];
 
   const usageGuidance: string[] = [
-    `Cuándo emplearlo: ${fitPedagogicalText(cleanClaim, { maxChars: 112, maxWords: 17, role: 'concept', ensurePeriod: true })}`,
+    `Cuándo emplearlo: ${applicationSummary || distinctKeyConcepts[0] || cleanClaim}`,
     `Qué vigilar: ${fitPedagogicalText(misconceptionFix.error, { maxChars: 105, maxWords: 16, role: 'hint', ensurePeriod: true })}`,
     `Criterio de verificación: ${fitPedagogicalText(misconceptionFix.correction, { maxChars: 105, maxWords: 16, role: 'hint', ensurePeriod: true })}`,
   ];
@@ -2545,7 +2619,8 @@ export function buildSacrintInfographic(
     claim: cleanClaim,
     formula,
     formulasList: formula ? [formula] : [],
-    keyConcepts: rawKeyConcepts,
+    // Reparto sin repetición: mapa=0, definición=1, lista de conceptos=2.
+    keyConcepts: distinctKeyConcepts.slice(2, 3),
     conceptManual: {
       centralConcept: cleanTitle,
       conceptMap,

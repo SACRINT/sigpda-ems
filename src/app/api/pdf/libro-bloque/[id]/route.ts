@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { shortSubjectCode } from '@/lib/short-filename';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
@@ -74,8 +75,7 @@ export async function GET(
     };
 
     const pdfBuffer = await renderWorkbookToPdf(workbook, planning);
-    const cleanUac = (planning.uacName || 'UAC').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim();
-    const filename = `Libro_Trabajo_Activo_B${blockIndex + 1}_${cleanUac}.pdf`;
+    const filename = `Libro_B${blockIndex + 1}_${shortSubjectCode(planning.uacName)}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

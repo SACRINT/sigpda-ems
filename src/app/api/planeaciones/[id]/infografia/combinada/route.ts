@@ -10,6 +10,7 @@ import {
 } from '@/lib/visual-engine/sacrint/spec';
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { logger } from '@/lib/logger';
+import { shortSubjectCode } from '@/lib/short-filename';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 export const runtime = 'nodejs';
@@ -119,12 +120,7 @@ export async function GET(
     }
 
     const mergedBytes = await renderCombinedSacrintInfographicsPdf(dedupedSpecs, layout);
-    const safeName = (planRows[0].uac_name || 'infografias')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 60);
+    const safeName = shortSubjectCode(planRows[0].uac_name || 'infografias');
 
     return new NextResponse(new Uint8Array(mergedBytes), {
       status: 200,

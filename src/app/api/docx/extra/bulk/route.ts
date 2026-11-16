@@ -22,7 +22,8 @@ import {
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
-import { sanitizeDocFilename, sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
+import { sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
+import { shortSubjectCode } from '@/lib/short-filename';
 import { resolveBlockNumber, resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
 import type { GeneratedPlanningContent, Planning, SecuenciaBloque } from '@/types/planning';
@@ -114,8 +115,8 @@ async function handleBulkDocx(request: NextRequest) {
       extras = await getPlanningExtrasByBlock(planningId, blockIndex, teacher.id, type);
       const blockNum = resolveBlockNumber(blockIndex) ?? (blockIndex + 1);
       const typeLabelStr = type === 'lesson_plan' ? 'Planes_de_Clase' : 'Materiales';
-      const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-      zipName = `${typeLabelStr}_Bloque_${blockNum}_${cleanSubject}_DOCX.zip`;
+      const subjectCode = shortSubjectCode(planning.uac_name || 'UAC');
+      zipName = `${typeLabelStr}_B${blockNum}_${subjectCode}.zip`;
     } else if (planningId) {
       planning = await getPlanningById(planningId, teacher.id);
       if (!planning) {
@@ -129,8 +130,8 @@ async function handleBulkDocx(request: NextRequest) {
       };
 
       extras = await getPlanningExtras(planningId, teacher.id);
-      const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
-      zipName = `Paquete_Entregables_${cleanSubject}_DOCX.zip`;
+      const subjectCode = shortSubjectCode(planning.uac_name || 'UAC');
+      zipName = `Paquete_${subjectCode}_Word.zip`;
     } else {
       return new Response('Parámetros insuficientes (requiere planningId o extraIds)', { status: 400 });
     }
@@ -243,7 +244,7 @@ async function handleBulkDocx(request: NextRequest) {
 
     // RAMA 1: PAQUETE MASTER CONSOLIDADO DE LA PLANEACIÓN (9 Entregables Compilados en 1 Solo Archivo Cada Uno)
     if (isMasterPackage && planning) {
-      const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+      const subjectCode = shortSubjectCode(planning.uac_name || 'UAC');
       const contentJson = planning.content_json as GeneratedPlanningContent | null;
       const planningObj: Planning = {
         id: planning.id,
@@ -268,7 +269,7 @@ async function handleBulkDocx(request: NextRequest) {
         try {
           const sequenceJson = (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> }).sequence_json || null;
           const docxBuf = await generateDocx(contentJson, sequenceJson);
-          zip.file(`01_Planeacion_Didactica_Semestral_${cleanSubject}.docx`, docxBuf);
+          zip.file(`01_Planeacion_${subjectCode}.docx`, docxBuf);
         } catch (err) {
           logger.warn('Error packaging Planeacion Didactica Docx for bulk zip:', { error: err });
         }
@@ -284,7 +285,7 @@ async function handleBulkDocx(request: NextRequest) {
             contentForSeq.sectionI.metodologiaActiva = rawMet;
           }
           const docxBuf = await generateSecuenciaDocx(contentForSeq, rawSequenceJson);
-          zip.file(`02_Secuencia_Didactica_${cleanSubject}.docx`, docxBuf);
+          zip.file(`02_Secuencia_${subjectCode}.docx`, docxBuf);
         } catch (err) {
           logger.warn('Error packaging Secuencia Didactica Docx for bulk zip:', { error: err });
         }
@@ -303,7 +304,7 @@ async function handleBulkDocx(request: NextRequest) {
             brandingCtx,
             `Planes de Clase (50 min) · Compilado Semestral · ${planning.uac_name}`
           );
-          zip.file(`03_Planes_de_Clase_Compilado_${cleanSubject}.docx`, docxBuf);
+          zip.file(`03_Planes_Clase_${subjectCode}.docx`, docxBuf);
         } catch (err) {
           logger.warn('Error packaging Lesson Plans Docx for bulk zip:', { error: err });
         }
@@ -322,7 +323,7 @@ async function handleBulkDocx(request: NextRequest) {
             brandingCtx,
             `Solucionario Docente · Compilado Semestral · ${planning.uac_name}`
           );
-          zip.file(`04_Solucionario_Docente_Compilado_${cleanSubject}.docx`, docxBuf);
+          zip.file(`04_Solucionario_${subjectCode}.docx`, docxBuf);
         } catch (err) {
           logger.warn('Error packaging Teacher Guides Docx for bulk zip:', { error: err });
         }
@@ -341,7 +342,7 @@ async function handleBulkDocx(request: NextRequest) {
             brandingCtx,
             `Guías de Práctica · Compilado Semestral · ${planning.uac_name}`
           );
-          zip.file(`05_Guias_de_Practica_Compilado_${cleanSubject}.docx`, docxBuf);
+          zip.file(`05_Guias_Practica_${subjectCode}.docx`, docxBuf);
         } catch (err) {
           logger.warn('Error packaging Practice Guides Docx for bulk zip:', { error: err });
         }
@@ -351,7 +352,7 @@ async function handleBulkDocx(request: NextRequest) {
       try {
         const { docx } = await compileSemestralWorkbook(planning.id, planningObj, { format: 'docx' });
         if (docx) {
-          zip.file(`06_Libro_de_Texto_Semestral_Consolidado_${cleanSubject}.docx`, docx);
+          zip.file(`06_Libro_Semestral_${subjectCode}.docx`, docx);
         }
       } catch (err) {
         logger.warn('Error compiling Semestral Workbook Docx for bulk zip:', { error: err });
@@ -385,7 +386,7 @@ async function handleBulkDocx(request: NextRequest) {
             brandingCtx,
             `Instrumentos de Evaluación · Compilado Semestral · ${planning.uac_name}`
           );
-          zip.file(`07_Instrumentos_de_Evaluacion_Compilado_${cleanSubject}.docx`, docxBuf);
+          zip.file(`07_Instrumentos_${subjectCode}.docx`, docxBuf);
         } catch (err) {
           logger.warn('Error packaging Evaluation Instruments Docx for bulk zip:', { error: err });
         }
@@ -415,7 +416,7 @@ async function handleBulkDocx(request: NextRequest) {
               title: `Presentación SACRINT completa — ${planning.uac_name}`,
               subjectName: planning.uac_name || 'presentacion',
             });
-            zip.file(`08_Presentaciones_SACRINT_${cleanSubject}.pptx`, pptxBuf);
+            zip.file(`08_Presentaciones_${subjectCode}.pptx`, pptxBuf);
           }
         }
       } catch (err) {
@@ -447,7 +448,7 @@ async function handleBulkDocx(request: NextRequest) {
           }
           if (specs.length > 0) {
             const infoBytes = await renderCombinedSacrintInfographicsPdf(specs, 'wide');
-            zip.file(`09_Infografias_Sinteticas_${cleanSubject}.pdf`, infoBytes);
+            zip.file(`09_Infografias_${subjectCode}.pdf`, infoBytes);
           }
         }
       } catch (err) {
@@ -457,7 +458,7 @@ async function handleBulkDocx(request: NextRequest) {
       // RAMA 2: DESCARGA INDIVIDUAL / POR BLOQUE ESPECÍFICO (Comportamiento habitual por bloque)
       const usedNames = new Set<string>();
       const fileEntries = extras.map((item, i) => {
-        let baseName = sanitizeDocFilenameWithBlock(item.title, 70);
+        let baseName = sanitizeDocFilenameWithBlock(item.title, 36);
         if (!baseName) baseName = `extra_${i + 1}`;
 
         let fileName = `${baseName}.docx`;

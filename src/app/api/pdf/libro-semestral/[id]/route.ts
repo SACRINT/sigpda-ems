@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { shortSubjectCode } from '@/lib/short-filename';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getTeacherByEmail } from '@/lib/db';
 import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
@@ -53,8 +54,7 @@ export async function GET(
     if (!pdf) {
       throw new Error('No se pudo generar el archivo PDF semestral');
     }
-    const cleanUac = (planning.uacName || 'UAC').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_ -]/g, '').trim();
-    const filename = `Libro_Maestro_Semestral_${cleanUac}.pdf`;
+    const filename = `Libro_Semestral_${shortSubjectCode(planning.uacName)}.pdf`;
 
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,

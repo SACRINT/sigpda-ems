@@ -4,6 +4,7 @@ import { getTeacherByEmail, getPlanningById, getPlanningExtrasByType, getPlannin
 import { mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilename, type BrandingContext } from '@/lib/document-branding';
+import { shortSubjectCode } from '@/lib/short-filename';
 import { resolveBlockNumber, resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { selectExtrasForBlock, selectAllExtrasCombined } from '@/lib/planning-extras-for-block';
 import {
@@ -273,10 +274,10 @@ async function handleCombinedPdf(request: NextRequest) {
       );
     }
 
-    const cleanSubject = sanitizeDocFilename(planning.uac_name || 'UAC', 30);
+    const subjectCode = shortSubjectCode(planning.uac_name || 'UAC');
     const fileName = blockIndex !== null
-      ? `${typeLabel(cleanType)}_Bloque_${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${cleanSubject}.pdf`
-      : `${typeLabel(cleanType)}_Todos_Bloques_${cleanSubject}.pdf`;
+      ? `${typeLabel(cleanType)}_B${(resolveBlockNumber(blockIndex) ?? blockIndex + 1)}_${subjectCode}.pdf`
+      : `${typeLabel(cleanType)}_${subjectCode}.pdf`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/pdf',

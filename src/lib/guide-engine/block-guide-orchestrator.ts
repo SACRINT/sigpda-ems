@@ -51,6 +51,7 @@ import {
   compactOversizedSessionPlans,
   expandDeficientSessionPlans,
 } from './session-plan-expansion';
+import { finalizeSessionPlans } from './session-plan-finalizer';
 import * as aiProvider from '@/lib/ai-provider';
 import { getInstitutionalContext } from '@/lib/institutional-context';
 import { createWriterScheduler, resolveWriterConcurrency } from './writer-scheduler';
@@ -782,6 +783,24 @@ export async function generateBlockWorkTextbook(
 
   // ── Fase 9: Ensamblado del ActiveWorkTextbook ───────────────────────────
   await compactOversizedIfNeeded('post-expansion');
+
+  const finalization = finalizeSessionPlans({
+    writerOutputs,
+    missionBudgets: effectiveMissionBudgets,
+    subsystem: curriculumContext.subsystem,
+  });
+  if (finalization.repairedFields > 0 || finalization.addedPractices > 0) {
+    logger.warn(
+      `[orchestrator] Cierre editorial determinista: ${finalization.repairedFields} campos reparados, ` +
+        `${finalization.addedPractices} prácticas completadas.`
+    );
+    validation = validateBlockGuideQuality({
+      writerOutputs,
+      subsystem: curriculumContext.subsystem,
+      targetWords: budget.targetWords,
+    });
+    await persistCheckpoint();
+  }
 
   await reportProgress(planningId, blockIndex, {
     phase: 'assembling',
