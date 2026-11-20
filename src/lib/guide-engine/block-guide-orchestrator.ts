@@ -766,6 +766,7 @@ export async function generateBlockWorkTextbook(
         signal,
         remainingBudgetMs: remainingForExpansion,
         minRemainingBudgetMs: expansionBudgetFloorMs,
+        failOnDeficit: true,
       });
       if (expansion.expandedPlans > 0) {
         logger.info(
@@ -788,6 +789,8 @@ export async function generateBlockWorkTextbook(
     writerOutputs,
     missionBudgets: effectiveMissionBudgets,
     subsystem: curriculumContext.subsystem,
+    blockTargetMinWords: budget.targetWords.min,
+    failOnDeficit: true,
   });
   if (finalization.repairedFields > 0 || finalization.addedPractices > 0) {
     logger.warn(

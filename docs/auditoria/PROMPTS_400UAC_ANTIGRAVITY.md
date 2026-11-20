@@ -1,9 +1,12 @@
 # Auditoría y Remediación — Prompts, Writers y Clasificador Disciplinar para 400+ UAC (SIGPDA-EMS)
 
-- **Fecha:** 2026-11-20
+- **Fecha:** 2026-11-20 (actualización post-auditoría V2.1: cierre fail-closed y piloto E2E real)
 - **Repositorio:** `C:\Proyectos_SACRINT\Proyecto_SIGPDA_EMS\SIGPDA_EMS`
-- **Commit base (HEAD):** `f7bc947a` (*sin commit nuevo, según límite explícito*)
-- **Veredicto sobre la auditoría previa de Opencode:** **De acuerdo sustancialmente** — las 6 hipótesis (`H1`–`H6`) se reprodujeron con evidencia directa en el código y las sondas. Además, la inspección completa de las 204 UAC únicas en `scripts/data/curriculum_canonical_203.json` reveló colisiones adicionales por subcadenas (`cad` en *aplicado/diagnosticado/especificada/indicadas* y `logica` en *agroecológicas/médicoodontológica*) y 16 UAC culinarias + 7 de TI/Redes cayendo en industrial. Se ejecutó el plan completo (Fases 0, 1, 2 y 3).
+- **Estado real de Git:**
+  - `HEAD` actual: `ec35b9de` (idéntico a `origin/main` en `ec35b9de`), sobre `f7bc947a` y `ac655007`.
+  - **Aclaración de autoría de `ec35b9de`:** El commit `ec35b9de` (`feat: implement SIGPDA-EMS V2.1 architecture with 400+ UAC generalization, expanded disciplinary adapters, and robust test suites`, 23 archivos / `+2557 -379`) fue creado y empujado por `Samuel <samuelci.spv04@gmail.com>` el `2026-11-20 12:26:30 -0600` después del cierre anterior; no fue creado por Antigravity.
+  - **Cambios locales vigentes (sin commit en esta sesión):** sobre `ec35b9de` se aplicaron las correcciones de las Tareas 1–4 (`session-shard.ts`, `session-plan-expansion.ts`, `session-plan-finalizer.ts`, `session-plan-completion.ts`, `block-guide-orchestrator.ts`, tests de regresión y este reporte), sin ejecutar `commit`, `push`, `amend`, `rebase` ni `revert`.
+- **Veredicto sobre la auditoría previa de Opencode:** **De acuerdo sustancialmente** — las 6 hipótesis (`H1`–`H6`) se reprodujeron con evidencia directa en el código y las sondas. Además, la inspección completa de las 204 UAC únicas en `scripts/data/curriculum_canonical_203.json` reveló colisiones adicionales por subcadenas (`cad` en *aplicado/diagnosticado/especificada/indicadas* y `logica` en *agroecológicas/médicoodontológica*) y 16 UAC culinarias + 7 de TI/Redes cayendo en industrial. Se ejecutó el plan completo (Fases 0, 1, 2 y 3) y posteriormente la remediación fail-closed (Tareas 1–4).
 
 ---
 
@@ -148,3 +151,66 @@ No se agregaron dependencias, no se modificaron modelos ni proveedores de IA (`g
    - **No se relajó ningún umbral de QA** (`scripts/qa-sacrint-materials.ts` no fue modificado; los umbrales de `session-shard.ts` se endurecieron al alinearlos con `SESSION_PLAN_WORD_CONTRACT`, de `720/300/190` a `1,002/320/220` + gate `sintesisVisual`).
    - **No se ocultó ningún fallo ni se eliminaron validaciones ni campos.**
    - **No se realizó commit, no se agregaron dependencias, no se tocaron datos de producción y se preservaron intactos todos los scripts `scripts/tmp-*.ts`.**
+
+---
+
+## 8. Remediación Post-Auditoría V2.1 (Fail-Closed Real + Piloto E2E en Vivo)
+
+### 8.1 Tarea 1 — Cierre del falso "fail-closed" en `session-shard.ts`
+- **Cambio en `src/lib/guide-engine/writers/session-shard.ts`:**
+  - Exportado **`SessionDensityDeficiencyError`** con `missionType`, `uacName`, `sessions`, `deficits`, `repairedSessions` y `attemptedRepairs` (incluye `Sesiones afectadas: ...` en el mensaje para que `job-worker.ts` identifique al writer dueño).
+  - Cuando `stillDeficient.length > 0` tras la reparación quirúrgica, ahora **lanza `SessionDensityDeficiencyError`** en lugar de emitir `logger.warn` y devolver planes incompletos/deficientes.
+  - Se conservó y documentó explícitamente `maxRepairs` (tope de costo del 80%) aclarando que cualquier sesión residual que no se alcance a reparar sigue causando `SessionDensityDeficiencyError` (nunca retorno silencioso).
+  - En el `catch` de reparación se relanza aborto si `ctx.input.signal?.aborted` y se corta inmediatamente ante errores de cuota/capacidad (`isPoolExhaustedOrServiceError`), dejando trazada la propagación hacia los 4 writers (`foundation`, `lab`, `project`, `evaluation`) y `block-guide-orchestrator.ts` sin ningún `catch` intermedio que degrade el error a warning/fallback.
+- **Pruebas añadidas en `src/__tests__/session-shard.test.ts` (4 pruebas nuevas):**
+  1. Umbrales vigentes `minTotalWords = 1002` (a `target = 1120`), `minContenidoWords = 320`, `minEjemploWords = 220`, `requireVisualSynthesis = true` + detección de déficit cuando falta `sintesisVisual`.
+  2. Plan deficiente sin `sintesisVisual` dispara reparación y completa la síntesis faltante.
+  3. Reparación insuficiente/persistente lanza `SessionDensityDeficiencyError` con metadata completa (`missionType`, `uacName`, `sessions`, `deficits`, `repairedSessions`).
+  4. Plan completo con `sintesisVisual` aprueba sin reparaciones ni `stillDeficient`.
+
+### 8.2 Tarea 2 — Cierre de otros éxitos silenciosos (`expansion`, `finalizer`, `completion`, `orchestrator`)
+- **`src/lib/guide-engine/session-plan-expansion.ts`:**
+  - Exportado **`SessionPlanExpansionError`** (`uacName`, `blockName`, `finalWords`, `targetMinWords`, `shortfallWords`, `failedBatches`, `skippedDueToBudget`, `deficientMissions`).
+  - Corregido el `catch` de `expandBatch`: relanza inmediatamente `AbortError` y `isTransientCapacityError` (`429/503/AiCooldownExhaustedError/AiServiceUnavailableError`); registra `failedBatches` y `lastError` ante errores de lote no transitorios.
+  - Tras `rebalanceOvershoot`, lanza `SessionPlanExpansionError` si falló algún lote y el bloque o una misión quedó bajo mínimo, o si `failOnDeficit: true` y `finalBlockWords < blockTargetWords.min` (incluidos saltos por bajo presupuesto). Preserva el contrato previo de `session-plan-expansion-budget.test.ts` cuando `failedBatches === 0` y `failOnDeficit` se omite.
+- **`src/lib/guide-engine/session-plan-finalizer.ts`:**
+  - Exportado **`SessionFinalizationDeficitError`** (con prefijo `[BlockIntegrity][SessionPlanFinalizer]`, `totalWords`, `targetMinWords`, `shortfallWords`, `underTargetMissions`, `sessionsWithoutPractice`).
+  - Se reemplazó el texto de pista matemática hardcodeado en `ensurePractice` (`"Define la incógnita..."`) por una pista disciplinar neutral; ahora retorna telemetría completa (`withinTargetMin`, `totalWords`, `targetMinWords`, `underTargetMissions`, `sessionsWithoutPractice`) y lanza `SessionFinalizationDeficitError` bajo `failOnDeficit: true`.
+- **`src/lib/guide-engine/writers/session-plan-completion.ts`:**
+  - `generateMissingSessionPlans` deja de tragar `AbortError` y errores de capacidad (`isTransientCapacityError`), relanzándolos al caller.
+- **`src/lib/guide-engine/block-guide-orchestrator.ts`:**
+  - Pasa `failOnDeficit: true` a `expandDeficientSessionPlans` y `blockTargetMinWords: budget.targetWords.min, failOnDeficit: true` a `finalizeSessionPlans`, cerrando el punto ciego histórico `[0.90 * targetWords.min, targetWords.min - 1]` donde un bloque debajo del mínimo formal podía pasar `[BlockIntegrity]` y marcarse `completed` (preservando intacto `EDITORIAL_TOLERANCE_RATIO = 0.9` en pruebas unitarias directas de `validateBlockGuideQuality`).
+- **Pruebas nuevas:** `src/__tests__/session-plan-expansion-failclosed.test.ts` (6 tests) + 1 prueba de integración en `src/__tests__/content-budget-orchestrator.test.ts` (bloque al 94% del mínimo rechazado sin persistir).
+
+### 8.3 Tarea 3 — Piloto E2E Real (sin mocks ni fixtures) y Diagnóstico Honesto
+Se ejecutó `scratch/e2e_pilot_real.ts` contra la API real de Gemini (`gemini-3.5-flash-lite` configurado en `platform_config`, pool de 8 claves activas en Neon, `writerConcurrency = 4`, completamente en memoria y **sin escribir ni modificar filas en `plannings`**).
+
+| UAC (bloque real) | Subsistema / Horas / Sesiones | Adaptador resuelto | Resultado | `repairedAttemptSessions` | `stillDeficient` residual | Latencia | Llamadas HTTP / `429` / `503` (tasa) | `06`/`08`/`09` QA |
+|---|---|---|---|---:|---:|---:|---:|---|
+| **Lenguaje y Comunicación I** | BGE · 3h · **18 ses.** | `lengua_comunicacion_literatura` | **❌ `FAILED_WRITER` (`SessionDensityDeficiencyError` en 4/4 misiones)** | **16/18** (`1..8,10..11,13..18`) | **16 ses.** (`1..14, 16, 17`) | **150.5 s** (`150,526 ms`) | 56 calls · `8` `429` + `20` `503` (**50.0%**) | No renderizado (aborto fail-closed previo) |
+| **Mecánica Dental** | BT · 4h · **24 ses.** (sharding completo) | `formacion_laboral_salud_clinica` | **❌ `FAILED_WRITER` (`SessionDensityDeficiencyError` en 4/4 misiones)** | **20/24** (`1,2,4..11,13..18,20..23`) | **17 ses.** (`1..4,6,7,9..12,16,17,19,21..24`) | **151.3 s** (`151,339 ms`) | 57 calls · `9` `429` + `14` `503` (**40.35%**) | No renderizado (aborto fail-closed previo) |
+| **Pensamiento Matemático I** | BGE · 3h · **18 ses.** | `pensamiento_matematico` | **❌ `FAILED_WRITER` (`SessionDensityDeficiencyError` en 4/4 misiones)** | **16/18** (`1..8,10..11,13..18`) | **12 ses.** (`1..6,8..10,12,13,15`) | **123.8 s** (`123,782 ms`) | 43 calls · `0` `429` + `14` `503` (**32.56%**) | No renderizado (aborto fail-closed previo) |
+
+**Diagnóstico de evidencia real (sin maquillar resultados ni relajar umbrales):**
+1. **Validación del cierre fail-closed:** Antes de la Tarea 1, las 3 corridas habrían emitido solo `logger.warn` y avanzado con sesiones mutiladas/cortas; ahora las 12 misiones fallidas detuvieron la generación limpiamente con `SessionDensityDeficiencyError`.
+2. **Inestabilidad severa en `gemini-3.5-flash-lite` durante la prueba:** En las 3 UAC, `gemini-3.5-flash-lite` disparó inmediatamente fast-fail por HTTP `503` ("Circuito 503 abierto para gemini-3.5-flash-lite; ejecutando fallback automático a `gemini-3.1-flash-lite`"), con tasas globales `429/503` entre **32.56% y 50.0%**.
+3. **Cumplimiento global vs. déficit estrecho por campo:** Entre las 60 sesiones generadas en vivo:
+   - **`sintesisVisual`:** **59/60 (98.3%)** salieron válidas (solo *Pensamiento Matemático I S12* falló `sintesisVisual.ejemploBreve`).
+   - **Piso global `1,002` palabras/sesión:** **55/60 (91.7%)** alcanzaron `>= 1,002` palabras (solo 5 sesiones cayeron por debajo: *Lenguaje S9=959, S12=832*; *Mecánica Dental S3=907, S12=980, S19=893*; *PM1 S12=759*).
+   - **Causa principal del rechazo:** Déficit estrecho (1–30 palabras) en los pisos por campo **`contenido >= 320`** (frecuente `275–317`) y **`ejemploResuelto >= 220`** (frecuente `173–219`, llegando a **`219/220` en PM1 S15**), sumado a que `maxRepairs` del 80% deja sesiones rezagadas en paquetes de 5–7 (`S9` en Lenguaje/PM1, `S12` en Mecánica Dental) cuando casi todas las sesiones requieren reparación en 1ª vuelta (`52/60 = 86.7%`).
+4. **`06` / `08` / `09`:** No se calcularon `slide12Avg`, colisiones ni `glued/orphan/latex` en las corridas en vivo porque el pipeline fail-closed abortó antes de ensamblar contenido inválido; las métricas limpias de `06`/`08`/`09` descritas en la sección 5.3 corresponden únicamente al piloto determinista con fixtures V2 (no a salidas vivas del LLM).
+
+### 8.4 Verificación Final Posterior a Ediciones (Tareas 1–4)
+| Verificación | Resultado exacto observado |
+|---|---|
+| `npx --no-install tsc --noEmit` | **Exit 0** (0 errores) |
+| `npx --no-install eslint --max-warnings=0 <8 archivos modificados/creados>` | **Exit 0** (0 errores, 0 warnings) |
+| `npx --no-install vitest run --maxWorkers=2` | **301/301 archivos aprobados · 2,492 passed \| 7 skipped (2,499 total)** |
+| `npm run test:isolation` | **OK:** 301 archivos unitarios sin acceso directo a Neon |
+| `npm run test:keywords` | **OK:** 0 colisiones en `REGLAS` (16/16 casos canónicos) |
+| `npx --no-install tsx scripts/tmp-adapter-coverage.ts` | **204 UAC · `fallbackCount = 1` (`Laboratorio de Investigación`)** |
+| `npx --no-install tsx scripts/tmp-adapter-probe.ts` | **35/35 sondas correctas (100%)** |
+
+### 8.5 Recomendación sobre Regeneración Selectiva de `06`, `08`, `09`
+- **No escalar todavía generación nueva con IA (ni 400 UAC ni bloques masivos):** En vivo bajo `gemini-3.5-flash-lite` (+ fallback `3.1-flash-lite`), 3/3 bloques completos fallaron fail-closed (`32.6%–50.0%` de `429/503` y `86.7%` de sesiones enviadas a reparación secuencial por faltantes de 1–30 palabras en `contenido`/`ejemploResuelto`). Antes de regenerar con IA conviene atender la causa raíz en el prompt de generación/reparación (elevar el margen pedido por campo en el prompt o agrupar reparaciones) sin bajar los umbrales de QA, y verificar estabilidad de cuota/503 en Gemini.
+- **Regeneración determinista selectiva de `06`/`08`/`09`:** Válida **únicamente** si el workbook fuente existente en BD ya pasó cobertura completa y `sintesisVisual` (los renderizadores deterministas están sanos); **no** regenerar `06`/`08`/`09` desde planeaciones/workbooks con contenido IA incompleto ni forzar paso con umbrales relajados.

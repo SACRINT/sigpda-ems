@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger';
 import type { SessionPlan } from '@/types/work-textbook';
 import { countSessionPlanWords, type MissionBudget } from './content-budget';
 import { evaluateQuality, type WriterOutput } from './writers/writer-contract';
+import { isTransientCapacityError } from './writer-scheduler';
 import {
   fitPedagogicalText,
   hasDanglingEnding,
@@ -21,6 +22,61 @@ const DEFAULT_MIN_REMAINING_BUDGET_MS = 45_000;
 
 type WriterType = WriterOutput['type'];
 
+/**
+ * Error fail-closed cuando la expansión editorial falla o deja el bloque por
+ * debajo del mínimo de palabras requerido.
+ */
+export class SessionPlanExpansionError extends Error {
+  readonly uacName: string;
+  readonly blockName: string;
+  readonly finalWords: number;
+  readonly targetMinWords: number;
+  readonly shortfallWords: number;
+  readonly failedBatches: number;
+  readonly skippedDueToBudget: number;
+  readonly deficientMissions: WriterType[];
+
+  constructor(params: {
+    uacName: string;
+    blockName: string;
+    finalWords: number;
+    targetMinWords: number;
+    failedBatches: number;
+    skippedDueToBudget: number;
+    deficientMissions: WriterType[];
+    cause?: unknown;
+  }) {
+    const shortfallWords = Math.max(0, params.targetMinWords - params.finalWords);
+    const parts = [
+      `[SessionPlanExpansion] El bloque "${params.blockName}" de "${params.uacName}"`,
+      `permanece debajo del mínimo tras la expansión (${params.finalWords}/${params.targetMinWords} palabras; déficit: ${shortfallWords}).`,
+    ];
+    if (params.failedBatches > 0) parts.push(`Lotes fallidos: ${params.failedBatches}.`);
+    if (params.skippedDueToBudget > 0) {
+      parts.push(`Lotes omitidos por presupuesto insuficiente: ${params.skippedDueToBudget}.`);
+    }
+    if (params.deficientMissions.length > 0) {
+      parts.push(`Misiones debajo del mínimo: ${params.deficientMissions.join(', ')}.`);
+    }
+    super(parts.join(' '), params.cause !== undefined ? { cause: params.cause } : undefined);
+    this.name = 'SessionPlanExpansionError';
+    this.uacName = params.uacName;
+    this.blockName = params.blockName;
+    this.finalWords = params.finalWords;
+    this.targetMinWords = params.targetMinWords;
+    this.shortfallWords = shortfallWords;
+    this.failedBatches = params.failedBatches;
+    this.skippedDueToBudget = params.skippedDueToBudget;
+    this.deficientMissions = params.deficientMissions;
+  }
+}
+
+interface BatchRunTelemetry {
+  failedBatches: number;
+  skippedDueToBudget: number;
+  lastError?: unknown;
+}
+
 interface ExpansionParams {
   writerOutputs: WriterOutput[];
   missionBudgets: Record<WriterType, MissionBudget>;
@@ -37,6 +93,11 @@ interface ExpansionParams {
    * en la pasada editorial normal. Si se omite, conserva el piso histórico 45s.
    */
   minRemainingBudgetMs?: number;
+  /**
+   * Cuando es true, lanza SessionPlanExpansionError si al terminar el bloque
+   * sigue por debajo de blockTargetWords.min incluso sin fallos de lote.
+   */
+  failOnDeficit?: boolean;
 }
 
 interface OutputSnapshot {
@@ -579,11 +640,15 @@ async function expandBatch(
   plans: SessionPlan[],
   params: ExpansionParams,
   deadline: number,
-  targetPlanWords: number
+  targetPlanWords: number,
+  telemetry: BatchRunTelemetry
 ): Promise<Map<number, BatchExpansion>> {
   const remaining = deadline - Date.now();
   const minRemainingBudgetMs = params.minRemainingBudgetMs ?? DEFAULT_MIN_REMAINING_BUDGET_MS;
-  if (remaining < minRemainingBudgetMs) return new Map();
+  if (remaining < minRemainingBudgetMs) {
+    telemetry.skippedDueToBudget++;
+    return new Map();
+  }
 
   const diagnostics = plans
     .map((plan) => {
@@ -622,7 +687,15 @@ async function expandBatch(
     }
     return result;
   } catch (error) {
-    logger.warn('[SessionPlanExpansion] Falló la expansión de un lote; se conservan los planes originales.', {
+    if (params.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      throw error;
+    }
+    if (isTransientCapacityError(error)) {
+      throw error;
+    }
+    telemetry.failedBatches++;
+    telemetry.lastError = error;
+    logger.warn('[SessionPlanExpansion] Falló la expansión de un lote; se registra el fallo para verificación fail-closed.', {
       error: String(error),
     });
     return new Map();
@@ -647,6 +720,10 @@ export async function expandDeficientSessionPlans(params: ExpansionParams): Prom
 
   const deadline = Date.now() + params.remainingBudgetMs;
   const snapshots: OutputSnapshot[] = [];
+  const telemetry: BatchRunTelemetry = {
+    failedBatches: 0,
+    skippedDueToBudget: 0,
+  };
 
   for (const output of params.writerOutputs) {
     if (!output.section) continue;
@@ -673,12 +750,15 @@ export async function expandDeficientSessionPlans(params: ExpansionParams): Prom
       const minRemainingBudgetMs =
         params.minRemainingBudgetMs ?? DEFAULT_MIN_REMAINING_BUDGET_MS;
       for (let index = 0; index < deficient.length; index += BATCH_SIZE) {
-        if (deadline - Date.now() < minRemainingBudgetMs) break;
+        if (deadline - Date.now() < minRemainingBudgetMs) {
+          telemetry.skippedDueToBudget++;
+          break;
+        }
         if (index > 0) {
           await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
         }
         const batch = deficient.slice(index, index + BATCH_SIZE);
-        const expansions = await expandBatch(batch, params, deadline, targetWords);
+        const expansions = await expandBatch(batch, params, deadline, targetWords, telemetry);
         for (const original of batch) {
           const expansion = expansions.get(original.sessionNumber);
           if (!expansion) continue;
@@ -730,5 +810,34 @@ export async function expandDeficientSessionPlans(params: ExpansionParams): Prom
     });
   }
 
-  return rebalanceOvershoot(snapshots, params);
+  const rebalanced = rebalanceOvershoot(snapshots, params);
+  const finalBlockWords = params.writerOutputs.reduce(
+    (acc, output) => acc + (output.wordCount || 0),
+    0
+  );
+  const deficientMissions = params.writerOutputs
+    .filter(
+      (output) =>
+        Boolean(output.section) && output.wordCount < params.missionBudgets[output.type].targetWords.min
+    )
+    .map((output) => output.type);
+  const blockUnderTarget = finalBlockWords < params.blockTargetWords.min;
+  const failedWithDeficit =
+    telemetry.failedBatches > 0 && (blockUnderTarget || deficientMissions.length > 0);
+  const strictDeficit = Boolean(params.failOnDeficit) && blockUnderTarget;
+
+  if (failedWithDeficit || strictDeficit) {
+    throw new SessionPlanExpansionError({
+      uacName: params.uacName,
+      blockName: params.blockName,
+      finalWords: finalBlockWords,
+      targetMinWords: params.blockTargetWords.min,
+      failedBatches: telemetry.failedBatches,
+      skippedDueToBudget: telemetry.skippedDueToBudget,
+      deficientMissions,
+      cause: telemetry.lastError,
+    });
+  }
+
+  return rebalanced;
 }

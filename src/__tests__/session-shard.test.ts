@@ -262,3 +262,93 @@ describe('generateShardedSessionPlans', () => {
   });
 });
 
+
+
+describe('generateShardedSessionPlans — fail-closed V2.1 (Tarea 1)', () => {
+  beforeEach(() => {
+    mockGenerate.mockReset();
+  });
+
+  it('mantiene los umbrales V2.1 de densidad editorial (minTotalWords ≈ 1002, minContenido = 320, minEjemplo = 220, requireVisualSynthesis = true)', () => {
+    const thresholds = densityThresholdsFor(1120, false, true);
+
+    expect(thresholds.minTotalWords).toBe(1002);
+    expect(thresholds.minContenidoWords).toBe(320);
+    expect(thresholds.minEjemploWords).toBe(220);
+    expect(thresholds.requireVisualSynthesis).toBe(true);
+
+    const noVisual = evaluateSessionPlanDensity(
+      goodPlan(1, { sintesisVisual: undefined }) as unknown as Parameters<typeof evaluateSessionPlanDensity>[0],
+      thresholds
+    );
+    expect(noVisual.ok).toBe(false);
+    expect(noVisual.deficits.some((d) => /sintesisVisual/i.test(d))).toBe(true);
+  });
+
+  it('plan deficiente sin sintesisVisual dispara reparación y completa la síntesis faltante', async () => {
+    const deficientPlan = goodPlan(1, { sintesisVisual: undefined });
+    const repairedPlan = goodPlan(1);
+
+    mockGenerate
+      .mockResolvedValueOnce(JSON.stringify({ sessionPlans: [deficientPlan] }))
+      .mockResolvedValueOnce(JSON.stringify({ sessionPlans: [repairedPlan] }));
+
+    const result = await generateShardedSessionPlans(
+      makeCtx([1], { targetWordsPerPlan: 1120 })
+    );
+
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+    expect(result.diagnostics.repairedSessions).toEqual([1]);
+    expect(result.diagnostics.stillDeficient).toEqual([]);
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0].sintesisVisual?.conceptoBreve).toBeTruthy();
+  });
+
+  it('si tras las reparaciones persiste déficit o falta sintesisVisual, lanza SessionDensityDeficiencyError con metadata completa', async () => {
+    const { SessionDensityDeficiencyError } = await import(
+      '@/lib/guide-engine/writers/session-shard'
+    );
+
+    const shortContent = 'Párrafo de desarrollo insuficiente para el mínimo requerido. '.repeat(8).trim();
+    const broken1 = goodPlan(1, { contenido: shortContent, sintesisVisual: undefined });
+    const broken2 = goodPlan(2, { contenido: shortContent, sintesisVisual: undefined });
+
+    mockGenerate
+      .mockResolvedValueOnce(JSON.stringify({ sessionPlans: [broken1, broken2] }))
+      .mockResolvedValue(JSON.stringify({ sessionPlans: [broken1, broken2] }));
+
+    let caught: unknown;
+    try {
+      await generateShardedSessionPlans(
+        makeCtx([1, 2], { missionType: 'project', targetWordsPerPlan: 1120 })
+      );
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(SessionDensityDeficiencyError);
+    const err = caught as InstanceType<typeof SessionDensityDeficiencyError>;
+    expect(err.missionType).toBe('project');
+    expect(err.uacName).toBeTruthy();
+    expect(err.sessions).toEqual([1, 2]);
+    expect(err.deficits).toHaveLength(2);
+    expect(err.deficits[0].deficits.length).toBeGreaterThan(0);
+    expect(Array.isArray(err.repairedSessions)).toBe(true);
+    expect(err.message).toContain('Sesiones afectadas: 1, 2');
+  });
+
+  it('plan completo y denso con sintesisVisual pasa sin reparaciones ni stillDeficient', async () => {
+    const p1 = goodPlan(1);
+    const p2 = goodPlan(2);
+    mockGenerate.mockResolvedValueOnce(JSON.stringify({ sessionPlans: [p1, p2] }));
+
+    const result = await generateShardedSessionPlans(
+      makeCtx([1, 2], { targetWordsPerPlan: 1120 })
+    );
+
+    expect(mockGenerate).toHaveBeenCalledTimes(1);
+    expect(result.diagnostics.repairedSessions).toEqual([]);
+    expect(result.diagnostics.stillDeficient).toEqual([]);
+    expect(result.plans).toHaveLength(2);
+  });
+});

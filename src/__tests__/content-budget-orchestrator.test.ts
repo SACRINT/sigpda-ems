@@ -544,4 +544,37 @@ describe('Phase P3 / P3.1: Content Budget and Editorial Orchestration', () => {
     await expect(generateBlockWorkTextbook('plan-contaminated', 0)).rejects.toThrow(/CrossContamination/);
     expect(saveBlockWorkbook).not.toHaveBeenCalled();
   });
+
+  it('fail-closed: rechaza sin completar un bloque que queda en 94% del mínimo (entre 0.90*min y min-1)', async () => {
+    vi.mocked(getPlanningById).mockResolvedValue({
+      id: 'plan-94pct',
+      teacher_id: 'teacher-1',
+      teacherId: 'teacher-1',
+      uac_name: 'Pensamiento Matemático I',
+      uacName: 'Pensamiento Matemático I',
+      semester: 1,
+      component: 'fundamental',
+      content_json: { sectionI: { totalHoursWeekly: 3 } },
+      contentJson: { sectionI: { totalHoursWeekly: 3 } },
+    } as any);
+
+    // Target min para 3h (18 sesiones) es 20,250. Sumamos ~19,080 (94.2%), arriba de 0.90*min (18,225) pero debajo de min.
+    vi.mocked(generateFoundationMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'foundation', sessions: [1, 2, 3], baseWords: 200, wordsPerPlan: 1000 })
+    );
+    vi.mocked(generateLabMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'lab', sessions: [4, 5, 6, 7, 8, 9], baseWords: 400, wordsPerPlan: 1000 })
+    );
+    vi.mocked(generateProjectMission).mockResolvedValue(
+      makeMockWriterOutput({ type: 'project', sessions: [10, 11, 12, 13, 14, 15], baseWords: 400, wordsPerPlan: 1000 })
+    );
+    vi.mocked(generateEvaluationSection).mockResolvedValue(
+      makeMockWriterOutput({ type: 'evaluation', sessions: [16, 17, 18], baseWords: 200, wordsPerPlan: 1000 })
+    );
+
+    await expect(generateBlockWorkTextbook('plan-94pct', 0)).rejects.toThrow(
+      /\[BlockIntegrity\]\[SessionPlanFinalizer\]/
+    );
+    expect(saveBlockWorkbook).not.toHaveBeenCalled();
+  });
 });

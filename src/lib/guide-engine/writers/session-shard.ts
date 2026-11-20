@@ -415,13 +415,62 @@ async function generatePack(
 export interface ShardDiagnostics {
   packs: number[][];
   repairedSessions: number[];
+  /**
+   * Siempre vacío en un retorno exitoso: si tras reparar queda alguna sesión deficiente,
+   * `generateShardedSessionPlans` lanza `SessionDensityDeficiencyError` (fail-closed real).
+   */
   stillDeficient: Array<{ session: number; deficits: string[] }>;
 }
 
 /**
+ * Fail-closed de densidad: tras agotar la reparación quirúrgica queda al menos una sesión por
+ * debajo de los umbrales de densidad (palabras, estructura o `sintesisVisual` incompleto).
+ * Nunca se rellena con texto sintético ni se bajan umbrales: el writer falla y el job se reintenta.
+ *
+ * El mensaje incluye "Sesiones afectadas: N, M" para que `resolvePostRedactionEvictionTarget`
+ * (job-worker) descarte únicamente el redactor propietario de esas sesiones al reintentar.
+ */
+export class SessionDensityDeficiencyError extends Error {
+  readonly missionType: SessionMissionType;
+  readonly uacName: string;
+  readonly sessions: number[];
+  readonly deficits: Array<{ session: number; deficits: string[] }>;
+  readonly repairedSessions: number[];
+  readonly attemptedRepairs: number[];
+
+  constructor(params: {
+    missionType: SessionMissionType;
+    uacName: string;
+    deficits: Array<{ session: number; deficits: string[] }>;
+    repairedSessions: number[];
+    attemptedRepairs: number[];
+  }) {
+    const sessions = params.deficits.map((d) => d.session);
+    const detail = params.deficits
+      .map((d) => `S${d.session}: ${d.deficits.join(' / ')}`)
+      .join(' | ');
+    super(
+      `[SessionDensity] ${params.missionType} de "${params.uacName}" quedó por debajo del umbral de densidad tras reparar. ` +
+        `Sesiones afectadas: ${sessions.join(', ')}. Reparadas con mejora parcial: ${params.repairedSessions.join(', ') || 'ninguna'}. ` +
+        `Detalle: ${detail}. No se persiste; reintente la misión.`
+    );
+    this.name = 'SessionDensityDeficiencyError';
+    this.missionType = params.missionType;
+    this.uacName = params.uacName;
+    this.sessions = sessions;
+    this.deficits = params.deficits;
+    this.repairedSessions = params.repairedSessions;
+    this.attemptedRepairs = params.attemptedRepairs;
+  }
+}
+
+/**
  * Genera TODOS los planes de sesión de una misión por paquetes paralelos, valida densidad por sesión
- * y repara quirúrgicamente solo las sesiones deficientes. Fail-closed: si falta alguna sesión lanza
- * `IncompleteSessionPlansError` (vía completeSessionPlans); NUNCA rellena con contenido sintético.
+ * y repara quirúrgicamente solo las sesiones deficientes. Fail-closed:
+ *  - si falta alguna sesión lanza `IncompleteSessionPlansError` (vía completeSessionPlans);
+ *  - si tras reparar queda alguna sesión por debajo del umbral de densidad (incluido `sintesisVisual`
+ *    incompleto) lanza `SessionDensityDeficiencyError`.
+ * NUNCA rellena con contenido sintético ni baja umbrales.
  */
 export async function generateShardedSessionPlans(
   ctx: SessionShardContext
@@ -530,6 +579,11 @@ export async function generateShardedSessionPlans(
     .filter((x) => !x.report.ok);
 
   const repaired: number[] = [];
+  const attemptedRepairs: number[] = [];
+  // Tope de COSTO (no de calidad): se intentan reparar como máximo ~80% de las sesiones cubiertas
+  // (mínimo 2). Toda sesión que quede sin reparar —por este tope, por presupuesto bajo, por error de
+  // IA o porque la reparación no mejoró— sigue deficiente y provoca `SessionDensityDeficiencyError`
+  // al final: el residual NUNCA produce un retorno exitoso silencioso.
   const maxRepairs = Math.max(2, Math.min(deficient.length, Math.ceil(ctx.coveredSessions.length * 0.8)));
   if (deficient.length > 0 && !ctx.input.signal?.aborted) {
     const targets = deficient.slice(0, maxRepairs);
@@ -538,10 +592,11 @@ export async function generateShardedSessionPlans(
       const remainingBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
       if (remainingBudget !== undefined && remainingBudget < 45_000) {
         logger.info(
-          `[SessionShard] Omitiendo reparación de densidad de sesión ${plan.sessionNumber}: presupuesto bajo (${Math.round(remainingBudget / 1000)}s).`
+          `[SessionShard] Omitiendo reparación de densidad de sesión ${plan.sessionNumber}: presupuesto bajo (${Math.round(remainingBudget / 1000)}s). La sesión quedará deficiente y la misión fallará cerrada.`
         );
         break;
       }
+      attemptedRepairs.push(plan.sessionNumber);
       try {
         const res = await callPack(
           ctx,
@@ -566,6 +621,7 @@ export async function generateShardedSessionPlans(
           repaired.push(candidate.sessionNumber);
         }
       } catch (repairErr) {
+        if (ctx.input.signal?.aborted) throw repairErr;
         if (isPoolExhaustedOrServiceError(repairErr)) {
           logger.warn(
             `[SessionShard] Deteniendo reparaciones de densidad de ${ctx.missionType} por agotamiento de cuota/servicio:`,
@@ -573,6 +629,10 @@ export async function generateShardedSessionPlans(
           );
           break;
         }
+        logger.warn(
+          `[SessionShard] Falló la reparación de densidad de la sesión ${plan.sessionNumber}; seguirá deficiente (la misión fallará cerrada si persiste):`,
+          { error: String(repairErr) }
+        );
       }
     }
     if (repaired.length > 0 && ctx.input.onPartialSessionPlans) {
@@ -587,17 +647,31 @@ export async function generateShardedSessionPlans(
   // Fail-closed: lanza IncompleteSessionPlansError si falta alguna sesión
   const plans = completeSessionPlans(sanitized, ctx.coveredSessions, ctx.fallbackContext);
 
+  // Una cancelación no debe enmascararse como déficit de densidad.
+  if (ctx.input.signal?.aborted) {
+    throw ctx.input.signal.reason instanceof Error
+      ? ctx.input.signal.reason
+      : new DOMException('Generation aborted', 'AbortError');
+  }
+
   const stillDeficient = plans
     .map((p) => ({ session: p.sessionNumber, report: evaluateSessionPlanDensity(p, thresholds) }))
     .filter((x) => !x.report.ok)
     .map((x) => ({ session: x.session, deficits: x.report.deficits }));
   if (stillDeficient.length > 0) {
-    logger.warn(
-      `[SessionShard] ${ctx.missionType}: ${stillDeficient.length} sesión(es) con densidad por debajo del umbral tras reparar: ${stillDeficient.map((d) => d.session).join(', ')}.`
+    logger.error(
+      `[SessionShard] ${ctx.missionType}: ${stillDeficient.length} sesión(es) siguen por debajo del umbral tras reparar (${stillDeficient.map((d) => d.session).join(', ')}). Fallo cerrado.`
     );
+    throw new SessionDensityDeficiencyError({
+      missionType: ctx.missionType,
+      uacName: ctx.input.uacName,
+      deficits: stillDeficient,
+      repairedSessions: repaired,
+      attemptedRepairs,
+    });
   }
 
-  return { plans, diagnostics: { packs, repairedSessions: repaired, stillDeficient } };
+  return { plans, diagnostics: { packs, repairedSessions: repaired, stillDeficient: [] } };
 }
 
 /**

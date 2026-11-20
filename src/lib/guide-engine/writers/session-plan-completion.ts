@@ -1,6 +1,7 @@
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { logger } from '@/lib/logger';
+import { isTransientCapacityError } from '../writer-scheduler';
 import {
   getDisciplinaryAdapter,
   type DisciplinaryAdapterV2,
@@ -155,6 +156,12 @@ export async function generateMissingSessionPlans(params: MissingPlanParams): Pr
           );
         }
       } catch (err) {
+        if (params.signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+          throw err;
+        }
+        if (isTransientCapacityError(err)) {
+          throw err;
+        }
         logger.warn(`[SessionPlanCompletion] Falló el lote ${remaining.join(', ')}:`, { error: String(err) });
       }
     }
