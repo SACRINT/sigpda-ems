@@ -2,21 +2,22 @@
 
 Este documento contiene el diseño íntegro y los textos exactos de los **Prompts V2** para la generación de Libros de Trabajo Activo (`06`), Presentaciones Electrónicas (`08`), Infografías Sintéticas (`09`), Planes de Clase (`03`), Solucionarios (`04`), Guías de Práctica (`05`) e Instrumentos de Evaluación (`07`) en **todas las asignaturas y subsistemas (BGE / BT)** del MCCEMS.
 
-> **Estado:** Diseñado y listo para implementación. **No aplicar** hasta cerrar y validar la remediación P0 en curso de Pensamiento Matemático III.
+> **Estado:** Implementado y vigente (V2.1 — Generalización 400+ UAC).
+> **Fuente única de verdad (SSoT) de presupuestos y umbrales:** No duplicar tablas de cuotas aquí; los valores canónicos viven en [`src/lib/guide-engine/content-budget.ts`](../src/lib/guide-engine/content-budget.ts), [`src/lib/guide-engine/writers/session-prompt-contract.ts`](../src/lib/guide-engine/writers/session-prompt-contract.ts) (`SESSION_PLAN_WORD_CONTRACT`) y [`src/lib/guide-engine/writers/session-shard.ts`](../src/lib/guide-engine/writers/session-shard.ts) (`sessionPlanWordTarget` y `densityThresholdsFor`).
 
 ---
 
-## 1. Diagnóstico Resuelto por la Arquitectura V2
+## 1. Diagnóstico Resuelto por la Arquitectura V2 / V2.1
 
-| # | Defecto en Prompts V1 | Solución Estructural en Prompts V2 |
+| # | Defecto previo | Solución Estructural Implementada |
 |---|---|---|
-| 1 | Cuotas infladas (`440–520` palabras en `contenido` + `300–360` en `ejemploResuelto` = `~1,100` pal./sesión) que provocan relleno verboso, errores `429/503` por reintentos de expansión y truncamiento al comprimir en `08` y `09`. | **Presupuesto equilibrado de alta densidad conceptual:** `contenido` de `320 a 440` palabras (3 párrafos claros de `105–145` palabras) y `ejemploResuelto` de `220 a 300` palabras con 4 pasos separados por `\n`. Umbral de aceptación en `session-shard.ts`: `minContenidoWords = 300`, `minEjemploWords = 190`, `minTotalWords = 720`. |
-| 2 | Ausencia de campos cortos para `08_Presentaciones` y `09_Infografías`, obligando a `content-distiller.ts` y `spec.ts` a recortar párrafos largos con heurísticas y muletillas. | **Nuevo bloque nativo `sintesisVisual` por sesión (`SessionPlan`)**: la IA entrega desde origen `conceptoBreve` (25–38 palabras con sujeto+verbo+predicado), `formulaOReglaClave`, `ejemploBreve` (`planteamiento`, `pasos`, `conclusion`) y `mapaConceptual` (`definicionClave`, `criterioDesarrollo`, `errorComun`, `correccionBreve`). |
-| 3 | Sesgo matemático y de laboratorio experimental (`"cálculos"`, `"datos cuantitativos"`, tabla fija `Parámetro,Referencia,Registro 1,Unidad`) forzado sobre Historia, Literatura, Filosofía, Inglés, Artes y Socioemocional. | **5 Familias Epistemológicas en `disciplinary-adapters`:** cada familia define su propia estructura de `ejemploResuelto`, columnas de tabla de práctica y tipo de evidencia (`cuantitativa_experimental`, `humanistica_comunicativa_social`, `computacional_algoritmica`, `corporal_motriz`, `tecnica_laboral`). |
-| 4 | Fugas de notación (`raiz(...)`, `sqrt(...)`, `!=`, `$...$`), `Paso 4:` pegado a ecuaciones, ejercicios que dicen *"del ejercicio anterior"* o carecen de pregunta, y JSON de rúbrica con 1 solo criterio de `100%`. | **Contrato de formato y autocontención estricto:** prohibición explícita de `raiz(`, `sqrt(`, `!=` y LaTeX crudo; obligación de `\n` antes de cada `Paso N:`; cada `practica[i].enunciado` debe incluir datos + verbo/pregunta sin remitir a otro ejercicio; ejemplo JSON de rúbrica con 4 criterios (`25+25+25+25 = 100`). |
-| 5 | Repetición forzada de `"en Puebla"` y `"PAEC"` en todos los campos y penalización en `writer-contract.ts` si no aparece literalmente `"Puebla"`. | **Contextualización orgánica no repetitiva:** el vínculo comunitario/PAEC se exige en `motivacion` y `aplicacion`, prohibiendo repetir muletillas geográficas en cada párrafo teórico o paso algebraico. En `writer-contract.ts` se evalúa situacionalidad real sin exigir el topónimo literal en cada sección. |
-| 6 | Contradicción de voz (`"demostración docente"`, `"Dictamen formativo y plan de retroalimentación"`) y duplicación del contrato `(a)-(j)` en 5 archivos + obligación de copiar *verbatim* `packTerms` en futuro. | **Módulo único `session-prompt-contract.ts`** consumido por los 4 writers, `session-shard`, `session-plan-completion` y `session-plan-expansion`. Voz 100% en segunda persona (`tú`) e integración semántica natural de `packTerms` (sustantivos/infinitivos, nunca futuro administrativo). |
-| 7 | Fallback peligroso en `disciplinary-adapters/index.ts` que enviaba cualquier UAC no reconocida a `ciencias_quimica_biologia_ambiental` (inyectando microscopio, matraz y tiras de pH). | **Nuevo Adaptador #15 `indagacion_interdisciplinaria_general`** como fallback seguro y neutro cuando el nombre de una UAC nueva no coincide con los 14 dominios específicos. |
+| 1 | Contradicción entre encabezado de contrato (`~780–920`), suma real de campos (`~1,100+`), `content-budget.ts` (`1,125–1,250`) y tope `Math.min(720, ...)` en `session-shard.ts`. | **Fuente única `SESSION_PLAN_WORD_CONTRACT`** alineada con `content-budget.ts` (`1,120–1,250` palabras/sesión; suma de mínimos `1,096 ≤ 1,120 ≤ 1,250`). `sessionPlanWordTarget` y `densityThresholdsFor` derivan directamente de la SSoT (`minContenidoWords = 320`, `minEjemploWords = 220`, `minTotalWords ≈ 1,002` a `target = 1,120`, sin tope artificial en `720`). |
+| 2 | Ausencia de validación de `sintesisVisual` en `session-shard.ts`, exponiendo a `08_Presentaciones` y `09_Infografías` a caer en destilación heurística de párrafos largos. | **Bloque nativo `sintesisVisual` obligatorio + gate `validateVisualSynthesisDeficits`** en `session-shard.ts`: si el modelo omite o trunca `sintesisVisual`, dispara reparación quirúrgica solo para esa sesión. |
+| 3 | Sesgo cuantitativo, industrial y de laboratorio (`"NÚMEROS"`, `"2x+5=15"`, `"NOM/ISO"`, `"Parámetros"`, `"Seguridad"`) en `foundation`, `lab`, `project` y `evaluation`. | **5 Familias Epistemológicas + metadatos declarativos en `DisciplinaryAdapterV2`**: los 4 writers leen `requiresQuantitativeData`, `requiresNormativeStandards`, `requiresLabSafety`, `approachDescriptor`, `practiceSpaceLabel`, `projectAcceptanceDirective`, `projectLogTemplate`, `projectSpecsExample`, `evaluationChecklistCategories` y `evaluationChecklistExample` sin condicionales por nombre de materia. |
+| 4 | Clasificador por `includes()` desordenados y `normComp.includes('laboral')` como default industrial (colisiones por substrings como `artes` en *artesanales*, `cad` en *aplicado/diagnosticado*, `logica` en *agroecológicas/médicoodontológica*). | **Clasificador determinista en capas (17 dominios)**: mapa canónico de prefijos UAC → señal secundaria de carrera/programa → reglas por límites de palabra → señal débil solo para `socioemocional` → fallback seguro `indagacion_interdisciplinaria_general`. Incluye dominios dedicados `formacion_laboral_salud_clinica` y `lengua_extranjera_general`. |
+| 5 | Pérdida de contexto disciplinar en `session-plan-completion.ts` (llamaba `getDisciplinaryAdapter(params.uacName)` sin `component`, `curriculumName` ni `careerOrProgramName`). | **`resolveCompletionAdapter(params)`** recibe el contexto completo (`component`, `curriculumName`, `careerOrProgramName`) desde `lab-writer.ts` y `project-writer.ts`, garantizando el mismo adaptador que el writer origen. |
+| 6 | Reconciliación con `AGENTS.md` sobre `practica[].solucion` y ejemplos con números. | **`practica[].solucion`** se conserva en el contrato exclusivamente para el solucionario docente (`04`/`07`) y **nunca** se imprime en el libro del estudiante (`06`, verificado por `student-teacher-parity.test.ts`). El requisito de ejemplos con números aplica cuando `discipline.requiresQuantitativeData === true`; en disciplinas cualitativas se exigen fuentes, textos o casos verificables. |
+| 7 | Higiene tipográfica y de voz autodidacta (`raiz(`, LaTeX crudo, `Paso N:` pegado, etiquetas `Docente:`). | Prohibición explícita de notación cruda y lenguaje docente; segunda persona (`tú`) obligatoria y saltos de línea explícitos (`\n\n` y `\n`). |
 
 ---
 
@@ -42,6 +43,17 @@ export interface DisciplinaryAdapterV2 extends DisciplinaryAdapter {
   defaultTableColumns: string[];
   /** Qué representa formulaOReglaClave en 08/09 para esta disciplina */
   keyFormulaOrRuleDirective: string;
+  /** Metadatos declarativos para writers (eliminan sesgos y condicionales por nombre de UAC) */
+  requiresQuantitativeData: boolean;
+  requiresNormativeStandards: boolean;
+  requiresLabSafety: boolean;
+  approachDescriptor: string;
+  practiceSpaceLabel: string;
+  projectAcceptanceDirective: string;
+  projectLogTemplate: string;
+  projectSpecsExample: [string, string];
+  evaluationChecklistCategories: [string, string, string];
+  evaluationChecklistExample: { item: string; category: string };
 }
 ```
 
@@ -60,7 +72,8 @@ export interface DisciplinaryAdapterV2 extends DisciplinaryAdapter {
   > `"Ecuación, identidad o proporción matemática completa (con ambos miembros de la igualdad, ej. '12x + 300 = 1800' o 'c² = a² + b²', nunca sub-igualdades truncadas como 'x = 1800' ni funciones en texto como 'raiz(' o 'sqrt(')."`
 
 #### Familia 2: `humanistica_comunicativa_social`
-*(Aplica a: `lengua_comunicacion_literatura`, `lengua_extranjera_ingles`, `conciencia_historica_ciencias_sociales`, `humanidades_filosofia_logica_etica`, `artes_educacion_artistica_cultural`, `socioemocional_tutoria_educacion_integral`)*
+*(Aplica a: `lengua_comunicacion_literatura`, `lengua_extranjera_ingles`, `lengua_extranjera_general`, `conciencia_historica_ciencias_sociales`, `humanidades_filosofia_logica_etica`, `artes_educacion_artistica_cultural`, `socioemocional_tutoria_educacion_integral`, `indagacion_interdisciplinaria_general`)*
+- Nota V2.1: **`lengua_extranjera_general`** atiende idiomas distintos al inglés (ej. Francés, Alemán, Italiano) sin inyectar instrucciones ni herramientas exclusivas de inglés.
 - **`workedExampleDirective`**:
   > `"Ejemplo de análisis textual, histórico, argumentativo, lingüístico o estudio de caso resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:' (fragmento, caso situado, fuente o dilema concreto a analizar, más la pregunta o criterio rector), 'Paso 1: Contextualización e identificación de elementos' (autor/actores, intención, tesis o estructura inicial), 'Paso 2: Aplicación del criterio o categoría de análisis' (desglose de premisas, recursos discursivos, causas o estructuras gramaticales), 'Paso 3: Contraste y fundamentación' (articulación de evidencias textuales/históricas o construcción del modelo comunicativo), y 'Paso 4: Conclusión sintética' (juicio fundamentado, versión final redactada o resolución del caso). PROHIBIDO inventar ecuaciones algebraicas o cálculos numéricos artificiales."`
 - **`defaultTableColumns`**:
@@ -88,7 +101,8 @@ export interface DisciplinaryAdapterV2 extends DisciplinaryAdapter {
 - **`keyFormulaOrRuleDirective`**: `"Fórmula fisiológica o regla biomecánica clave (ej. 'FC máx = 220 - edad (años)' o 'Calentamiento → Fase Medular Aeróbica → Vuelta a la Calma')."`
 
 #### Familia 5: `tecnica_laboral`
-*(Aplica a: `formacion_laboral_servicios_gestion_turismo`, `formacion_laboral_industrial_agro_salud`)*
+*(Aplica a: `formacion_laboral_servicios_gestion_turismo`, `formacion_laboral_salud_clinica`, `formacion_laboral_industrial_agro_salud`)*
+- Nota V2.1: **`formacion_laboral_salud_clinica`** separa Enfermería, Ciencias de la Salud, Área de la Salud, Mecánica Dental, Nutrición y Primeros Auxilios del perfil industrial (`multímetro`/`osciloscopio`) y del perfil ambiental (`ciencias_quimica_biologia_ambiental`), aplicando bioseguridad clínica y normas NOM-SSA / RPBI / CENETEC.
 - **`workedExampleDirective`**:
   > `"Caso técnico o procedimiento operativo estandarizado (POE) resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:' (orden de trabajo, servicio o diagnóstico técnico con especificaciones y normativa aplicable), 'Paso 1: Seguridad (EPP/higiene), insumos y parámetros de entrada', 'Paso 2: Aplicación de la norma técnica, fórmula de costeo o protocolo operativo', 'Paso 3: Ejecución paso a paso y registro de mediciones/controles', y 'Paso 4: Dictamen de calidad, tolerancia y entrega del servicio/producto'."`
 - **`defaultTableColumns`**: `["Etapa del Proceso / POE", "Norma o Estándar Aplicable", "Parámetro o Insumo Crítico", "Valor / Control Registrado", "Dictamen de Conformidad"]`
@@ -191,53 +205,7 @@ export interface SessionPlan {
 
 ### 3.2 Bloque de Prompt Unificado para `sessionPlans` (`buildCanonicalSessionPlanInstructions`)
 
-```markdown
-ESTRUCTURA OBLIGATORIA DE CADA SESIÓN EN "sessionPlans" (~780 a 920 palabras por sesión):
-Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "observa", "analiza", "calcula", "redacta").
-PROHIBIDO usar lenguaje dirigido al docente ("el docente explica", "activar saberes", "dictamen formativo", "el estudiantado").
-
-Para CADA sesión solicitada incluye exactamente estos campos:
-(a) "sessionNumber": número entero exacto de la sesión.
-(b) "objetivo": (20 a 35 palabras) qué aprenderás y lograrás hoy, redactado en presente o segunda persona natural (ej. "Comprendes cómo plantear una ecuación lineal de primer grado a partir de un problema de costos y verificas su solución"). PROHIBIDO iniciar con verbos administrativos en futuro aislados o repetir el número de sesión dentro del texto.
-(c) "motivacion": (70 a 100 palabras) situación real y cercana al estudiante que detona la necesidad del tema de hoy, conectada de manera natural con la problemática del bloque o proyecto.
-(d) "saberesPrevios": (45 a 70 palabras) qué conceptos o habilidades previas necesitas recordar hoy y una pregunta breve de activación.
-(e) "contenido": (OBLIGATORIO DE 320 A 440 PALABRAS) desarrollo teórico autodidacta organizado en EXACTAMENTE 3 párrafos separados por doble salto de línea (\n\n), de 105 a 145 palabras cada uno:
-    - Párrafo 1: Definición formal de los conceptos nuevos del tema de la sesión y su significado preciso.
-    - Párrafo 2: Principios, leyes, fórmulas completas o estructura metodológica paso a paso, explicando qué significa cada elemento o variable.
-    - Párrafo 3: Criterios de interpretación, errores frecuentes que debes evitar al aplicar el tema y cómo verificar que tu resultado o análisis es correcto.
-    PROHIBIDO rellenar con frases grandilocuentes o repetir el mismo párrafo con otras palabras.
-(f) "ejemploResuelto": (OBLIGATORIO DE 220 A 300 PALABRAS) ${adapter.workedExampleDirective}
-    REGLA DE FORMATO DE PASOS: Escribe "Planteamiento:", "Paso 1:", "Paso 2:", "Paso 3:" y "Paso 4:" SIEMPRE en líneas separadas mediante salto de línea (\n). NUNCA pegues "Paso N:" inmediatamente después de un punto en la misma línea (ej. prohibido escribir "x = 6. Paso 4:").
-(g) "practica": arreglo de EXACTAMENTE 2 ejercicios progresivos y AUTOCONTENIDOS:
-    - "enunciado": (45 a 80 palabras) DEBE incluir: (1) contexto y todos los datos/valores o fragmento necesarios dentro del mismo enunciado, y (2) una consigna final explícita con verbo de acción imperativo ("Calcula...", "Determina...", "Plantea...", "Analiza...", "Redacta...", "Construye...") o pregunta directa ("¿Cuál...?", "¿Cuántos...?").
-      PROHIBIDO escribir enunciados con solo datos sin pregunta/tarea, y PROHIBIDO remitir a otro ejercicio ("del ejercicio anterior", "con los datos del problema previo").
-    - "pista": (20 a 35 palabras) orientación metodológica específica para iniciar ese ejercicio (las 2 pistas deben ser distintas entre sí; prohibido usar frases genéricas como "Aplica el procedimiento y verifica el resultado").
-    - "solucion": arreglo de 3 a 5 cadenas ("Paso 1: ...", "Paso 2: ...", "Respuesta final: ...") con el desarrollo completo y el resultado exacto (uso exclusivo del solucionario docente).
-(h) "aplicacion": (60 a 90 palabras) actividad breve donde transfieres lo aprendido hoy a tu entorno cotidiano o al avance concreto de tu proyecto del bloque.
-(i) "autoevaluacion": arreglo de 2 preguntas reflexivas específicas sobre el dominio del tema de esta sesión.
-(j) "recursos": arreglo de 2 recursos del catálogo curado o portales institucionales oficiales (PROHIBIDO google.com/search, youtube.com/results o URLs inventadas).
-(k) "productoIntegrador": (45 a 70 palabras) qué evidencia o avance concreto de esta sesión incorporas hoy a tu portafolio o proyecto integrador.
-(l) "sintesisVisual": objeto estructurado para proyectar la clase en pizarrón (08) y construir el manual de conceptos (09) SIN repetir párrafos del libro ni usar frases genéricas:
-    - "conceptoBreve": (25 a 38 palabras) síntesis explicativa clara con sujeto, verbo y predicado que responde "¿qué es y cómo funciona el concepto central de esta sesión?".
-    - "formulaOReglaClave": ${adapter.keyFormulaOrRuleDirective}
-    - "ejemploBreve": {
-        "planteamiento": (22 a 40 palabras) enunciado autónomo del ejemplo con todos sus datos y lo que se busca obtener,
-        "pasos": [2 o 3 pasos breves de 10 a 22 palabras con las ecuaciones/transformaciones o inferencias completas],
-        "conclusion": (10 a 20 palabras) resultado final explícito con unidades o interpretación concreta
-      }
-    - "mapaConceptual": {
-        "definicionClave": (18 a 28 palabras) definición directa del concepto técnico principal sin tautologías,
-        "criterioDesarrollo": (14 a 24 palabras) regla práctica indispensable al resolver o analizar este tema,
-        "errorComun": (12 a 22 palabras) confusión o tropiezo específico que suele ocurrir en este tema,
-        "correccionBreve": (12 a 22 palabras) acción concreta para corregir y prevenir ese error
-      }
-
-REGLAS DE HIGIENE TIPOGRÁFICA Y MATEMÁTICA (OBLIGATORIAS EN TODO EL JSON):
-1. Usa SIEMPRE símbolos matemáticos Unicode limpios: √, ², ³, ≠, ≤, ≥, ≈, °, ×, ÷, π, Δ.
-2. QUEDA ESTRICTAMENTE PROHIBIDO escribir funciones crudas tipo código o LaTeX como "raiz(...)", "sqrt(...)", "!=", "\\frac", "$...$" o subíndices con guion bajo como "x_v" o "M_(simple)". Escribe "√(c² - a²)", "≠", "xᵥ" o "M simple".
-3. Contextualización equilibrada: vincula el tema con la comunidad o el proyecto PAEC en "motivacion" y "aplicacion", pero NO repitas mecánicamente las palabras "en Puebla" ni "PAEC" en cada párrafo teórico, paso o ejercicio.
-4. Sintaxis JSON estricta: usa comillas simples ('...') dentro de textos; cero comillas dobles sin escapar dentro de cadenas JSON.
-```
+> Las cuotas numéricas de cada campo se interpolan directamente desde `SESSION_PLAN_WORD_CONTRACT` en [`src/lib/guide-engine/writers/session-prompt-contract.ts`](../src/lib/guide-engine/writers/session-prompt-contract.ts), alineado con [`src/lib/guide-engine/content-budget.ts`](../src/lib/guide-engine/content-budget.ts) (`1,120 a 1,250` palabras por sesión; suma exacta de mínimos `1,096 ≤ 1,120 ≤ 1,250`). Ver el módulo TypeScript para el texto literal exacto y el ejemplo JSON de referencia.
 
 ---
 
@@ -424,21 +392,20 @@ ${whenNotShardedIncludeCanonicalSessionPlansSpec}
    ```markdown
    CONCEPTOS, SABERES Y MATERIALES DE LA PLANEACIÓN QUE ESTAS SESIONES DEBEN CUBRIR (intégralos de forma natural en sustantivo o presente dentro de la explicación, ejemplos y prácticas; si algún término viene conjugado en futuro como 'Identificarás...', conviértelo a forma conceptual o presente): ${opts.packTerms.join(' | ')}
    ```
-3. Ajusta `densityThresholdsFor`:
-   - `minContenidoWords: 300` (antes `380`)
-   - `minContenidoParagraphs: 3`
-   - `minEjemploWords: 190` (antes `250`)
-   - `minEjemploSteps: 3`
-   - `minPractica: 2`
-   - `minPracticaEnunciadoWords: 28`
-   - `minTotalWords: 720` (evita reintentos innecesarios y errores `429/503` cuando una sesión ya es clara, completa y tiene su `sintesisVisual`).
+3. Ajusta `densityThresholdsFor` y `sessionPlanWordTarget` tomando como SSoT `SESSION_PLAN_WORD_CONTRACT` (sin duplicar cifras fijas ni aplicar tope en `720`):
+   - `sessionPlanWordTarget(ideal, n)`: piso en `SESSION_PLAN_WORD_CONTRACT.targetMin` (`1,120`), escalando proporcionalmente con el presupuesto de misión (`0.94 × ideal / n`).
+   - `densityThresholdsFor(target, requireNumericExample, requireVisualSynthesis)`:
+     - `minContenidoWords`: `SESSION_PLAN_WORD_CONTRACT.fields.contenido.min` (`320`)
+     - `minEjemploWords`: `SESSION_PLAN_WORD_CONTRACT.fields.ejemploResuelto.min` (`220`)
+     - `minTotalWords`: `Math.max(790, Math.round(target * 0.895))` (≈`1,002` palabras para `target = 1,120`)
+     - `requireVisualSynthesis`: habilitado por defecto en `generateShardedSessionPlans`, validando `conceptoBreve`, `formulaOReglaClave`, `ejemploBreve` y `mapaConceptual` mediante `validateVisualSynthesisDeficits`.
 
 ---
 
 ### 4.6 Prompts V2 — Completado, Expansión y Resiliencia (`session-plan-completion.ts`, `session-plan-expansion.ts`, `resilience-agent.ts`)
 
-#### A. `session-plan-completion.ts` V2:
-Usa exactamente `buildCanonicalSessionPlanInstructions(adapter, 'foundation')` para que cualquier sesión faltante nazca con los mismos 3 párrafos de `contenido`, `ejemploResuelto` con `\n` por paso, 2 `practica` autocontenidas y su objeto `sintesisVisual`.
+#### A. `session-plan-completion.ts` V2.1:
+Usa `resolveCompletionAdapter(params)` pasando el contexto completo (`uacName`, `component`, `curriculumName || careerOrProgramName`) y construye el contrato con `buildCanonicalSessionPlanInstructions(adapter, params.missionType)` para que cualquier sesión faltante herede exactamente el mismo adaptador y profundidad que `lab-writer.ts` / `project-writer.ts`.
 
 #### B. `session-plan-expansion.ts` V2 (`buildSystemInstruction`):
 ```markdown

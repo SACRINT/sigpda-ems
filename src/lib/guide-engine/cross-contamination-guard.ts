@@ -140,7 +140,7 @@ function compact(value: string, max = 180): string {
 }
 
 function isCulinary(uacName: string, component: string, curriculumName: string): boolean {
-  return /gastronom|alimentos y bebidas|reposteri|panaderi|culinari/i.test(
+  return /gastronom|alimentos y bebidas|alimentos artesanales|reposteri|panaderi|panificaci|culinari/i.test(
     `${uacName} ${component} ${curriculumName}`
   );
 }
@@ -159,7 +159,8 @@ function isNative(
         id === 'ciencias_fisica_ingenieria' ||
         id === 'ciencias_quimica_biologia_ambiental' ||
         id === 'actividades_fisicas_deportivas_salud' ||
-        id === 'socioemocional_tutoria_educacion_integral'
+        id === 'socioemocional_tutoria_educacion_integral' ||
+        id === 'formacion_laboral_salud_clinica'
       );
     case 'digital':
       return id === 'cultura_digital_programacion_ti';

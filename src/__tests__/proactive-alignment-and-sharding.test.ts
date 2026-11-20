@@ -36,6 +36,27 @@ function makeDensePlan(n: number, extraText = '') {
     autoevaluacion: ['¿Puedo explicar el concepto central?', '¿Logré la práctica sin mirar?'],
     recursos: [{ titulo: 'Video educativo', url: 'https://www.youtube.com/results?search_query=x', tipo: 'video' }],
     productoIntegrador: words(70),
+    sintesisVisual: {
+      conceptoBreve:
+        'La transferencia de energía térmica explica cómo fluye el calor entre cuerpos con distinta temperatura y permite diseñar soluciones eficientes.',
+      formulaOReglaClave: 'Q = m · c · ΔT',
+      ejemploBreve: {
+        planteamiento:
+          'Un invernadero escolar registra el cambio térmico durante la mañana y requiere calcular la energía transferida en el sistema.',
+        pasos: [
+          'Identifica la masa, el calor específico y el cambio de temperatura medido.',
+          'Sustituye los datos con unidades del SI en Q = m · c · ΔT.',
+          'Verifica el resultado y su impacto en el aislamiento del invernadero.',
+        ],
+        conclusion: 'El flujo térmico calculado orienta el aislamiento sustentable del plantel.',
+      },
+      mapaConceptual: {
+        definicionClave: 'El calor es energía en tránsito motivada por una diferencia de temperatura.',
+        criterioDesarrollo: 'Verifica todas las unidades en el Sistema Internacional antes de sustituir.',
+        errorComun: 'Confundir temperatura con calor o mezclar grados Celsius con Kelvin sin conversión.',
+        correccionBreve: 'Escribe siempre las unidades de cada magnitud y comprueba la consistencia dimensional.',
+      },
+    },
   };
 }
 

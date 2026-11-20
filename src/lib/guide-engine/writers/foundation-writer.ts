@@ -29,6 +29,7 @@ import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
   applySurgicalSessionRepair,
+  sessionPlanWordTarget,
   type SessionShardContext,
 } from './session-shard';
 import { logger } from '@/lib/logger';
@@ -69,7 +70,7 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
 
   const isQuantitative = discipline.family === 'cuantitativa_experimental';
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
+  const targetWordsPerPlan = sessionPlanWordTarget(input.targetWords.ideal, sessionCount);
   const shardCtx: SessionShardContext = {
     input,
     missionType: 'foundation',
@@ -77,7 +78,7 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     coveredSessions,
     disciplineName: discipline.displayName,
     fallbackContext,
-    targetWordsPerPlan: Math.max(900, targetWordsPerPlan),
+    targetWordsPerPlan,
     extraGuardrails: isQuantitative
       ? "GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado."
       : undefined,
@@ -88,7 +89,26 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     return applySurgicalSessionRepair(shardCtx, input.previousOutput, input.surgicalSessionTerms);
   }
 
-  const approach = input.subsystem === 'bt' ? 'estándar industrial y tecnológico' : 'indagación científica y dialógica';
+  const approach = discipline.approachDescriptor;
+  const autodidactEvidenceRule = discipline.requiresQuantitativeData
+    ? 'definiciones, fórmulas o procedimientos, explicaciones, ejemplos resueltos con NÚMEROS o datos medibles y ejercicios con datos concretos.'
+    : 'definiciones, marcos conceptuales, explicaciones claras, ejemplos resueltos con casos, textos o fuentes verificables y ejercicios aplicados.';
+  const coreExampleRule = discipline.requiresQuantitativeData
+    ? '1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales verificables'
+    : '1 EJEMPLO RESUELTO PASO A PASO con un caso, texto, fuente o situación verificable propia de la disciplina (sin inventar fórmulas artificiales)';
+  const iDoModalityRule =
+    discipline.family === 'computacional_algoritmica'
+      ? 'código funcional comentado o algoritmo con prueba de escritorio'
+      : discipline.family === 'tecnica_laboral'
+        ? 'procedimiento operativo estandarizado (POE) o protocolo paso a paso'
+        : discipline.family === 'corporal_motriz'
+          ? 'demostración motriz dosificada y monitoreo fisiológico paso a paso'
+          : discipline.family === 'humanistica_comunicativa_social'
+            ? 'análisis modelado paso a paso de un texto, fuente, obra o estudio de caso'
+            : 'modelación matemática o experimento resuelto paso a paso';
+  const weDoDataRule = discipline.requiresQuantitativeData
+    ? 'con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. \'resuelve 2x+5=15\' sin contexto).'
+    : 'con fuentes, casos, dilemas o evidencias concretas y aplicables. PROHIBIDO usar ejercicios memorísticos o preguntas genéricas desconectadas de la realidad.';
   const requiredTermsChunk = formatRequiredTermsDirective(input.requiredTerms ?? []);
   const planningAlignmentChunk = buildPlanningAlignmentPrompt(
     input.planningActivities,
@@ -124,25 +144,25 @@ ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redacci
       'PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota o ejemplo de sessionPlans indicado antes.',
     ].join('\n');
 
-  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Educación Media Superior en México (estilo Santillana/Pearson), especialista en Pedagogía y en el modelo de Finlandia (Phenomenon-Based Learning).
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Educación Media Superior en México (estilo Santillana/Pearson), especialista en ${discipline.displayName} y en el modelo de Finlandia (Phenomenon-Based Learning).
 Tu tarea es redactar la primera misión formativa ("Misión 1: Fundamentación e Intuición - Concepto Cero") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder aprender SOLO, leyendo el libro, sin que el maestro esté presente.
 Libro de: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 Enfoque pedagógico: "${approach}".
 ${planningAlignmentChunk}
 
 REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
-- Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a aprender", "tu cuaderno", "observa", "resuelve").
+- Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a aprender", "tu cuaderno", "observa", "analiza").
 - PROHIBIDO usar etiquetas "Docente:" o "Estudiante:", y verbos de instrucción al maestro ("activar el interés", "exponer y problematizar", "verificar comprensión", "orientar el avance", "plantear la situación", "retomar el desafío"). Eso va en el plan de clase, NO en el libro.
-- El contenido debe ser REAL y AUTODIDACTA: definiciones, fórmulas, explicaciones, ejemplos resueltos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro aprende el tema.
+- El contenido debe ser REAL y AUTODIDACTA: ${autodidactEvidenceRule} Un estudiante que lee el libro aprende el tema.
 - ESTILO EDITORIAL OBLIGATORIO: lenguaje claro, directo y breve. PROHIBIDO el lenguaje hiperbólico o grandilocuente ("altísimo valor académico", "pulcritud", "veracidad absoluta", "lamentable omisión", "excelencia académica", "inequívoca"). Explica con hechos, datos y procedimientos, sin adjetivos de exaltación.
 
 REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 1. Concepto Cero (400 a 600 palabras en total entre physicalAnalogy y coreExplanation):
    - physicalAnalogy: Analogía cotidiana vívida e intuitiva (80-140 palabras) de la vida real o comunidad situada EXCLUSIVAMENTE en el ámbito disciplinar de "${input.uacName}" (${discipline.displayName}). Usa como referencia el equipo, los recursos o las prácticas propias de esta disciplina: ${equipmentHint || 'los recursos pertinentes de la UAC'}. No introduzcas instrumentos, escenarios ni ejemplos de otras disciplinas.
-   - coreExplanation: Al menos 2 párrafos explicativos conceptuales + 1 EJEMPLO RESUELTO PASO A PASO con datos cuantitativos/procedimentales + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Técnico Formal,Función en el Problema-->.
+   - coreExplanation: Al menos 2 párrafos explicativos conceptuales + ${coreExampleRule} + 1 tabla de contraste <!--workbook:table:cols=Aspecto Cotidiano,Concepto Formal,Función en el Caso-->.
 2. Gancho fenomenológico: Desafío real motivador de Puebla contextualizado en el proyecto PAEC: "${input.paecContext}".
-3. Yo Hago (350 a 500 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
-4. Hacemos Juntos (300 a 450 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. 'resuelve 2x+5=15' sin contexto). Cada práctica debe responder '¿dónde veo esto en mi vida?'.
+3. Yo Hago (350 a 500 palabras): Tutorial maestro modelado paso a paso (${iDoModalityRule}).
+4. Hacemos Juntos (300 a 450 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), ${weDoDataRule} Cada práctica debe responder '¿dónde veo esto en mi vida?'.
 5. Tú Haces (250 a 400 palabras): Desafío individual de aplicación real con espacios de trabajo, anclado a una situación cotidiana verificable del entorno del estudiante.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
@@ -230,7 +250,7 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
       attempt = 2;
       logger.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< ${minCoreWords}). Reintentando con instrucción estricta...`);
       try {
-        const retryPrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO ${minCoreWords} palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y física del concepto sin resumir.`;
+        const retryPrompt = `${effectivePrompt}\n\n[REQUISITO CRÍTICO DE PROFUNDIDAD]: Tu respuesta anterior fue insuficiente (${coreWords} palabras en coreExplanation). Redacta OBLIGATORIAMENTE un 'coreExplanation' de MÍNIMO ${minCoreWords} palabras con al menos dos párrafos explicativos extensos, desarrollando paso a paso la fundamentación formal y disciplinar del concepto sin resumir.`;
         const retryResponse = await runScheduled(input.scheduler, 'foundation:narrative-retry', () =>
           generateWithRotation(
             effectiveSystemInstruction,
@@ -318,9 +338,9 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
           id: 'wb-table-1',
           type: 'empty_table',
           title: 'Tabla de contraste conceptual',
-          instruction: 'Completa la tabla comparando la analogía física con el concepto formal:',
+          instruction: 'Completa la tabla comparando la analogía cotidiana con el concepto formal:',
           config: {
-            cols: ['Elemento Cotidiano', 'Concepto Técnico', 'Función en el Problema'],
+            cols: ['Elemento Cotidiano', 'Concepto Formal', 'Función en el Caso'],
             sampleRows: 4,
           },
         }

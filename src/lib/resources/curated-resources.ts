@@ -142,7 +142,9 @@ const ADAPTER_TAGS: Record<string, string[]> = {
   artes: ['artes', 'cultura', 'musica', 'patrimonio'],
   formacion_socioemocional: ['sociedad', 'salud', 'convivencia'],
   formacion_laboral_servicios_gestion_turismo: ['laboral', 'competencia', 'gestion', 'servicios'],
+  formacion_laboral_salud_clinica: ['salud', 'clinica', 'biologia', 'seguridad', 'laboral'],
   formacion_laboral_industrial_agro_salud: ['laboral', 'taller', 'seguridad', 'construccion', 'redes', 'computo'],
+  lengua_extranjera_general: ['lengua', 'literatura', 'redaccion', 'comunicacion'],
 };
 
 export function getCuratedResourcesForAdapter(adapterId: string, limit = 8): CuratedResource[] {

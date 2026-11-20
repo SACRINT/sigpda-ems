@@ -33,6 +33,7 @@ import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
   applySurgicalSessionRepair,
+  sessionPlanWordTarget,
   type SessionShardContext,
 } from './session-shard';
 import { logger } from '@/lib/logger';
@@ -80,7 +81,7 @@ export async function generateProjectMission(input: WriterInput): Promise<Writer
   };
 
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
+  const targetWordsPerPlan = sessionPlanWordTarget(input.targetWords.ideal, sessionCount);
   const shardCtx: SessionShardContext = {
     input,
     missionType: 'project',
@@ -131,6 +132,18 @@ ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redacci
       'PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota o ejemplo de sessionPlans indicado antes.',
     ].join('\n');
 
+  const registrationLogDirective =
+    discipline.requiresNormativeStandards || discipline.requiresLabSafety
+      ? 'registrationFormat estructurado con campos de sesión, parámetros verificados, incidencias, acciones correctivas y validación del equipo.'
+      : 'registrationFormat estructurado con campos de sesión, avance realizado, fuentes o evidencias consultadas, hallazgos/ajustes y retroalimentación entre pares.';
+  const phaseOneTitleExample = discipline.requiresNormativeStandards
+    ? 'Fase 1: Diagnóstico técnico y diseño preliminar'
+    : 'Fase 1: Diagnóstico del caso y planeación preliminar';
+  const requiredMaterialExample = discipline.requiresNormativeStandards
+    ? 'Insumo o herramienta específica de la UAC con especificación técnica'
+    : 'Recurso, fuente documental o insumo específico de la UAC';
+  const projectSpecsJson = JSON.stringify(discipline.projectSpecsExample);
+
   const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO y especialista en diseño de proyectos formativos para Educación Media Superior (MCCEMS) en ${discipline.displayName}.
 Tu tarea es redactar la misión cumbre del bloque: el desarrollo de un producto, proyecto o evidencia integradora para la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}), dentro de ${discipline.displayName}.
 ${planningAlignmentChunk}
@@ -138,11 +151,11 @@ ${planningAlignmentChunk}
 DIRECTIVAS DEL PROYECTO Y METAS FORMATIVAS:
 1. Producto o proyecto real: resultado auténtico y útil para la vida diaria, la comunidad o el perfil formativo (no un mero resumen). Usa como referencia recursos propios de la disciplina: ${equipmentHint}.
 2. Utilidad Comunitaria (300 a 500 palabras): Vinculación profunda con la problemática PAEC: "${input.paecContext}", justificando beneficiarios e impacto.
-3. Objetivos y Materiales: 3 a 5 learningObjectives de orden superior y lista detallada de requiredMaterials con especificaciones. Cada requiredMaterials que corresponda a un instrumento/herramienta/insumo del INDICE DE MATERIALES debe escribirse como token normativo [[material:slug]] o [[material:slug|etiqueta con especificación]] usando SOLO slugs de ese índice (prohibido inventar slugs o URLs); los materiales fuera del índice van en texto plano.
+3. Objetivos y Materiales: 3 a 5 learningObjectives de orden superior y lista detallada de requiredMaterials con especificaciones pertinentes. Cada requiredMaterials que corresponda a un instrumento/herramienta/insumo del INDICE DE MATERIALES debe escribirse como token normativo [[material:slug]] o [[material:slug|etiqueta con especificación]] usando SOLO slugs de ese índice (prohibido inventar slugs o URLs); los materiales fuera del índice van en texto plano.
 4. Fases y Pasos (400 a 600 palabras en total): 6 a 8 executionSteps secuenciales y 3 a 5 phases con entregables verificables e instrucciones detalladas.
-5. Criterios de Entrega y Aceptación: 4 a 6 deliveryCriteria formales y acceptanceCriteria medibles con normas NOM/ISO.
-6. Bitácora de Registro: registrationFormat estructurado con campos de sesión, parámetros, incidencias, firmas y sellos.
-7. Rúbrica y Desafío Autónomo: Rúbrica en 4 niveles NEM (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Insuficiente 4-1) y reto autónomo de campo (You Do - 200-350 palabras).
+5. Criterios de Entrega y Aceptación: ${discipline.projectAcceptanceDirective}.
+6. Bitácora de Registro: ${registrationLogDirective}
+7. Rúbrica y Desafío Autónomo: Rúbrica en 4 niveles NEM (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Insuficiente 4-1) y reto autónomo (You Do - 200-350 palabras).
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
@@ -152,54 +165,54 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   },
   "conceptZero": {
     "physicalAnalogy": "Analogía intuitiva y disciplinar (80-140 palabras)...",
-    "coreExplanation": "Explicación conceptual rigurosa con ejemplo resuelto paso a paso y datos concretos..."
+    "coreExplanation": "Explicación conceptual rigurosa con ejemplo resuelto paso a paso y evidencias concretas..."
   },
-  "guidedPractice": "Práctica guiada con problema real, datos concretos y pistas...",
+  "guidedPractice": "Práctica guiada con caso real, evidencias concretas y pistas...",
   "formativeCheckpoint": {
     "question": "Pregunta de verificación del avance del proyecto...",
-    "criteriaChecklist": ["Explica el avance con tus palabras", "Valida el entregable con criterios concretos"]
+    "criteriaChecklist": ["Explica el avance con tus palabras", "Revisa el entregable con los criterios de aceptación"]
   },
   "artifactName": "Nombre motivador y descriptivo del producto o proyecto...",
   "communityUtility": "Descripción extensa de utilidad comunitaria e impacto...",
   "learningObjectives": [
     "Diseñar la propuesta o producto de la disciplina...",
     "Desarrollar y verificar la evidencia o producto...",
-    "Validar el impacto comunitario en el entorno PAEC..."
+    "Evaluar el impacto comunitario en el entorno PAEC..."
   ],
   "requiredMaterials": [
-    "Insumo o herramienta específica de la UAC con especificación técnica",
+    "${requiredMaterialExample}",
     "Material de registro y documentación del proyecto"
   ],
   "executionSteps": [
     "1. Planificación y acopio...",
-    "2. Diseño o diagramación...",
+    "2. Diseño o estructuración...",
     "3. Desarrollo o producción...",
-    "4. Revisión y pruebas...",
+    "4. Revisión y comprobación...",
     "5. Integración comunitaria...",
     "6. Documentación final..."
   ],
   "deliveryCriteria": [
-    "Producto o evidencia terminado y verificado",
+    "Producto o evidencia terminado y revisado",
     "Memoria o reporte con esquemas o registros",
-    "Bitácora o registro firmado por fase",
+    "Bitácora o registro con seguimiento por fase",
     "Presentación ante el grupo"
   ],
-  "registrationFormat": "BITÁCORA TÉCNICA DE PROYECTO\\nSemana: [ ] Fecha: [ ] Equipo: [ ]\\nActividad: _________________\\nParámetros: ___________ Error: ______\\nIncidencia: _________________ Solución: _________________\\nValidación del equipo: _________",
+  "registrationFormat": "${discipline.projectLogTemplate}",
   "phases": [
     {
       "phaseNum": 1,
-      "title": "Fase 1: Diagnóstico técnico y diseño preliminar",
+      "title": "${phaseOneTitleExample}",
       "allocatedHours": 2,
-      "deliverables": ["Lista de insumos", "Boceto"],
+      "deliverables": ["Lista de insumos o fuentes", "Esquema inicial"],
       "instructions": "Instrucciones detalladas paso a paso..."
     }
   ],
-  "technicalSpecs": ["Especificación técnica 1", "Norma aplicable NOM/ISO"],
+  "technicalSpecs": ${projectSpecsJson},
   "acceptanceCriteria": [
-    "El producto o evidencia cumple la función principal en condiciones normales",
+    "El producto o evidencia cumple su propósito formativo y comunitario",
     "Cumple con los criterios de calidad y pertinencia de la disciplina"
   ],
-  "autonomousChallenge": "Instrucción y desafío autónomo (Tú Haces) de 200-350 palabras para validación de campo...",
+  "autonomousChallenge": "Instrucción y desafío autónomo (Tú Haces) de 200-350 palabras para aplicación situada...",
   "rubricSummary": [
     {
       "criterion": "Calidad y Pertinencia del Producto o Evidencia",
@@ -387,15 +400,15 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
           ],
       registrationFormat: typeof parsed.registrationFormat === 'string' && parsed.registrationFormat.trim().length > 20
         ? parsed.registrationFormat.trim()
-        : 'REGISTRO DE BITÁCORA Y CONTROL DE AVANCE DEL PROYECTO\nSesión/Fecha: _______________ | Integrantes del equipo: _________________________________\nAvance realizado: _____________________________________________________________________\nParámetros verificados: ____________________ | Observaciones docentes: ___________________\nFirma de validación: ________________________',
+        : discipline.projectLogTemplate.replace(/\\n/g, '\n'),
       phases,
-      technicalSpecs: parsed.technicalSpecs || ['Estándares de calidad y funcionalidad técnica'],
-      acceptanceCriteria: parsed.acceptanceCriteria || ['El producto final opera de forma verificable'],
+      technicalSpecs: parsed.technicalSpecs || [...discipline.projectSpecsExample],
+      acceptanceCriteria: parsed.acceptanceCriteria || ['El producto o evidencia cumple los criterios de calidad de la disciplina'],
     };
 
     const autonomousChallenge = typeof parsed.autonomousChallenge === 'string' && parsed.autonomousChallenge.trim().length > 30
       ? parsed.autonomousChallenge.trim()
-      : `Desafío autónomo individual (Tú Haces): Realiza de manera independiente la validación y revisión de calidad de tu producto o evidencia aplicando la lista de verificación y el registro de avances. Contrasta los resultados obtenidos con los criterios de aceptación y documenta cualquier ajuste necesario para maximizar su impacto en ${input.paecContext}.`;
+      : `Desafío autónomo individual (Tú Haces): Realiza de manera independiente la revisión de calidad de tu producto o evidencia aplicando la lista de verificación y el registro de avances. Contrasta los resultados obtenidos con los criterios de aceptación y documenta cualquier ajuste necesario para maximizar su impacto en ${input.paecContext}.`;
 
     const workbookElements: WorkbookElement[] = [
       {
@@ -413,14 +426,14 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
         config: {
           checkboxes: projectSection.acceptanceCriteria.length > 0
             ? projectSection.acceptanceCriteria
-            : ['Cumple con las especificaciones técnicas', 'Resuelve el problema planteado', 'Documentado en la bitácora'],
+            : ['Cumple con los criterios establecidos', 'Responde a la problemática planteada', 'Documentado en la bitácora'],
         },
       },
       {
         id: 'wb-project-notes',
         type: 'lines',
-        title: 'Bitácora de campo y lecciones aprendidas',
-        instruction: 'Anota los principales retos técnicos enfrentados y cómo los resolvieron en equipo:',
+        title: 'Bitácora de avance y lecciones aprendidas',
+        instruction: 'Anota los principales retos enfrentados durante el proyecto y cómo los resolvieron en equipo:',
         config: { rows: 6 },
       },
     ];
@@ -447,6 +460,9 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
             uacName: input.uacName,
             blockName: input.blockName,
             subsystem: input.subsystem,
+            component: input.component,
+            curriculumName: input.curriculumName,
+            careerOrProgramName: input.careerOrProgramName,
             coveredSessions,
             missingSessions,
             existingPlans: currentPlans,

@@ -36,6 +36,7 @@ import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
   applySurgicalSessionRepair,
+  sessionPlanWordTarget,
   type SessionShardContext,
 } from './session-shard';
 import { logger } from '@/lib/logger';
@@ -151,7 +152,7 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
   };
 
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
+  const targetWordsPerPlan = sessionPlanWordTarget(input.targetWords.ideal, sessionCount);
   const shardCtx: SessionShardContext = {
     input,
     missionType: 'evaluation',
@@ -202,13 +203,41 @@ ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redacci
       'PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota o ejemplo de sessionPlans indicado antes.',
     ].join('\n');
 
-  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO y especialista en evaluación formativa del Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
+  const checklistHeadingLabel =
+    discipline.requiresNormativeStandards || discipline.requiresLabSafety
+      ? 'Lista de verificación técnica y operativa'
+      : 'Lista de verificación formativa del desempeño';
+  const checklistCategoriesList = discipline.evaluationChecklistCategories.join(', ');
+  const checklistExampleJson = JSON.stringify(discipline.evaluationChecklistExample);
+  const basicContextExample = discipline.requiresQuantitativeData
+    ? 'Datos: magnitud o variable conocida = valor...'
+    : 'Fragmento, fuente documental o caso situado...';
+  const basicExpectedExample = discipline.requiresQuantitativeData
+    ? 'Resultado numérico con unidades o criterio esperado.'
+    : 'Interpretación, postura fundamentada o criterio esperado.';
+  const basicContext2Example =
+    discipline.requiresNormativeStandards || discipline.requiresLabSafety
+      ? 'Condiciones operativas o sanitarias del caso...'
+      : 'Contexto comunicativo, histórico o comunitario del caso...';
+  const interContext2Example = discipline.requiresQuantitativeData
+    ? 'Datos, parámetros y restricciones del caso...'
+    : 'Fuentes, actores y criterios de análisis del caso...';
+  const advContextExample =
+    discipline.requiresNormativeStandards || discipline.requiresLabSafety
+      ? 'Caso de estudio técnico o clínico situado...'
+      : 'Caso de estudio complejo o dilema situado...';
+  const obstacleExample =
+    discipline.requiresNormativeStandards || discipline.requiresLabSafety
+      ? '¿Qué estrategia implementaste para superar el obstáculo técnico más difícil?'
+      : '¿Qué estrategia implementaste para superar el desafío conceptual o metodológico más difícil?';
+
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO y especialista en evaluación formativa del Marco Curricular Común de la EMS (NEM / MCCEMS Puebla), en ${discipline.displayName}.
 Tu tarea es redactar el paquete integral de instrumentos y componentes de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
 
 ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 1. Rúbrica analítica (300 a 500 palabras): Exactamente 4 escalas (Excelente 10-9, Bueno 8-7, Suficiente 6-5, Requiere Apoyo 4-1) y 4 a 6 criterios. La suma de weightPercent debe ser EXACTAMENTE 100. Si devuelves un solo criterio, su weightPercent debe ser 100.
-2. Lista de verificación técnica (200 a 350 palabras): 10 a 15 reactivos medibles clasificados por categorías.
+2. ${checklistHeadingLabel} (200 a 350 palabras): 10 a 15 reactivos observables clasificados exclusivamente en categorías pertinentes a ${discipline.displayName} (usa categorías como: ${checklistCategoriesList}).
 3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con justificación formativa.
 4. Autoevaluación metacognitiva (150 a 250 palabras): 4 a 6 preguntas abiertas de reflexión y transferencia.
 5. Evaluación Escalonada (tieredExercises - 300 a 500 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
@@ -221,13 +250,13 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   },
   "conceptZero": {
     "physicalAnalogy": "Analogía intuitiva y disciplinar (80-140 palabras)...",
-    "coreExplanation": "Explicación conceptual rigurosa con ejemplo resuelto paso a paso y datos concretos..."
+    "coreExplanation": "Explicación conceptual rigurosa con ejemplo resuelto paso a paso y evidencias concretas..."
   },
-  "guidedPractice": "Práctica guiada con problema real, datos concretos y pistas...",
+  "guidedPractice": "Práctica guiada con caso real, evidencias concretas y pistas...",
   "autonomousChallenge": "Desafío autónomo individual vinculado a la vida diaria...",
   "formativeCheckpoint": {
     "question": "Pregunta de verificación de comprensión...",
-    "criteriaChecklist": ["Explica el concepto con tus palabras", "Resuelve un caso nuevo con datos concretos"]
+    "criteriaChecklist": ["Explica el concepto con tus palabras", "Resuelve un caso nuevo con evidencias concretas"]
   },
   "rubric": [
     {
@@ -272,57 +301,57 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
     }
   ],
   "checklist": [
-    { "item": "Verifica parámetros y condiciones de seguridad", "category": "Seguridad" }
+    ${checklistExampleJson}
   ],
   "tieredExercises": [
     {
       "level": "basico",
       "levelName": "Nivel Básico: Comprensión y Aplicación Directa",
-      "description": "Reactivos de ejecución directa y consolidación procedimental.",
+      "description": "Reactivos de aplicación directa y consolidación conceptual.",
       "exercises": [
         {
           "number": 1,
           "statement": "Enunciado del ejercicio 1...",
-          "contextOrData": "Datos: variable X = valor...",
-          "expectedOutputOrCriteria": "Resultado numérico o criterio esperado.",
+          "contextOrData": "${basicContextExample}",
+          "expectedOutputOrCriteria": "${basicExpectedExample}",
           "hint": "Pista de andamiaje..."
         },
         {
           "number": 2,
           "statement": "Enunciado del ejercicio 2...",
-          "contextOrData": "Condiciones operativas...",
-          "expectedOutputOrCriteria": "Criterio de validación."
+          "contextOrData": "${basicContext2Example}",
+          "expectedOutputOrCriteria": "Criterio de verificación."
         }
       ]
     },
     {
       "level": "intermedio",
-      "levelName": "Nivel Intermedio: Análisis y Modelación en Contexto",
-      "description": "Problemas situados con variables contextuales de Puebla y de la disciplina.",
+      "levelName": "Nivel Intermedio: Análisis y Aplicación en Contexto",
+      "description": "Casos situados con elementos contextuales de Puebla y de la disciplina.",
       "exercises": [
         {
           "number": 3,
-          "statement": "Problema contextualizado 1...",
-          "contextOrData": "Escenario socioproductivo...",
+          "statement": "Caso contextualizado 1...",
+          "contextOrData": "Escenario escolar o comunitario situado...",
           "expectedOutputOrCriteria": "Desarrollo paso a paso."
         },
         {
           "number": 4,
-          "statement": "Problema contextualizado 2...",
-          "contextOrData": "Parámetros y restricciones...",
-          "expectedOutputOrCriteria": "Solución procedimental completa."
+          "statement": "Caso contextualizado 2...",
+          "contextOrData": "${interContext2Example}",
+          "expectedOutputOrCriteria": "Desarrollo y conclusión fundamentada."
         }
       ]
     },
     {
       "level": "avanzado",
-      "levelName": "Nivel Avanzado: Optimización, Diagnóstico y Transferencia",
+      "levelName": "Nivel Avanzado: Diagnóstico, Argumentación y Transferencia",
       "description": "Desafíos de alto orden cognitivo y propuesta de mejora.",
       "exercises": [
         {
           "number": 5,
-          "statement": "Desafío de optimización o diagnóstico...",
-          "contextOrData": "Caso de estudio técnico...",
+          "statement": "Desafío de análisis profundo o mejora...",
+          "contextOrData": "${advContextExample}",
           "expectedOutputOrCriteria": "Propuesta fundada de resolución."
         },
         {
@@ -345,7 +374,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
   "metacognitiveReflection": {
     "prompts": [
       "¿Qué aprendizaje de este bloque consideras más transformador y por qué?",
-      "¿Qué estrategia implementaste para superar el obstáculo técnico más difícil?"
+      "${obstacleExample}"
     ]
   }${shardingEnabled ? '' : `,\n  "sessionPlans": [ /* EXACTAMENTE ${sessionCount} planes completos (sesiones ${coveredSessions.join(', ')}) según Contrato Canónico V2 */ ]`}
 }

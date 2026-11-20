@@ -22,6 +22,7 @@ import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import {
   buildCanonicalSessionPlanInstructions,
   buildCanonicalSessionPlanJsonExample,
+  SESSION_PLAN_WORD_CONTRACT,
 } from './session-prompt-contract';
 import { runScheduled } from '../writer-scheduler';
 import {
@@ -85,6 +86,8 @@ export interface DensityThresholds {
   minTotalWords: number;
   /** Exigir dígito o '=' en el cierre del ejemplo (familias cuantitativas). */
   requireNumericExample?: boolean;
+  /** Exigir objeto `sintesisVisual` completo (V2) para alimentar 08_Presentaciones y 09_Infografías. */
+  requireVisualSynthesis?: boolean;
 }
 
 export interface DensityReport {
@@ -96,29 +99,72 @@ export interface DensityReport {
 const wordCount = (s: string | undefined): number => (s ? s.split(/\s+/).filter(Boolean).length : 0);
 
 /**
- * Objetivo de palabras por plan derivado del presupuesto de la misión (sin cifras ligadas a una materia).
- * Mantiene la fórmula histórica de los writers: ~76 % del ideal por sesión, con piso de 900.
+ * Objetivo de palabras por plan derivado del presupuesto de la misión (SSoT: `SESSION_PLAN_WORD_CONTRACT`).
+ * Alinea el objetivo de los writers con el contrato canónico V2 (1,120–1,250 palabras/sesión)
+ * reservando ~6% para narrativa de la misión y escalando con el presupuesto si éste supera el estándar.
  */
 export function sessionPlanWordTarget(idealWordsForMission: number, sessionCount: number): number {
   const per = idealWordsForMission / Math.max(1, sessionCount);
-  return Math.max(900, Math.round(per * 0.76));
+  return Math.max(SESSION_PLAN_WORD_CONTRACT.targetMin, Math.round(per * 0.94));
 }
 
-/** Umbrales de densidad (≈85 % de lo exigido en el prompt, para no disparar reparaciones por 1-2 palabras). */
+/**
+ * Umbrales de densidad alineados con `SESSION_PLAN_WORD_CONTRACT` (sin tope artificial en 720):
+ * - `minTotalWords`: ~89.5% del objetivo por sesión (≈1,002 palabras cuando target = 1,120).
+ * - `minContenidoWords`: 320 (exacto al piso del contrato).
+ * - `minEjemploWords`: 220 (exacto al piso del contrato).
+ */
 export function densityThresholdsFor(
   targetWordsPerPlan: number,
-  requireNumericExample = false
+  requireNumericExample = false,
+  requireVisualSynthesis = false
 ): DensityThresholds {
+  const safeTarget = Math.max(900, Math.round(targetWordsPerPlan));
   return {
-    minContenidoWords: 300,
+    minContenidoWords: SESSION_PLAN_WORD_CONTRACT.fields.contenido.min,
     minContenidoParagraphs: 3,
-    minEjemploWords: 190,
+    minEjemploWords: SESSION_PLAN_WORD_CONTRACT.fields.ejemploResuelto.min,
     minEjemploSteps: 3,
     minPractica: 2,
     minPracticaEnunciadoWords: 28,
-    minTotalWords: Math.min(720, Math.round(targetWordsPerPlan * 0.78)),
+    minTotalWords: Math.max(790, Math.round(safeTarget * 0.895)),
     requireNumericExample,
+    requireVisualSynthesis,
   };
+}
+
+/**
+ * Valida presencia y completitud mínima de `sintesisVisual` (V2) para prevenir
+ * caídas a destilación heurística sobre párrafos largos en 08_Presentaciones y 09_Infografías.
+ */
+export function validateVisualSynthesisDeficits(plan: SessionPlan): string[] {
+  const sv = plan.sintesisVisual;
+  if (!sv) {
+    return ['falta el objeto sintesisVisual obligatorio (conceptoBreve, formulaOReglaClave, ejemploBreve y mapaConceptual)'];
+  }
+  const issues: string[] = [];
+  if (wordCount(sv.conceptoBreve) < 15) {
+    issues.push(`sintesisVisual.conceptoBreve es insuficiente (${wordCount(sv.conceptoBreve)} palabras; mínimo 15)`);
+  }
+  if (!sv.formulaOReglaClave || sv.formulaOReglaClave.trim().length < 3) {
+    issues.push('sintesisVisual.formulaOReglaClave está vacío');
+  }
+  const ej = sv.ejemploBreve;
+  const pasosValidos = (ej?.pasos || []).filter((p) => typeof p === 'string' && p.trim().length >= 8).length;
+  if (!ej || wordCount(ej.planteamiento) < 10 || pasosValidos < 2 || wordCount(ej.conclusion) < 5) {
+    issues.push('sintesisVisual.ejemploBreve incompleto (requiere planteamiento, ≥2 pasos y conclusión)');
+  }
+  const mc = sv.mapaConceptual;
+  if (
+    !mc ||
+    wordCount(mc.definicionClave) < 6 ||
+    wordCount(mc.criterioDesarrollo) < 6 ||
+    wordCount(mc.errorComun) < 6 ||
+    wordCount(mc.correccionBreve) < 6
+  ) {
+    issues.push('sintesisVisual.mapaConceptual incompleto (requiere los 4 campos con desarrollo suficiente)');
+  }
+  return issues;
 }
 
 export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThresholds): DensityReport {
@@ -161,6 +207,9 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
   if (goodPractica < t.minPractica) {
     deficits.push(`solo ${goodPractica} ejercicios completos con enunciado y pista propia (mínimo ${t.minPractica})`);
   }
+  if (t.requireVisualSynthesis) {
+    deficits.push(...validateVisualSynthesisDeficits(plan));
+  }
   const words = countSessionPlanWords(plan);
   if (words < t.minTotalWords) {
     deficits.push(`el plan suma ${words} palabras (mínimo ${t.minTotalWords})`);
@@ -192,6 +241,8 @@ export interface SessionShardContext {
   extraGuardrails?: string;
   /** Términos de la planeación asignados a este redactor (se reparten entre sus paquetes). */
   requiredTerms?: string[];
+  /** Exigir `sintesisVisual` completo al validar densidad de planes (por defecto true en V2). */
+  requireVisualSynthesis?: boolean;
 }
 
 function sessionLine(input: WriterInput, sessionNumber: number): string {
@@ -232,7 +283,7 @@ export function buildSessionPackPrompts(
   const adapter = getDisciplinaryAdapter(
     input.uacName,
     input.component,
-    input.careerOrProgramName
+    input.curriculumName || input.careerOrProgramName
   );
   const canonicalSessionContract = buildCanonicalSessionPlanInstructions(adapter, missionType, {
     firstSession,
@@ -470,7 +521,8 @@ export async function generateShardedSessionPlans(
   );
   const thresholds = densityThresholdsFor(
     ctx.targetWordsPerPlan,
-    adapter.family === 'cuantitativa_experimental'
+    adapter.family === 'cuantitativa_experimental',
+    ctx.requireVisualSynthesis ?? true
   );
   let sanitized = sanitizeSessionPlans(raw, ctx.coveredSessions, ctx.fallbackContext) ?? [];
   const deficient = sanitized
@@ -560,7 +612,16 @@ export async function regenerateSessionsWithTerms(
 ): Promise<SessionPlan[]> {
   const entries = Array.from(termsBySession.entries()).filter(([n]) => ctx.coveredSessions.includes(n));
   if (entries.length === 0) return existing;
-  const thresholds = densityThresholdsFor(ctx.targetWordsPerPlan);
+  const adapter = getDisciplinaryAdapter(
+    ctx.input.uacName,
+    ctx.input.component,
+    ctx.input.curriculumName || ctx.input.careerOrProgramName
+  );
+  const thresholds = densityThresholdsFor(
+    ctx.targetWordsPerPlan,
+    adapter.family === 'cuantitativa_experimental',
+    ctx.requireVisualSynthesis ?? true
+  );
   const results = await Promise.allSettled(
     entries.map(([session, terms]) =>
       callPack(

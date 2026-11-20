@@ -134,13 +134,13 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
         uacName: 'Pensamiento Matemático I',
         semester: 1,
         component: 'fundamental',
-      } as any,
+      } as never,
       sessions: params.coveredSessions.map((s) => ({
         sessionNum: s,
         title: `Sesión ${s}`,
         phase: 'Desarrollo',
         activity: 'Actividad',
-      } as any)),
+      } as never)),
       missions: [mission],
       targetWords: {
         min: params.minWords,
@@ -154,7 +154,7 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
     };
   };
 
-  it('foundation-writer escala el prompt según sesiones (3 sesiones: ~2550 palabras de planes y resto narrativo)', async () => {
+  it('foundation-writer escala el prompt según sesiones (3 sesiones: ~3360 palabras de planes y resto narrativo)', async () => {
     // 3 sesiones de 3h: ideal 3,563 palabras
     const input3h = makeWriterInput({
       missionType: 'foundation',
@@ -173,14 +173,14 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
     expect(prompt).not.toContain('2,000 a 3,000 palabras');
     expect(prompt).not.toContain('1,500 a 2,000 palabras');
 
-    // Debe contener el cálculo dinámico proporcional
+    // Debe contener el cálculo dinámico unificado con SESSION_PLAN_WORD_CONTRACT (1120 × 3 = 3360)
     expect(prompt).toContain('sessionPlans (3 sesiones)');
-    expect(prompt).toContain('total planes: ~2565 palabras');
+    expect(prompt).toContain('total planes: ~3360 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 3375 palabras (ideal ~3563 palabras)');
     expect(prompt).toContain('Sesiones cubiertas: Sesiones 1, 2, 3 (3 sesiones)');
   });
 
-  it('lab-writer escala el prompt según sesiones (6 sesiones: ~5556 palabras de planes y resto práctico)', async () => {
+  it('lab-writer escala el prompt según sesiones (6 sesiones: ~6720 palabras de planes y resto práctico)', async () => {
     // 6 sesiones de lab: ideal 7,125 palabras
     const input6h = makeWriterInput({
       missionType: 'lab',
@@ -198,9 +198,9 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
     // No debe contener los rangos fijos viejos
     expect(prompt).not.toContain('1,500 a 2,500 palabras (desarrolla cada paso');
 
-    // Debe contener cálculo dinámico para 6 sesiones
+    // Debe contener cálculo dinámico unificado para 6 sesiones (1120 × 6 = 6720)
     expect(prompt).toContain('sessionPlans (6 sesiones)');
-    expect(prompt).toContain('total planes: ~5556 palabras');
+    expect(prompt).toContain('total planes: ~6720 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 6750 palabras (ideal ~7125 palabras)');
   });
 
@@ -221,9 +221,9 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
     // No debe contener el requisito rígido antiguo
     expect(prompt).not.toContain('IMPORTANTE: Esta sección debe tener MÍNIMO 2,000 palabras sumando fases');
 
-    // Debe reflejar las 6 sesiones asignadas
+    // Debe reflejar las 6 sesiones asignadas con presupuesto unificado (1120 × 6 = 6720)
     expect(prompt).toContain('sessionPlans (6 sesiones)');
-    expect(prompt).toContain('total planes: ~5556 palabras');
+    expect(prompt).toContain('total planes: ~6720 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 6750 palabras (ideal ~7125 palabras)');
   });
 
@@ -245,9 +245,9 @@ describe('P3.1 — Calibración dinámica de prompts de los 4 Writers', () => {
     expect(prompt).not.toContain('rubric: 800 a 1,200 palabras');
     expect(prompt).not.toContain('criticalThinkingQuiz: 800 a 1,200 palabras');
 
-    // Debe reflejar las 3 sesiones asignadas
+    // Debe reflejar las 3 sesiones asignadas con presupuesto unificado (1120 × 3 = 3360)
     expect(prompt).toContain('sessionPlans (3 sesiones)');
-    expect(prompt).toContain('total planes: ~2778 palabras');
+    expect(prompt).toContain('total planes: ~3360 palabras');
     expect(prompt).toContain('Presupuesto total para esta misión: mínimo 3375 palabras (ideal ~3563 palabras)');
   });
 });

@@ -41,6 +41,27 @@ function goodPlan(n: number, over: Record<string, unknown> = {}) {
     autoevaluacion: ['¿Puedo explicar el concepto central?', '¿Logré la práctica sin mirar?'],
     recursos: [{ titulo: 'Video educativo', url: 'https://www.youtube.com/results?search_query=x', tipo: 'video' }],
     productoIntegrador: words(70),
+    sintesisVisual: {
+      conceptoBreve:
+        'El concepto central de esta sesión relaciona las magnitudes observables y permite explicar cómo cambian los datos en situaciones reales de la comunidad.',
+      formulaOReglaClave: 'y = 2x + 3',
+      ejemploBreve: {
+        planteamiento:
+          'Una cooperativa escolar registra datos concretos en dos jornadas y necesita determinar el comportamiento esperado en una tercera jornada.',
+        pasos: [
+          'Identifica los valores iniciales y el modelo que relaciona ambas magnitudes.',
+          'Sustituye los datos conocidos en la expresión completa y realiza las operaciones.',
+          'Verifica el resultado obtenido en el contexto del caso.',
+        ],
+        conclusion: 'El resultado verificado es x = 7 unidades en el caso analizado.',
+      },
+      mapaConceptual: {
+        definicionClave: 'El concepto organiza la relación entre las variables clave del problema analizado.',
+        criterioDesarrollo: 'Registra primero los datos con unidades y desarrolla cada paso en orden.',
+        errorComun: 'Omitir las unidades o intercambiar los valores al sustituir en la expresión.',
+        correccionBreve: 'Etiqueta cada dato antes de operar y comprueba el resultado al finalizar.',
+      },
+    },
     ...over,
   };
 }
@@ -114,9 +135,9 @@ describe('shardSessions', () => {
     expect(shares.map((s) => s.length)).toEqual([2, 2, 1]);
   });
 
-  it('sessionPlanWordTarget conserva el piso de 900 y escala con el presupuesto', () => {
-    expect(sessionPlanWordTarget(4000, 4)).toBe(900);
-    expect(sessionPlanWordTarget(20000, 8)).toBeGreaterThan(900);
+  it('sessionPlanWordTarget conserva el piso del contrato V2 (1,120) y escala con el presupuesto', () => {
+    expect(sessionPlanWordTarget(4000, 4)).toBe(1120);
+    expect(sessionPlanWordTarget(20000, 8)).toBeGreaterThan(1120);
   });
 });
 

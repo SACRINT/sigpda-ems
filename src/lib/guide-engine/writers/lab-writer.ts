@@ -34,6 +34,7 @@ import { runScheduled } from '../writer-scheduler';
 import {
   generateShardedSessionPlans,
   applySurgicalSessionRepair,
+  sessionPlanWordTarget,
   type SessionShardContext,
 } from './session-shard';
 import { logger } from '@/lib/logger';
@@ -59,11 +60,7 @@ export async function generateLabMission(input: WriterInput): Promise<WriterOutp
     input.curriculumName || input.careerOrProgramName
   );
   const equipmentHint = discipline.allowedPhysicalEquipment.slice(0, 4).join(', ');
-  const practiceLabel = discipline.id === 'pensamiento_matematico'
-    ? 'práctica de modelación y resolución'
-    : /artes|lengua|humanidades|conciencia/.test(discipline.id)
-      ? 'taller de producción y análisis'
-      : 'práctica disciplinar';
+  const practiceLabel = discipline.practiceSpaceLabel.toLowerCase();
   const fallbackContext: FallbackPlanContext = {
     uacName: input.uacName,
     blockName: input.blockName,
@@ -77,7 +74,7 @@ export async function generateLabMission(input: WriterInput): Promise<WriterOutp
   };
 
   const sessionCount = Math.max(1, coveredSessions.length);
-  const targetWordsPerPlan = Math.max(900, Math.round((input.targetWords.ideal / sessionCount) * 0.78));
+  const targetWordsPerPlan = sessionPlanWordTarget(input.targetWords.ideal, sessionCount);
   const shardCtx: SessionShardContext = {
     input,
     missionType: 'lab',
@@ -223,9 +220,9 @@ DISTRIBUCIÓN CALIBRADA DE PALABRAS:
 - stepByStepProcedure: ~${procedureTarget} palabras (redacta 8 a 10 pasos detallados con criterios, parámetros o evidencias propios de ${discipline.displayName})
 - executableCodeOrProtocol: ~${protocolTarget} palabras (${discipline.family === 'computacional_algoritmica' ? 'código fuente funcional documentado y prueba de escritorio' : discipline.family === 'humanistica_comunicativa_social' ? 'guía analítica, matriz o producto textual disciplinar completo' : 'protocolo o procedimiento riguroso de la disciplina'})
 - autonomousChallenge: ~${challengeTarget} palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones claras y contextualizadas)
-- reflectionQuestions: ~${reflectionTarget} palabras (análisis técnico y transferencia)
+- reflectionQuestions: ~${reflectionTarget} palabras (análisis reflexivo y transferencia situada)
 
-Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad y rigor experimental sin abreviar:`;
+Redacta la Misión Práctica (${discipline.practiceSpaceLabel}) Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad y rigor disciplinar sin abreviar:`;
 
   const useSharding = Boolean(input.scheduler);
   const narrativeMaxTokens = useSharding ? 8192 : 16384;
@@ -279,7 +276,9 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
         const strictDirectives: string[] = [];
         if (retryStepCount < 5) {
           strictDirectives.push(
-            `Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción técnica concreta del estudiante.`
+            discipline.requiresQuantitativeData
+              ? `Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción cuantitativa clara, variables precisas y acción concreta del estudiante.`
+              : `Tu respuesta anterior tuvo menos de 5 pasos en 'autonomousChallenge'. Redacta OBLIGATORIAMENTE el 'autonomousChallenge' en EXACTAMENTE 5 a 7 PASOS NUMERADOS (Paso 1 al Paso 5, 6 o 7), cada uno con una instrucción concreta, criterios observables y acción clara del estudiante.`
           );
         }
         if (!useSharding && retryPlanCount < coveredSessions.length) {
@@ -437,6 +436,9 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
             uacName: input.uacName,
             blockName: input.blockName,
             subsystem: input.subsystem,
+            component: input.component,
+            curriculumName: input.curriculumName,
+            careerOrProgramName: input.careerOrProgramName,
             coveredSessions,
             missingSessions,
             existingPlans: currentPlans,
@@ -487,7 +489,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
       phenomenonHook,
       conceptZero,
       iDoSection: {
-        stepByStepDemo: `Protocolo Técnico:\n${cleanStepByStep}`,
+        stepByStepDemo: `${discipline.family === 'humanistica_comunicativa_social' ? 'Guía Paso a Paso' : 'Protocolo Técnico'}:\n${cleanStepByStep}`,
       },
       weDoSection: {
         guidedPractice: `Desarrollo guiado en equipo:\n${cleanExecutableCode}`,

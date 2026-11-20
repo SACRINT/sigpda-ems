@@ -111,6 +111,26 @@ function makeDensePlan(sessionNumber: number): SessionPlan {
       { titulo: 'Khan Academy Álgebra', url: 'https://www.khanacademy.org/', tipo: 'video' },
     ],
     productoIntegrador: `Agrega la evidencia validada de sesión ${sessionNumber} al portafolio del bloque.`,
+    sintesisVisual: {
+      conceptoBreve:
+        'La modelación lineal describe cómo cambia una magnitud respecto de otra mediante una pendiente constante y permite tomar decisiones con datos verificables.',
+      formulaOReglaClave: 'y = m · x + b',
+      ejemploBreve: {
+        planteamiento: `Una cooperativa escolar registra datos de la sesión ${sessionNumber} en dos momentos y calcula la razón de cambio del costo.`,
+        pasos: [
+          'Organiza los pares ordenados iniciales con sus unidades correspondientes.',
+          'Calcula la pendiente m = (y2 - y1) / (x2 - x1) y sustituye para hallar b.',
+          'Comprueba el modelo con el segundo punto e interpreta el resultado.',
+        ],
+        conclusion: 'El modelo lineal obtenido describe la variación de forma exacta y verificable.',
+      },
+      mapaConceptual: {
+        definicionClave: 'La pendiente expresa la variación de la variable dependiente por cada unidad adicional.',
+        criterioDesarrollo: 'Mantén el mismo orden de los pares ordenados en el numerador y denominador.',
+        errorComun: 'Invertir los puntos en el cociente incremental o perder las unidades del resultado.',
+        correccionBreve: 'Etiqueta (x1, y1) y (x2, y2) antes de sustituir y comprueba el signo final.',
+      },
+    },
   };
 }
 

@@ -1,20 +1,43 @@
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { logger } from '@/lib/logger';
-import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
-import { buildCanonicalSessionPlanInstructions } from './session-prompt-contract';
+import {
+  getDisciplinaryAdapter,
+  type DisciplinaryAdapterV2,
+} from '@/lib/prompts/disciplinary-adapters';
+import {
+  buildCanonicalSessionPlanInstructions,
+  SESSION_PLAN_WORD_CONTRACT,
+} from './session-prompt-contract';
 
-interface MissingPlanParams {
+export interface MissingPlanParams {
   missionType: 'lab' | 'project';
   uacName: string;
   blockName?: string;
   subsystem: 'bge' | 'bt';
+  component?: string;
+  curriculumName?: string;
+  careerOrProgramName?: string;
   coveredSessions: number[];
   missingSessions: number[];
   existingPlans: unknown[];
   teacherId?: string;
   signal?: AbortSignal;
   remainingBudgetMs?: number;
+}
+
+/**
+ * Resuelve el adaptador disciplinar con el mismo contexto completo que los writers
+ * (`uacName`, `component`, `curriculumName || careerOrProgramName`).
+ */
+export function resolveCompletionAdapter(
+  params: Pick<MissingPlanParams, 'uacName' | 'component' | 'curriculumName' | 'careerOrProgramName'>
+): DisciplinaryAdapterV2 {
+  return getDisciplinaryAdapter(
+    params.uacName,
+    params.component,
+    params.curriculumName || params.careerOrProgramName
+  );
 }
 
 const MISSING_PLAN_CHUNK_SIZE = 3;
@@ -68,13 +91,16 @@ async function generateMissingChunk(
   missingSessions: number[],
   existingPlans: unknown[]
 ): Promise<unknown[]> {
-  const missionLabel = params.missionType === 'lab' ? 'laboratorio/taller' : 'proyecto integrador';
+  const adapter = resolveCompletionAdapter(params);
+  const missionLabel =
+    params.missionType === 'lab'
+      ? adapter.practiceSpaceLabel.toLowerCase()
+      : 'proyecto integrador';
   const examplePlan = existingPlans.length > 0 ? JSON.stringify(existingPlans[0], null, 2) : '{}';
-  const adapter = getDisciplinaryAdapter(params.uacName);
   const canonicalContract = buildCanonicalSessionPlanInstructions(adapter, params.missionType, {
     firstSession: missingSessions[0],
   });
-  const systemInstruction = `Eres autor de libro de texto para Educación Media Superior (MCCEMS Puebla), en voz de estudiante (tú).
+  const systemInstruction = `Eres autor de libro de texto para Educación Media Superior (MCCEMS Puebla), especialista en ${adapter.displayName}, en voz de estudiante (tú).
 UAC: ${params.uacName}. Bloque: ${params.blockName || 'Bloque actual'}. Subsistema: ${params.subsystem.toUpperCase()}.
 Debes completar los planes de sesión faltantes de una misión de ${missionLabel}.`;
 
@@ -86,7 +112,7 @@ Sesiones faltantes: ${missingSessions.join(', ')}.
 Genera EXACTAMENTE un plan por cada sesión faltante (${missingSessions.join(', ')}), sin omitir ninguna y sin duplicar las ya cubiertas. Cada plan debe conservar la misma estructura, campos y profundidad que este plan de ejemplo:
 ${examplePlan}
 
-Requisitos por plan: contenido teórico real de 320 a 440 palabras en 3 párrafos; ejemplo resuelto de 220 a 300 palabras con 4 pasos separados por salto de línea; 2 prácticas autocontenidas con datos, consigna, pista y solución; aplicación, autoevaluación, recursos y sintesisVisual completo. No uses marcadores ni puntos suspensivos.
+Requisitos por plan (${SESSION_PLAN_WORD_CONTRACT.targetMin} a ${SESSION_PLAN_WORD_CONTRACT.targetMax} palabras): contenido teórico real de ${SESSION_PLAN_WORD_CONTRACT.fields.contenido.min} a ${SESSION_PLAN_WORD_CONTRACT.fields.contenido.max} palabras en 3 párrafos; ejemplo resuelto de ${SESSION_PLAN_WORD_CONTRACT.fields.ejemploResuelto.min} a ${SESSION_PLAN_WORD_CONTRACT.fields.ejemploResuelto.max} palabras con 4 pasos separados por salto de línea; 2 prácticas autocontenidas con datos o caso verificable, consigna, pista y solución; aplicación, autoevaluación, recursos y sintesisVisual completo. No uses marcadores ni puntos suspensivos.
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con la forma {"sessionPlans": [ ... ]} que contenga únicamente las sesiones faltantes.`;
 
   const raw = await generateWithRotation(

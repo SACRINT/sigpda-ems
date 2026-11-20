@@ -1,9 +1,76 @@
 import type { DisciplinaryAdapterV2 } from '@/lib/prompts/disciplinary-adapters';
+import { MAX_WORDS_PER_SESSION } from '../content-budget';
 
 export type CanonicalMissionType = 'foundation' | 'lab' | 'project' | 'evaluation';
 
 export interface CanonicalSessionPlanOptions {
   firstSession?: number;
+}
+
+/**
+ * Fuente única de verdad (SSoT) del presupuesto de palabras por SessionPlan (V2).
+ * Alineado con `content-budget.ts` (1,125–1,250 palabras totales por sesión con narrativa):
+ * la suma de los mínimos de todos los campos (incluyendo `practica[].solucion` y `sintesisVisual`,
+ * ambos contabilizados por `countSessionPlanWords`) es 1,096 palabras ≤ targetMin (1,120) ≤ targetMax (1,250).
+ */
+export const SESSION_PLAN_WORD_CONTRACT = {
+  targetMin: 1120,
+  targetMax: MAX_WORDS_PER_SESSION,
+  targetIdeal: 1185,
+  fields: {
+    objetivo: { min: 20, max: 35 },
+    motivacion: { min: 65, max: 95 },
+    saberesPrevios: { min: 45, max: 65 },
+    contenido: { min: 320, max: 440 },
+    ejemploResuelto: { min: 220, max: 300 },
+    practicaEnunciadoPerItem: { min: 45, max: 75, count: 2 },
+    practicaPistaPerItem: { min: 18, max: 30, count: 2 },
+    practicaSolucionPerItem: { min: 20, max: 40, count: 2 },
+    aplicacion: { min: 55, max: 85 },
+    autoevaluacionPerItem: { min: 8, max: 15, count: 2 },
+    recursosTituloPerItem: { min: 5, max: 10, count: 2 },
+    productoIntegrador: { min: 45, max: 65 },
+    sintesisVisualConceptoBreve: { min: 25, max: 38 },
+    sintesisVisualFormulaORegla: { min: 3, max: 12 },
+    sintesisVisualEjemploPlanteamiento: { min: 20, max: 38 },
+    sintesisVisualEjemploPasosPerItem: { min: 10, max: 20, minCount: 2, maxCount: 3 },
+    sintesisVisualEjemploConclusion: { min: 10, max: 20 },
+    sintesisVisualMapaDefinicion: { min: 18, max: 26 },
+    sintesisVisualMapaCriterio: { min: 14, max: 22 },
+    sintesisVisualMapaError: { min: 12, max: 20 },
+    sintesisVisualMapaCorreccion: { min: 12, max: 20 },
+  },
+} as const;
+
+/**
+ * Suma exacta de los mínimos declarados en `SESSION_PLAN_WORD_CONTRACT` (1,096 palabras).
+ * Permite verificar como invariante determinista que `sum(min) <= targetMax`.
+ */
+export function computeSessionPlanContractMinWords(): number {
+  const f = SESSION_PLAN_WORD_CONTRACT.fields;
+  return (
+    f.objetivo.min +
+    f.motivacion.min +
+    f.saberesPrevios.min +
+    f.contenido.min +
+    f.ejemploResuelto.min +
+    f.practicaEnunciadoPerItem.min * f.practicaEnunciadoPerItem.count +
+    f.practicaPistaPerItem.min * f.practicaPistaPerItem.count +
+    f.practicaSolucionPerItem.min * f.practicaSolucionPerItem.count +
+    f.aplicacion.min +
+    f.autoevaluacionPerItem.min * f.autoevaluacionPerItem.count +
+    f.recursosTituloPerItem.min * f.recursosTituloPerItem.count +
+    f.productoIntegrador.min +
+    f.sintesisVisualConceptoBreve.min +
+    f.sintesisVisualFormulaORegla.min +
+    f.sintesisVisualEjemploPlanteamiento.min +
+    f.sintesisVisualEjemploPasosPerItem.min * f.sintesisVisualEjemploPasosPerItem.minCount +
+    f.sintesisVisualEjemploConclusion.min +
+    f.sintesisVisualMapaDefinicion.min +
+    f.sintesisVisualMapaCriterio.min +
+    f.sintesisVisualMapaError.min +
+    f.sintesisVisualMapaCorreccion.min
+  );
 }
 
 export function buildCanonicalSessionPlanInstructions(
@@ -12,46 +79,50 @@ export function buildCanonicalSessionPlanInstructions(
   options: CanonicalSessionPlanOptions = {}
 ): string {
   const firstSession = options.firstSession ?? 1;
+  const f = SESSION_PLAN_WORD_CONTRACT.fields;
   const missionFocus: Record<CanonicalMissionType, string> = {
     foundation: 'fundamentación, concepto cero e intuición inicial',
-    lab: 'práctica, taller, laboratorio o estudio de caso',
+    lab: adapter.practiceSpaceLabel.toLowerCase(),
     project: 'avance del proyecto integrador y producto del bloque',
     evaluation: 'cierre, síntesis y evaluación formativa del bloque',
   };
+  const actionVerbs = adapter.requiresQuantitativeData
+    ? '"tú", "observa", "analiza", "calcula", "comprueba"'
+    : '"tú", "observa", "analiza", "argumenta", "redacta"';
 
   return `CONTRATO CANÓNICO V2 DE "sessionPlans" (${missionFocus[missionType]}; inicia en la sesión ${firstSession}):
-ESTRUCTURA OBLIGATORIA DE CADA SESIÓN (~780 a 920 palabras por sesión):
-Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "observa", "analiza", "calcula", "redacta").
+ESTRUCTURA OBLIGATORIA DE CADA SESIÓN (${SESSION_PLAN_WORD_CONTRACT.targetMin} a ${SESSION_PLAN_WORD_CONTRACT.targetMax} palabras totales por sesión, incluyendo práctica con solucionario docente y sintesisVisual):
+Escribe SIEMPRE en segunda persona dirigida al estudiante (${actionVerbs}).
 PROHIBIDO usar lenguaje dirigido al docente ("el docente explica", "activar saberes", "dictamen formativo", "el estudiantado").
 
 Para CADA sesión solicitada incluye exactamente estos campos:
 (a) "sessionNumber": número entero exacto de la sesión.
-(b) "objetivo": 20 a 35 palabras; qué aprenderás y lograrás hoy, en presente o segunda persona natural. PROHIBIDO iniciar con verbos administrativos en futuro aislados o repetir el número de sesión dentro del texto.
-(c) "motivacion": 70 a 100 palabras; situación real y cercana al estudiante, conectada de forma natural con el bloque o proyecto.
-(d) "saberesPrevios": 45 a 70 palabras; conceptos o habilidades previas y una pregunta breve de activación.
-(e) "contenido": OBLIGATORIO de 320 a 440 palabras en EXACTAMENTE 3 párrafos separados por doble salto de línea (\\n\\n), de 105 a 145 palabras cada uno:
+(b) "objetivo": ${f.objetivo.min} a ${f.objetivo.max} palabras; qué aprenderás y lograrás hoy, en presente o segunda persona natural. PROHIBIDO iniciar con verbos administrativos en futuro aislados o repetir el número de sesión dentro del texto.
+(c) "motivacion": ${f.motivacion.min} a ${f.motivacion.max} palabras; situación real y cercana al estudiante, conectada de forma natural con el bloque o proyecto.
+(d) "saberesPrevios": ${f.saberesPrevios.min} a ${f.saberesPrevios.max} palabras; conceptos o habilidades previas y una pregunta breve de activación.
+(e) "contenido": OBLIGATORIO de ${f.contenido.min} a ${f.contenido.max} palabras en EXACTAMENTE 3 párrafos separados por doble salto de línea (\\n\\n), de 105 a 145 palabras cada uno:
     - Párrafo 1: definición formal de los conceptos nuevos y su significado preciso.
     - Párrafo 2: principios, leyes, fórmulas completas o estructura metodológica paso a paso, explicando cada elemento o variable.
     - Párrafo 3: criterios de interpretación, errores frecuentes y cómo verificar que el resultado o análisis es correcto.
     PROHIBIDO rellenar con frases grandilocuentes o repetir el mismo párrafo con otras palabras.
-(f) "ejemploResuelto": OBLIGATORIO de 220 a 300 palabras. ${adapter.workedExampleDirective}
+(f) "ejemploResuelto": OBLIGATORIO de ${f.ejemploResuelto.min} a ${f.ejemploResuelto.max} palabras. ${adapter.workedExampleDirective}
     REGLA DE FORMATO: "Planteamiento:", "Paso 1:", "Paso 2:", "Paso 3:" y "Paso 4:" SIEMPRE en líneas separadas mediante salto de línea (\\n). NUNCA pegues "Paso N:" después de un punto en la misma línea.
 (g) "practica": arreglo de EXACTAMENTE 2 ejercicios progresivos y AUTOCONTENIDOS:
-    - "enunciado": 45 a 80 palabras; incluye contexto, todos los datos o el fragmento necesario y una consigna final explícita con verbo imperativo o pregunta directa. PROHIBIDO remitir a otro ejercicio ("del ejercicio anterior", "con los datos del problema previo").
-    - "pista": 20 a 35 palabras; orientación metodológica específica y distinta para cada ejercicio.
-    - "solucion": arreglo de 3 a 5 cadenas ("Paso 1: ...", "Paso 2: ...", "Respuesta final: ...") con desarrollo completo.
-(h) "aplicacion": 60 a 90 palabras; transferencia al entorno cotidiano o avance concreto del proyecto.
-(i) "autoevaluacion": arreglo de 2 preguntas reflexivas específicas sobre el dominio del tema.
+    - "enunciado": ${f.practicaEnunciadoPerItem.min} a ${f.practicaEnunciadoPerItem.max} palabras; incluye contexto, todos los datos o el fragmento necesario y una consigna final explícita con verbo imperativo o pregunta directa. PROHIBIDO remitir a otro ejercicio ("del ejercicio anterior", "con los datos del problema previo").
+    - "pista": ${f.practicaPistaPerItem.min} a ${f.practicaPistaPerItem.max} palabras; orientación metodológica específica y distinta para cada ejercicio (única ayuda visible en el libro del estudiante).
+    - "solucion": arreglo de 3 a 5 cadenas ("Paso 1: ...", "Paso 2: ...", "Respuesta final: ...", ~${f.practicaSolucionPerItem.min} a ${f.practicaSolucionPerItem.max} palabras en total) de USO EXCLUSIVO para el solucionario docente (no se imprime en el libro del estudiante).
+(h) "aplicacion": ${f.aplicacion.min} a ${f.aplicacion.max} palabras; transferencia al entorno cotidiano o avance concreto del proyecto.
+(i) "autoevaluacion": arreglo de 2 preguntas reflexivas específicas sobre el dominio del tema (${f.autoevaluacionPerItem.min} a ${f.autoevaluacionPerItem.max} palabras cada una).
 (j) "recursos": arreglo de 2 recursos del catálogo curado o portales institucionales oficiales. PROHIBIDO google.com/search, youtube.com/results o URLs inventadas.
-(k) "productoIntegrador": 45 a 70 palabras; evidencia o avance concreto que incorporas al portafolio.
-(l) "sintesisVisual": objeto estructurado para 08_Presentaciones y 09_Infografías:
-    - "conceptoBreve": 25 a 38 palabras; oración completa con sujeto, verbo conjugado y predicado que explica qué es y cómo funciona el concepto central (PROHIBIDO entregar solo un título o sintagma nominal sin verbo).
+(k) "productoIntegrador": ${f.productoIntegrador.min} a ${f.productoIntegrador.max} palabras; evidencia o avance concreto que incorporas al portafolio.
+(l) "sintesisVisual": objeto OBLIGATORIO para 08_Presentaciones y 09_Infografías:
+    - "conceptoBreve": ${f.sintesisVisualConceptoBreve.min} a ${f.sintesisVisualConceptoBreve.max} palabras; oración completa con sujeto, verbo conjugado y predicado que explica qué es y cómo funciona el concepto central (PROHIBIDO entregar solo un título o sintagma nominal sin verbo).
     - "formulaOReglaClave": ${adapter.keyFormulaOrRuleDirective}
-    - "ejemploBreve": DEBE sintetizar el MISMO caso y las MISMAS ecuaciones/datos de "ejemploResuelto" (PROHIBIDO inventar otro ejercicio distinto o telegráfico como "x + y = 10. Hallar x, y"):
-      * "planteamiento": 22 a 40 palabras autónomas con contexto, datos y meta clara (>= 45 caracteres).
-      * "pasos": 2 o 3 pasos completos de 10 a 22 palabras que muestren la sustitución/operación y el valor final despejado o inferencia verificada.
-      * "conclusion": 10 a 20 palabras con el resultado concreto y su interpretación.
-    - "mapaConceptual": { "definicionClave": 18 a 28 palabras sin tautologías; "criterioDesarrollo": 14 a 24 palabras; "errorComun": 12 a 22 palabras; "correccionBreve": 12 a 22 palabras }
+    - "ejemploBreve": DEBE sintetizar el MISMO caso y las MISMAS ecuaciones/datos o fuentes de "ejemploResuelto" (PROHIBIDO inventar otro ejercicio distinto o telegráfico):
+      * "planteamiento": ${f.sintesisVisualEjemploPlanteamiento.min} a ${f.sintesisVisualEjemploPlanteamiento.max} palabras autónomas con contexto, datos/fuente y meta clara (>= 45 caracteres).
+      * "pasos": ${f.sintesisVisualEjemploPasosPerItem.minCount} o ${f.sintesisVisualEjemploPasosPerItem.maxCount} pasos completos de ${f.sintesisVisualEjemploPasosPerItem.min} a ${f.sintesisVisualEjemploPasosPerItem.max} palabras que muestren el desarrollo y la conclusión o valor verificado.
+      * "conclusion": ${f.sintesisVisualEjemploConclusion.min} a ${f.sintesisVisualEjemploConclusion.max} palabras con el resultado concreto y su interpretación.
+    - "mapaConceptual": { "definicionClave": ${f.sintesisVisualMapaDefinicion.min} a ${f.sintesisVisualMapaDefinicion.max} palabras sin tautologías; "criterioDesarrollo": ${f.sintesisVisualMapaCriterio.min} a ${f.sintesisVisualMapaCriterio.max} palabras; "errorComun": ${f.sintesisVisualMapaError.min} a ${f.sintesisVisualMapaError.max} palabras; "correccionBreve": ${f.sintesisVisualMapaCorreccion.min} a ${f.sintesisVisualMapaCorreccion.max} palabras }
 
 REGLAS DE HIGIENE TIPOGRÁFICA Y MATEMÁTICA:
 1. Usa símbolos Unicode limpios: √, ², ³, ≠, ≤, ≥, ≈, °, ×, ÷, π, Δ.
