@@ -345,9 +345,11 @@ function tryExtractLinearSystemParameters(
  * Intenta extraer parámetros a, b, c de expresiones cuadráticas en el texto:
  * Ejemplos: "f(x) = x² - 4", "y = -x^2 + 4", "f(x) = 2x² - 3x + 1", "x² - 5x + 6 = 0"
  */
-function tryExtractQuadraticParameters(text: string): { a: number; b: number; c: number; title: string } | null {
+export function tryExtractQuadraticParameters(text: string): { a: number; b: number; c: number; title: string } | null {
   const clean = text.replace(/−/g, '-').replace(/[–—]/g, '-');
-  const quadRegex = /(?:(?:f\s*\(\s*x\s*\)|y)\s*=\s*)?([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?(?:\s*=\s*0)?/gi;
+  // Evitar capturar `x²` dentro de fórmulas genéricas literales ("ax² + bx + c = 0") exigiendo que no preceda letra.
+  const quadRegex = /(?:(?:f\s*\(\s*x\s*\)|y)\s*=\s*)?(?<![a-zA-Z])([+-]?\s*\d*(?:\.\d+)?)\s*\*?\s*x\s*(?:\^2|²)(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*\*?\s*x)?(?:\s*([+-])\s*(\d+(?:\.\d+)?))?(?:\s*=\s*0)?/gi;
+  const candidates: Array<{ a: number; b: number; c: number; title: string; specificity: number }> = [];
   for (const match of clean.matchAll(quadRegex)) {
     if (!/(?:\^2|²)/.test(match[0])) continue;
     const aStr = match[1].replace(/\s+/g, '');
@@ -380,16 +382,27 @@ function tryExtractQuadraticParameters(text: string): { a: number; b: number; c:
     if (Math.abs(a) <= 100 && Math.abs(b) <= 1000 && Math.abs(c) <= 10000 && a !== 0) {
       const eqSignB = b >= 0 ? `+ ${b}x` : `- ${Math.abs(b)}x`;
       const eqSignC = c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`;
-      const eqStr = `f(x) = ${a === 1 ? '' : a === -1 ? '-' : a}x² ${b !== 0 ? eqSignB : ''} ${c !== 0 ? eqSignC : ''}`.trim();
-      return {
+      const eqStr = `f(x) = ${a === 1 ? '' : a === -1 ? '-' : a}x² ${b !== 0 ? eqSignB : ''} ${c !== 0 ? eqSignC : ''}`
+        .replace(/\s+/g, ' ')
+        .trim();
+      const specificity =
+        (b !== 0 ? 2 : 0) +
+        (c !== 0 ? 2 : 0) +
+        (Math.abs(a) !== 1 ? 1 : 0) +
+        (/=\s*0/.test(match[0]) ? 1 : 0);
+      candidates.push({
         a,
         b,
         c,
         title: `Modelación Gráfica: Función Cuadrática ${eqStr}`,
-      };
+        specificity,
+      });
     }
   }
-  return null;
+  if (candidates.length === 0) return null;
+  candidates.sort((left, right) => right.specificity - left.specificity);
+  const best = candidates[0]!;
+  return { a: best.a, b: best.b, c: best.c, title: best.title };
 }
 
 /**

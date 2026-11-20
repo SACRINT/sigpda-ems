@@ -225,6 +225,8 @@ interface DiagramBuildOptions {
   yLabel?: string;
   session?: SessionPlan;
   allowMissionFallback?: boolean;
+  /** Texto del ejemplo efectivamente mostrado en la lámina/infografía para garantizar 100% coherencia Ejemplo ↔ FIG. 01. */
+  preferredExampleText?: string;
 }
 
 function clean(value: string | null | undefined): string {
@@ -1623,6 +1625,13 @@ function tryDetectDiagramFromTexts(
 }
 
 function buildMathDiagram(mission: MissionSection, options: DiagramBuildOptions): SacrintDiagramSpec {
+  if (options.preferredExampleText && options.preferredExampleText.trim().length >= 12) {
+    const preferredClean = cleanSacrintText(options.preferredExampleText);
+    if (preferredClean && !/sin coeficientes numéricos/i.test(preferredClean)) {
+      const preferredMatch = tryDetectDiagramFromTexts(preferredClean, preferredClean, options);
+      if (preferredMatch?.available) return preferredMatch;
+    }
+  }
   if (options.session) {
     const sessionCore = cleanSacrintText(collectSessionCoreSource(options.session));
     if (/sin coeficientes numéricos/i.test(sessionCore)) {

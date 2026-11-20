@@ -97,7 +97,7 @@ function isMaterialCompatibleWithSubject(
     return allowedCategories.has(item.category);
   }
 
-  // 2. Matemáticas y Pensamiento Variacional: bloquear cocina, agropecuaria, soldadura y reactivos
+  // 2. Matemáticas y Pensamiento Variacional: bloquear cocina, agropecuaria, soldadura, laboratorio químico/analítico y reactivos
   if (
     normUac.includes('matemat') ||
     normUac.includes('variacional') ||
@@ -105,7 +105,28 @@ function isMaterialCompatibleWithSubject(
     normUac.includes('estadistica')
   ) {
     const disallowedCategories = new Set(['alimentos', 'agro', 'laboratorio_quimica', 'laboratorio_bio', 'industrial']);
-    if (disallowedCategories.has(item.category) || item.slug === 'tabla-cortar') return false;
+    const disallowedMathSlugs = new Set([
+      'tabla-cortar',
+      'balanza-digital',
+      'balanza-analitica',
+      'balanza-granataria',
+      'matraz-erlenmeyer',
+      'probeta-graduada',
+      'bureta',
+      'pipeta',
+      'mechero-lab',
+      'microscopio',
+      'tubo-ensayo',
+    ]);
+    if (
+      disallowedCategories.has(item.category) ||
+      disallowedMathSlugs.has(item.slug) ||
+      /\b(?:pesaje\s+anal[ií]tico|laboratorio\s+(?:qu[ií]mico|escolar|cl[ií]nico)|muestras?\s+qu[ií]micas?)\b/i.test(
+        `${item.name} ${item.altText || ''}`
+      )
+    ) {
+      return false;
+    }
   }
 
   // 3. Humanidades, Ciencias Sociales y Lengua: bloquear cocina, taller industrial y química

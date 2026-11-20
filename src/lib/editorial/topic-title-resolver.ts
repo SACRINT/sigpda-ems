@@ -148,6 +148,10 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
         ''
       )
       .replace(
+        /^(?:aprendes\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|tabular))?|comprendes(?:\s+y\s+aplicas)?|realizas|consolidas|socializas(?:\s+(?:los|tus)\s+hallazgos(?:\s+de)?)?|integras(?:,\s*depuras)?(?:\s+y\s+(?:validas|eval[uú]as|consolidas))?|validas(?:\s+y\s+depuras)?|depuras(?:\s+y\s+validas)?|aplicas(?:\s+con\s+precisi[oó]n)?|calculas|construyes|modelas(?:\s+matem[aá]ticamente|\s+algebraicamente)?|determinas|identificas(?:\s+y\s+aplicas)?|resuelves(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|analizas(?:\s+y\s+modelas)?|dise[ñn]as|utilizas|empleas|eval[uú]as(?:\s+de\s+(?:forma|manera)\s+formativa)?|clasificas(?:\s+y\s+mides)?|comparas|interpretas|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas(?:\s+y\s+consolidas)?)\s+/i,
+        ''
+      )
+      .replace(
         /^(?:recuperar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|integrar(?:[aá]s)?(?:,\s*depurar(?:[aá]s)?)?(?:\s+y\s+(?:validar(?:[aá]s)?|evaluar(?:[aá]s)?|consolidar(?:[aá]s)?))?(?:\s+(?:los\s+conocimientos|los\s+modelos|las\s+soluciones))?(?:\s+(?:sobre|de|en))?|optimizar(?:[aá]s)?(?:,\s*depurar(?:[aá]s)?)?(?:\s+y\s+(?:validar(?:[aá]s)?|consolidar(?:[aá]s)?|depurar(?:[aá]s)?))?(?:\s+(?:la\s+versi[oó]n\s+depurada\s+y\s+validada\s+de\s+)?(?:tu\s+evidencia\s+formativa|los\s+modelos(?:\s+matem[aá]ticos)?)\s*(?:mediante|integrando|sobre|de)?)?|depurar(?:[aá]s)?(?:\s+y\s+validar(?:[aá]s)?)?|validar(?:[aá]s)?|evaluar(?:[aá]s)?(?:\s+(?:de\s+manera\s+formativa|formativamente)(?:\s+(?:los|las|el|la))?|\s+tus\s+(?:conocimientos|aprendizajes)(?:\s+y\s+consolidar(?:\s+tu\s+dominio)?)?(?:\s+(?:sobre|de|del|en|mediante))?|\s+tu\s+aprendizaje\s+mediante(?:\s+la\s+aplicaci[oó]n\s+de)?)?|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?(?:\s+mediante(?:\s+la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?)?)?)?|aprender(?:[aá]s)?\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|Tabular|tabular))?|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|visualizar(?:[aá]s)?(?:\s+gr[aá]ficamente)?|representar(?:[aá]s)?(?:\s+gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?)?|graficar(?:[aá]s)?(?:\s+y\s+tabular(?:[aá]s)?)?|tabular(?:[aá]s)?|modelar(?:[aá]s)?(?:\s+matem[aá]ticamente|\s+algebraicamente)?|calcular(?:[aá]s)?|determinar(?:[aá]s)?|clasificar(?:[aá]s)?(?:\s+y\s+medir(?:[aá]s)?)?|medir(?:[aá]s)?|verificar(?:[aá]s)?|argumentar(?:[aá]s)?|elaborar(?:[aá]s)?|dise[ñn]ar(?:[aá]s)?|interpretar(?:[aá]s)?|sintetizar(?:[aá]s)?|presentar(?:[aá]s)?|socializar(?:[aá]s)?(?:\s+tus\s+hallazgos(?:\s+de)?|\s+hallazgos)?|exponer(?:[aá]s)?|trabajar(?:[aá]s)?|comparar(?:[aá]s)?|identificar(?:[aá]s)?|comprender(?:[aá]s)?|analizar(?:[aá]s)?(?:\s+y\s+modelar(?:[aá]s)?(?:\s+matem[aá]ticamente)?)?|aplicar(?:[aá]s)?|resolver(?:[aá]s)?(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|construir(?:[aá]s)?(?:\s+y\s+analizar(?:[aá]s)?)?|estructurar(?:[aá]s)?|dominar(?:[aá]s)?|contrastar(?:[aá]s)?|delimitar(?:[aá]s)?|explorar(?:[aá]s)?|consolidar(?:[aá]s)?|reflexionar(?:[aá]s)?(?:\s+sobre(?:\s+tus\s+aprendizajes\s+de)?)?|realizar(?:[aá]s)?)\s+/i,
         ''
       )
@@ -185,7 +189,7 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
 
   // Cortar colas circunstanciales o administrativas que no son parte del concepto disciplinar
   text = text
-    .replace(/\s+y\s+(?:activar[aá]s|delimitar[aá]s|aplicar[aá]s|evaluar[aá]s|reflexionar[aá]s|presentar[aá]s|socializar[aá]s|defender[aá]s|validar[aá]s|consolidar[aá]s|comunicar[aá]s|interpretar[aá]s|verificar[aá]s)\b.*$/i, '')
+    .replace(/\s+y\s+(?:activar[aá]s|delimitar[aá]s|aplicar[aá]s|evaluar[aá]s|reflexionar[aá]s|presentar[aá]s|socializar[aá]s|defender[aá]s|validar[aá]s|consolidar[aá]s|comunicar[aá]s|interpretar[aá]s|verificar[aá]s|defiendes|presentas|socializas|validas|eval[uú]as|aplicas|consolidas|expones|comunicas|verificas)\b.*$/i, '')
     .replace(/\s+y\s+su\s+relaci[oó]n\s+con\s+la\s+problem[aá]tica\b.*$/i, '')
     .replace(/\s+como\s+una\s+herramienta(?:\s+matem[aá]tica)?(?:\s+fundamental)?\s+para\s+modelar.*$/i, ' y modelado de situaciones')
     .replace(/\s+para\s+modelar\s+situaciones\s+de\s+tu\s+entorno.*$/i, '')
@@ -200,7 +204,7 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
   // Si aún empieza con palabra inválida ("Y ", "Sobre ", "Tu ", etc.) o cola adverbial/institucional, limpiar de nuevo
   text = text
     .replace(
-      /^(?:gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?\s+|anal[ií]ticamente\s+|algebraicamente\s+|conceptos\s+(?:diagn[oó]sticos|fundamentales|b[aá]sicos)\s+(?:de(?:l)?|sobre)\s+|los\s+principios\s+de\s+|situaciones\s+modeladas\s+por\s+|matriz\s+de\s+contextualizaci[oó]n(?:\s+y\s+(?:una\s+)?ruta\s+de\s+trabajo\s+aplicando|\s+para\s+identificar)?\s+|y\s+|sobre\s+|tu\s+|tus\s+|su\s+|sus\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)/i,
+      /^(?:gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?\s+|anal[ií]ticamente\s+|algebraicamente\s+|riguros[oa]s?\s+de\s+|detallad[oa]s?\s+de\s+|conceptos\s+(?:diagn[oó]sticos|fundamentales|b[aá]sicos)\s+(?:de(?:l)?|sobre)\s+|los\s+principios\s+de\s+|situaciones\s+modeladas\s+por\s+|matriz\s+de\s+contextualizaci[oó]n(?:\s+y\s+(?:una\s+)?ruta\s+de\s+trabajo\s+aplicando|\s+para\s+identificar)?\s+|y\s+|sobre\s+|tu\s+|tus\s+|su\s+|sus\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)/i,
       ''
     )
     .replace(
@@ -268,7 +272,7 @@ function extractSectionHeadingFromConceptos(conceptosClave: string | null | unde
   }
   const firstSentence = normalizeEditorialText(conceptosClave).split(/(?<=[.?!])\s+/)[0] || '';
   const subjectMatch = firstSentence.match(
-    /^(?:El|La|Los|Las|Un|Una)\s+([^,.;:()]{6,84}?)(?:\s+(?:es\b|son\b|constituye\b|representa\b|requiere\b|permite\b|describe\b|mide\b|establece\b|estudia\b|analiza\b|compara\b|modela\b)|,\s*tambi[eé]n\s+conocid[oa])/i
+    /^(?:El|La|Los|Las|Un|Una)\s+([^,.;:()]{6,84}?)(?:\s+(?:es\b|son\b|constituye[ns]?\b|representa[ns]?\b|requiere[ns]?\b|permite[ns]?\b|describe[ns]?\b|mide[ns]?\b|establece[ns]?\b|estudia[ns]?\b|analiza[ns]?\b|compara[ns]?\b|modela[ns]?\b|garantiza[ns]?\b|integra[ns]?\b|consolida[ns]?\b|valida[ns]?\b|sintetiza[ns]?\b|demuestra[ns]?\b|verifica[ns]?\b|traduce[ns]?\b|relaciona[ns]?\b|vincula[ns]?\b)|,\s*tambi[eé]n\s+conocid[oa])/i
   );
   if (subjectMatch && subjectMatch[1]) {
     const subjectCandidate = extractDisciplinaryConceptPhrase(subjectMatch[1]);
@@ -423,6 +427,10 @@ export function sanitizeWorkbookTocTitle(
   const base = normalizeEditorialText(rawTitle || '')
     .replace(/^\[.*?\]\s*/, '')
     .replace(/^misi[oó]n\s*\d+\s*:\s*/i, '')
+    .replace(
+      /(Sesi[oó]n\s+\d+\s*:\s*)([^—–\n]+)$/i,
+      (_m, sesPrefix: string, desc: string) => `${sesPrefix}${normalizeSessionDescriptorTense(desc)}`
+    )
     .replace(/(\s(?:—|–|:)\s+)([a-záéíóúñ])/g, (_m, sep: string, ch: string) => `${sep}${ch.toUpperCase()}`)
     .trim();
   if (!base) {

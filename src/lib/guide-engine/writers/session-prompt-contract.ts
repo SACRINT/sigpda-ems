@@ -45,15 +45,18 @@ Para CADA sesión solicitada incluye exactamente estos campos:
 (j) "recursos": arreglo de 2 recursos del catálogo curado o portales institucionales oficiales. PROHIBIDO google.com/search, youtube.com/results o URLs inventadas.
 (k) "productoIntegrador": 45 a 70 palabras; evidencia o avance concreto que incorporas al portafolio.
 (l) "sintesisVisual": objeto estructurado para 08_Presentaciones y 09_Infografías:
-    - "conceptoBreve": 25 a 38 palabras; síntesis explicativa con sujeto, verbo y predicado que responde qué es y cómo funciona el concepto central.
+    - "conceptoBreve": 25 a 38 palabras; oración completa con sujeto, verbo conjugado y predicado que explica qué es y cómo funciona el concepto central (PROHIBIDO entregar solo un título o sintagma nominal sin verbo).
     - "formulaOReglaClave": ${adapter.keyFormulaOrRuleDirective}
-    - "ejemploBreve": { "planteamiento": 22 a 40 palabras autónomas con datos y objetivo; "pasos": 2 o 3 pasos de 10 a 22 palabras con operaciones o inferencias completas; "conclusion": 10 a 20 palabras con resultado o interpretación concreta }
+    - "ejemploBreve": DEBE sintetizar el MISMO caso y las MISMAS ecuaciones/datos de "ejemploResuelto" (PROHIBIDO inventar otro ejercicio distinto o telegráfico como "x + y = 10. Hallar x, y"):
+      * "planteamiento": 22 a 40 palabras autónomas con contexto, datos y meta clara (>= 45 caracteres).
+      * "pasos": 2 o 3 pasos completos de 10 a 22 palabras que muestren la sustitución/operación y el valor final despejado o inferencia verificada.
+      * "conclusion": 10 a 20 palabras con el resultado concreto y su interpretación.
     - "mapaConceptual": { "definicionClave": 18 a 28 palabras sin tautologías; "criterioDesarrollo": 14 a 24 palabras; "errorComun": 12 a 22 palabras; "correccionBreve": 12 a 22 palabras }
 
 REGLAS DE HIGIENE TIPOGRÁFICA Y MATEMÁTICA:
 1. Usa símbolos Unicode limpios: √, ², ³, ≠, ≤, ≥, ≈, °, ×, ÷, π, Δ.
-2. PROHIBIDO escribir "raiz(...)", "sqrt(...)", "!=", "\\frac", "$...$" o subíndices con guion bajo como "x_v" o "M_(simple)".
-3. Contextualiza en "motivacion" y "aplicacion" sin repetir mecánicamente "en Puebla" ni "PAEC" en cada párrafo, paso o ejercicio.
+2. PROHIBIDO escribir "raiz(...)", "sqrt(...)", "!=", "\\frac", "\\begin{vmatrix}", "\\begin{pmatrix}", "\\begin{bmatrix}", "\\\\", "$...$" o subíndices con guion bajo como "x_v", "D_x" o "M_(simple)". Para determinantes usa notación lineal clara, p. ej. D = |a1, b1 ; a2, b2| = (a1·b2) - (a2·b1).
+3. Contextualiza en "motivacion" y "aplicacion" sin repetir mecánicamente "en Puebla" ni "PAEC" en cada párrafo, paso o ejercicio, y SIN introducir analogías de laboratorio químico ni seguridad en taller cuando la asignatura no es experimental ni técnica.
 4. Sintaxis JSON estricta: usa comillas simples dentro de textos y evita comillas dobles sin escapar.`;
 }
 

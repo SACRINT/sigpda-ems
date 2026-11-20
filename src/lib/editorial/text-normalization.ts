@@ -162,7 +162,7 @@ const UNICODE_TO_WINANSI_MAP: Record<string, string> = {
   'ₐ': '_a',
   'ₑ': '_e',
   'ₒ': '_o',
-  'ₓ': '_x',
+  'ₓ': 'x',
   'ᵢ': '_i',
   'ₙ': '_n',
 };
@@ -186,6 +186,31 @@ function wrapFractionPart(part: string): string {
     return trimmed;
   }
   return `(${trimmed})`;
+}
+
+function convertLatexMatrices(value: string): string {
+  return value.replace(
+    /\\begin\{(vmatrix|Vmatrix|pmatrix|bmatrix|Bmatrix|matrix)\}([\s\S]*?)\\end\{\1\}/g,
+    (_m, env: string, body: string) => {
+      const rows = body
+        .trim()
+        .split(/\\\\|\r?\n/)
+        .map((row) =>
+          row
+            .split('&')
+            .map((cell) => cell.trim())
+            .filter(Boolean)
+            .join(', ')
+        )
+        .filter(Boolean);
+      if (rows.length === 0) return '';
+      const inner = rows.join('; ');
+      if (env === 'vmatrix' || env === 'Vmatrix') {
+        return `|${inner}|`;
+      }
+      return `[${inner}]`;
+    }
+  );
 }
 
 function convertLatexFractionsAndRoots(value: string): string {
@@ -403,11 +428,14 @@ export function formatSolvedExampleBlocks(raw: string | null | undefined): strin
     .replace(/(^|\n)([ \t]*\d+\.)\s+\d+\.\s+/g, '$1$2 ')
     // Strip redundant leading numbering before explicit Paso N: / Respuesta final: labels
     .replace(/^\s*\d+\.\s*(?=(?:\*\*)?\bPaso\s*\d+\s*[:.\-–])/gim, '')
+    .replace(/(^|\n)[ \t]*\d+\.\s*\n+(?=[ \t]*(?:\*\*)?\bPaso\s*\d+\s*[:.\-–])/gim, '$1')
     .replace(/(\n[ \t]*)\d+\.\s*(?=(?:\*\*)?(?:Respuesta|Conclusi[oó]n|Interpretaci[oó]n|Resultado)(?:\s+final)?\s*:)/gi, '$1')
     .replace(/(?<![=+\-*/^])[ \t]+(\d{1,2})\.\s*(?=\bPaso\s*\d+\s*[:.\-–])/gi, (match, itemNumber: string) => {
       const value = Number(itemNumber);
       return value >= 1 && value <= 25 ? '\n\n' : match;
     })
+    .replace(/([^\n])\r?\n[ \t]*(?=(?:\*\*)?\bPaso\s*\d+\s*[:.\-–])/gi, '$1\n\n')
+    .replace(/([)\]|])[ \t]*\n\n(?=(?:\*\*)?\bPaso\s*\d+\s*[:.\-–])/gi, '$1.\n\n')
     .replace(/[ \t]+(?=\bPaso\s*\d+\s*[:.\-–])/gi, (match, offset: number, full: string) => {
       const before = full.slice(Math.max(0, offset - 20), offset).toLowerCase();
       if (/\b(?:el|del|al|en|de|un|este|ese|siguiente|primer|segundo|tercer|cuarto)\s*$/.test(before)) {
@@ -501,7 +529,8 @@ export function normalizeEditorialText(
     return (parts[1] || parts[0] || '').trim();
   });
 
-  // 4. Fracciones y raíces LaTeX
+  // 4. Matrices, fracciones y raíces LaTeX
+  text = convertLatexMatrices(text);
   text = convertLatexFractionsAndRoots(text);
 
   // 5. Mapa único de símbolos LaTeX y operadores ASCII crudos (!=)
@@ -516,7 +545,8 @@ export function normalizeEditorialText(
     .replace(/\^\{([^{}]+)\}/g, (_m, exp: string) => convertUnicodeScript(exp, SUPERSCRIPTS, '^'))
     .replace(/_\{([^{}]+)\}/g, (_m, sub: string) => convertUnicodeScript(sub, SUBSCRIPTS, '_'))
     .replace(/([A-Za-z0-9)\]])\^([0-9ni])/g, (_m, base: string, ch: string) => `${base}${SUPERSCRIPTS[ch] || `^${ch}`}`)
-    .replace(/([A-Za-z0-9)\]])_([0-9ainexv])/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || `_${ch}`}`);
+    .replace(/([A-Za-z0-9)\]])_([0-9ainexv])/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || `_${ch}`}`)
+    .replace(/\b([ADΔM])_([xytsce0-9])\b/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || ch}`);
 
   // 6.9. Normalizar notación ASCII de raíz, subíndices crudos y superíndices partidos.
   // Las fuentes editoriales soportan el glifo √, por lo que se conserva Unicode.
@@ -533,7 +563,9 @@ export function normalizeEditorialText(
   text = text.replace(/(?<=[0-9)\]⁰¹²³⁴⁵⁶⁷⁸⁹])\s*\bapprox\b\s*(?=[+\-0-9([√])/gi, ' ≈ ');
 
   // 7.1 Higiene de puntuación y espacios sin romper decimales, versiones, ... ni URLs
-  text = normalizeEditorialPunctuation(text);
+  text = normalizeEditorialPunctuation(text)
+    .replace(/\brigor\s+anal[ií]tico\s+riguroso\b/gi, 'rigor analítico')
+    .replace(/\brigor\s+riguroso\b/gi, 'rigor');
 
   // 8. Si el destino requiere WinAnsi estricto, trasladar caracteres Unicode fuera de Latin-1
   if (options?.target === 'winansi') {
@@ -635,10 +667,38 @@ const SECOND_PERSON_FUTURE_VERB_MAP: Record<string, string> = {
   organizaras: 'organizar',
   estructuraras: 'estructurar',
   reflexionaras: 'reflexionar',
+  desarrollaras: 'desarrollar',
+  demostraras: 'demostrar',
+  estimaras: 'estimar',
+  comunicaras: 'comunicar',
+  proyectaras: 'proyectar',
+  documentaras: 'documentar',
+  emplearas: 'emplear',
+  utilizaras: 'utilizar',
+  registraras: 'registrar',
+  planearas: 'planear',
+  generaras: 'generar',
+  reconoceras: 'reconocer',
+  seleccionaras: 'seleccionar',
+  estableceras: 'establecer',
+  sustituiras: 'sustituir',
+  despejaras: 'despejar',
+  simplificaras: 'simplificar',
+  factorizaras: 'factorizar',
+  trazaras: 'trazar',
+  dibujaras: 'dibujar',
+  examinaras: 'examinar',
+  investigaras: 'investigar',
+  revisaras: 'revisar',
+  resumiras: 'resumir',
+  obtendras: 'obtener',
+  tendras: 'tener',
+  haras: 'hacer',
+  distinguiras: 'distinguir',
 };
 
 const SECOND_PERSON_FUTURE_VERB_RE =
-  /\b(?:Identificar|Construir|Comprender|Aplicar|Visualizar|Resolver|Representar|Dominar|Evaluar|Realizar|Clasificar|Medir|Calcular|Analizar|Recuperar|Contrastar|Integrar|Optimizar|Socializar|Defender|Tabular|Explorar|Elaborar|Modelar|Presentar|Delimitar|Validar|Consolidar|Justificar|Argumentar|Dise[ñn]ar|Interpretar|Explicar|Verificar|Comprobar|Propondr|Proponer|Redactar|Relacionar|Comparar|Determinar|Expondr|Sintetizar|Graficar|Formular|Organizar|Estructurar|Reflexionar)[áa]s\b/gi;
+  /\b(?:Identificar|Construir|Comprender|Aplicar|Visualizar|Resolver|Representar|Dominar|Evaluar|Realizar|Clasificar|Medir|Calcular|Analizar|Recuperar|Contrastar|Integrar|Optimizar|Socializar|Defender|Tabular|Explorar|Elaborar|Modelar|Presentar|Delimitar|Validar|Consolidar|Justificar|Argumentar|Dise[ñn]ar|Interpretar|Explicar|Verificar|Comprobar|Propondr|Proponer|Redactar|Relacionar|Comparar|Determinar|Expondr|Sintetizar|Graficar|Formular|Organizar|Estructurar|Reflexionar|Desarrollar|Demostrar|Estimar|Comunicar|Proyectar|Documentar|Emplear|Utilizar|Registrar|Planear|Generar|Reconocer|Seleccionar|Establecer|Sustituir|Despejar|Simplificar|Factorizar|Trazar|Dibujar|Examinar|Investigar|Revisar|Resumir|Obtendr|Tendr|Har|Distinguir)[áa]s\b/gi;
 
 /**
  * Convierte encabezados o descriptores redactados en segunda persona del futuro
@@ -651,7 +711,9 @@ export function normalizeSessionDescriptorTense(raw: string | null | undefined):
     .replace(/^(?:En\s+esta\s+sesi[oó]n\s+|Hoy\s+)?(?:Aprender[áa]s\s+a|Vas\s+a)\s+/i, '')
     .replace(/\b(?:aprender[áa]s\s+a|vas\s+a)\s+([a-záéíóúüñ]+r)\b/gi, '$1')
     .replace(/^Recuperar\s+(?:tus\s+|los\s+)?saberes\s+previos\s+(?:sobre|de)\s+/i, 'Saberes previos: ')
-    .replace(/\btus\s+(conocimientos|saberes|aprendizajes|hallazgos|procedimientos|habilidades|competencias|resultados|productos|datos|c[aá]lculos|reportes|argumentos|an[aá]lisis)\b/gi, 'los $1')
+    .replace(/\btus\s+(habilidades|competencias|estrategias|evidencias|herramientas|t[eé]cnicas|operaciones|soluciones|ecuaciones|conclusiones|gr[aá]ficas|tablas|medidas)\b/gi, 'las $1')
+    .replace(/\btus\s+(conocimientos|saberes|aprendizajes|hallazgos|procedimientos|resultados|productos|datos|c[aá]lculos|reportes|argumentos|an[aá]lisis)\b/gi, 'los $1')
+    .replace(/\blos\s+(habilidades|competencias|estrategias|evidencias|herramientas|t[eé]cnicas|operaciones|soluciones|ecuaciones|conclusiones|gr[aá]ficas|tablas|medidas)\b/gi, 'las $1')
     .replace(/\btu\s+(evidencia(?:\s+formativa)?|investigaci[oó]n|matriz|propuesta|bit[aá]cora|tabla|gr[aá]fica|soluci[oó]n|comprensi[oó]n)\b/gi, 'la $1')
     .replace(/\btu\s+(proyecto(?:\s+\w+)?|reporte(?:\s+\w+)?|prototipo(?:\s+\w+)?|modelo(?:\s+\w+)?|aprendizaje|entorno|contexto)\b/gi, 'el $1')
     .replace(/\bde\s+el\s+/gi, 'del ')
@@ -668,8 +730,9 @@ export function normalizeSessionDescriptorTense(raw: string | null | undefined):
   });
   out = out
     .replace(/^Recuperar\s+(?:los\s+)?saberes\s+previos\s*(?::|sobre|de)\s*/i, 'Saberes previos: ')
-    .replace(/\bde\s+el\s+/gi, 'del ')
-    .replace(/\ba\s+el\s+/gi, 'al ');
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\s+/gi, 'del ')
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\s+/gi, 'al ')
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])y\s+(?=(?:i|hi(?!e))[a-záéíóúñ])/gi, 'e ');
   if (/^[a-záéíóúüñ]/.test(out)) {
     out = out.charAt(0).toUpperCase() + out.slice(1);
   }

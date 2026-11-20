@@ -53,6 +53,8 @@ const DANGLING_WORDS_SET = new Set([
   'esta', 'está', 'estan', 'están', 'tiene', 'tienen', 'posee', 'poseen', 'hay', 'debe', 'deben',
   'puede', 'pueden', 'permite', 'permiten', 'requiere', 'requieren', 'representa',
   'representan', 'denota', 'modela', 'modelan', 'determina', 'calcula', 'calcular',
+  'halla', 'encuentra', 'aplica', 'aplicar', 'soluciona', 'solucionar',
+  'explica', 'justifica', 'sustenta', 'sustentar', 'reconoce', 'reconocer', 'detalla', 'detallar',
   'encontrar', 'obtener', 'verificar', 'verifica', 'comprueba', 'plantea', 'resuelve',
   'utilizando', 'aplicando', 'apoyandote', 'apoyándote', 'considerando', 'sabiendo',
   'dado', 'dada', 'dados', 'dadas', 'igualando', 'sumando', 'restando',
@@ -89,6 +91,8 @@ const DANGLING_WORDS_SET = new Set([
   'incluye', 'incluyen', 'contiene', 'contienen', 'abarca', 'abarcan', 'comprende', 'comprenden',
   'implica', 'implican', 'ofrece', 'ofrecen', 'brinda', 'brindan', 'otorga', 'otorgan',
   'genera', 'generan', 'produce', 'producen',
+  'alterar', 'establece', 'establecen', 'completa', 'completan', 'traduce', 'traducen',
+  'determinan', 'calculan', 'explican', 'resuelven', 'demuestran', 'argumentan', 'justifican',
   // Verbos en segunda persona del singular (tú) que exigen objeto directo o infinitivo
   'debes', 'puedes', 'tienes', 'necesitas', 'requieres', 'realizas', 'aplicas', 'calculas',
   'obtienes', 'observas', 'comparas', 'sustituyes', 'despejas', 'divides', 'multiplicas',
@@ -171,6 +175,22 @@ export function hasDanglingEnding(raw: string): boolean {
     if (/(?:\d|[)\]}]|%)\s+['"]?y['"]?$/i.test(withoutTrailingDot)) {
       return true;
     }
+    const isLikelyTwoVariableMath =
+      /\bx\b|2x2|2×2|sistema|ecuaciones\s+lineales|par(?:es)?\s+ordenad|plano\s+cartesiano|ejes?\s|coordenadas?|['"]y['"]|=/i.test(
+        withoutTrailingDot
+      );
+    // "entre ... y." es SIEMPRE la conjunción truncada ("entre una ecuación de una variable y [una de dos]"), nunca la variable y.
+    if (/\bentre\s+.+\s+y$/i.test(withoutTrailingDot)) {
+      return true;
+    }
+    // "de la incógnita y" / "para aislar y" en una oración de una sola variable (sin x ni 'y' ni sistema)
+    // es casi siempre la conjunción truncada ("...la incógnita y verifica", "...para aislar y comprobar").
+    if (
+      /\b(?:de\s+la\s+inc[oó]gnita|para\s+aislar|para\s+despejar)\s+y$/i.test(withoutTrailingDot) &&
+      !isLikelyTwoVariableMath
+    ) {
+      return true;
+    }
     const hasExplicitYVariableContext =
       /\b(?:variable|inc[oó]gnita|valor(?:es)?\s+de|despejar?|a[ií]slar?|eliminar?|sustituir|sustituye|eval[uú]a|evaluar|graficar?|eje|coordenada|ordenada|componente|t[eé]rmino|miembro|respecto\s+a|para|de|en)\s+['"]?y['"]?$/i.test(
         withoutTrailingDot
@@ -184,7 +204,7 @@ export function hasDanglingEnding(raw: string): boolean {
   if (/^[xzbcmn]$/.test(lastWord) || (lastWord === 'a' && /[=+\-−*/×·(]\s*a$|\d\s*a$|\b(?:variable|inc[oó]gnita|coeficiente|lado|cateto)\s+a$/i.test(withoutTrailingDot))) {
     const hasVariableContext =
       // Variable/incógnita nombrada o verbo matemático de operación sobre la variable
-      /\b(?:variable|inc[oó]gnita|valor(?:es)?(?:\s+de)?|despejar|despeja|despejas|aisla|a[ií]sla|eliminar|elimina|calcula|calcular|halla|hallar|encuentra|determina|resuelve|sustituye|eval[uú]a|grafica|define|vale|para|de|en|con|si|entre|por|eje|cateto|lado|[aá]ngulo|punto|punto\s+de|recta|coeficiente|t[eé]rmino|miembro)\s+['"]?[xzabcmn]['"]?$/i.test(
+      /\b(?:variable|inc[oó]gnita|valor(?:es)?(?:\s+de)?|despejar|despeja|despejas|aislar|a[ií]slar|aisla|a[ií]sla|eliminar|elimina|calcula|calcular|halla|hallar|encuentra|determina|resuelve|sustituye|eval[uú]a|grafica|define|vale|para|de|en|con|si|entre|por|eje|cateto|lado|[aá]ngulo|punto|punto\s+de|recta|coeficiente|t[eé]rmino|miembro|muestra|poblaci[oó]n|tama[ñn]o(?:\s+de\s+muestra)?)\s+['"]?[xzabcmn]['"]?$/i.test(
         withoutTrailingDot
       ) ||
       // Variable tras operador, igualdad, número o paréntesis: "2 x", "= x", "(x", "+ z"
@@ -199,10 +219,28 @@ export function hasDanglingEnding(raw: string): boolean {
   }
 
   if (DANGLING_WORDS_SET.has(lastWord)) {
-    // Excepción legítima: pronombre definido completo ("en la otra", "con el otro", "los mismos")
+    // Excepción legítima: pronombre definido completo ("en la otra", "con el otro", "los mismos", "cada una", "entre este"),
+    // pero rechazar adjetivo truncado antes del sustantivo ("siempre tienen la misma [medida].", "poseen el mismo [valor].")
     if (
       /^(?:otro|otra|otros|otras|mismo|misma|mismos|mismas)$/.test(lastWord) &&
-      /\b(?:el|la|los|las|lo)\s+(?:otro|otra|otros|otras|mismo|misma|mismos|mismas)$/i.test(withoutTrailingDot)
+      /\b(?:el|la|los|las|lo)\s+(?:otro|otra|otros|otras|mismo|misma|mismos|mismas)$/i.test(withoutTrailingDot) &&
+      !/\b(?:tiene[ns]?|posee[ns]?|comparte[ns]?|mantiene[ns]?|conserva[ns]?)\s+(?:siempre\s+)?(?:el|la|los|las)\s+mism[oa]s?$/i.test(
+        withoutTrailingDot
+      )
+    ) {
+      return false;
+    }
+    if (
+      /^(?:uno|una)$/.test(lastWord) &&
+      /\bcada\s+(?:uno|una)$/i.test(withoutTrailingDot)
+    ) {
+      return false;
+    }
+    if (
+      /^(?:este|esta|estos|estas|ese|esa|esos|esas)$/.test(lastWord) &&
+      /\b(?:entre|sobre|con|de|para|en|a|por|contra|ante|hacia|desde)\s+(?:este|esta|estos|estas|ese|esa|esos|esas)$/i.test(
+        withoutTrailingDot
+      )
     ) {
       return false;
     }
@@ -217,6 +255,15 @@ export function hasDanglingEnding(raw: string): boolean {
     // Excepción legítima: cláusulas finales completas con "antes de + infinitivo" / "al + infinitivo"
     if (
       /\b(?:antes\s+de|despu[eé]s\s+de|al|sin)\s+(?:factorizar|despejar|operar|sustituir|calcular|resolver|graficar|tabular|dividir|multiplicar|evaluar|codificar|interpretar|concluir|verificar|comprobar|integrar|validar|presentar|argumentar|explicar|comparar)$/i.test(
+        withoutTrailingDot
+      )
+    ) {
+      return false;
+    }
+    // Excepción legítima: paso matemático con ecuación ya explícita que cierra en "y factorizar/simplificar/resolver/comprobar"
+    if (
+      /=/.test(withoutTrailingDot) &&
+      /\by\s+(?:factorizar|simplificar|resolver|despejar|comprobar|verificar|graficar|sustituir|tabular)$/i.test(
         withoutTrailingDot
       )
     ) {
@@ -276,7 +323,7 @@ export function hasDanglingEnding(raw: string): boolean {
   // Locuciones truncadas antes de fórmula o complemento especificador ("...en su forma.", "...de la forma.", "...mediante el método.", "...durante 3.")
   if (
     /\b(?:en\s+(?:su|la)|de\s+la)\s+forma\.?$/i.test(clean) ||
-    /\b(?:mediante|con|por)\s+el\s+m[eé]todo\.?$/i.test(clean) ||
+    /\b(?:mediante|con|por|utilizando|empleando|aplicando|usando|por\s+medio\s+del?)\s+(?:el\s+)?m[eé]todo\.?$/i.test(clean) ||
     /\b(?:representa\s+la\s+s[ií]ntesis|constituye\s+una\s+pr[aá]ctica)\.?$/i.test(clean) ||
     /\bno\s+es\s+(?:un|una)\s+(?:mero|mera|simple|solo|sola)\s+[a-záéíóúñ]+\.?$/i.test(clean) ||
     /^[^.?!]{4,60},\s+tambi[eé]n\s+conocid[oa]\s+como\s+[^.?!]{3,45}\.?$/i.test(clean) ||
@@ -319,8 +366,40 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
-  // Cola nominal preposicional incompleta ("...con los fundamentos")
-  if (/\bcon\s+(?:los|las|el|la)\s+(?:fundamentos|principios|conceptos|criterios|elementos)\.?$/i.test(clean)) {
+  // Cola nominal preposicional incompleta ("...con los fundamentos", "...el tamaño.", "...la primera.", "...hacia el miembro.", "eleva al cuadrado, suma.")
+  if (
+    /\bcon\s+(?:los|las|el|la)\s+(?:fundamentos|principios|conceptos|criterios|elementos)\.?$/i.test(clean) ||
+    /\b(?:el\s+tama[ñn]o|la\s+primera|la\s+segunda|la\s+tercera|el\s+primero|el\s+segundo|hacia\s+el\s+miembro)\.?$/i.test(
+      clean
+    ) ||
+    /,\s*(?:suma|resta|multiplica|divide)\.?$/i.test(clean)
+  ) {
+    return true;
+  }
+
+  // Cláusula subordinada con "cómo" o "si" o "sin verificar que ..." truncada antes de su verbo principal
+  // (ej. "Explicar cómo el Teorema de Pitágoras.", "Argumenta si estas secciones.", "sin verificar que la gráfica.")
+  const finiteVerbRe =
+    /\b(?:es|son|fue|fueron|ser[áa]n?|est[áa]n?|tiene[ns]?|posee[ns]?|permite[ns]?|garantiza[ns]?|traduce[ns]?|determina[ns]?|modela[ns]?|representa[ns]?|relaciona[ns]?|funciona[ns]?|cambia[ns]?|var[ií]a[ns]?|crece[ns]?|cumple[ns]?|aplica[ns]?|sirve[ns]?|ayuda[ns]?|genera[ns]?|produce[ns]?|forma[ns]?|mide[ns]?|suma[ns]?|se\s+[a-záéíóúñ]{3,}|pueden?|deben?|influye[ns]?|afecta[ns]?|impacta[ns]?|resuelve[ns]?|valida[ns]?|confirma[ns]?|muestra[ns]?|demuestra[ns]?|indica[ns]?|expresa[ns]?|describe[ns]?|corresponde[ns]?|coincide[ns]?|cortan?|cruzan?|intersectan?|son\s+congruentes)\b/i;
+  const comoTail = clean.match(
+    /\b(?:explica[rn]?|comprende[rn]?|identifica[rn]?|analiza[rn]?|calcula[rn]?|determina[rn]?|demuestra[ns]?|argumenta[rn]?|describe[ns]?|muestra[ns]?|detalla[rn]?|justifica[rn]?|verifica[rn]?|sabe[rn]?)\s+c[oó]mo\s+([^.?!]{4,75})[.?!]?$/i
+  );
+  if (comoTail && !finiteVerbRe.test(comoTail[1])) {
+    return true;
+  }
+  const siTail = clean.match(/\bsi\s+(?:el|la|los|las|un|una|est[ea]s?|es[oa]s?|tus?|sus?)\s+([^.?!]{2,55})[.?!]?$/i);
+  if (siTail && !finiteVerbRe.test(siTail[1])) {
+    return true;
+  }
+  const sinVerificarQueTail = clean.match(
+    /\bsin\s+(?:verificar|comprobar|revisar|validar|confirmar)\s+que\s+(?:el|la|los|las|un|una)\s+([^.?!]{2,45})[.?!]?$/i
+  );
+  if (sinVerificarQueTail && !finiteVerbRe.test(sinVerificarQueTail[1])) {
+    return true;
+  }
+
+  // Pista truncada tras "Recuerda que, por definición." (sin cláusula completiva con verbo)
+  if (/^(?:Recuerda|Considera|Nota|Ten\s+en\s+cuenta)\s+que\b/i.test(clean) && !finiteVerbRe.test(clean.replace(/^[^,]+que\b/i, ''))) {
     return true;
   }
 
@@ -953,7 +1032,9 @@ function hardTrimToBudget(
     role === 'problem' || role === 'activity' || role === 'step' || role === 'hint' || role === 'conclusion';
   let out = '';
 
-  for (const unit of units) {
+  let trimmedEarly = false;
+  for (let uIdx = 0; uIdx < units.length; uIdx++) {
+    const unit = units[uIdx]!;
     const next = out ? `${out} ${unit}` : unit;
     const nextWords = next.split(/\s+/).filter(Boolean).length;
     const isEquationUnit = /=/.test(unit);
@@ -967,10 +1048,19 @@ function hardTrimToBudget(
         (maxWords === undefined || nextWords <= maxWords + 12)
       ) {
         out = next;
+        trimmedEarly = uIdx + 1 < units.length;
+      } else {
+        trimmedEarly = true;
       }
       break;
     }
     out = next;
+  }
+
+  // Si se cortó antes del final del texto original y el recorte quedó justo sobre una conjunción "y"/"e"/"o"
+  // (ej. "...de la incógnita y | verifica..."), retirar esa conjunción antes de reparar.
+  if (trimmedEarly && /\s+(?:y|e|o|u)$/i.test(out)) {
+    out = out.replace(/\s+(?:y|e|o|u)$/i, '').trim();
   }
 
   if (!out) {

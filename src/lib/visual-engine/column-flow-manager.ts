@@ -38,6 +38,7 @@ import {
   sanitizePdfText,
 } from './pdf-components';
 import { stripMarkdown, type GlossaryItem } from './content-extractor';
+import { formatSolvedExampleBlocks } from '@/lib/editorial/text-normalization';
 import type { DetectedObject } from './object-extractor';
 import type { DigitalTool } from './digital-tools-registry';
 
@@ -284,7 +285,23 @@ export class ColumnFlowManager {
       },
     });
 
-    // 7. Criterios de Logro / Autogestión
+    // 7. Criterios de Logro / Autogestión (contextualizados por familia disciplinar)
+    const isWorkshopOrLab = /taller|laboratorio|qu[ií]m|biolog|f[ií]sica|electr[oó]n|mec[aá]n|soldad|industrial|agro|construcc|gastronom|enfermer|salud|mantenimiento|instalaci[oó]n/i.test(
+      this.subjectName || ''
+    );
+    const checklistItems = isWorkshopOrLab
+      ? [
+          'Identifico el problema y sus variables',
+          'Sigo medidas de seguridad en taller',
+          'Registro evidencia en mi cuaderno',
+          'Contrasto hipótesis con resultados',
+        ]
+      : [
+          'Identifico el problema y sus variables',
+          'Verifico cada paso y las unidades',
+          'Registro evidencia clara en mi cuaderno',
+          'Contrasto hipótesis con resultados',
+        ];
     queue.push({
       id: 'checklist',
       minHeight: 32,
@@ -294,6 +311,7 @@ export class ColumnFlowManager {
           sideW,
           startY,
           sideBottom,
+          items: checklistItems,
         });
       },
     });
@@ -521,8 +539,16 @@ export class ColumnFlowManager {
           rawParagraphs.push(trimmedBlk);
           continue;
         }
-        const stepProtected = trimmedBlk
-          .replace(/(?:^|\n|\.\s+)(Paso\s+\d+\s*[:\-])/gi, '\n\n$1')
+        const stepProtected = formatSolvedExampleBlocks(trimmedBlk)
+          .replace(/(^|\n)[ \t]*\d+\.\s*\n+(?=[ \t]*Paso\s+\d+\s*[:\-])/gi, '$1')
+          .replace(/([^\n])\r?\n[ \t]*(?=Paso\s+\d+\s*[:\-])/gi, '$1\n\n')
+          .replace(/([^\n])([.;:?!]?)[ \t]+(Paso\s+\d+\s*[:\-])/gi, (m, prev: string, punct: string, paso: string, offset: number, full: string) => {
+            const before = full.slice(Math.max(0, offset - 20), offset + 1).toLowerCase();
+            if (!punct && /\b(?:el|del|al|en|de|un|este|ese|siguiente|primer|segundo|tercer|cuarto)\s*$/.test(before)) {
+              return m;
+            }
+            return `${prev}${punct}\n\n${paso}`;
+          })
           .replace(/(?:^|\n)(\d+[\.\)]\s+)/g, '\n\n$1')
           .replace(/(?:^|\n)([•\-\*]\s+)/g, '\n\n$1');
 
@@ -575,7 +601,19 @@ export class ColumnFlowManager {
           continue;
         }
 
-        const lines = this.doc.splitTextToSize(p, pWidth);
+        const rawLines = this.doc.splitTextToSize(p, pWidth) as string[];
+        // Evitar que un número final de ecuación ("= 15." o "= 5.") quede solo en la última línea
+        // justo encima del siguiente bloque "Paso N:" (causaría orphan_paso_number al extraer texto).
+        const lines = [...rawLines];
+        if (lines.length >= 2 && /^\d+(?:[.,]\d+)?\.?$/.test(lines[lines.length - 1].trim())) {
+          const prevLine = lines[lines.length - 2];
+          const prevLastSpace = prevLine.lastIndexOf(' ');
+          if (prevLastSpace > 4) {
+            const movedToken = prevLine.slice(prevLastSpace + 1).trim();
+            lines[lines.length - 2] = prevLine.slice(0, prevLastSpace).trimEnd();
+            lines[lines.length - 1] = `${movedToken} ${lines[lines.length - 1].trim()}`;
+          }
+        }
 
         for (let li = 0; li < lines.length; li++) {
           const remainingLines = lines.length - li;

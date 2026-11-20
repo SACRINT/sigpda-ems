@@ -18,6 +18,7 @@ import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolve
 import { mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
 import { stripMarkdown } from '@/lib/visual-engine/content-extractor';
 import {
+  cleanSacrintText,
   distillLessonBundle,
   extractApplicationAndExit,
   extractConceptHighlights,
@@ -25,11 +26,18 @@ import {
   extractWorkedExample,
   isCompleteConclusion,
   isCompleteMathStep,
+  paraphraseSixGramOverlap,
+  sanitizePedagogicalMetaPhrases,
+  sixGramOverlapRatio,
 } from '@/lib/visual-engine/sacrint/content-distiller';
 import {
   buildSacrintDeck,
+  buildSacrintInfographic,
   selectInfographicTargets,
 } from '@/lib/visual-engine/sacrint/spec';
+import { extractCalloutBox } from '@/lib/visual-engine/callout-box';
+import { generateMissionRubric } from '@/lib/visual-engine/mission-rubric-generator';
+import { tryExtractQuadraticParameters } from '@/lib/visual-engine/visual-dispatcher';
 import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 
@@ -500,5 +508,188 @@ describe('PM3 Correcciones — Punto 11', () => {
 
   it('isCompleteConclusion acepta conclusión con resultado y unidades', () => {
     expect(isCompleteConclusion('x₁ = 15 y x₂ = 14; el área es 210 m².')).toBe(true);
+  });
+});
+
+// ─── Auditoría Integral PM3_NVO — Regresiones Estructurales Multi-Disciplina ──
+describe('Auditoría Integral PM3_NVO — Regresiones Estructurales', () => {
+  it('convierte matrices LaTeX (vmatrix/pmatrix) y D_x en WinAnsi sin dejar comandos crudos', () => {
+    const raw =
+      'D = \\begin{vmatrix} a_1 & b_1 \\\\ a_2 & b_2 \\end{vmatrix} = (a_1 \\cdot b_2) - (a_2 \\cdot b_1) y x = D_x / D';
+    const win = normalizeEditorialText(raw, { target: 'winansi' });
+    expect(win).not.toContain('\\begin{vmatrix}');
+    expect(win).not.toContain('\\end{vmatrix}');
+    expect(win).not.toContain('D_x');
+    expect(win).toContain('|a1, b1; a2, b2|');
+    expect(win).toContain('Dx / D');
+  });
+
+  it('normalizeSessionDescriptorTense preserva género femenino, hiato "e identificar" y quita "desarrollarás"', () => {
+    expect(
+      normalizeSessionDescriptorTense(
+        'Evaluarás de forma formativa la evidencia final y desarrollarás tus habilidades de análisis'
+      )
+    ).toBe('Evaluar de forma formativa la evidencia final y desarrollar las habilidades de análisis');
+
+    expect(
+      normalizeSessionDescriptorTense(
+        'Comprenderás el concepto de ecuación y aprenderás a identificar sus componentes'
+      )
+    ).toBe('Comprender el concepto de ecuación e identificar sus componentes');
+  });
+
+  it('tryExtractQuadraticParameters ignora la forma genérica ax² + bx + c = 0 y extrae la ecuación concreta', () => {
+    const text =
+      'Toda ecuación cuadrática tiene la forma ax² + bx + c = 0. En el caso de la zona recreativa, el área sigue x² + 14x + 40 = 0.';
+    const params = tryExtractQuadraticParameters(text);
+    expect(params).not.toBeNull();
+    expect(params!.a).toBe(1);
+    expect(params!.b).toBe(14);
+    expect(params!.c).toBe(40);
+  });
+
+  it('hasDanglingEnding distingue cierres matemáticos/españoles válidos frente a truncamientos reales', () => {
+    // Válidos
+    expect(hasDanglingEnding('Aplica operaciones inversas para aislar x.')).toBe(false);
+    expect(hasDanglingEnding('Calcula el tamaño de muestra n.')).toBe(false);
+    expect(hasDanglingEnding('¿Cuántas piezas hay de cada una?')).toBe(false);
+    expect(hasDanglingEnding('Reduce a la forma general: x² - 30x + 200 = 0 y factorizar.')).toBe(false);
+    expect(
+      hasDanglingEnding(
+        'Define tu incógnita como la cantidad de equipos, construye la ecuación lineal y soluciona con orden.'
+      )
+    ).toBe(false);
+
+    // Truncamientos reales
+    expect(hasDanglingEnding('Despeja el valor de la incógnita y.')).toBe(true);
+    expect(hasDanglingEnding('Explicar la diferencia entre una ecuación de una variable y.')).toBe(true);
+    expect(hasDanglingEnding('Explicar cómo el Teorema de Pitágoras.')).toBe(true);
+    expect(hasDanglingEnding('Argumenta en tu bitácora si estas secciones.')).toBe(true);
+    expect(hasDanglingEnding('Recuerda que, por definición.')).toBe(true);
+    expect(hasDanglingEnding('Los ángulos opuestos por el vértice siempre tienen la misma.')).toBe(true);
+    expect(hasDanglingEnding('Presentar datos aislados sin verificar que la gráfica.')).toBe(true);
+    expect(hasDanglingEnding('Resuelve el sistema utilizando el método.')).toBe(true);
+  });
+
+  it('extractCalloutBox no confunde montos (= 1600) con años históricos ni clona Paso N:', () => {
+    const cramerText =
+      'Paso 2: Modelo o fórmula D = |a1, b1; a2, b2| = (a1 · b2) - (a2 · b1)\n' +
+      'Paso 3: Sustitución y desarrollo Si el sistema es 3x + 2y = 1450 y 2x + 5y = 1600.\n' +
+      'La Regla de Cramer resuelve sistemas lineales compatibles determinados mediante cocientes de determinantes.';
+    const callout = extractCalloutBox(cramerText, { missionNumber: 2, defaultSubjectName: 'Pensamiento Matemático III' });
+    expect(callout).not.toBeNull();
+    expect(callout!.title).not.toMatch(/CRONOL[ÓO]GICO|1600/i);
+    expect(callout!.body).not.toMatch(/\bPaso\s+\d+\s*:/i);
+  });
+
+  it('generateMissionRubric evita "Seguridad en Taller/Laboratorio" en matemáticas puras y lo conserva en laboratorio', () => {
+    const missionStub = {
+      title: 'Sistemas de ecuaciones 2x2',
+      sessionTopic: 'Método de reducción',
+      phenomenonHook: { story: 'Presupuesto escolar comunitario', detonatingQuestion: '¿Cómo equilibrar costos?' },
+    } as unknown as MissionSection;
+
+    const mathRubric = generateMissionRubric(missionStub, 'Pensamiento Matemático III');
+    expect(mathRubric[1]!.criterion).not.toMatch(/Taller\/Laboratorio|Seguridad/i);
+    expect(mathRubric[1]!.levels.map((l) => l.descriptor).join(' ')).not.toMatch(/medidas de seguridad|normas de seguridad/i);
+
+    const labRubric = generateMissionRubric(missionStub, 'Química I');
+    expect(labRubric[1]!.criterion).toMatch(/Seguridad en Taller\/Laboratorio/i);
+  });
+
+  it('paraphraseSixGramOverlap reduce solapamiento sin corromper género, contracciones ni letras griegas', () => {
+    const source =
+      'Para calcular el número de paquetes en situaciones contextualizadas dentro de un espacio recreativo comunitario, realiza el despeje mediante el método y calcula la población para dentro de 5 años.';
+    const cleaned = cleanSacrintText(source);
+    expect(cleaned).not.toContain('para en 5 años');
+
+    const paraphrased = paraphraseSixGramOverlap(cleaned, [cleaned]);
+    expect(paraphrased).not.toMatch(/\bel cantidad\b/i);
+    expect(paraphrased).not.toMatch(/\befect[úu]al\b/i);
+    expect(paraphrased).not.toMatch(/\bpor medio de el\b/i);
+    expect(paraphrased).not.toMatch(/\bescenarios contextualizadas\b/i);
+    expect(paraphrased).not.toMatch(/\bun [áa]rea recreativa comunitario\b/i);
+    expect(paraphrased).not.toMatch(/\bmemoria de c[óo]mputo\b/i);
+    expect(sixGramOverlapRatio(paraphrased, [cleaned])).toBeLessThan(0.5);
+
+    expect(sanitizePedagogicalMetaPhrases('α + β = 90°')).toBe('α + β = 90°');
+  });
+
+  it('buildSacrintInfographic aísla los pasos de la sesión sin filtrar iDoSection de otra sesión y preserva verbo en claim', () => {
+    const s1: SessionPlan = {
+      sessionNumber: 1,
+      objetivo: 'Comprender el método de igualación.',
+      motivacion: 'Costos escolares.',
+      saberesPrevios: 'Despeje lineal.',
+      contenido: 'El método de igualación iguala dos expresiones despejadas de la misma incógnita.',
+      ejemploResuelto: 'Planteamiento: x + y = 10 y x - y = 2. Paso 1: x = 10 - y y x = 2 + y. Paso 2: 10 - y = 2 + y ⇒ y = 4, x = 6.',
+      practica: [{ enunciado: 'Resuelve x + y = 8 y x - y = 2 por igualación.', pista: 'Despeja x en ambas.' }],
+      aplicacion: 'Aplica igualación a compras escolares.',
+      autoevaluacion: ['Despejo la misma variable en ambas ecuaciones.'],
+      recursos: [],
+      productoIntegrador: 'Cuadro comparativo',
+    };
+    const s2: SessionPlan = {
+      sessionNumber: 2,
+      objetivo: 'Aplicar el método de sustitución en sistemas 2x2.',
+      motivacion: 'Huertos comunitarios.',
+      saberesPrevios: 'Sustitución algebraica.',
+      contenido: 'El método de sustitución reemplaza una incógnita despejada dentro de la segunda ecuación.',
+      ejemploResuelto:
+        'Planteamiento: Un huerto suma 12 plantas de tomate (x) y chile (y), donde x = 3y. Paso 1: Sustituir x = 3y en x + y = 12. Paso 2: 4y = 12 ⇒ y = 3, x = 9.',
+      practica: [{ enunciado: 'Resuelve 2x + y = 10 y y = 3x por sustitución.', pista: 'Usa paréntesis al sustituir y.' }],
+      aplicacion: 'Modela cultivos comunitarios mediante sustitución.',
+      autoevaluacion: ['Sustituyo con paréntesis para evitar errores de signo.'],
+      recursos: [],
+      productoIntegrador: 'Reporte de sustitución',
+      sintesisVisual: {
+        conceptoBreve: 'La estructuración, depuración y validación de un modelo matemático.',
+        formulaOReglaClave: 'x = 3y; (3y) + y = 12',
+        ejemploBreve: {
+          planteamiento: 'Huerto con 12 plantas y x = 3y. Calcula cuántas plantas hay de cada tipo.',
+          pasos: ['Sustituir x = 3y en x + y = 12.', 'Resolver 4y = 12 ⇒ y = 3 y x = 9.'],
+          conclusion: 'Hay 9 plantas de tomate y 3 de chile.',
+        },
+        mapaConceptual: {
+          definicionClave: 'Sustituir una variable despejada en la otra ecuación.',
+          criterioDesarrollo: 'Usar paréntesis al insertar expresiones algebraicas.',
+          errorComun: 'Sustituir en la misma ecuación de donde se despejó.',
+          correccionBreve: 'Insertar siempre el despeje en la segunda ecuación del sistema.',
+        },
+      },
+    };
+    const wb = {
+      blockIndex: 1,
+      blockName: 'Bloque 2',
+      coverData: { title: 'PM3', subjectName: 'Pensamiento Matemático III', schoolName: 'Plantel', blockNumber: 2 },
+      missions: [
+        {
+          missionIndex: 1,
+          title: 'Sistemas lineales 2x2',
+          coveredSessions: [1, 2],
+          sessionTopic: 'Sistemas 2x2',
+          sessionFocus: 'Igualación y sustitución',
+          phenomenonHook: { story: '', detonatingQuestion: '' },
+          conceptZero: { physicalAnalogy: '', coreExplanation: '' },
+          iDoSection: {
+            stepByStepDemo:
+              'Sigue atentamente este modelo de resolución utilizando el método de igualación: x = 10 - y.',
+          },
+          weDoSection: { guidedPractice: '', workbookElements: [] },
+          youDoSection: { autonomousChallenge: '', workbookElements: [] },
+          troubleshooting: [],
+          formativeCheckpoint: { question: '', criteriaChecklist: [], reflectionPrompts: [] },
+          wordCount: 300,
+          sessionPlans: [s1, s2],
+        },
+      ],
+      projectSection: { artifactName: 'Dossier 2x2', communityUtility: 'Planeación escolar.' },
+    } as unknown as ActiveWorkTextbook;
+
+    const info = buildSacrintInfographic(wb, 'wide', { missionIndex: 0, sessionIndex: 1 });
+    const stepsBlob = info.steps.map((st) => `${st.title} ${st.body}`).join(' ');
+    expect(stepsBlob).not.toMatch(/sigue atentamente este modelo de resoluci[oó]n/i);
+    expect(stepsBlob).not.toMatch(/m[eé]todo de igualaci[oó]n/i);
+    expect(info.claim).not.toBe('La estructuración, depuración y validación de un modelo matemático.');
   });
 });

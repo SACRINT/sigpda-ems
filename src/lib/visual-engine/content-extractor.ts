@@ -712,18 +712,30 @@ export function extractSafetyOrCriticalTip(
   const sentences = clean.split(/[.!?;]/g).filter(s => s.trim().length > 20);
 
   // Patrones de seguridad y rigor técnico de alta prioridad
-  const safetyPatterns = [
-    /\b(?:NOM|ISO|OSHA|IEC|IEEE)\b/i,
-    /\b(?:seguridad|precaución|advertencia|peligro|riesgo|ESD|electroestát|descargas?)\b/i,
-    /\b(?:nunca|siempre|obligatorio|imprescindible|critical|evit[ae])\b/i,
-    /\b(?:norma|estándar|protocolo|procedimiento)\s+\w+/i,
-    /\b(?:verificar|comprobar|confirmar|revisar)\s+(?:antes|siempre|primero)\b/i,
-  ];
+  const isTechnicalSubsystem = subsystem?.toLowerCase() === 'bt';
+  const safetyPatterns = isTechnicalSubsystem
+    ? [
+        /\b(?:NOM|ISO|OSHA|IEC|IEEE)\b/i,
+        /\b(?:seguridad|precaución|advertencia|peligro|riesgo|ESD|electroestát|descargas?)\b/i,
+        /\b(?:nunca|siempre|obligatorio|imprescindible|critical|evit[ae])\b/i,
+        /\b(?:norma|estándar|protocolo|procedimiento)\s+\w+/i,
+        /\b(?:verificar|comprobar|confirmar|revisar)\s+(?:antes|siempre|primero)\b/i,
+      ]
+    : [
+        /\b(?:NOM|ISO|OSHA|IEC|IEEE)\b/i,
+        /\b(?:seguridad|precaución|advertencia|peligro|ESD|electroestát|descargas?)\b/i,
+        /\b(?:norma|protocolo)\s+\w+/i,
+        /\b(?:verificar|comprobar|confirmar|revisar)\s+(?:antes|siempre|primero)\b/i,
+      ];
 
   for (const sent of sentences) {
-    const hasSafety = safetyPatterns.some(p => p.test(sent));
-    if (hasSafety && sent.trim().length >= 30) {
-      return fitPedagogicalText(sent.trim(), { maxChars: 195, role: 'general', ensurePeriod: true });
+    const trimmed = sent.trim();
+    if (/^(?:Para\s+dominar\s+el\s+procedimiento|Sigue\s+atentamente|Paso\s+\d+|Planteamiento\s*:)/i.test(trimmed)) {
+      continue;
+    }
+    const hasSafety = safetyPatterns.some(p => p.test(trimmed));
+    if (hasSafety && trimmed.length >= 30) {
+      return fitPedagogicalText(trimmed, { maxChars: 195, role: 'general', ensurePeriod: true });
     }
   }
 
@@ -750,14 +762,16 @@ export function buildMetacognitiveTrafficLight(
   const cleanPhrase =
     extractDisciplinaryConceptPhrase(missionTitle) ||
     missionTitle.replace(/^(?:misi[oó]n|sesi[oó]n)\s*\d+\s*:\s*/i, '').trim();
-  const titleClean =
+  const titleClean = (
     fitPedagogicalText(cleanPhrase, { maxChars: 42, maxWords: 6, ensurePeriod: false }) ||
     cleanPhrase.slice(0, 42).replace(/\s+\S*$/, '').trim() ||
-    'este tema';
+    'este tema'
+  ).replace(/[.]+$/, '').trim();
   const rawUac = uacName.replace(/\s+(I|II|III|IV|V|VI)$/i, '').trim();
-  const uacClean =
+  const uacClean = (
     fitPedagogicalText(rawUac, { maxChars: 38, maxWords: 6, ensurePeriod: false }) ||
-    rawUac;
+    rawUac
+  ).replace(/[.]+$/, '').trim();
 
   return {
     green: `Comprendo ${titleClean} y puedo aplicarlo en situaciones de mi entorno.`,

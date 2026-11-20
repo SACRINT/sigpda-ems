@@ -231,10 +231,12 @@ export function sanitizePdfText(text: string | null | undefined): string {
  */
 function cleanBookText(value: string | null | undefined): string {
   return sanitizePdfText(
-    normalizeMathNotation(
-      stripMarkdown(
-        separatePasoInline(
-          stripMarkdownTables(value || '')
+    separatePasoInline(
+      normalizeMathNotation(
+        stripMarkdown(
+          separatePasoInline(
+            stripMarkdownTables(value || '')
+          )
         )
       )
     )
@@ -248,8 +250,10 @@ function cleanBookText(value: string | null | undefined): string {
  */
 export function separatePasoInline(text: string): string {
   return text
-    .replace(/([^\n])([.;:]?)\s*(Paso\s+\d+\s*[:\-])/gi, '$1$2\n\n$3')
-    .replace(/([^\n])([.;:]?)\s*(Ecuaci[oó]n\s+\d+\s*:)/gi, '$1$2\n\n$3');
+    .replace(/(^|\n)[ \t]*\d+\.\s*\n+(?=[ \t]*Paso\s+\d+\s*[:\-])/gi, '$1')
+    .replace(/([^\n])\r?\n[ \t]*(?=(?:\*\*)?Paso\s+\d+\s*[:\-])/gi, '$1\n\n')
+    .replace(/([^\n])([.;:?!]?)[ \t]*(Paso\s+\d+\s*[:\-])/gi, '$1$2\n\n$3')
+    .replace(/([^\n])([.;:?!]?)[ \t]*(Ecuaci[oó]n\s+\d+\s*:)/gi, '$1$2\n\n$3');
 }
 
 function identidadDelLibro(
@@ -2481,8 +2485,9 @@ async function drawMission(
 
     // Figura visual de la sesión (vector determinista con alfa transparente)
     const sessionFigureContext = [
-      plan ? (plan.contenido || '') : (conceptLine ? `${conceptLine} ${theoryFallback}` : theoryFallback),
       plan ? (plan.ejemploResuelto || '') : exampleFallback,
+      plan?.practica?.[0]?.enunciado || '',
+      plan ? (plan.contenido || '') : (conceptLine ? `${conceptLine} ${theoryFallback}` : theoryFallback),
       topicLabel,
     ].filter(Boolean).join(' ');
     y = await drawSessionFigure(sNum, sMeta.title || topicLabel, sessionFigureContext, y);
@@ -2624,7 +2629,7 @@ async function drawMission(
   y = drawSectionHeader(doc, '2. Concepto Cero: Analogía Intuitiva y Fundamento', margin, mainW, y, pageHeight, SECTION_COLORS.concepto, checkSpace, '[ LEO Y COMPRENDO ]');
 
   // Widget Concept-Cards (Fase 3) con Degradación Canónica D9
-  const conceptCards = extractConceptCardsFromMission(mission);
+  const conceptCards = extractConceptCardsFromMission(mission, subjectName);
   if (conceptCards.length >= 2) {
     y = drawConceptCardsGrid(doc, conceptCards, {
       margin,

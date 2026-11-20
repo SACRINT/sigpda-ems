@@ -18,6 +18,7 @@ import { sanitizePdfText } from './pdf-components-core';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
 import { detectCatalogMaterials } from '@/lib/materials/auto-tokenize';
 import { stripMarkdown } from './content-extractor';
+import { formatSolvedExampleBlocks } from '@/lib/editorial/text-normalization';
 
 export interface ConceptCardGridOptions {
   margin: number;
@@ -55,9 +56,12 @@ export function cleanConceptCardDescription(raw: string | null | undefined): str
   // 3. stripMarkdown elimina marcas restantes (asteriscos, cursivas, negritas)
   const stripped = stripMarkdown(text);
 
-  // 4. Eliminar cualquier pipe remanente suelto y sanitizar WinAnsi
-  const withoutPipes = stripped.replace(/\|/g, '').replace(/[^\S\r\n]+/g, ' ').trim();
-  return sanitizePdfText(withoutPipes);
+  // 4. Separar bloques de pasos pegados inline (incluyendo antiguos **Paso N:**) tras quitar Markdown
+  const separated = formatSolvedExampleBlocks(stripped);
+
+  // 5. Eliminar cualquier pipe remanente suelto (preservando matrices |a, b ; c, d| tras normalización) y sanitizar WinAnsi
+  const sanitized = sanitizePdfText(separated);
+  return sanitized.replace(/[^\S\r\n]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /**
@@ -69,8 +73,26 @@ export function cleanConceptCardDescription(raw: string | null | undefined): str
  *   - Card 3: Criterio de aplicación (formativeCheckpoint.criteriaChecklist[0])
  * Si el resultado tiene < 2 tarjetas, retorna [] activando degradación canónica D9.
  */
-export function extractConceptCardsFromMission(mission: Partial<MissionSection>): ConceptCardItem[] {
+export function extractConceptCardsFromMission(
+  mission: Partial<MissionSection>,
+  subjectName?: string
+): ConceptCardItem[] {
   if (!mission) return [];
+  const detectOpts = subjectName ? { uacName: subjectName } : undefined;
+  const isPureMathSubject = /\b(?:matemat|variacional|c[aá]lculo|estad[ií]stica|geometr[ií]a|[aá]lgebra)\b/i.test(
+    subjectName || ''
+  );
+  const pickCompatibleSlug = (text: string): string | undefined => {
+    const matches = detectCatalogMaterials(text, detectOpts);
+    const found = matches.find(
+      (m) =>
+        !isPureMathSubject ||
+        !/^(?:balanza-digital|balanza-analitica|balanza-granataria|matraz|probeta|bureta|pipeta|mechero|microscopio|tubo-ensayo)/i.test(
+          m.slug
+        )
+    );
+    return found?.slug;
+  };
 
   // 1. Respetar tarjetas preexistentes si ya están definidas y completas
   const preExisting = mission.conceptZero?.conceptCards || (mission as unknown as { contextualizationSection?: { conceptCards?: ConceptCardItem[] } })?.contextualizationSection?.conceptCards;
@@ -83,36 +105,33 @@ export function extractConceptCardsFromMission(mission: Partial<MissionSection>)
   // Card 1: Analogía física intuitiva
   const analogyText = mission.conceptZero?.physicalAnalogy?.trim();
   if (analogyText && analogyText.length > 5) {
-    const detected = detectCatalogMaterials(analogyText);
     cards.push({
       title: 'Analogía Intuitiva',
       badge: 'ANALOGÍA',
       description: analogyText,
-      materialSlug: detected[0]?.slug,
+      materialSlug: pickCompatibleSlug(analogyText),
     });
   }
 
   // Card 2: Fundamento conceptual formal (limpiando tablas markdown si existen, REG-8)
   const coreClean = cleanConceptCardDescription(mission.conceptZero?.coreExplanation);
   if (coreClean && coreClean.length > 5) {
-    const detected = detectCatalogMaterials(coreClean);
     cards.push({
       title: 'Fundamento Central',
       badge: 'CONCEPTO',
       description: coreClean,
-      materialSlug: detected[0]?.slug,
+      materialSlug: pickCompatibleSlug(coreClean),
     });
   }
 
   // Card 3: Criterio clave de aplicación práctica
   const criteriaText = mission.formativeCheckpoint?.criteriaChecklist?.[0]?.trim();
   if (criteriaText && criteriaText.length > 5) {
-    const detected = detectCatalogMaterials(criteriaText);
     cards.push({
       title: 'Criterio de Aplicación',
       badge: 'APLICACIÓN',
       description: criteriaText,
-      materialSlug: detected[0]?.slug,
+      materialSlug: pickCompatibleSlug(criteriaText),
     });
   }
 
@@ -177,7 +196,13 @@ function measureSingleCard(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   const cleanDesc = cleanConceptCardDescription(card.description);
-  let descLines: string[] = doc.splitTextToSize(cleanDesc, innerW);
+  let descLines: string[] = cleanDesc
+    .split(/\r?\n+/)
+    .flatMap((paragraph) => {
+      const trimmed = paragraph.trim();
+      if (!trimmed) return [];
+      return doc.splitTextToSize(trimmed, innerW) as string[];
+    });
 
   let exampleH = 0;
   let exampleLines: string[] = [];

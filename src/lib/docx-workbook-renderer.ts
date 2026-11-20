@@ -3997,7 +3997,7 @@ async function buildMissionContent(
     buildDocxSectionHeader('💡 2. Concepto Cero: Analogía Intuitiva y Fundamento', SECTION_HEX.concepto, '[LEO Y COMPRENDO]', aperturaW)
   );
 
-  const conceptCards = extractConceptCardsFromMission(mission);
+  const conceptCards = extractConceptCardsFromMission(mission, subjectName);
   if (conceptCards.length >= 2) {
     const maxWords = Math.max(...conceptCards.map((c) => (c.description || '').split(/\s+/).length));
     const targetW = maxWords > CONCEPT_CARD_LONG_TEXT_WORDS ? CONTENT_W : aperturaW;

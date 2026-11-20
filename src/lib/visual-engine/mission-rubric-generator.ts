@@ -41,9 +41,62 @@ export function generateMissionRubric(
   const hookStory = mission.phenomenonHook?.story
     ? sanitizePdfText(stripMarkdown(mission.phenomenonHook.story)).slice(0, 80)
     : (paecContext ? `el contexto de ${paecContext}` : 'la situación del entorno comunitario');
-  const safetyMention = mission.safetyOrWorkshopTip
-    ? 'protocolos y normas técnicas de seguridad'
-    : 'normas de seguridad y precisión metodológica';
+  const isWorkshopOrLab = /taller|laboratorio|qu[ií]m|biolog|f[ií]sica|electr[oó]n|mec[aá]n|salud|enferm|industrial|agro|gastronom|biotecn|mantenimiento|m[aá]quinas|soldadura|electricidad|carpinter|construcci[oó]n|ecolog|ciencias\s+naturales|ciencias\s+experimentales/i.test(
+    subjectName || ''
+  );
+  const safetyMention = isWorkshopOrLab
+    ? (mission.safetyOrWorkshopTip
+        ? 'protocolos y normas técnicas de seguridad'
+        : 'normas de seguridad y precisión metodológica')
+    : 'precisión metodológica, orden analítico y verificación de resultados';
+  const criterion2Title = isWorkshopOrLab
+    ? '2. Ejecución Procedimental y Seguridad en Taller/Laboratorio'
+    : '2. Ejecución Procedimental y Rigor Metodológico';
+  const criterion2Levels: EvaluationRubricCriterion['levels'] = isWorkshopOrLab
+    ? [
+        {
+          levelName: 'Excelente',
+          points: 10,
+          descriptor: `Ejecuta la práctica (Yo Hago/Hacemos) con orden metódico, siguiendo ${safetyMention} y registrando evidencia cuantitativa rigurosa.`,
+        },
+        {
+          levelName: 'Bueno',
+          points: 8,
+          descriptor: 'Sigue los pasos procedimentales y completa las actividades guiadas cumpliendo las medidas esenciales de cuidado y orden.',
+        },
+        {
+          levelName: 'Suficiente',
+          points: 6,
+          descriptor: 'Realiza la práctica con omisiones menores en el registro de datos o requiere supervisión para mantener medidas de seguridad.',
+        },
+        {
+          levelName: 'Requiere Apoyo',
+          points: 4,
+          descriptor: 'Desatiende los pasos del procedimiento, omite normas de seguridad o no entrega registros observables de la práctica.',
+        },
+      ]
+    : [
+        {
+          levelName: 'Excelente',
+          points: 10,
+          descriptor: `Ejecuta la práctica guiada con orden metódico, aplicando ${safetyMention} y documentando evidencia clara y verificable.`,
+        },
+        {
+          levelName: 'Bueno',
+          points: 8,
+          descriptor: 'Sigue los pasos procedimentales y completa las actividades guiadas con orden, claridad y verificación adecuada.',
+        },
+        {
+          levelName: 'Suficiente',
+          points: 6,
+          descriptor: 'Realiza la práctica con omisiones menores en el desarrollo o requiere acompañamiento para verificar la validez de sus resultados.',
+        },
+        {
+          levelName: 'Requiere Apoyo',
+          points: 4,
+          descriptor: 'Desatiende los pasos del procedimiento, omite la verificación metodológica o no entrega registros observables de la práctica.',
+        },
+      ];
 
   const rubrics: EvaluationRubricCriterion[] = [
     {
@@ -73,30 +126,9 @@ export function generateMissionRubric(
       ],
     },
     {
-      criterion: '2. Ejecución Procedimental y Seguridad en Taller/Laboratorio',
+      criterion: criterion2Title,
       weightPercent: 30,
-      levels: [
-        {
-          levelName: 'Excelente',
-          points: 10,
-          descriptor: `Ejecuta la práctica (Yo Hago/Hacemos) con orden metódico, siguiendo ${safetyMention} y registrando evidencia cuantitativa rigurosa.`,
-        },
-        {
-          levelName: 'Bueno',
-          points: 8,
-          descriptor: 'Sigue los pasos procedimentales y completa las actividades guiadas cumpliendo las medidas esenciales de cuidado y orden.',
-        },
-        {
-          levelName: 'Suficiente',
-          points: 6,
-          descriptor: 'Realiza la práctica con omisiones menores en el registro de datos o requiere supervisión para mantener medidas de seguridad.',
-        },
-        {
-          levelName: 'Requiere Apoyo',
-          points: 4,
-          descriptor: 'Desatiende los pasos del procedimiento, omite normas de seguridad o no entrega registros observables de la práctica.',
-        },
-      ],
+      levels: criterion2Levels,
     },
     {
       criterion: '3. Conexión Situada, Reto de Vida Diaria y PAEC',

@@ -178,10 +178,14 @@ export function extractCalloutBox(
       : null;
   }
 
-  // 1. Buscar cifras porcentuales (ej. "85%", "45 por ciento")
+  // 1. Buscar cifras porcentuales (ej. "85%", "45 por ciento") — sin clonar pasos de ejemplos resueltos
   const percentRegex = /([^.?!;\n]*?\b\d+(?:[\.,]\d+)?\s*(?:%|por ciento)\b[^.?!;\n]*[.?!]?)/i;
   const percentMatch = text.match(percentRegex);
-  if (percentMatch && percentMatch[0].trim().length > 20) {
+  if (
+    percentMatch &&
+    percentMatch[0].trim().length > 20 &&
+    !/\b(?:Paso\s+\d+\s*[:.\-–]|Planteamiento\s*:)/i.test(percentMatch[0])
+  ) {
     const rawSentence = percentMatch[0].trim().replace(/^[-*•\s]+/, '');
     const numMatch = rawSentence.match(/\b\d+(?:[\.,]\d+)?\s*(?:%|por ciento)/i);
     const highlight = numMatch ? numMatch[0] : 'Dato clave';
@@ -196,10 +200,15 @@ export function extractCalloutBox(
     );
   }
 
-  // 2. Buscar fechas o años históricos significativos (4 dígitos entre 1500 y 2099)
-  const dateRegex = /([^.?!;\n]*?\b(?:en\s+|el\s+año\s+|hacia\s+)?(1[5-9]\d\d|20[0-2]\d)\b[^.?!;\n]*[.?!]?)/i;
+  // 2. Buscar fechas o años históricos significativos con indicador cronológico explícito
+  // (evita confundir montos/coeficientes como "= 1600" o "$1800" con el año 1600 d. C.)
+  const dateRegex = /([^.?!;\n]*?\b(?:en\s+(?:el\s+a[ñn]o\s+)?|el\s+a[ñn]o\s+|a[ñn]o\s+|hacia\s+|desde\s+|durante\s+)(1[5-9]\d\d|20[0-2]\d)\b[^.?!;\n]*[.?!]?)/i;
   const dateMatch = text.match(dateRegex);
-  if (dateMatch && dateMatch[0].trim().length > 25) {
+  if (
+    dateMatch &&
+    dateMatch[0].trim().length > 25 &&
+    !/[=$]|\b(?:pesos|paso\s+\d+\s*[:.\-–]|planteamiento\s*:)/i.test(dateMatch[0])
+  ) {
     const rawSentence = dateMatch[0].trim().replace(/^[-*•\s]+/, '');
     const yearMatch = rawSentence.match(/\b(1[5-9]\d\d|20[0-2]\d)\b/);
     const yearStr = yearMatch ? yearMatch[0] : 'Hito';
@@ -228,11 +237,17 @@ export function extractCalloutBox(
     );
   }
 
-  // 4. Buscar primera oración sustantiva como concepto clave real extraído
+  // 4. Buscar primera oración sustantiva como concepto clave real extraído (sin clonar pasos inline de ejemplos resueltos)
   const sentences = text
-    .split(/(?<=[.?!])\s+/)
+    .split(/(?<=[.?!])\s+|\r?\n+/)
     .map((s) => s.trim().replace(/^[-*•\s]+/, ''))
-    .filter((s) => s.length >= 35 && s.length <= 250);
+    .filter(
+      (s) =>
+        s.length >= 35 &&
+        s.length <= 250 &&
+        !/^(?:Planteamiento\s*:|Paso\s+\d+\s*[:.\-–])/i.test(s) &&
+        !/\bPaso\s+\d+\s*:/i.test(s)
+    );
 
   if (sentences.length > 0) {
     const distinctTakeaway = sentences.length > 1 ? stripMarkdown(sentences[1]) : undefined;

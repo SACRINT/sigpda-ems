@@ -726,10 +726,10 @@ export function drawChecklistWidget(
     sideBottom,
     title = 'CRITERIOS DE LOGRO',
     items = [
-      'Identifico el problema y variables',
-      'Sigo medidas de seguridad en taller',
-      'Registro evidencia en mi cuaderno',
-      'Contrasto hipotesis con resultados',
+      'Identifico el problema y sus variables',
+      'Aplico el procedimiento con orden y rigor',
+      'Registro evidencia clara en mi cuaderno',
+      'Contrasto hipótesis con resultados',
     ],
   } = opts;
 

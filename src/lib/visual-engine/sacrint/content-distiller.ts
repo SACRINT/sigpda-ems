@@ -85,7 +85,7 @@ export function cleanSacrintText(value: string | null | undefined): string {
     .replace(/\$(\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?)\$/g, '$1')
     .replace(/\$(\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km))\$/gi, '$1');
   text = normalizeMathNotation(text);
-  text = text.replace(/\bdentro de\s+/gi, 'en ');
+  text = text.replace(/\bpara\s+dentro\s+de\s+/gi, 'en ').replace(/\bdentro\s+de\s+/gi, 'en ');
   return text.replace(/\s+/g, ' ').trim();
 }
 
@@ -104,7 +104,7 @@ function cleanSacrintTextPreservingLines(value: string | null | undefined): stri
     .replace(/\$(\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?)\$/g, '$1')
     .replace(/\$(\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km))\$/gi, '$1');
   text = normalizeMathNotation(text);
-  text = text.replace(/\bdentro de\s+/gi, 'en ');
+  text = text.replace(/\bpara\s+dentro\s+de\s+/gi, 'en ').replace(/\bdentro\s+de\s+/gi, 'en ');
   return text
     .split(/\r?\n/)
     .map((line) => line.replace(/\s+/g, ' ').trim())
@@ -136,7 +136,8 @@ export function sanitizePedagogicalMetaPhrases(value: string | null | undefined)
     .trim();
   if (
     out &&
-    !/^[a-z](?:[0-9₀-₉²³]|\([^)]+\))?\s*(?:[=<>≤≥≠≈+\-*/·×^]|²|³)/.test(out)
+    /^[a-záéíóúñ]/.test(out) &&
+    !/^[a-z](?:[a-z0-9₀-₉ₐₑₒₓᵢₙᵥ²³]|\([^)]+\))?\s*(?:[=<>≤≥≠≈+\-*/·×^]|²|³)/i.test(out)
   ) {
     out = out.charAt(0).toUpperCase() + out.slice(1);
   }
@@ -909,7 +910,7 @@ export function distillStepPreservingMath(rawStep: string, maxChars = 185, maxWo
         return `${prefixClean}: ${multiAssignList[0].trim()}.`;
       }
     }
-    const trailingResultMatch = clean.match(/(?:\b[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?(?:\s*[%₱])?|\bV\s*\([^)]+\))(?=[.,;\s]*$)/i);
+    const trailingResultMatch = clean.match(/(?:(?<![Δδa-zA-Z0-9_/])\b[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?(?:\s*[%₱])?|\bV\s*\([^)]+\))(?=[.,;\s]*$)/i);
     if (
       trailingResultMatch &&
       !multiAssignList &&
@@ -969,19 +970,12 @@ function normalizeOverlapText(value: string): string {
 }
 
 const GENERIC_SIX_GRAM_PARAPHRASES: Array<[RegExp, string]> = [
-  [/\bla metodolog[ií]a\b/gi, 'el enfoque'],
-  [/\buna metodolog[ií]a\b/gi, 'un enfoque'],
-  [/\bmetodolog[ií]a\b/gi, 'enfoque'],
-  [/\brepresentaci[oó]n gr[aá]fica\b/gi, 'graficación'],
   [/\bplano cartesiano\b/gi, 'plano de coordenadas'],
   [/\bpresupuesto de (\$?[\d.,]+) en espacios recreativos\b/gi, 'monto de $1 para áreas comunitarias'],
   [/\bpropiedad geom[eé]trica de los [aá]ngulos suplementarios\b/gi, 'rasgo geométrico de ángulos suplementarios'],
   [/\ben la f[oó]rmula general\b/gi, 'con la fórmula cuadrática'],
   [/\bpapel milim[eé]trico\b/gi, 'hoja cuadriculada'],
   [/\bsuma total\b/gi, 'suma'],
-  [/\blos criterios de congruencia\b/gi, 'las reglas de igualdad geométrica'],
-  [/\bcriterios de congruencia\b/gi, 'principios de igualdad geométrica'],
-  [/\bc[aá]lculo de\b/gi, 'cómputo de'],
   [/\bmultiplica repetidamente\b/gi, 'aplica de forma sucesiva'],
   [/\bpara proyectar\b/gi, 'para estimar'],
   [/\bse clasifican por\b/gi, 'se distinguen según'],
@@ -993,21 +987,26 @@ const GENERIC_SIX_GRAM_PARAPHRASES: Array<[RegExp, string]> = [
   [/\bes indispensable dominar\b/gi, 'es necesario dominar'],
   [/\bdurante cada periodo\b/gi, 'en cada intervalo'],
   [/\bcon la finalidad de\b/gi, 'para'],
+  [/\bcon el fin de\b/gi, 'para'],
+  [/\bcon el prop[oó]sito de\b/gi, 'para'],
+  [/\bmediante\s+el\b/gi, 'por medio del'],
   [/\bmediante\b/gi, 'por medio de'],
   [/\bse basa en\b/gi, 'se sustenta en'],
   [/\bcuantifica\b/gi, 'mide'],
   [/\bpreviamente definidos\b/gi, 'definidos de antemano'],
   [/\brelaciona dos variables\b/gi, 'vincula dos variables'],
-  [/\by el teorema de\b/gi, 'y el citado teorema de'],
   [/\bde ([a-z]), ([a-z]) y ([a-z])\b/gi, 'de las variables $1, $2 y $3'],
-  [/\bes una igualdad algebraica en la que\b/gi, 'constituye una relación algebraica donde'],
+  [/\bes una igualdad algebraica en la que\b/gi, 'constituye una igualdad algebraica donde'],
   [/\bel exponente m[aá]ximo de la variable\b/gi, 'el mayor grado de la incógnita'],
   [/\bpropiedades fundamentales de la igualdad\b/gi, 'reglas básicas de equivalencia'],
+  [/\bc[aá]lculo de intereses\b/gi, 'determinación de intereses'],
+  [/\bde tri[aá]ngulos y el Teorema de\b/gi, 'triangular junto con el Teorema de'],
 ];
 
 const ANAPHORIC_SENTENCE_START_RE =
   /^(?:Para\s+[a-záéíóúñ]+(?:lo|la|los|las)\b|Esto\b|Esta\b|Este\b|Estos\b|Estas\b|Ello\b|Por\s+ello\b|Por\s+lo\s+tanto\b|En\s+consecuencia\b|Sin\s+embargo\b|Adem[aá]s\b|Asimismo\b|De\s+este\s+modo\b|De\s+esta\s+manera\b)/i;
 
+// Sinónimos estrictamente invariables en género y número (NUNCA cambiar masculino↔femenino ni singular↔plural ni términos disciplinares).
 const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bfactor de crecimiento\b/gi, 'multiplicador de expansión'],
   [/\bpor el factor de\b/gi, 'por el multiplicador de'],
@@ -1015,22 +1014,158 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bpermiten\b/gi, 'posibilitan'],
   [/\butiliza\b/gi, 'emplea'],
   [/\butilizan\b/gi, 'emplean'],
-  [/\bsituaciones\b/gi, 'escenarios'],
+  [/\butilizando\b/gi, 'empleando'],
+  [/\brequiere\b/gi, 'exige'],
+  [/\brequieren\b/gi, 'exigen'],
+  [/\bnecesita\b/gi, 'precisa'],
+  [/\bsituaciones\b/gi, 'condiciones'],
   [/\bprocedimiento\b/gi, 'proceso'],
   [/\bprocedimientos\b/gi, 'procesos'],
   [/\bfundamental\b/gi, 'esencial'],
   [/\bfundamentales\b/gi, 'esenciales'],
-  [/\binformaci[oó]n\b/gi, 'datos'],
   [/\bcomunidad\b/gi, 'localidad'],
   [/\belementos\b/gi, 'componentes'],
   [/\belemento\b/gi, 'componente'],
-  [/\bla relaci[oó]n\b/gi, 'el vínculo'],
-  [/\buna relaci[oó]n\b/gi, 'un vínculo'],
-  [/\brelaci[oó]n\b/gi, 'correspondencia'],
-  [/\blas relaciones\b/gi, 'los vínculos'],
-  [/\brelaciones\b/gi, 'correspondencias'],
   [/\bimportancia\b/gi, 'relevancia'],
   [/\bmanera\b/gi, 'forma'],
+  [/\bobjetivo\b/gi, 'propósito'],
+  [/\ben tu cuaderno\b/gi, 'en tu libreta'],
+  [/\btu portafolio\b/gi, 'tu carpeta'],
+  [/\btu dossier\b/gi, 'tu expediente'],
+  [/\bcosto total\b/gi, 'gasto total'],
+  [/\bprecio unitario\b/gi, 'costo por unidad'],
+  [/\bpresupuesto disponible\b/gi, 'fondo disponible'],
+  [/\bespacio recreativo\b/gi, 'recinto recreativo'],
+  [/\bespacios recreativos\b/gi, 'recintos recreativos'],
+  [/\bproyecto integrador\b/gi, 'proyecto del bloque'],
+  [/\bde acuerdo con\b/gi, 'según'],
+  [/\ba partir de\b/gi, 'desde'],
+  [/\bpor lo tanto\b/gi, 'así'],
+  [/\bsin embargo\b/gi, 'no obstante'],
+  [/\ben ambos miembros\b/gi, 'en ambos lados'],
+  [/\bconstruye una tabla de valores\b/gi, 'elabora una tabulación'],
+  [/\bconstruye la tabla de valores\b/gi, 'elabora la tabulación'],
+  [/\bplantea la ecuaci[oó]n lineal\b/gi, 'formula la ecuación lineal'],
+  [/\bcomprueba el resultado\b/gi, 'verifica el valor obtenido'],
+  [/\bdetermina el valor de\b/gi, 'halla el valor de'],
+  [/\bcalcula el valor de\b/gi, 'determina el valor de'],
+  [/\bpaso a paso\b/gi, 'con orden'],
+  [/\bmuestra representativa\b/gi, 'muestra válida'],
+  [/\bequipo deportivo\b/gi, 'material deportivo'],
+  [/\bcentro comunitario\b/gi, 'espacio comunitario'],
+  [/\bcomit[eé] vecinal\b/gi, 'grupo vecinal'],
+  [/\bj[oó]venes de tu\b/gi, 'estudiantes de tu'],
+  [/\bvalor desconocido\b/gi, 'incógnita'],
+  [/\bse cuenta con\b/gi, 'se dispone de'],
+  [/\bcuenta con\b/gi, 'dispone de'],
+  [/\bcuentan con\b/gi, 'disponen de'],
+  [/\bse desea\b/gi, 'se busca'],
+  [/\bse obtuvieron\b/gi, 'se registraron'],
+  [/\bobteniendo\b/gi, 'logrando'],
+  [/\bobtiene\b/gi, 'consigue'],
+  [/\bobtienen\b/gi, 'consiguen'],
+  [/\bobtener\b/gi, 'lograr'],
+  [/\brepresenta el\b/gi, 'indica el'],
+  [/\brepresenta la\b/gi, 'indica la'],
+  [/\brepresentan los\b/gi, 'indican los'],
+  [/\brepresentan las\b/gi, 'indican las'],
+  [/\bcalcula\b/gi, 'halla'],
+  [/\bdetermina\b/gi, 'encuentra'],
+  [/\bresuelve\b/gi, 'soluciona'],
+  [/\bidentifica\b/gi, 'reconoce'],
+  [/\bcomprueba\b/gi, 'verifica'],
+  [/\bjustifica\b/gi, 'sustenta'],
+  [/\bcompara\b/gi, 'contrasta'],
+  [/\banaliza\b/gi, 'examina'],
+  [/\bexplica\b/gi, 'detalla'],
+  [/\bregistra\b/gi, 'anota'],
+  [/\bsustituye\b/gi, 'reemplaza'],
+  [/\bplantea\b/gi, 'formula'],
+  [/\bestablece\b/gi, 'fija'],
+  [/\bdespeja\b/gi, 'aísla'],
+  [/\bdibuja\b/gi, 'traza'],
+  [/\bredacta\b/gi, 'escribe'],
+  [/\brealiza\b/gi, 'efectúa'],
+  [/\bintegra\b/gi, 'incorpora'],
+  [/\bagrega\b/gi, 'añade'],
+  [/\bincluye\b/gi, 'incorpora'],
+  [/\baplicar\b/gi, 'emplear'],
+  [/\bexplicar\b/gi, 'detallar'],
+  [/\bcomparar\b/gi, 'contrastar'],
+  [/\bdemostrar\b/gi, 'probar'],
+  [/\bidentificar\b/gi, 'reconocer'],
+  [/\banalizar\b/gi, 'examinar'],
+  [/\bvalidar\b/gi, 'corroborar'],
+  [/\belaborar\b/gi, 'preparar'],
+  [/\bconstruir\b/gi, 'armar'],
+  [/\bregistrar\b/gi, 'anotar'],
+  [/\bproyectar\b/gi, 'estimar'],
+  [/\bpara calcular\b/gi, 'para hallar'],
+  [/\bpara determinar\b/gi, 'para encontrar'],
+  [/\bpara resolver\b/gi, 'para solucionar'],
+  [/\bpara verificar\b/gi, 'para comprobar'],
+  [/\bpara justificar\b/gi, 'para sustentar'],
+  [/\bpara obtener\b/gi, 'para lograr'],
+  [/\bcon base en\b/gi, 'apoyándote en'],
+  [/\bcon respecto a\b/gi, 'frente a'],
+  [/\ba trav[eé]s de\b/gi, 'por medio de'],
+  [/\ben funci[oó]n de\b/gi, 'según'],
+  [/\brespecto a\b/gi, 'frente a'],
+  [/\bacerca de\b/gi, 'sobre'],
+  [/\bdurante\b/gi, 'a lo largo de'],
+  [/\bpor cada\b/gi, 'para cada'],
+  [/\bconsiderando que\b/gi, 'sabiendo que'],
+  [/\bmientras que\b/gi, 'en tanto que'],
+  [/\bcon el objetivo de\b/gi, 'para'],
+  [/\ba fin de\b/gi, 'para'],
+  [/\bsobre el\b/gi, 'acerca del'],
+  [/\bsobre la\b/gi, 'acerca de la'],
+  [/\bsobre los\b/gi, 'acerca de los'],
+  [/\bsobre las\b/gi, 'acerca de las'],
+  [/\bel cual\b/gi, 'que'],
+  [/\bla cual\b/gi, 'que'],
+  [/\blos cuales\b/gi, 'que'],
+  [/\blas cuales\b/gi, 'que'],
+  [/\bdel siguiente\b/gi, 'de este'],
+  [/\bde la siguiente\b/gi, 'de esta'],
+  [/\bel siguiente\b/gi, 'este'],
+  [/\bla siguiente\b/gi, 'esta'],
+  [/\blos siguientes\b/gi, 'estos'],
+  [/\blas siguientes\b/gi, 'estas'],
+  [/\bde forma\b/gi, 'de manera'],
+  [/\bcon precisi[oó]n\b/gi, 'con exactitud'],
+  [/\bpresupuesto total\b/gi, 'fondo total'],
+  [/\bpresupuesto exacto\b/gi, 'fondo exacto'],
+  [/\bresultado final\b/gi, 'valor final'],
+  [/\breporte t[eé]cnico\b/gi, 'informe técnico'],
+  [/\bexpediente t[eé]cnico\b/gi, 'registro técnico'],
+  [/\bdocumento final\b/gi, 'informe final'],
+  [/\ben tu localidad\b/gi, 'en tu entorno'],
+  [/\bde tu localidad\b/gi, 'de tu entorno'],
+  [/\ben Puebla\b/gi, 'en la región'],
+  [/\bun compa[ñn]ero\b/gi, 'un estudiante'],
+  [/\btus compa[ñn]eros\b/gi, 'tus pares'],
+  [/\bun grupo juvenil\b/gi, 'un equipo estudiantil'],
+  [/\bun grupo de\b/gi, 'un conjunto de'],
+  [/\basistentes\b/gi, 'participantes'],
+  [/\blos habitantes\b/gi, 'los pobladores'],
+  [/\bnecesario\b/gi, 'requerido'],
+  [/\bnecesaria\b/gi, 'requerida'],
+  [/\bnecesarios\b/gi, 'requeridos'],
+  [/\bnecesarias\b/gi, 'requeridas'],
+  [/\bexacto\b/gi, 'preciso'],
+  [/\bexacta\b/gi, 'precisa'],
+  [/\bexactos\b/gi, 'precisos'],
+  [/\bexactas\b/gi, 'precisas'],
+  [/\bposibles\b/gi, 'viables'],
+  [/\bsupera al\b/gi, 'excede al'],
+  [/\bequivale a\b/gi, 'corresponde a'],
+  [/\bdel n[uú]mero de\b/gi, 'de la cantidad de'],
+  [/\bel n[uú]mero de\b/gi, 'la cantidad de'],
+  [/\bun n[uú]mero de\b/gi, 'una cantidad de'],
+  [/\bhoras semanales\b/gi, 'horas por semana'],
+  [/\bambos\b/gi, 'los dos'],
+  [/\bambas\b/gi, 'las dos'],
 ];
 
 export function paraphraseSixGramOverlap(
@@ -1040,26 +1175,29 @@ export function paraphraseSixGramOverlap(
   let out = GENERIC_SIX_GRAM_PARAPHRASES.reduce(
     (current, [pattern, replacement]) => current.replace(pattern, replacement),
     text
-  );
+  )
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\b/gi, 'del')
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\b/gi, 'al');
   if (!sources || sources.length === 0) return out;
-  const cleanSources = sources.filter(
-    (source): source is string => typeof source === 'string' && source.trim().length > 0 && !sourceIsSelfOrFieldContainer(source, text)
-  );
-  if (cleanSources.length === 0) return out;
-  let currentRatio = sixGramOverlapRatio(out, cleanSources);
+  const sourceGrams = resolveSourceSixGrams(sources);
+  if (sourceGrams.size === 0) return out;
+  let currentRatio = ratioAgainstSixGrams(out, sourceGrams);
   if (currentRatio === 0) return out;
   for (const [pattern, replacement] of TARGETED_OVERLAP_SYNONYMS) {
     pattern.lastIndex = 0;
     if (!pattern.test(out)) continue;
     pattern.lastIndex = 0;
-    const candidate = out.replace(pattern, (match) => {
-      if (match[0] && match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
-        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
-      }
-      return replacement;
-    });
+    const candidate = out
+      .replace(pattern, (match) => {
+        if (match[0] && match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+          return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+        }
+        return replacement;
+      })
+      .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\b/gi, 'del')
+      .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\b/gi, 'al');
     if (candidate === out) continue;
-    const candidateRatio = sixGramOverlapRatio(candidate, cleanSources);
+    const candidateRatio = ratioAgainstSixGrams(candidate, sourceGrams);
     if (candidateRatio < currentRatio) {
       out = candidate;
       currentRatio = candidateRatio;
@@ -1070,6 +1208,7 @@ export function paraphraseSixGramOverlap(
 }
 
 function sourceIsSelfOrFieldContainer(source: string, text: string): boolean {
+  if (Math.abs(source.length - text.length) > Math.max(16, text.length * 0.25)) return false;
   const sourceNorm = normalizeOverlapText(source);
   const textNorm = normalizeOverlapText(text);
   if (!sourceNorm || !textNorm) return false;
@@ -1087,14 +1226,22 @@ export function preventSixGramTheoryOverlap(
 ): string {
   if (!text) return '';
 
-  const allSources = theorySources.filter(
-    (source): source is string => typeof source === 'string' && source.trim().length > 0
-  );
-  const sources = allSources.filter((source) => !sourceIsSelfOrFieldContainer(source, text));
-  if (sources.length === 0) return text.replace(/\s+/g, ' ').trim();
+  if (!theorySources || theorySources.length === 0) return text.replace(/\s+/g, ' ').trim();
+  const normalizedInput = text.replace(/\s+/g, ' ').trim();
+  const clean = paraphraseSixGramOverlap(normalizedInput, theorySources);
 
-  const clean = paraphraseSixGramOverlap(text.replace(/\s+/g, ' ').trim(), sources);
-  if (sixGramOverlapRatio(clean, sources) <= 0.05) return clean;
+  const hasSelfContainer = theorySources.some(
+    (source) => typeof source === 'string' && sourceIsSelfOrFieldContainer(source, text)
+  );
+  const effectiveSources = hasSelfContainer
+    ? theorySources.filter(
+        (source): source is string =>
+          typeof source === 'string' && source.trim().length > 0 && !sourceIsSelfOrFieldContainer(source, text)
+      )
+    : theorySources;
+  const sourceGrams = resolveSourceSixGrams(effectiveSources);
+  if (sourceGrams.size === 0) return clean;
+  if (ratioAgainstSixGrams(clean, sourceGrams) <= 0.05) return clean;
 
   const sentences = splitSpanishSentences(clean);
   if (sentences.length <= 1) return clean;
@@ -1102,7 +1249,7 @@ export function preventSixGramTheoryOverlap(
   const scored = sentences.map((sentence, index) => ({
     sentence,
     index,
-    ratio: sixGramOverlapRatio(sentence, sources),
+    ratio: ratioAgainstSixGrams(sentence, sourceGrams),
   }));
   const taskSentence = scored.find(
     (item) =>
@@ -1127,7 +1274,7 @@ export function preventSixGramTheoryOverlap(
     .map((item) => item.sentence)
     .join(' ')
     .trim();
-  const paraphrased = paraphraseSixGramOverlap(joined, sources);
+  const paraphrased = paraphraseSixGramOverlap(joined, effectiveSources);
   return paraphrased.length >= 24 ? paraphrased : clean;
 }
 
@@ -1348,14 +1495,27 @@ export function extractConceptHighlights(
 ): DistilledConceptHighlights {
   const allowMission = options.allowMissionFallback ?? true;
   const visual = session?.sintesisVisual;
+  const hasConjugatedPredicate = (value: string): boolean =>
+    /\b(?:es|son|fue|fueron|constituye[ns]?|permite[ns]?|posibilita[ns]?|consiste[ns]?|facilita[ns]?|modela[ns]?|representa[ns]?|transforma[ns]?|integra[ns]?|garantiza[ns]?|utiliza[ns]?|emplea[ns]?|requiere[ns]?|exige[ns]?|describe[ns]?|calcula[ns]?|mide[ns]?|demuestra[ns]?|relaciona[ns]?|vincula[ns]?|organiza[ns]?|resuelve[ns]?|simplifica[ns]?|elimina[ns]?|despeja[ns]?|contrasta[ns]?|traduce[ns]?|proyecta[ns]?|consolida[ns]?|comunica[ns]?|muestra[ns]?|expresa[ns]?|determina[ns]?|establece[ns]?|identifica[ns]?|explica[ns]?|analiza[ns]?|eval[úu]a[ns]?|valida[ns]?|compara[ns]?|ayuda[ns]?|sirve[ns]?|ofrece[ns]?|aplica[ns]?|estudia[ns]?|define[ns]?|sustenta[ns]?|defiende[ns]?|articula[ns]?|formula[ns]?|construye[ns]?|propone[ns]?|argumenta[ns]?|combina[ns]?|distingue[ns]?|promueve[ns]?|fomenta[ns]?|genera[ns]?|produce[ns]?|respalda[ns]?|justifica[ns]?|contextualiza[ns]?|conecta[ns]?|clasifica[ns]?|ordena[ns]?|dise[ñn]a[ns]?|crea[ns]?|procesa[ns]?|estructura[ns]?|depura[ns]?|regula[ns]?|coordina[ns]?|interpreta[ns]?|opera[ns]?|act[úu]a[ns]?|funciona[ns]?|cambia[ns]?|var[ií]a[ns]?|tiene[ns]?|posee[ns]?|parte[ns]?|nace[ns]?|surge[ns]?|busca[ns]?|logra[ns]?|alcanza[ns]?|implica[ns]?|involucra[ns]?|abarca[ns]?|contiene[ns]?|incluye[ns]?|evita[ns]?|previene[ns]?|reduce[ns]?|aumenta[ns]?|eleva[ns]?|mejora[ns]?|fortalece[ns]?|asegura[ns]?|comprueba[ns]?|verifica[ns]?|sustituye[ns]?|se\s+[a-záéíóúñ]{3,})\b/i.test(
+      value
+    );
+  let preservedVisualFormulas: string[] = [];
   if (visual) {
-    const definition = sanitizePedagogicalMetaPhrases(cleanSacrintText(visual.conceptoBreve));
+    const rawDefinition = sanitizePedagogicalMetaPhrases(cleanSacrintText(visual.conceptoBreve));
+    const mapDef = sanitizePedagogicalMetaPhrases(cleanSacrintText(visual.mapaConceptual?.definicionClave));
+    const definition =
+      rawDefinition.length >= 30 && !hasDanglingEnding(rawDefinition) && hasConjugatedPredicate(rawDefinition)
+        ? rawDefinition
+        : mapDef.length >= 30 && !hasDanglingEnding(mapDef) && hasConjugatedPredicate(mapDef)
+          ? mapDef
+          : '';
     const formula = sanitizePedagogicalMetaPhrases(cleanSacrintText(visual.formulaOReglaClave));
     const map = visual.mapaConceptual;
     const visualFormulas = [
       ...(isValidRenderableFormula(formula) ? [formula] : []),
       ...extractFormulasFromText(visual.ejemploBreve?.planteamiento || '', 2),
     ].filter((item) => isValidRenderableFormula(item));
+    preservedVisualFormulas = Array.from(new Set(visualFormulas)).slice(0, 3);
     const visualRules = [
       map?.criterioDesarrollo,
       map?.definicionClave,
@@ -1371,10 +1531,10 @@ export function extractConceptHighlights(
           arr.indexOf(item) === index
       )
       .slice(0, 3);
-    if (definition.length >= 30 || visualRules.length > 0 || visualFormulas.length > 0) {
+    if (definition.length >= 30) {
       return {
-        definition: definition || sanitizePedagogicalMetaPhrases(cleanSacrintText(map?.definicionClave)),
-        formulas: Array.from(new Set(visualFormulas)).slice(0, 3),
+        definition,
+        formulas: preservedVisualFormulas,
         keyRules: visualRules,
       };
     }
@@ -1394,7 +1554,7 @@ export function extractConceptHighlights(
     (allowMission ? (!isCorePaecWrapper ? mission.conceptZero?.coreExplanation : richMissionSession?.contenido || mission.conceptZero?.coreExplanation) : '') ||
     '';
   const blocks = parseContenidoToBloques(rawTheory);
-  const formulas: string[] = [];
+  const formulas: string[] = [...preservedVisualFormulas];
   const candidateTexts: string[] = [];
 
   for (const block of blocks) {
@@ -1501,7 +1661,7 @@ export function extractConceptHighlights(
 }
 
 const CONCLUSION_HEADING_PREFIX_RE =
-  /^(?:(?:verificaci[oó]n|comprobaci[oó]n|interpretaci[oó]n|conclusi[oó]n|validaci[oó]n|cierre|evaluaci[oó]n|an[aá]lisis)[^.?!:=0-9]{0,65}[.:]\s*)/i;
+  /^(?:(?:verificaci[oó]n|comprobaci[oó]n|interpretaci[oó]n|conclusi[oó]n|validaci[oó]n|cierre|evaluaci[oó]n|an[aá]lisis)[^.?!:=0-9]{0,65}[.:]\s*|(?:conclusi[oó]n(?:\s+y\s+verificaci[oó]n)?|verificaci[oó]n(?:\s+y\s+conclusi[oó]n)?|comprobaci[oó]n|respuesta\s+final)\s+(?=[A-ZÁÉÍÓÚÑ]))/i;
 
 const META_CONCLUSION_INSTRUCTION_RE =
   /^(?:redacta|escribe|elabora|anota|presenta|prepara|entrega|documenta|incluye|comunica|revisa|verifica\s+en\s+tu)\s+(?:la\s+|una\s+|tu\s+|el\s+)?(?:conclusi[oó]n|respuesta|justificaci[oó]n|reporte|argumento|evidencia)\b/i;
@@ -1848,12 +2008,27 @@ export function extractWorkedExample(
     );
     const steps = (visualExample.pasos ?? [])
       .map((step) => sanitizePedagogicalMetaPhrases(cleanSacrintText(step)))
-      .filter((step) => Boolean(step) && !isRubricOrBoilerplateLeak(step))
+      .filter((step) => step.length >= 12 && !isRubricOrBoilerplateLeak(step) && !hasDanglingEnding(step))
       .slice(0, 3);
     const interpretation = sanitizePedagogicalMetaPhrases(
       cleanSacrintText(visualExample.conclusion)
     );
-    if (problemStatement.length >= 20 && steps.length >= 2) {
+    const hasSessionQuantitativeExample = Boolean(
+      session?.ejemploResuelto && /[=]|\d/.test(session.ejemploResuelto)
+    );
+    const visualStepsHaveMath = steps.some((step) => /[=]|\d/.test(step));
+    const hasAdequateContext =
+      problemStatement.length >= 42 &&
+      !hasDanglingEnding(problemStatement) &&
+      problemStatement.split(/\s+/).filter(Boolean).length >= 7;
+    const hasAdequateConclusion =
+      interpretation.length >= 18 && !hasDanglingEnding(interpretation);
+    if (
+      hasAdequateContext &&
+      steps.length >= 2 &&
+      hasAdequateConclusion &&
+      (!hasSessionQuantitativeExample || visualStepsHaveMath)
+    ) {
       return {
         problemStatement,
         steps,
@@ -2183,11 +2358,14 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
     /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala|construye|elabora|integra|crea|redacta|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera|emplea|describe|representa|completa|ordena|usa|enfócate|asegúrate|tabula|dise[ñn]a)\b/i;
   const imperativeModelaRe = /(?:^|[.?!;:]\s+|\by\s+)modela\b/i;
   const hasExplicitStudentTask = (text: string): boolean => {
-    if (taskRe.test(text)) return true;
-    const withoutDescriptiveModela = text
-      .replace(/\b(?:se|que|donde|cuyo|cuya)\s+modela\b/gi, '')
-      .replace(/\b(?:ecuaci[oó]n|expresi[oó]n|funci[oó]n|f[oó]rmula|gr[aá]fica|club|comit[eé]|centro|programa|tabla)\b[^.?!]{0,45}\bmodela\b/gi, '');
-    return imperativeModelaRe.test(withoutDescriptiveModela);
+    const withoutDescriptiveThirdPerson = text
+      .replace(
+        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica))\b[^.?!]{0,45}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea)\b/gi,
+        ''
+      )
+      .replace(/\b(?:se|que|donde|cuyo|cuya)\s+(?:modela|describe|presenta|establece|indica|muestra|representa)\b/gi, '');
+    if (taskRe.test(withoutDescriptiveThirdPerson)) return true;
+    return imperativeModelaRe.test(withoutDescriptiveThirdPerson);
   };
   const capitalizeSentenceStart = (text: string): string => {
     const trimmed = text.trim();
@@ -2821,17 +2999,27 @@ function sourceSixGramId(source: string): number {
   return id;
 }
 
-export function sixGramOverlapRatio(text: string, sources: string[]): number {
-  const textGrams = makeSixGrams(text);
-  if (textGrams.size === 0) return 0;
+const EMPTY_SIX_GRAM_SET = new Set<string>();
+const sixGramArrayRefCache = new WeakMap<
+  ReadonlyArray<string | null | undefined>,
+  { len: number; grams: Set<string> }
+>();
+
+function resolveSourceSixGrams(sources: ReadonlyArray<string | null | undefined>): Set<string> {
+  if (sources.length === 0) return EMPTY_SIX_GRAM_SET;
+  const cached = sixGramArrayRefCache.get(sources);
+  if (cached && cached.len === sources.length) return cached.grams;
   const sourceIds = [
     ...new Set(
       sources
-        .filter((source) => typeof source === 'string' && source.trim().length > 0)
+        .filter((source): source is string => typeof source === 'string' && source.trim().length > 0)
         .map(sourceSixGramId)
     ),
   ].sort((a, b) => a - b);
-  if (sourceIds.length === 0) return 0;
+  if (sourceIds.length === 0) {
+    sixGramArrayRefCache.set(sources, { len: sources.length, grams: EMPTY_SIX_GRAM_SET });
+    return EMPTY_SIX_GRAM_SET;
+  }
   const unionKey = sourceIds.join(',');
   let sourceGrams = sixGramUnionCache.get(unionKey);
   if (!sourceGrams) {
@@ -2844,9 +3032,22 @@ export function sixGramOverlapRatio(text: string, sources: string[]): number {
     }
     sixGramUnionCache.set(unionKey, sourceGrams);
   }
+  sixGramArrayRefCache.set(sources, { len: sources.length, grams: sourceGrams });
+  return sourceGrams;
+}
+
+function ratioAgainstSixGrams(text: string, sourceGrams: Set<string>): number {
+  if (sourceGrams.size === 0) return 0;
+  const textGrams = makeSixGrams(text);
+  if (textGrams.size === 0) return 0;
   let overlap = 0;
   for (const gram of textGrams) {
     if (sourceGrams.has(gram)) overlap++;
   }
   return overlap / textGrams.size;
+}
+
+export function sixGramOverlapRatio(text: string, sources: string[]): number {
+  if (sources.length === 0) return 0;
+  return ratioAgainstSixGrams(text, resolveSourceSixGrams(sources));
 }
