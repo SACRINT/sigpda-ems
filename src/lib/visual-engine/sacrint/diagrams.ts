@@ -1040,17 +1040,27 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
       variant: 'polygon',
       available: true,
       equation: 'Criterios LLL · LAL · ALA  |  a/a′ = b/b′ = c/c′ = k',
-      primaryLabel: 'Congruencia (≅) y Semejanza (~) de Triángulos',
-      secondaryLabel: 'Ángulos correspondientes iguales · Lados homólogos proporcionales',
+      primaryLabel: 'Congruencia (≅) y Semejanza (~)',
+      secondaryLabel: 'Ángulos iguales · Lados proporcionales',
       highlights: [
-        { label: 'Congruencia (≅)', detail: 'Misma forma y tamaño (k = 1).' },
-        { label: 'Semejanza (~)', detail: 'Ángulos iguales y lados proporcionales.' },
-        { label: 'Criterios', detail: 'Validación por LLL, LAL o ALA.' },
+        { label: 'Congruencia (≅)', detail: 'Igual forma y tamaño (k=1).' },
+        { label: 'Semejanza (~)', detail: 'Misma forma, lados proporcionales.' },
+        { label: 'Criterios', detail: 'LLL, LAL y ALA.' },
       ],
     };
   }
 
-  if (isTriangle && !isAngle) {
+  const headTopic = source.slice(0, 140);
+  const isAngleHeadTopic =
+    /\b(?:tipos?\s+de\s+[aá]ngulos|clasificaci[oó]n\s+de\s+[aá]ngulos|[aá]ngulos\s+en\s+estructuras|[aá]ngulos\s+aplicados|[aá]ngulos\s+y\s+sus\s+propiedades|[aá]ngulos\s+complementarios|[aá]ngulos\s+suplementarios)\b/i.test(
+      headTopic
+    ) && !/pit[aá]goras|hipotenusa|cateto/i.test(headTopic);
+
+  if (
+    isTriangle &&
+    !isAngleHeadTopic &&
+    (!isAngle || /pit[aá]goras|hipotenusa|cateto|tri[aá]ngulo\s+rect[aá]ngulo/i.test(source))
+  ) {
     return {
       kind: 'geometry',
       variant: 'right-triangle',
@@ -1072,12 +1082,12 @@ function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
       variant: 'polygon',
       available: true,
       equation: 'Criterios LLL · LAL · ALA  |  a/a′ = b/b′ = c/c′ = k',
-      primaryLabel: 'Congruencia (≅) y Semejanza (~) de Triángulos',
-      secondaryLabel: 'Ángulos correspondientes iguales · Lados homólogos proporcionales',
+      primaryLabel: 'Congruencia (≅) y Semejanza (~)',
+      secondaryLabel: 'Ángulos iguales · Lados proporcionales',
       highlights: [
-        { label: 'Congruencia (≅)', detail: 'Misma forma y tamaño (k = 1).' },
-        { label: 'Semejanza (~)', detail: 'Ángulos iguales y lados proporcionales.' },
-        { label: 'Criterios', detail: 'Validación por LLL, LAL o ALA.' },
+        { label: 'Congruencia (≅)', detail: 'Igual forma y tamaño (k=1).' },
+        { label: 'Semejanza (~)', detail: 'Misma forma, lados proporcionales.' },
+        { label: 'Criterios', detail: 'LLL, LAL y ALA.' },
       ],
     };
   }

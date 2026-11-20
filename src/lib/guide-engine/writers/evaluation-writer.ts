@@ -42,6 +42,10 @@ import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import {
+  buildCanonicalSessionPlanInstructions,
+  buildCanonicalSessionPlanJsonExample,
+} from './session-prompt-contract';
+import {
   resolveAutonomousChallenge,
   resolveCheckpoint,
   resolveConceptZero,
@@ -177,7 +181,28 @@ export async function generateEvaluationSection(input: WriterInput): Promise<Wri
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
 
-  const systemInstruction = `Eres un evaluador educativo de élite especializado en el Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
+  const canonicalSessionContract = buildCanonicalSessionPlanInstructions(discipline, 'evaluation', {
+    firstSession: coveredSessions[0],
+  });
+  const canonicalSessionJson = buildCanonicalSessionPlanJsonExample(
+    discipline,
+    coveredSessions[0]
+  );
+  const shardingEnabled = Boolean(input.scheduler);
+  const canonicalSessionBlocks = shardingEnabled
+  ? ''
+  : [
+      '',
+      'ESTRUCTURA OBLIGATORIA DE LA PROPIEDAD "sessionPlans" DENTRO DEL MISMO OBJETO JSON ANTERIOR:',
+      canonicalSessionContract,
+      '',
+      'EJEMPLO DE REFERENCIA PARA "sessionPlans" (intégralo dentro del mismo JSON raíz de salida):',
+      canonicalSessionJson,
+      '',
+      'PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota o ejemplo de sessionPlans indicado antes.',
+    ].join('\n');
+
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO y especialista en evaluación formativa del Marco Curricular Común de la EMS (NEM / MCCEMS Puebla).
 Tu tarea es redactar el paquete integral de instrumentos y componentes de evaluación formativa y sumativa para: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 ${planningAlignmentChunk}
 
@@ -187,46 +212,62 @@ ESTÁNDARES FORMATIVOS OBLIGATORIOS Y METAS NEM:
 3. Cuestionario de juicio crítico (250 a 400 palabras): 3 a 5 escenarios reales en Puebla con justificación formativa.
 4. Autoevaluación metacognitiva (150 a 250 palabras): 4 a 6 preguntas abiertas de reflexión y transferencia.
 5. Evaluación Escalonada (tieredExercises - 300 a 500 palabras): EXACTAMENTE 3 NIVELES ('basico', 'intermedio', 'avanzado') con al menos 2 ejercicios por nivel (mínimo 6 ejercicios en total) con statement, contextOrData, expectedOutputOrCriteria y hint.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
-   Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
-   (a) objetivo: "Lo que vas a aprender" (1-2 frases en voz de estudiante);
-   (b) motivacion: (80 a 120 palabras) caso o contexto de síntesis y cierre formativo en Puebla;
-   (c) saberesPrevios: (50 a 80 palabras) qué aprendizajes consolidados del bloque se ponen en juego;
-   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL de la sesión — marcos conceptuales de evaluación, validación de hipótesis o modelación formal en 3 párrafos sustanciales (al menos 150 palabras por párrafo);
-   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo evaluativo resuelto paso a paso con rúbrica comentada, cálculos y 4 pasos numerados;
-   (f) practica: 2 reactivos formativos complejos con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados;
-   (g) aplicacion: (80 a 120 palabras) transferencia integradora al entorno comunitario;
-   (h) autoevaluacion: 2-3 preguntas reflexivas;
-   (i) recursos: 1-2 enlaces de consulta y profundización;
-   (j) productoIntegrador: (60 a 90 palabras) evaluación final, sustentación y acreditación del producto o evidencia.
-   Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
-7. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
   "phenomenonHook": {
-    "story": "Escenario real de la comunidad que pone a prueba los aprendizajes del bloque (con datos del PAEC)...",
-    "detonatingQuestion": "Pregunta que exige interpretar evidencias y decidir el nivel de desempeño..."
+    "story": "Narración del fenómeno cotidiano situado en la comunidad...",
+    "detonatingQuestion": "Pregunta detonadora que abre la evaluación..."
   },
   "conceptZero": {
-    "physicalAnalogy": "Analogía específica del proceso de evaluación de esta UAC (no una frase genérica)...",
-    "coreExplanation": "Criterio conceptual central para juzgar la calidad del producto o evidencia..."
+    "physicalAnalogy": "Analogía intuitiva y disciplinar (80-140 palabras)...",
+    "coreExplanation": "Explicación conceptual rigurosa con ejemplo resuelto paso a paso y datos concretos..."
   },
-  "guidedPractice": "Coevaluación guiada concreta: qué intercambiar, qué verificar y cómo registrar observaciones...",
-  "autonomousChallenge": "Reto individual de autoevaluación y transferencia con evidencia concreta...",
+  "guidedPractice": "Práctica guiada con problema real, datos concretos y pistas...",
+  "autonomousChallenge": "Desafío autónomo individual vinculado a la vida diaria...",
   "formativeCheckpoint": {
-    "question": "Pregunta de verificación propia de esta evaluación...",
-    "criteriaChecklist": ["Criterio de auto-verificación específico 1", "Criterio específico 2"]
+    "question": "Pregunta de verificación de comprensión...",
+    "criteriaChecklist": ["Explica el concepto con tus palabras", "Resuelve un caso nuevo con datos concretos"]
   },
   "rubric": [
     {
-      "criterion": "Rigor metodológico y procedimental",
-      "weightPercent": 100,
+      "criterion": "Dominio conceptual y fundamentación teórica",
+      "weightPercent": 25,
       "levels": [
-        { "levelName": "Excelente", "points": 10, "descriptor": "Sobresaliente (10-9): Dominio autónomo y riguroso..." },
-        { "levelName": "Bueno", "points": 8, "descriptor": "Notable (8-7): Procedimientos precisos..." },
-        { "levelName": "Suficiente", "points": 6, "descriptor": "Suficiente (6-5): Cumple lo básico..." },
-        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "Insuficiente (4-1): Requiere asesoría..." }
+        { "levelName": "Excelente", "points": 10, "descriptor": "Explica y aplica el concepto con precisión, evidencia y lenguaje propio." },
+        { "levelName": "Bueno", "points": 8, "descriptor": "Explica el concepto y lo aplica con errores menores." },
+        { "levelName": "Suficiente", "points": 6, "descriptor": "Reconoce el concepto y lo aplica con apoyo." },
+        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "Confunde el concepto o no logra aplicarlo." }
+      ]
+    },
+    {
+      "criterion": "Aplicación metodológica y resolución de casos",
+      "weightPercent": 25,
+      "levels": [
+        { "levelName": "Excelente", "points": 10, "descriptor": "Resuelve casos nuevos con método riguroso y verificación." },
+        { "levelName": "Bueno", "points": 8, "descriptor": "Resuelve casos con método adecuado y errores menores." },
+        { "levelName": "Suficiente", "points": 6, "descriptor": "Resuelve casos simples con apoyo." },
+        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "No logra aplicar el método." }
+      ]
+    },
+    {
+      "criterion": "Calidad e integración del producto del bloque",
+      "weightPercent": 25,
+      "levels": [
+        { "levelName": "Excelente", "points": 10, "descriptor": "Integra evidencias completas, pertinentes y verificables." },
+        { "levelName": "Bueno", "points": 8, "descriptor": "Integra evidencias con detalles menores." },
+        { "levelName": "Suficiente", "points": 6, "descriptor": "Integra evidencias básicas con apoyo." },
+        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "No integra evidencias suficientes." }
+      ]
+    },
+    {
+      "criterion": "Trabajo colaborativo, ética y reflexión metacognitiva",
+      "weightPercent": 25,
+      "levels": [
+        { "levelName": "Excelente", "points": 10, "descriptor": "Colabora, argumenta éticamente y reflexiona con profundidad." },
+        { "levelName": "Bueno", "points": 8, "descriptor": "Colabora y reflexiona con claridad." },
+        { "levelName": "Suficiente", "points": 6, "descriptor": "Colabora y reflexiona de forma básica." },
+        { "levelName": "Requiere Apoyo", "points": 4, "descriptor": "Participa poco y no reflexiona." }
       ]
     }
   ],
@@ -298,7 +339,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "questionNumber": 1,
       "question": "¿Pregunta de juicio crítico o resolución?",
       "scenario": "Situación problemática en comunidad de Puebla...",
-      "answerExplanation": "Justificación formativa > 150 palabras..."
+      "answerExplanation": "Justificación formativa mayor a 150 palabras..."
     }
   ],
   "metacognitiveReflection": {
@@ -306,29 +347,11 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "¿Qué aprendizaje de este bloque consideras más transformador y por qué?",
       "¿Qué estrategia implementaste para superar el obstáculo técnico más difícil?"
     ]
-  },
-  "sessionPlans": [
-    {
-      "sessionNumber": 22,
-      "objetivo": "Lo que vas a aprender en la sesión 22 (1-2 frases)...",
-      "motivacion": "Caso real / historia contada al estudiante...",
-      "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "Párrafo 1: En esta sesión consolidarás los conceptos y criterios técnicos clave...\\n\\nPárrafo 2: El análisis formativo y los métodos de verificación cuantitativa exigen...\\n\\nPárrafo 3: La interpretación de resultados y la toma de decisiones en el entorno comunitario...",
-      "ejemploResuelto": "Planteamiento: Se analiza un caso de evaluación integral con parámetros e indicadores reales...\\nPaso 1: Extracción de datos y fijación de criterios de aceptación...\\nPaso 2: Aplicación del modelo analítico de resolución...\\nPaso 3: Verificación cuantitativa y diagnóstico de discrepancias...\\nPaso 4: Dictamen formativo y plan de retroalimentación...",
-      "practica": [
-        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos...", "Paso 2: operar y verificar...", "Respuesta final: ..."] },
-        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
-      ],
-      "aplicacion": "Aplicación a la vida real del estudiante...",
-      "autoevaluacion": ["¿Puedo explicar el criterio central?", "¿Logré la práctica sin mirar?"],
-      "recursos": [
-        { "titulo": "Práctica y repaso con retroalimentación", "url": "https://www.khanacademy.org/", "tipo": "video" },
-        { "titulo": "Estándares de competencia y evaluación", "url": "https://www.conocer.gob.mx/", "tipo": "web" }
-      ],
-      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
-    }
-  ]
-}`;
+  }${shardingEnabled ? '' : `,\n  "sessionPlans": [ /* EXACTAMENTE ${sessionCount} planes completos (sesiones ${coveredSessions.join(', ')}) según Contrato Canónico V2 */ ]`}
+}
+
+${canonicalSessionBlocks}
+`;
 
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
@@ -347,7 +370,7 @@ Problemática PAEC comunitaria: ${input.paecContext}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos analíticos y de verificación, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (caso de evaluación con 4 pasos cuantitativos de resolución y rúbrica comentada).
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Respeta íntegramente la estructura y profundidad del Contrato Canónico V2; no comprimas campos ni omitas la solución de las prácticas, el ejemplo resuelto ni sintesisVisual.
 - rubric: ~${rubricTarget} palabras
 - checklist: ~${checklistTarget} palabras
 - tieredExercises: ~${tieredTarget} palabras (3 niveles escalonados, mínimo 6 ejercicios completos con andamiaje)
@@ -359,9 +382,7 @@ Genera los instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesio
   const useSharding = Boolean(input.scheduler);
   const narrativeMaxTokens = useSharding ? 8192 : 16384;
   const narrativeTimeoutMs = useSharding ? 75000 : 85000;
-  const effectiveSystemInstruction = useSharding
-    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
-    : systemInstruction;
+  const effectiveSystemInstruction = systemInstruction;
   const basePrompt = useSharding
     ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
     : prompt;

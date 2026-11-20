@@ -34,11 +34,44 @@ const GOLD_LINE: [number, number, number] = [232, 160, 32];  // #E8A020 - Dorado
 const GRAY_BG: [number, number, number] = [242, 244, 248];   // #F2F4F8 - Fondo Filas
 const TEXT_DARK: [number, number, number] = [30, 41, 59];    // #1E293B - Texto
 
+function normalizeLatoPdfGlyphs(value: string): string {
+  return normalizePdfEditorialText(value)
+    .replace(/\u21D2/g, '=>')
+    .replace(/\u21D0/g, '<=')
+    .replace(/\u21D4/g, '<=>')
+    .replace(/\u2610/g, '[ ]')
+    .replace(/[\u2713\u2714]/g, '[v]')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ');
+}
+
 function sanitizePdfText(value: string): string {
-  return normalizePdfEditorialText(String(value || ''))
-    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+  return normalizeLatoPdfGlyphs(String(value || ''))
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function sanitizePdfMultiline(value: string): string {
+  return normalizeLatoPdfGlyphs(String(value || ''))
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function formatTransversalCurriculumList(items: unknown[] | undefined): string[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((raw) => {
+      if (!raw || typeof raw !== 'object') return '';
+      const t = raw as Record<string, unknown>;
+      const area = String(t.area || t.ambito || t.curriculumArea || '').trim();
+      const desc = String(
+        t.description || t.progresion || t.recursoSocioemocional || t.aprendizajesTrayectoria || t.connection || ''
+      ).trim();
+      if (!area && !desc) return '';
+      return area && desc ? `${area}: ${desc}` : area || desc;
+    })
+    .filter(Boolean)
+    .map((line) => sanitizePdfText(line));
 }
 
 // Colores institucionales de fases didácticas (homologados MCCEMS vía design-tokens)
@@ -389,9 +422,9 @@ export async function generatePlanningPDF(
     body: [
       [
         { content: 'Plantel / Escuela:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
-        { content: identidad.schoolName, styles: { cellWidth: 58 } },
+        { content: sanitizePdfText(identidad.schoolName), styles: { cellWidth: 58 } },
         { content: 'Clave C.C.T.:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 25 } },
-        { content: identidad.cct, styles: { cellWidth: 68 } },
+        { content: sanitizePdfText(identidad.cct) },
       ],
       [
         { content: 'Docente Titular:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -444,56 +477,56 @@ export async function generatePlanningPDF(
     ? [
         [
           { content: 'Resultado de Aprendizaje (Módulo):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-          { content: s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar competencias laborales técnicas y operativas.' },
+          { content: sanitizePdfMultiline(s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar competencias laborales técnicas y operativas.') },
         ],
         [
           { content: 'Actividades Clave Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || 'Actividades clave del programa.' },
+          { content: sanitizePdfMultiline(activities.map((a, i) => `${i + 1}. ${a.name}`).join('\n') || 'Actividades clave del programa.') },
         ],
         [
           { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-          { content: s2?.paecConnection || rawPaecContext || 'Vinculación técnico-productiva con el entorno comunitario.' },
+          { content: sanitizePdfMultiline(s2?.paecConnection || rawPaecContext || 'Vinculación técnico-productiva con el entorno comunitario.') },
         ],
       ]
     : isProgresiones
       ? [
           [
             { content: 'Meta Educativa / Trayectoria:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-            { content: s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.' },
+            { content: sanitizePdfMultiline(s2?.purpose || (s2 as Record<string, unknown>)?.learningOutcome as string || 'Desarrollar progresiones de aprendizaje integrales mediante pensamiento crítico y modelado.') },
           ],
           [
             { content: 'Progresiones de Aprendizaje Oficiales:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: progresionesListTextMacro || 'Progresiones de aprendizaje oficiales del MCCEMS.' },
+            { content: sanitizePdfMultiline(progresionesListTextMacro || 'Progresiones de aprendizaje oficiales del MCCEMS.') },
           ],
           ...(realCatSubcatMacro
             ? [
                 [
                   { content: 'Categorías y Subcategorías:', styles: { fontStyle: 'bold' as const, fillColor: GRAY_BG } },
-                  { content: realCatSubcatMacro },
+                  { content: sanitizePdfMultiline(realCatSubcatMacro) },
                 ],
               ]
             : []),
           [
             { content: 'Problemática Central / Contexto (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
+            { content: sanitizePdfMultiline(s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.') },
           ],
         ]
       : [
           [
             { content: 'Meta educativa:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-            { content: s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.' },
+            { content: sanitizePdfMultiline(s2?.purpose || 'Desarrollar competencias integrales mediante metodologías activas y pensamiento crítico.') },
           ],
           [
             { content: 'Propósitos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.' },
+            { content: sanitizePdfMultiline(propositosFormativos || 'Alcanzar los propósitos formativos establecidos en el MCCEMS.') },
           ],
           [
             { content: 'Contenidos Formativos:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.' },
+            { content: sanitizePdfMultiline(contenidosFormativos || 'Contenidos formativos establecidos en el programa de estudio.') },
           ],
           [
             { content: 'Problemática Central / Contexto:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
-            { content: s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.' },
+            { content: sanitizePdfMultiline(s2?.paecConnection || rawPaecContext || 'Contextualización a las necesidades socioformativas de la comunidad.') },
           ],
         ];
 
@@ -511,8 +544,8 @@ export async function generatePlanningPDF(
 
   // ─── Sección III: Transversalidad y PAEC ──────────────────────────────────
   const transItems = [
-    ...(s3?.fundamentalCurriculum || []).map((t) => `${t.area}: ${t.description}`),
-    ...(s3?.expandedCurriculum || []).map((t) => `${t.area}: ${t.description}`),
+    ...formatTransversalCurriculumList(s3?.fundamentalCurriculum),
+    ...formatTransversalCurriculumList(s3?.expandedCurriculum),
   ];
 
   autoTable(doc, {
@@ -521,7 +554,7 @@ export async function generatePlanningPDF(
     body: [
       [
         { content: 'Proyecto Comunitario (PAEC):', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 42 } },
-        { content: s2?.paecConnection || rawPaecContext || 'Articulación con el Programa de Trabajo Comunitario del Plantel.' },
+        { content: sanitizePdfMultiline(s2?.paecConnection || rawPaecContext || 'Articulación con el Programa de Trabajo Comunitario del Plantel.') },
       ],
       [
         { content: 'Transversalidad Interdisciplinar:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -876,16 +909,16 @@ export async function generatePlanningPDF(
     body: [
       [
         {
-          content: `\n\n___________________________________\nDOCENTE TITULAR\n${s1?.teacherName || 'Nombre y Firma del Docente'}`,
-          styles: { halign: 'center', cellWidth: 62 },
+          content: sanitizePdfMultiline(`\n\n_________________________\nDOCENTE TITULAR\n${s1?.teacherName || 'Nombre y Firma del Docente'}`),
+          styles: { halign: 'center', cellWidth: 64 },
         },
         {
-          content: `\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\n${s1?.directorName || 'Nombre, Firma y Sello Oficial'}`,
-          styles: { halign: 'center', cellWidth: 62 },
+          content: sanitizePdfMultiline(`\n\n_________________________\nDIRECTOR(A) DEL PLANTEL\n${s1?.directorName || 'Nombre, Firma y Sello Oficial'}`),
+          styles: { halign: 'center', cellWidth: 64 },
         },
         {
-          content: `\n\n___________________________________\n${identidad.supervision}\n${s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}`,
-          styles: { halign: 'center', cellWidth: 62 },
+          content: sanitizePdfMultiline(`\n\n_________________________\n${identidad.supervision}\n${s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}`),
+          styles: { halign: 'center' },
         },
       ],
     ],
@@ -1057,9 +1090,9 @@ export async function generateSecuenciaPDF(
     body: [
       [
         { content: 'Plantel:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 30 } },
-        { content: identidad.schoolName, styles: { cellWidth: 63 } },
+        { content: sanitizePdfText(identidad.schoolName), styles: { cellWidth: 63 } },
         { content: isUac ? 'UAC:' : 'Asignatura:', styles: { fontStyle: 'bold', fillColor: GRAY_BG, cellWidth: 35 } },
-        { content: rawUacName, styles: { cellWidth: 63 } },
+        { content: sanitizePdfText(rawUacName) },
       ],
       [
         { content: 'Docente:', styles: { fontStyle: 'bold', fillColor: GRAY_BG } },
@@ -1404,16 +1437,16 @@ export async function generateSecuenciaPDF(
     body: [
       [
         {
-          content: `\n\n\n___________________________________\nDOCENTE TITULAR\n${s1?.teacherName || 'Nombre y Firma del Docente'}`,
-          styles: { halign: 'center', cellWidth: 62 },
+          content: sanitizePdfMultiline(`\n\n\n_________________________\nDOCENTE TITULAR\n${s1?.teacherName || 'Nombre y Firma del Docente'}`),
+          styles: { halign: 'center', cellWidth: 64 },
         },
         {
-          content: `\n\n\n___________________________________\nDIRECTOR(A) DEL PLANTEL\n${s1?.directorName || 'Nombre, Firma y Sello Oficial'}`,
-          styles: { halign: 'center', cellWidth: 62 },
+          content: sanitizePdfMultiline(`\n\n\n_________________________\nDIRECTOR(A) DEL PLANTEL\n${s1?.directorName || 'Nombre, Firma y Sello Oficial'}`),
+          styles: { halign: 'center', cellWidth: 64 },
         },
         {
-          content: `\n\n\n___________________________________\n${identidad.supervision}\n${s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}`,
-          styles: { halign: 'center', cellWidth: 62 },
+          content: sanitizePdfMultiline(`\n\n\n_________________________\n${identidad.supervision}\n${s1?.supervisorName || 'Vo. Bo. / Sello de Zona'}`),
+          styles: { halign: 'center' },
         },
       ],
     ],

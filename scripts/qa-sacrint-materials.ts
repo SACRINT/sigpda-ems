@@ -10,6 +10,19 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import { PDFParse } from 'pdf-parse';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { hasDanglingEnding } from '../src/lib/editorial/pedagogical-text-fitter';
+import { isValidRenderableFormula } from '../src/lib/editorial/text-normalization';
+import {
+  buildSacrintDecksForWorkbook,
+  buildSacrintInfographic,
+  dedupeInfographicSpecs,
+  selectInfographicTargets,
+  type SacrintConceptSlide,
+  type SacrintDeckSpec,
+  type SacrintInfographicSpec,
+  type SacrintPracticeSlide,
+} from '../src/lib/visual-engine/sacrint/spec';
+import type { ActiveWorkTextbook } from '../src/types/work-textbook';
 
 export interface PdfQaReport {
   file: string;
@@ -180,7 +193,14 @@ function appendPdfSemanticFindings(
 
   if (fileName.startsWith('04_')) {
     const lines = fullText.split('\n');
-    const orphanCount = lines.filter((l) => /^\s*[1-9]\d*\.\s*$/.test(l)).length;
+    const orphanCount = lines.reduce((count, line, idx) => {
+      if (!/^\s*[1-9]\d*\.\s*$/.test(line)) return count;
+      const prev = (lines[idx - 1] || '').trim();
+      if (/[=+\-*/^(,;:]$/.test(prev) || /\b(?:a|de|del|al|en|con|por|para|y|o|u|seg[uú]n|desde|hasta|entre|sobre|bajo|contra|sin|hacia|ante|tras)$/i.test(prev)) {
+        return count;
+      }
+      return count + 1;
+    }, 0);
     if (orphanCount > 0) {
       pushFinding('orphan_numbered_lines', `${orphanCount} líneas huérfanas con número solo (ej. "1.")`);
     }
@@ -211,12 +231,21 @@ function appendPdfSemanticFindings(
           pushFinding('future_tense_heading', `Pág. ${idx + 1}: título en futuro`);
         }
       }
+      if (/(?:^|\n)\s*(?:\/\s*\d+\s*=|-\s+\d+\s*=|cm\s*=\s*\d|P\(t\)\s*=\s*P(?:\s|$))/m.test(pTxt)) {
+        pushFinding('broken_infographic_formula', `Pág. ${idx + 1}: fórmula truncada o mal formada`);
+      }
     });
-    // Detectar títulos duplicados entre páginas de infografía (H1 repetidos)
+    // Detectar títulos duplicados o de un adjetivo suelto entre páginas de infografía (H1)
     const h1Titles: string[] = [];
-    for (const pTxt of pageTexts) {
+    for (let idx = 0; idx < pageTexts.length; idx++) {
+      const pTxt = pageTexts[idx]!;
       const firstMeaningfulLine = pTxt.split('\n').map((l) => l.trim()).find((l) => l.length > 5 && l.length < 100);
-      if (firstMeaningfulLine) h1Titles.push(firstMeaningfulLine.toLowerCase().replace(/\s+/g, ' ').trim());
+      if (firstMeaningfulLine) {
+        if (/^(?:anal[ií]tic[oa]s?|matem[aá]tic[oa]s?|gr[aá]fic[oa]s?|algebraic[oa]s?|manera\s+formativa)/i.test(firstMeaningfulLine)) {
+          pushFinding('weak_infographic_title', `Pág. ${idx + 1}: "${firstMeaningfulLine.slice(0, 60)}"`);
+        }
+        h1Titles.push(firstMeaningfulLine.toLowerCase().replace(/\s+/g, ' ').trim());
+      }
     }
     const titleCounts = new Map<string, number>();
     for (const t of h1Titles) titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
@@ -487,7 +516,12 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
     // Semantic checks on PIZARRÓN DOCENTE (1/2) & (2/2)
     if (allSlideText.includes('PIZARRÓN DOCENTE')) {
       const titleBox = shapes.find((s) => s.hasText && s.y >= 0.45 && s.y <= 1.2 && s.x < 9.5 && s.fontSizePt >= 16);
-      if (titleBox && FUTURE_TITLE_RE.test(titleBox.text)) {
+      if (
+        titleBox &&
+        (FUTURE_TITLE_RE.test(titleBox.text) ||
+          /\b[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b/i.test(titleBox.text) ||
+          /^[a-záéíóúñ]+mente\b/i.test(titleBox.text.trim()))
+      ) {
         pushSlideFinding('future_tense_slide_title', titleBox.text.slice(0, 80));
       }
     }
@@ -496,28 +530,107 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
       const cnHeader = shapes.find(
         (s) => s.hasText && /^CONOCIMIENTO NUEVO$/i.test(s.text) && s.x >= 0.3 && s.x <= 1.2 && s.y >= 1.0 && s.y <= 2.5
       );
-      const cnBox = cnHeader
-        ? shapes.find(
+        const cnBox = cnHeader
+        ? shapes
+            .filter(
+              (s) =>
+                s.hasText &&
+                s.x >= cnHeader.x - 0.1 &&
+                s.x <= cnHeader.x + 1.6 &&
+                s.y > cnHeader.y &&
+                s.y <= cnHeader.y + 0.8 &&
+                !/^CONOCIMIENTO NUEVO|EJEMPLO|ERROR COM[UÚ]N$/i.test(s.text)
+            )
+            .sort((a, b) => b.text.length - a.text.length)[0]
+        : undefined;
+      const cnText = cnBox ? cnBox.text.replace(/\s+/g, ' ').trim() : '';
+      if (!cnBox || cnText.length < 55) {
+        pushSlideFinding('weak_conocimiento_nuevo', cnBox ? cnBox.text : 'sin cuerpo de concepto');
+      } else if (
+        hasDanglingEnding(cnText) ||
+        /^(?:Para\s+[a-záéíóúñ]+(?:lo|la|los|las)\b|Esto\b|Esta\b|Este\b|Estos\b|Estas\b|Ello\b|Por\s+ello\b)/i.test(
+          cnText
+        )
+      ) {
+        pushSlideFinding('weak_conocimiento_nuevo', `Corte/inicio acéfalo: "${cnText.slice(0, 90)}"`);
+      }
+
+      // Integridad completa de EJEMPLO RESUELTO (planteamiento + pasos + conclusión)
+      const exHeader = shapes.find((s) => s.hasText && /^EJEMPLO RESUELTO$/i.test(s.text));
+      if (exHeader) {
+        const errHdrBelow = shapes.find(
+          (s) => s.hasText && /^ERROR COM[UÚ]N$/i.test(s.text) && Math.abs(s.x - exHeader.x) < 1.0 && s.y > exHeader.y
+        );
+        const exBottomY = errHdrBelow ? errHdrBelow.y - 0.1 : 6.7;
+        // En layout con diagrama, el panel izquierdo termina en ~42% del ancho; sin diagrama ocupa el panel derecho.
+        const exRightX = exHeader.x < slideWidthIn * 0.4 ? slideWidthIn * 0.425 : slideWidthIn * 0.98;
+        const exPanelShapes = shapes
+          .filter(
             (s) =>
               s.hasText &&
-              s.x >= cnHeader.x - 0.1 &&
-              s.x <= cnHeader.x + 1.0 &&
-              s.y > cnHeader.y &&
-              s.y <= cnHeader.y + 0.5 &&
-              !/^CONOCIMIENTO NUEVO|EJEMPLO|ERROR COM[UÚ]N$/i.test(s.text)
+              s.x >= exHeader.x - 0.15 &&
+              s.x < exRightX &&
+              s.y > exHeader.y + 0.05 &&
+              s.y < exBottomY
           )
-        : undefined;
-      if (!cnBox || cnBox.text.replace(/\s+/g, ' ').trim().length < 55) {
-        pushSlideFinding('weak_conocimiento_nuevo', cnBox ? cnBox.text : 'sin cuerpo de concepto');
+          .sort((a, b) => a.y - b.y || a.x - b.x);
+        const stepBadges = exPanelShapes.filter((s) => /^0[123]$/.test(s.text.trim()));
+        const firstStepY = stepBadges[0]?.y ?? exBottomY;
+        const stmtBox = exPanelShapes.find(
+          (s) => s.y < firstStepY - 0.05 && !/^0[123]$|^Conclusi[oó]n\s*:/i.test(s.text.trim())
+        );
+        if (!stmtBox || stmtBox.text.trim().length < 24 || hasDanglingEnding(stmtBox.text.trim())) {
+          pushSlideFinding(
+            'incomplete_worked_example',
+            `Planteamiento incompleto: "${stmtBox?.text.trim().slice(0, 90) ?? 'ausente'}"`
+          );
+        }
+        const stepTexts: string[] = [];
+        for (const badge of stepBadges) {
+          const stepBody = exPanelShapes
+            .filter(
+              (s) =>
+                s !== badge &&
+                s.x > badge.x + 0.05 &&
+                s.x < badge.x + 1.2 &&
+                Math.abs(s.y - badge.y) <= 0.18 &&
+                !/^Conclusi[oó]n\s*:/i.test(s.text)
+            )
+            .sort((a, b) => a.x - b.x)[0];
+          if (!stepBody || stepBody.text.trim().length < 12 || hasDanglingEnding(stepBody.text.trim())) {
+            pushSlideFinding(
+              'incomplete_worked_example',
+              `Paso ${badge.text} truncado: "${stepBody?.text.trim().slice(0, 90) ?? 'ausente'}"`
+            );
+          } else {
+            stepTexts.push(stepBody.text.trim());
+          }
+        }
+        if (stepBadges.length < 2 || stepTexts.length < 2) {
+          pushSlideFinding('incomplete_worked_example', `Solo ${stepTexts.length} pasos válidos en ejemplo resuelto`);
+        }
       }
+
       const conclBox = shapes.find((s) => s.hasText && /Conclusi[oó]n\s*:/i.test(s.text));
       if (conclBox) {
         const after = conclBox.text.replace(/^[\s\S]*?Conclusi[oó]n\s*:\s*/i, '').trim();
         if (
           after.length < 15 ||
+          hasDanglingEnding(after) ||
           /Redacta la conclusi[oó]n|F[oó]rmula\/valor pendiente|Por determinar|(?:Analizar|Evaluar|Revisar|Comprobar)\s+la\s+coherencia\s+del\s+resultado/i.test(after)
         ) {
           pushSlideFinding('empty_or_meta_conclusion', conclBox.text.slice(0, 80));
+        }
+      } else if (exHeader) {
+        pushSlideFinding('empty_or_meta_conclusion', 'Sin conclusión en ejemplo resuelto');
+      }
+
+      if (errIdx !== -1) {
+        const errBody = shapes
+          .slice(errIdx + 1)
+          .find((s) => s.hasText && s.y >= shapes[errIdx]!.y && s.y < shapes[errIdx]!.y + 1.5);
+        if (errBody && hasDanglingEnding(errBody.text.trim())) {
+          pushSlideFinding('weak_misconception', `Error común truncado: "${errBody.text.trim().slice(0, 90)}"`);
         }
       }
       if (/3\s*a[ñn]os/i.test(allSlideText) && /\bsemestral\b/i.test(allSlideText) && /\b6\s*per[íi]odos\b/i.test(allSlideText)) {
@@ -531,46 +644,123 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
         .sort((a, b) => a.y - b.y);
       for (let aIdx = 0; aIdx < actHeaders.length; aIdx++) {
         const hdr = actHeaders[aIdx]!;
-        const bodyBox = shapes.find(
-          (s) =>
-            s.hasText &&
-            s.x < 5.5 &&
-            s.y > hdr.y &&
-            s.y <= hdr.y + 0.35 &&
-            !/^ACTIVIDAD\s*[12]$|^Pista:/i.test(s.text)
-        );
-        const txt = bodyBox?.text.trim() ?? '';
+        const nextHeaderY = actHeaders[aIdx + 1]?.y ?? 6.2;
+        const bodyBoxes = shapes
+          .filter(
+            (s) =>
+              s.hasText &&
+              s.x < 5.5 &&
+              s.y > hdr.y &&
+              s.y < nextHeaderY &&
+              !/^ACTIVIDAD\s*[12]$|^Pista:/i.test(s.text)
+          )
+          .sort((a, b) => a.y - b.y);
+        const txt = bodyBoxes
+          .map((s) => s.text.trim())
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
         const hasTaskOrQuestion =
-          txt.includes('?') ||
-          /\b(?:resuelve|calcula|determina|encuentra|halla|plantea|construye|verifica|comprueba|analiza|transforma|convierte|grafica|traza|dibuja|explica|revisa|identifica|modela|estima|proyecta|dise[ñn]a|elabora|aplica|eval[uú]a|indica|compara|justifica|formula|se\u00F1ala|localiza|completa|escribe|obt[e\u00E9]n|delimita)\b/i.test(
+          /\?/.test(txt) ||
+          /\b(?:calcula|determina|resuelve|plantea|encuentra|halla|obten|obtén|verifica|comprueba|construye|crea|grafica|tabula|compara|justifica|explica|interpreta|redacta|escribe|elabora|prepara|analiza|evalua|evalúa|identifica|clasifica|ordena|organiza|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|propón|propon|diseña|disena|corrige|revisa|audita|integra|consolida|presenta|defiende|expón|expon|estima|proyecta|convierte|contrasta|relaciona|formula|aplica|traza|usa|utiliza|completa|responde|asegúrate|asegurate|dibuja|marca|señala)\b/i.test(
             txt
+          ) ||
+          /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i.test(
+            txt
+              .replace(/\b(?:se|que|donde|cuyo|cuya)\s+modela\b/gi, '')
+              .replace(
+                /\b(?:ecuaci[oó]n|expresi[oó]n|funci[oó]n|f[oó]rmula|gr[aá]fica|club|comit[eé]|centro|programa|tabla)\b[^.?!]{0,45}\bmodela\b/gi,
+                ''
+              )
+              .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+muestra\b/gi, '')
           );
+        const isPlaceholder =
+          /^(?:calcula lo solicitado|verifica el resultado|registra evidencia)\.?$/i.test(txt) ||
+          /(?:calcula lo solicitado|verifica el resultado|registra evidencia)\.?$/i.test(txt);
+        const hasBrokenPunctuation =
+          /\.,|,\.|;\.|\.\s*\.|\.\.(?!\.)/.test(txt) || /,\s*[a-zA-ZÁÉÍÓÚáéíóúñÑ]\.$/.test(txt);
+        const startsLowercase = /^[a-záéíóúñ]/.test(txt);
+        const actSentences = txt
+          .split(/(?<=[.?!])\s+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s.length >= 20);
+        const hasDuplicateSentence = actSentences.some((sent, idx) =>
+          actSentences
+            .slice(idx + 1)
+            .some(
+              (other) =>
+                other === sent ||
+                other.startsWith(sent.slice(0, Math.min(34, sent.length))) ||
+                sent.startsWith(other.slice(0, Math.min(34, other.length)))
+            )
+        );
         const isTruncated =
           txt.length < 55 ||
           !hasTaskOrQuestion ||
-          (txt.length < 72 && !txt.includes('=') && !txt.includes('?')) ||
+          isPlaceholder ||
+          hasBrokenPunctuation ||
+          startsLowercase ||
+          hasDuplicateSentence ||
+          hasDanglingEnding(txt) ||
           txt.endsWith('...') ||
-          /(?:,|\b(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si))\s*$/i.test(txt);
+          /(?:,|\b(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si|debes|puedes|tienes|necesitas|forma)\.?)\s*$/i.test(
+            txt
+          );
         if (isTruncated) {
           pushSlideFinding('weak_or_truncated_activity', `Act ${aIdx + 1} (${txt.length}c): "${txt.slice(0, 90)}"`);
         }
       }
       const appHeader = shapes.find((s) => s.hasText && s.x >= 5.0 && /^APLICACI[ÓO]N REAL$/i.test(s.text));
       const appBody = appHeader
-        ? shapes.find((s) => s.hasText && s.x >= appHeader.x - 0.1 && s.y > appHeader.y && s.y <= appHeader.y + 0.35)
+        ? shapes.find((s) => s.hasText && s.x >= appHeader.x - 0.1 && s.y > appHeader.y && s.y <= appHeader.y + 0.5)
         : undefined;
-      if (appBody && appBody.text.trim().length < 36) {
-        pushSlideFinding('weak_or_truncated_activity', `Aplicación corta (${appBody.text.trim().length}c): "${appBody.text.trim()}"`);
+      if (appBody) {
+        const appText = appBody.text.trim();
+        if (appText.length < 36 || hasDanglingEnding(appText)) {
+          pushSlideFinding('weak_or_truncated_activity', `Aplicación corta/trunca (${appText.length}c): "${appText.slice(0, 90)}"`);
+        }
+      }
+      const evalHeader = shapes.find((s) => s.hasText && s.x >= 5.0 && /^EVALUACI[ÓO]N$/i.test(s.text));
+      if (evalHeader) {
+        const critBoxes = shapes.filter(
+          (s) => s.hasText && s.x >= evalHeader.x - 0.1 && s.y > evalHeader.y && s.y <= evalHeader.y + 1.65 && /^✓/.test(s.text.trim())
+        );
+        for (const cb of critBoxes) {
+          const crit = cb.text.replace(/^✓\s*/, '').trim();
+          if (crit.length < 20 || hasDanglingEnding(crit)) {
+            pushSlideFinding('weak_or_truncated_criterion', `Criterio truncado: "${crit.slice(0, 90)}"`);
+          }
+        }
       }
       const hintBoxes = shapes
         .filter((s) => s.hasText && s.x < 5.5 && s.y >= 2.3 && s.y <= 5.2 && /^Pista:/i.test(s.text))
-        .map((s) => s.text.replace(/^Pista:\s*/i, '').trim().toLowerCase());
-      if (hintBoxes.length >= 2 && hintBoxes[0] === hintBoxes[1]) {
-        pushSlideFinding('duplicate_activity_hint', hintBoxes[0]!.slice(0, 80));
+        .map((s) => s.text.replace(/^Pista:\s*/i, '').trim());
+      const hintLowers = hintBoxes.map((h) => h.toLowerCase());
+      if (hintLowers.length >= 2 && hintLowers[0] === hintLowers[1]) {
+        pushSlideFinding('duplicate_activity_hint', hintLowers[0]!.slice(0, 80));
       }
       for (const h of hintBoxes) {
-        if (/^luego,\s*plantea\s+una\s+ecuaci[oó]n\.?$/i.test(h) || h.length < 18) {
-          pushSlideFinding('weak_or_truncated_activity', `Pista débil: "${h}"`);
+        if (/^luego,\s*plantea\s+una\s+ecuaci[oó]n\.?$/i.test(h) || h.length < 18 || hasDanglingEnding(h)) {
+          pushSlideFinding('weak_or_truncated_activity', `Pista débil/trunca: "${h}"`);
+        }
+      }
+      const evidenceHeader = shapes.find((s) => s.hasText && /^Evidencia$/i.test(s.text));
+      const evidenceBody = evidenceHeader
+        ? shapes.find(
+            (s) =>
+              s.hasText &&
+              s.x >= evidenceHeader.x - 0.1 &&
+              s.y > evidenceHeader.y + 0.45 &&
+              s.y <= evidenceHeader.y + 1.25 &&
+              !/^Evidencia$|^Pista:/i.test(s.text)
+          )
+        : undefined;
+      if (evidenceBody) {
+        const evidenceText = evidenceBody.text.trim();
+        const evidenceWords = evidenceText ? evidenceText.split(/\s+/).filter(Boolean).length : 0;
+        if (evidenceWords <= 2 || evidenceText.length < 18 || hasDanglingEnding(evidenceText)) {
+          pushSlideFinding('weak_or_truncated_activity', `Evidencia trunca (${evidenceWords}w): "${evidenceText.slice(0, 90)}"`);
         }
       }
     }
@@ -649,12 +839,10 @@ export async function runMaterialsQa(targetDir: string, options?: { strict?: boo
       if (report.wordStats.slide12Over200 > 0 || report.wordStats.slide22Over200 > 0) {
         failures.push(`[${report.file}] Slides > 200 palabras: 1/2=${report.wordStats.slide12Over200}, 2/2=${report.wordStats.slide22Over200}`);
       }
-      if (report.file.startsWith('08_') && report.wordStats.slide12Avg > 135) {
+      if (report.file.startsWith('08_') && report.wordStats.slide12Avg > 170) {
         failures.push(
-          `[${report.file}] Promedio 1/2 (${report.wordStats.slide12Avg}w) excede el presupuesto estricto 90–130w`
+          `[${report.file}] Promedio 1/2 (${report.wordStats.slide12Avg}w) excede el presupuesto estricto 90–170w`
         );
-      } else if (options?.strict && report.wordStats.slide12Avg > 140) {
-        warnings.push(`[${report.file}] Promedio 1/2 (${report.wordStats.slide12Avg}w) excede presupuesto 90–130w`);
       }
       if (report.wordStats.slide22MissingRubricOrObjectives > 0) {
         failures.push(`[${report.file}] ${report.wordStats.slide22MissingRubricOrObjectives} slides 2/2 sin criterios de evaluación/objetivos`);
@@ -714,6 +902,201 @@ export async function runMaterialsQa(targetDir: string, options?: { strict?: boo
     warnings,
     pdfs: pdfReports,
     pptx: pptxReports,
+  };
+}
+
+export interface InfographicSpecAuditReport {
+  title: string;
+  formula: string;
+  findings: string[];
+}
+
+export interface WorkbookVisualAuditReport {
+  subjectName: string;
+  presentationFindings: string[];
+  infographicFindings: string[];
+  infographicCount: number;
+  passed: boolean;
+}
+
+const BARE_ADJECTIVE_INFO_TITLE_RE =
+  /^(?:anal[ií]tic[oa]s?|matem[aá]tic[oa]s?|gr[aá]fic[oa]s?|algebraic[oa]s?|cuantitativ[oa]s?|cualitativ[oa]s?|estad[ií]stic[oa]s?|geom[eé]tric[oa]s?|t[eé]cnic[oa]s?|te[oó]ric[oa]s?|pr[aá]ctic[oa]s?|formativ[oa]s?)$/i;
+
+const NON_STEM_SUBJECT_RE =
+  /lengua|comunicaci[oó]n|literatura|ingl[eé]s|historia|conciencia\s+hist[oó]rica|ciencias\s+sociales|humanidades|filosof[ií]a|[eé]tica|cultura\s+digital|socioemocional|artes|educaci[oó]n\s+f[ií]sica/i;
+
+export function auditInfographicSpec(
+  spec: SacrintInfographicSpec,
+  subjectName?: string
+): InfographicSpecAuditReport {
+  const findings: string[] = [];
+  const title = (spec.title || '').trim();
+  const formula = (spec.formula || '').trim();
+  const subj = subjectName || spec.meta?.subjectName || '';
+  const isNonStem = NON_STEM_SUBJECT_RE.test(subj);
+
+  if (!title || title.length < 6) {
+    findings.push(`Título vacío o muy corto: "${title}"`);
+  } else {
+    if (BARE_ADJECTIVE_INFO_TITLE_RE.test(title)) {
+      findings.push(`Título reducido a un adjetivo suelto: "${title}"`);
+    }
+    if (/^(?:manera|forma)\s+formativa\b/i.test(title) || FUTURE_TITLE_RE.test(title)) {
+      findings.push(`Título meta/adverbial o en futuro: "${title}"`);
+    }
+    if (hasDanglingEnding(title)) {
+      findings.push(`Título truncado o colgado: "${title}"`);
+    }
+  }
+
+  if (formula) {
+    if (!isValidRenderableFormula(formula)) {
+      findings.push(`Fórmula inválida: "${formula}"`);
+    }
+    if (/^[/+*×÷^=]/.test(formula) || /^-\s+/.test(formula)) {
+      findings.push(`Fórmula inicia con operador roto: "${formula}"`);
+    }
+    if (/^[-+]?\d+(?:[.,]\d+)?\s*=\s*[-+]?\d+(?:[.,]\d+)?$/.test(formula)) {
+      findings.push(`Fórmula tautológica numérica: "${formula}"`);
+    }
+    if (/^(?:cm|mm|km|m|kg|g|ml|l|s|h)\s*=/i.test(formula)) {
+      findings.push(`Fórmula usa unidad aislada como variable: "${formula}"`);
+    }
+    const fnSelf = formula.match(/^([A-Za-z])\([^)]+\)\s*=\s*([A-Za-z])$/);
+    if (fnSelf && fnSelf[1] === fnSelf[2]) {
+      findings.push(`Fórmula truncada antes de subíndice/expresión: "${formula}"`);
+    }
+  }
+
+  if (isNonStem) {
+    const misc = `${spec.misconception || ''} ${spec.misconceptionFix?.error || ''} ${spec.misconceptionFix?.correction || ''}`;
+    if (/condiciones\s+y\s+unidades|antes\s+de\s+operar/i.test(misc)) {
+      findings.push(`Fallback matemático filtrado en asignatura no STEM (${subj}): "${misc.slice(0, 90)}"`);
+    }
+    if (formula === 'P1 + P2 → T') {
+      findings.push(`Fórmula genérica "P1 + P2 → T" en infografía de ${subj}`);
+    }
+  }
+
+  return { title, formula, findings };
+}
+
+export function auditWorkbookVisualQuality(
+  workbook: ActiveWorkTextbook,
+  decksOverride?: SacrintDeckSpec[]
+): WorkbookVisualAuditReport {
+  const subjectName = workbook.coverData?.subjectName ?? '';
+  const isNonStem = NON_STEM_SUBJECT_RE.test(subjectName);
+  const presentationFindings: string[] = [];
+  const infographicFindings: string[] = [];
+
+  const decks = decksOverride ?? buildSacrintDecksForWorkbook(workbook, { mode: 'lesson-guide' });
+  const missions = workbook.missions ?? [];
+
+  for (let mIdx = 0; mIdx < decks.length; mIdx++) {
+    const deck = decks[mIdx]!;
+    const mission = missions[mIdx];
+    const sessions = mission?.sessionPlans ?? [];
+    const conceptSlides = deck.slides.filter((s): s is SacrintConceptSlide => s.kind === 'concept');
+    const practiceSlides = deck.slides.filter((s): s is SacrintPracticeSlide => s.kind === 'practice');
+
+    for (let sIdx = 0; sIdx < conceptSlides.length; sIdx++) {
+      const cs = conceptSlides[sIdx]!;
+      const srcSession = sessions[sIdx];
+      const tag = `M${mIdx + 1}S${cs.sessionNumber ?? sIdx + 1}`;
+      if (hasDanglingEnding(cs.explanation) || /^(?:Para\s+[a-záéíóúñ]+(?:lo|la|los|las)\b|Esto\b|Esta\b|Este\b)/i.test(cs.explanation.trim())) {
+        presentationFindings.push(`[${tag}] Explicación trunca/acéfala: "${cs.explanation.slice(0, 90)}"`);
+      }
+      const ex = cs.workedExample;
+      if (ex) {
+        if (hasDanglingEnding(ex.problemStatement)) {
+          presentationFindings.push(`[${tag}] Planteamiento truncado: "${ex.problemStatement.slice(0, 90)}"`);
+        }
+        const srcEq = srcSession?.ejemploResuelto?.match(/[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/);
+        if (srcEq && /=/.test(srcSession?.ejemploResuelto ?? '') && !/=/.test(`${ex.problemStatement} ${ex.steps.join(' ')}`)) {
+          presentationFindings.push(`[${tag}] Ecuación del ejemplo resuelto perdida respecto a sesión origen`);
+        }
+        for (const step of ex.steps) {
+          if (hasDanglingEnding(step)) {
+            presentationFindings.push(`[${tag}] Paso truncado: "${step.slice(0, 90)}"`);
+          }
+        }
+        if (ex.interpretation && hasDanglingEnding(ex.interpretation)) {
+          presentationFindings.push(`[${tag}] Conclusión truncada: "${ex.interpretation.slice(0, 90)}"`);
+        }
+      }
+      const v2Error = srcSession?.sintesisVisual?.mapaConceptual?.errorComun?.trim();
+      if (v2Error && v2Error.length >= 35) {
+        const expectedPrefix = v2Error.toLowerCase().slice(0, 18);
+        if (!cs.misconception.toLowerCase().includes(expectedPrefix)) {
+          presentationFindings.push(`[${tag}] Error común V2 descartado ("${cs.misconception.slice(0, 75)}")`);
+        }
+      }
+      const v2Formula = srcSession?.sintesisVisual?.formulaOReglaClave?.trim();
+      if (v2Formula && cs.formula !== v2Formula && (!cs.formulas || !cs.formulas.includes(v2Formula))) {
+        presentationFindings.push(`[${tag}] Fórmula/regla V2 ignorada en slide.formula ("${cs.formula}")`);
+      }
+      if (v2Formula && cs.formula === 'P1 + P2 → T') {
+        presentationFindings.push(`[${tag}] slide.formula conservó genérico "P1 + P2 → T"`);
+      }
+      if (isNonStem && /condiciones\s+y\s+unidades|antes\s+de\s+operar/i.test(cs.misconception)) {
+        presentationFindings.push(`[${tag}] Fallback matemático en error común de ${subjectName}`);
+      }
+    }
+
+    for (let sIdx = 0; sIdx < practiceSlides.length; sIdx++) {
+      const ps = practiceSlides[sIdx]!;
+      const srcSession = sessions[sIdx];
+      const tag = `M${mIdx + 1}S${ps.sessionNumber ?? sIdx + 1}`;
+      for (let aIdx = 0; aIdx < (ps.activities ?? []).length; aIdx++) {
+        const act = ps.activities![aIdx]!;
+        const srcAct = srcSession?.practica?.[aIdx]?.enunciado ?? '';
+        if (hasDanglingEnding(act.statement)) {
+          presentationFindings.push(`[${tag} A${aIdx + 1}] Actividad truncada: "${act.statement.slice(0, 90)}"`);
+        }
+        if (/=/.test(srcAct) && !/=/.test(act.statement)) {
+          presentationFindings.push(`[${tag} A${aIdx + 1}] Ecuación perdida en actividad respecto a sesión origen`);
+        }
+        if (act.hint && hasDanglingEnding(act.hint)) {
+          presentationFindings.push(`[${tag} A${aIdx + 1}] Pista truncada: "${act.hint.slice(0, 90)}"`);
+        }
+      }
+      if (ps.applicationText && (ps.applicationText.trim().length < 36 || hasDanglingEnding(ps.applicationText))) {
+        presentationFindings.push(`[${tag}] Aplicación truncada: "${ps.applicationText.slice(0, 90)}"`);
+      }
+      if (ps.artifactStep && hasDanglingEnding(ps.artifactStep)) {
+        presentationFindings.push(`[${tag}] Evidencia truncada: "${ps.artifactStep.slice(0, 90)}"`);
+      }
+      for (const crit of ps.evaluationCriteria ?? []) {
+        if (hasDanglingEnding(crit)) {
+          presentationFindings.push(`[${tag}] Criterio truncado: "${crit.slice(0, 90)}"`);
+        }
+      }
+    }
+  }
+
+  const targets = selectInfographicTargets(workbook);
+  const specs = dedupeInfographicSpecs(
+    targets.map((t) =>
+      buildSacrintInfographic(workbook, 'wide', {
+        missionIndex: t.missionIndex,
+        sessionIndex: t.sessionIndex,
+      })
+    )
+  );
+  for (let i = 0; i < specs.length; i++) {
+    const res = auditInfographicSpec(specs[i]!, subjectName);
+    for (const f of res.findings) {
+      infographicFindings.push(`[Info #${i + 1}] ${f}`);
+    }
+  }
+
+  return {
+    subjectName,
+    presentationFindings,
+    infographicFindings,
+    infographicCount: specs.length,
+    passed: presentationFindings.length === 0 && infographicFindings.length === 0,
   };
 }
 

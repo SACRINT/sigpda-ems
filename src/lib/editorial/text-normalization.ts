@@ -129,7 +129,6 @@ const UNICODE_TO_WINANSI_MAP: Record<string, string> = {
   'Ω': 'Ohm',
   'ω': 'omega',
   'φ': 'fi',
-  '√': 'V',
   '⁰': '^0',
   '¹': '^1',
   '⁴': '^4',
@@ -340,7 +339,7 @@ function replaceLiteralSqrtFunctions(text: string): string {
       out += text.slice(index);
       break;
     }
-    out += `V(${text.slice(openIndex + 1, closeIndex).trim()})`;
+    out += `√(${text.slice(openIndex + 1, closeIndex).trim()})`;
     index = closeIndex + 1;
   }
   return out;
@@ -520,7 +519,7 @@ export function normalizeEditorialText(
     .replace(/([A-Za-z0-9)\]])_([0-9ainexv])/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || `_${ch}`}`);
 
   // 6.9. Normalizar notación ASCII de raíz, subíndices crudos y superíndices partidos.
-  // Se usa la convención editorial existente del proyecto: `V(...)` representa √(...).
+  // Las fuentes editoriales soportan el glifo √, por lo que se conserva Unicode.
   text = replaceLiteralSqrtFunctions(text)
     .replace(/\bM_\((simple|compuesto)\)/gi, (_m, sub: string) => `M ${sub}`)
     .replace(/¹2\b/g, '¹²')
@@ -579,6 +578,7 @@ export function isValidRenderableFormula(formula: string | null | undefined): bo
   if (/\by\s*=\s*c[₁1]\b/i.test(trimmed)) return false;
   if (/\ba[₁₂12]\s*\*\s*x\b|\bb[₁₂12]\s*\*\s*y\b/i.test(trimmed)) return false;
   if (/\bundefined\b|\bNaN\b|\$\{/i.test(trimmed)) return false;
+  if (/^\([A-Za-z]\)\s*=/.test(trimmed)) return false;
   if (/([(\[{,;:=+\-*/])\s*$/.test(trimmed)) return false;
   const openParens = (trimmed.match(/\(/g) || []).length;
   const closeParens = (trimmed.match(/\)/g) || []).length;

@@ -87,6 +87,7 @@ export async function GET(
     const sacrintDecks: SacrintDeckSpec[] = [];
     const deckErrors: ReviewIssue[] = [];
     const deckWarnings: ReviewIssue[] = [];
+    const misconceptionTracker = new Map<string, number>();
 
     for (const entry of effectiveEntries) {
       let extracted: ExtractedBlockMaterials | undefined;
@@ -95,7 +96,10 @@ export async function GET(
       } catch {
         extracted = undefined;
       }
-      const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, { mode: deckMode });
+      const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, {
+        mode: deckMode,
+        misconceptionTracker,
+      });
       for (const deck of entryDecks) {
         sacrintDecks.push(deck);
         const review = reviewBlockMaterials({

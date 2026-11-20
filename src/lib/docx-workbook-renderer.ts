@@ -71,7 +71,7 @@ import {
 } from '@/types/workbook-legacy';
 import { extractCalloutBox, resolveDemoCalloutTitle, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -5048,7 +5048,7 @@ function buildProjectSection(
     );
     for (const mat of project.requiredMaterials) {
       const matStr = resolveMaterialString(mat);
-      const cleanMat = resolveMaterialTokensForMarkdown(matStr);
+      const cleanMat = stripMaterialTokens(matStr);
       elements.push(
         new Paragraph({
           spacing: { after: 50 },
@@ -5341,6 +5341,7 @@ function buildProjectSection(
 }
 
 function buildEvaluationSection(evalSection: EvaluationSection): (Paragraph | Table)[] {
+  evalSection = stripMaterialTokensDeep(evalSection);
   const elements: (Paragraph | Table)[] = [
     new Paragraph({
       spacing: { before: 200, after: 100 },

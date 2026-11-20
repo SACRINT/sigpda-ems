@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Writer Contract & Shared Quality Scoring
  * SIGPDA-EMS · SEMS Puebla MCCEMS 2026-2027
  *
@@ -25,6 +25,7 @@ import type {
   ProjectSection,
   EvaluationSection,
   SessionPlan,
+  SessionVisualSynthesis,
   PracticaItem,
   RecursoItem,
 } from '@/types/work-textbook';
@@ -197,9 +198,14 @@ export function evaluateQuality(params: {
   }
 
   // 3b. Señal de aplicación a la vida diaria (contexto real, no ejercicios abstractos)
-  const hasDailyLifeApplication = /vida diaria|cotidian|comunidad|Puebla|PAEC|situación real|problema real|contexto real|del entorno|en la vida/i.test(params.content);
+  const hasDailyLifeApplication =
+    /vida diaria|cotidian|comunidad|entorno|proyecto|caso|situaci[oó]n|plantel|PAEC|Puebla|situaci[oó]n real|problema real|contexto real|del entorno|en la vida/i.test(
+      params.content
+    );
   if (!hasDailyLifeApplication) {
-    warnings.push('Las actividades carecen de anclaje claro en la vida diaria del estudiante (contexto real/Puebla/PAEC)');
+    warnings.push(
+      'Las actividades carecen de anclaje situado claro (comunidad, entorno, proyecto, caso o contexto real)'
+    );
   }
 
   // 4. +15 si incluye al menos 2 elementos de cuaderno activo
@@ -284,18 +290,24 @@ export function hasExplicitPracticeTask(text: string): boolean {
   );
 }
 
-export function hasCompleteWorkedExampleClosure(text: string): boolean {
+export function hasCompleteWorkedExampleClosure(
+  text: string,
+  options?: { requireNumeric?: boolean }
+): boolean {
   const clean = text.replace(/\s+/g, ' ').trim();
   if (!clean || /(?:,|\b(?:de|del|en|para|con|la|el|los|las|un|una|que|y|o|su|sus))\s*$/i.test(clean)) {
     return false;
   }
-  return (
-    /[=]|\d/.test(clean) &&
-    (/\b(?:respuesta final|resultado|conclusi[oó]n|por lo tanto|en consecuencia|se obtiene|se concluye|queda|equivale)\b/i.test(
+  const hasClosingMarker =
+    /\b(?:respuesta final|resultado|conclusi[oó]n|por lo tanto|en consecuencia|se obtiene|se concluye|queda|equivale|en s[ií]ntesis)\b/i.test(
       clean
-    ) ||
-      /=\s*-?\d+(?:[.,]\d+)?\s*(?:[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ²³%°]+)?\.?$/i.test(clean))
-  );
+    ) || /=\s*-?\d+(?:[.,]\d+)?\s*(?:[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ²³%°]+)?\.?$/i.test(clean);
+  if (!hasClosingMarker) return false;
+  if (options?.requireNumeric) {
+    const withoutStepLabels = clean.replace(/\bpaso\s*\d+\b\s*:?/gi, '');
+    return /[=]|\d/.test(withoutStepLabels);
+  }
+  return clean.length >= 40;
 }
 
 export function sanitizeSessionPlans(
@@ -324,13 +336,72 @@ export function sanitizeSessionPlans(
     return '';
   };
 
-  // Elimina cualquier rastro de voz de docente (defensa anti "guía de clase").
+  // Elimina cualquier rastro de voz de docente (defensa anti "guía de clase") preservando saltos de párrafo y bloque.
   const toStudentVoice = (s: string): string =>
     s
       .replace(/^\s*(docente|estudiante)\s*:\s*/gim, '')
-      .replace(/\b(exponer y problematizar|verificar comprensión|orientar el avance|activar el interés|plantear la situación|retomar el desafío|presentar a los equipos)\b/gi, '')
-      .replace(/\s{2,}/g, ' ')
+      .replace(/\b(exponer y problematizar|verificar comprensi[oó]n|orientar el avance|activar el inter[eé]s|plantear la situaci[oó]n|retomar el desaf[ií]o|presentar a los equipos)\b/gi, '')
+      .replace(/[^\S\r\n]{2,}/g, ' ')
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
+
+  const sanitizeVisualSynthesis = (value: unknown): SessionVisualSynthesis | undefined => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    const visual = value as Record<string, unknown>;
+    const conceptoBreve = toStudentVoice(asText(visual.conceptoBreve, 20));
+    const formulaOReglaClave = asText(visual.formulaOReglaClave, 3);
+    const exampleRaw =
+      visual.ejemploBreve && typeof visual.ejemploBreve === 'object'
+        ? (visual.ejemploBreve as Record<string, unknown>)
+        : {};
+    const planteamiento = toStudentVoice(asText(exampleRaw.planteamiento, 12));
+    const pasos = Array.isArray(exampleRaw.pasos)
+      ? exampleRaw.pasos
+          .map((step) => toStudentVoice(asText(step, 5)))
+          .filter(Boolean)
+          .slice(0, 3)
+      : [];
+    const conclusion = toStudentVoice(asText(exampleRaw.conclusion, 6));
+    const mapRaw =
+      visual.mapaConceptual && typeof visual.mapaConceptual === 'object'
+        ? (visual.mapaConceptual as Record<string, unknown>)
+        : {};
+    const definicionClave = toStudentVoice(asText(mapRaw.definicionClave, 12));
+    const criterioDesarrollo = toStudentVoice(asText(mapRaw.criterioDesarrollo, 8));
+    const errorComun = toStudentVoice(asText(mapRaw.errorComun, 8));
+    const correccionBreve = toStudentVoice(asText(mapRaw.correccionBreve, 8));
+
+    const hasAnyVisual =
+      Boolean(conceptoBreve) ||
+      Boolean(formulaOReglaClave) ||
+      Boolean(planteamiento) ||
+      pasos.length > 0 ||
+      Boolean(conclusion) ||
+      Boolean(definicionClave) ||
+      Boolean(criterioDesarrollo) ||
+      Boolean(errorComun) ||
+      Boolean(correccionBreve);
+
+    if (!hasAnyVisual) return undefined;
+
+    const conceptoFinal =
+      conceptoBreve || definicionClave || planteamiento || formulaOReglaClave || criterioDesarrollo || '';
+    const formulaFinal =
+      formulaOReglaClave || criterioDesarrollo || definicionClave || conceptoFinal || '';
+
+    return {
+      conceptoBreve: conceptoFinal,
+      formulaOReglaClave: formulaFinal,
+      ejemploBreve: { planteamiento, pasos, conclusion },
+      mapaConceptual: {
+        definicionClave: definicionClave || conceptoBreve || planteamiento || formulaFinal,
+        criterioDesarrollo: criterioDesarrollo || formulaFinal,
+        errorComun: errorComun || '',
+        correccionBreve: correccionBreve || errorComun || '',
+      },
+    };
+  };
 
   const validPlans: SessionPlan[] = [];
 
@@ -459,6 +530,9 @@ export function sanitizeSessionPlans(
       continue;
     }
 
+    const sintesisVisual = sanitizeVisualSynthesis(
+      rec.sintesisVisual ?? rec.sintesis_visual ?? rec.visualSynthesis
+    );
     const plan: SessionPlan = {
       sessionNumber,
       objetivo,
@@ -471,6 +545,7 @@ export function sanitizeSessionPlans(
       autoevaluacion,
       recursos: recursosCurados,
       productoIntegrador,
+      ...(sintesisVisual ? { sintesisVisual } : {}),
       isFallback: rec.isFallback === true,
     };
     validPlans.push(plan);

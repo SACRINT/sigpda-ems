@@ -6,6 +6,8 @@ import { extractMaterialsFromWorkbook } from '@/lib/guide-engine/material-extrac
 import { cascadeBlockMaterials } from '@/lib/guide-engine/cascade-block-materials';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import { logger } from '@/lib/logger';
+import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
+import type { SecuenciaBloque } from '@/types/planning';
 
 async function handleMaterialesBloque(
   request: NextRequest,
@@ -28,7 +30,7 @@ async function handleMaterialesBloque(
     // 1. Verificar existencia y pertenencia de la planeación
     const db = sql();
     const planRows = await db`
-      SELECT id, teacher_id, uac_name, component, curriculum_name
+      SELECT id, teacher_id, uac_name, component, curriculum_name, sequence_json
       FROM plannings
       WHERE id = ${planningId}::uuid
       LIMIT 1
@@ -64,11 +66,22 @@ async function handleMaterialesBloque(
     const curriculumName = planRows[0].curriculum_name || '';
 
     // 3. Extracción determinística para respuesta y reporte R1
-    const materials = extractMaterialsFromWorkbook(workbook);
+    let blockSequence: SecuenciaBloque | null = null;
+    try {
+      blockSequence = buildBlockSequenceFromWorkbook(
+        workbook,
+        blockIndex,
+        workbook.blockName || `Bloque ${blockIndex + 1}`
+      );
+    } catch (sequenceError) {
+      logger.warn('[materiales-bloque] No se pudo sincronizar la secuencia del libro:', sequenceError);
+    }
+    const materials = extractMaterialsFromWorkbook(workbook, blockSequence, null);
 
     if (request.method === 'GET') {
       const review = reviewBlockMaterials({
         workbook,
+        blockSequence,
         extracted: materials,
         uacName,
         component,
@@ -103,6 +116,7 @@ async function handleMaterialesBloque(
       cascadeResult?.review ??
       reviewBlockMaterials({
         workbook,
+        blockSequence,
         extracted: materials,
         uacName,
         component,

@@ -609,7 +609,7 @@ export async function generateBlockWorkTextbook(
         try {
           const deficit = Math.max(0, targetMin - currentWords);
           const expansionDirective = deficit > 0
-            ? `[REQUISITO CRÍTICO DE EXPANSIÓN EDITORIAL]: El borrador previo tuvo ${currentWords} palabras y fue insuficiente para el presupuesto formal (faltan al menos ${deficit} palabras para el mínimo de ${targetMin}). Redacta CADA sesión con al menos 950 a 1,050 palabras: expande 'contenido' a 3 párrafos conceptuales extensos de al menos 160 palabras cada uno y 'ejemploResuelto' con 4 pasos detallados de desarrollo sin omitir operaciones ni fórmulas.`
+            ? `[REQUISITO CRÍTICO DE EXPANSIÓN EDITORIAL]: El borrador previo tuvo ${currentWords} palabras y fue insuficiente para el presupuesto formal (faltan al menos ${deficit} palabras para el mínimo de ${targetMin}). Conserva la estructura del contrato canónico V2 y expande cada sesión con contenido teórico real, ejemplo resuelto completo, prácticas con solución y síntesis visual. Desarrolla las operaciones, fórmulas y criterios de verificación sin omitir pasos; prohíbe el relleno genérico, la repetición y las frases de transición vacías.`
             : undefined;
 
           const writerSpecificInput: WriterInput = {

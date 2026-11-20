@@ -14,8 +14,8 @@ import {
 
 const BATCH_SIZE = 8;
 const DEFICIT_RATIO = 0.9;
-const CONTENT_MIN_WORDS = 460;
-const EXAMPLE_MIN_WORDS = 320;
+const CONTENT_MIN_WORDS = 320;
+const EXAMPLE_MIN_WORDS = 220;
 const BATCH_DELAY_MS = 3000;
 const DEFAULT_MIN_REMAINING_BUDGET_MS = 45_000;
 
@@ -566,8 +566,10 @@ function buildSystemInstruction(
 UAC: ${uacName}. Bloque: ${blockName}. Subsistema: ${subsystem.toUpperCase()}.
 
 Recibirás un arreglo JSON de planes de sesión. Debes reescribir CADA plan expandiendo únicamente dos campos:
-1. "contenido": entre ${CONTENT_MIN_WORDS} y 540 palabras, organizado en 3 párrafos de al menos 150 palabras cada uno. Debe ser teoría real y específica de la disciplina, con definiciones, fórmulas o marcos conceptuales.
-2. "ejemploResuelto": entre ${EXAMPLE_MIN_WORDS} y 380 palabras, con un planteamiento contextualizado, 4 pasos numerados de 60 a 80 palabras cada uno, operaciones o decisiones explícitas y una interpretación final.
+1. "contenido": entre ${CONTENT_MIN_WORDS} y 440 palabras, organizado en EXACTAMENTE 3 párrafos separados por doble salto de línea (\n\n), de 105 a 145 palabras cada uno. Debe ser teoría real y específica de la disciplina, con definiciones, fórmulas o marcos conceptuales.
+2. "ejemploResuelto": entre ${EXAMPLE_MIN_WORDS} y 300 palabras, con "Planteamiento:", "Paso 1:", "Paso 2:", "Paso 3:" y "Paso 4:" separados SIEMPRE por salto de línea (\n), con operaciones o decisiones explícitas y una interpretación final.
+3. Si el plan carece de "sintesisVisual", genera el objeto completo con "conceptoBreve", "formulaOReglaClave", "ejemploBreve" y "mapaConceptual".
+4. Usa símbolos Unicode limpios (√, ², ≠, ≤, ≥, °). PROHIBIDO escribir "raiz(", "sqrt(", "!=" o pegar "Paso N:" sin salto de línea previo.
 
 Cada plan expandido debe alcanzar al menos ${targetPlanWords} palabras totales y ser claramente más extenso que el original; no resumas ni abrevies. Conserva EXACTAMENTE el "sessionNumber" y todos los demás campos del plan sin modificarlos. No uses marcadores, corchetes ni puntos suspensivos. Escribe en voz de estudiante (tú), en español formal.
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con la forma {"sessionPlans": [ ... ]} que contenga todos los planes recibidos.`;

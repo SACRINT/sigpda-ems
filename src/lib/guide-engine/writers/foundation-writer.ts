@@ -36,6 +36,10 @@ import { lintPedagogicalTerminology, FORBIDDEN_PM3_TERMINOLOGY_REGEX } from '../
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import {
+  buildCanonicalSessionPlanInstructions,
+  buildCanonicalSessionPlanJsonExample,
+} from './session-prompt-contract';
+import {
   resolveCheckpoint,
   resolveConceptZero,
   resolvePhenomenonHook,
@@ -63,6 +67,7 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     careerOrProgramName: input.careerOrProgramName,
   };
 
+  const isQuantitative = discipline.family === 'cuantitativa_experimental';
   const sessionCount = Math.max(1, coveredSessions.length);
   const targetWordsPerPlan = Math.round((input.targetWords.ideal / sessionCount) * 0.72);
   const shardCtx: SessionShardContext = {
@@ -73,8 +78,9 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
     disciplineName: discipline.displayName,
     fallbackContext,
     targetWordsPerPlan: Math.max(900, targetWordsPerPlan),
-    extraGuardrails:
-      "GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado.",
+    extraGuardrails: isQuantitative
+      ? "GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado."
+      : undefined,
     requiredTerms: input.requiredTerms,
   };
 
@@ -97,6 +103,27 @@ export async function generateFoundationMission(input: WriterInput): Promise<Wri
 ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redaccion original en tu seccion): ` + input.alignmentDirective + ` 
  ` : '');
 
+  const canonicalSessionContract = buildCanonicalSessionPlanInstructions(discipline, 'foundation', {
+    firstSession: coveredSessions[0],
+  });
+  const canonicalSessionJson = buildCanonicalSessionPlanJsonExample(
+    discipline,
+    coveredSessions[0]
+  );
+  const shardingEnabled = Boolean(input.scheduler);
+  const canonicalSessionBlocks = shardingEnabled
+  ? ''
+  : [
+      '',
+      'ESTRUCTURA OBLIGATORIA DE LA PROPIEDAD "sessionPlans" DENTRO DEL MISMO OBJETO JSON ANTERIOR:',
+      canonicalSessionContract,
+      '',
+      'EJEMPLO DE REFERENCIA PARA "sessionPlans" (intégralo dentro del mismo JSON raíz de salida):',
+      canonicalSessionJson,
+      '',
+      'PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota o ejemplo de sessionPlans indicado antes.',
+    ].join('\n');
+
   const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Educación Media Superior en México (estilo Santillana/Pearson), especialista en Pedagogía y en el modelo de Finlandia (Phenomenon-Based Learning).
 Tu tarea es redactar la primera misión formativa ("Misión 1: Fundamentación e Intuición - Concepto Cero") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder aprender SOLO, leyendo el libro, sin que el maestro esté presente.
 Libro de: "${input.uacName}" (${input.subsystem.toUpperCase()}).
@@ -117,59 +144,25 @@ REGLAS DE PROFUNDIDAD Y CUADERNO ACTIVO:
 3. Yo Hago (350 a 500 palabras): Tutorial maestro modelado paso a paso (código funcional comentado en BT; modelación/experimento en BGE).
 4. Hacemos Juntos (300 a 450 palabras): Práctica colaborativa en equipo. OBLIGATORIO: cada actividad debe plantear un PROBLEMA REAL de la vida diaria del estudiante en Puebla, su comunidad o el proyecto PAEC ("${input.paecContext}"), con datos cuantitativos concretos y aplicables. PROHIBIDO usar ejercicios abstractos desconectados de la realidad (ej. 'resuelve 2x+5=15' sin contexto). Cada práctica debe responder '¿dónde veo esto en mi vida?'.
 5. Tú Haces (250 a 400 palabras): Desafío individual de aplicación real con espacios de trabajo, anclado a una situación cotidiana verificable del entorno del estudiante.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
-   Para CADA sesión cubierta (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
-   (a) objetivo: "Lo que vas a aprender" (1-2 frases concretas, voz en tú);
-   (b) motivacion: (80 a 120 palabras) caso o dilema real de la comunidad escolar de Puebla o del proyecto PAEC contada directamente al estudiante;
-   (c) saberesPrevios: (50 a 80 palabras) qué conocimientos previos conectan con la sesión y qué preguntas diagnósticas debe responder en su cuaderno;
-   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL de la sesión — definiciones formales, leyes o fórmulas explicadas con rigor, desarrollo teórico estructurado en 3 párrafos sustanciales (al menos 150 palabras por párrafo). NO resumas en 1-2 frases; explica como un verdadero libro de texto Santillana/Pearson;
-   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo numérico o procedimental con planteamiento contextualizado, datos explícitos, desarrollo paso a paso numerado en 4 pasos y análisis del resultado;
-   (f) practica: 2 ejercicios contextualizados con datos reales; enunciados detallados (mínimo 60 palabras cada uno) con "pista" orientadora (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados con operaciones completas;
-   (g) aplicacion: (80 a 120 palabras) tarea de transferencia y aplicación al entorno comunitario;
-   (h) autoevaluacion: 2-3 preguntas reflexivas metacognitivas;
-   (i) recursos: 1-2 enlaces directos del catálogo curado o institucional (PROHIBIDO google.com/search y youtube.com/results);
-   (j) productoIntegrador: (60 a 90 palabras) avance concreto y fechado del entregable para el portafolio.
-   Los planes deben VARIAR entre sesiones (cada sesión aborda una arista distinta del tema) y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
-7. Cuaderno activo: Incluye 2-4 etiquetas <!--workbook:...--> (lines:rows=8, table:cols=..., code:lines=15, drawing:height=160).
-8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
-9. GUARDRAIL DE TERMINOLOGÍA (CERO ARCAÍSMOS): Queda estrictamente PROHIBIDO emplear conceptos o instrumentos arcaicos/obsoletos tales como 'balanza romana' o 'báscula de dos platillos'. Emplear en su lugar balances analíticos contemporáneos, básculas de precisión digital, balanzas algebraicas de equilibrio o herramientas modernas de medición y modelado.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
-  "phenomenonStory": "Relato fenomenológico motivador contado al estudiante...",
-  "detonatingQuestion": "¿Pregunta detonadora de pensamiento crítico?",
-  "physicalAnalogy": "Analogía cotidiana física e intuitiva...",
-  "coreExplanation": "Explicación conceptual profunda en voz de estudiante (2+ párrafos + ejemplo resuelto paso a paso con números + tabla comparativa)...",
-  "iDoDemo": "Demostración guiada paso a paso que el estudiante sigue ('Yo Hago')...",
-  "weDoPractice": "Práctica colaborativa que el estudiante realiza ('Hacemos Juntos')...",
-  "youDoChallenge": "Reto autónomo individual ('Tú Haces')...",
+  "phenomenonStory": "Narración del fenómeno cotidiano situado en la comunidad...",
+  "detonatingQuestion": "Pregunta detonadora que abre el tema...",
+  "physicalAnalogy": "Analogía intuitiva y disciplinar (80-140 palabras)...",
+  "coreExplanation": "Dos párrafos conceptuales + ejemplo resuelto paso a paso + tabla de contraste...",
+  "iDoDemo": "Tutorial modelado paso a paso...",
+  "weDoPractice": "Práctica colaborativa con problema real y datos concretos...",
+  "youDoChallenge": "Desafío individual con espacios de trabajo...",
   "formativeCheckpoint": {
-    "question": "Pregunta de reflexión metacognitiva para el estudiante...",
-    "reflectionPrompts": ["Pregunta de reflexión 1", "Pregunta de reflexión 2"],
-    "criteriaChecklist": ["Criterio de auto-verificación 1", "Criterio 2"]
-  },
-  "sessionPlans": [
-    {
-      "sessionNumber": 1,
-      "objetivo": "Lo que vas a aprender en la sesión 1 (1-2 frases)...",
-      "motivacion": "Caso real / historia contada al estudiante...",
-      "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "Párrafo 1: En esta sesión aprenderás las bases conceptuales y definiciones fundamentales...\\n\\nPárrafo 2: El desarrollo analítico formal de los modelos matemáticos y leyes físicas requiere...\\n\\nPárrafo 3: La vinculación con los fenómenos cotidianos y la intuición visual demuestran...",
-      "ejemploResuelto": "Planteamiento: Se analiza un caso fundamental con datos cuantitativos concretos...\\nPaso 1: Identificación de datos conocidos e incógnitas...\\nPaso 2: Selección y justificación del modelo o ecuación...\\nPaso 3: Operaciones numéricas paso a paso y despeje...\\nPaso 4: Interpretación del resultado y comprobación física...",
-      "practica": [
-        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir datos en la fórmula...", "Paso 2: operar y despejar...", "Respuesta final: ..."] },
-        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
-      ],
-      "aplicacion": "Aplicación a la vida real del estudiante...",
-      "autoevaluacion": ["¿Puedo explicar el concepto central?", "¿Logré la práctica sin mirar?"],
-      "recursos": [
-        { "titulo": "Simulaciones y visualizaciones interactivas", "url": "https://phet.colorado.edu/es/", "tipo": "web" },
-        { "titulo": "Videos y práctica guiada", "url": "https://www.khanacademy.org/", "tipo": "video" }
-      ],
-      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
-    }
-  ]
-}`;
+    "question": "Pregunta de verificación...",
+    "reflectionPrompts": ["¿Qué concepto aplicaste?", "¿Dónde lo observas en tu comunidad?"],
+    "criteriaChecklist": ["Explica el concepto con tus palabras", "Resuelve un caso con datos nuevos"]
+  }${shardingEnabled ? '' : `,\n  "sessionPlans": [ /* EXACTAMENTE ${sessionCount} planes completos (sesiones ${coveredSessions.join(', ')}) según Contrato Canónico V2 */ ]`}
+}
+
+${canonicalSessionBlocks}
+`;
 
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
@@ -189,24 +182,18 @@ Perfil de estudiantes: ${input.studentProfile}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos conceptuales profundos, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (caso formal con 4 pasos numéricos de desarrollo detallado).
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Respeta íntegramente la estructura y profundidad del Contrato Canónico V2; no comprimas campos ni omitas la solución de las prácticas, el ejemplo resuelto ni sintesisVisual.
 - coreExplanation + physicalAnalogy: ~${coreTarget} palabras (explicación formal rigurosa y analogía intuitiva)
-- iDoDemo: ~${iDoTarget} palabras (demostración docente modelada paso a paso)
+- iDoDemo: ~${iDoTarget} palabras (modelado guiado paso a paso que el estudiante sigue)
 - weDoPractice: ~${weDoTarget} palabras (práctica guiada colaborativa)
 - youDoChallenge: ~${youDoTarget} palabras (reto autónomo escalonado)
-
-GUARDRAIL TERMINOLÓGICO OBLIGATORIO:
-- Queda estrictamente PROHIBIDO usar 'balanza romana' o 'báscula de dos platillos'.
-- Usa exclusivamente instrumental y terminología contemporánea (báscula digital, balanza analítica, balanza algebraica).
-
+${isQuantitative ? `\nGUARDRAIL TERMINOLÓGICO OBLIGATORIO:\n- Queda estrictamente PROHIBIDO usar 'balanza romana' o 'báscula de dos platillos'.\n- Usa exclusivamente instrumental y terminología contemporánea (báscula digital, balanza analítica, balanza algebraica).\n` : ''}
 Redacta la Misión de Fundamentación e Intuición completa con máxima profundidad:`;
 
   const useSharding = Boolean(input.scheduler);
   const narrativeMaxTokens = useSharding ? 8192 : 16384;
   const narrativeTimeoutMs = useSharding ? 75000 : 85000;
-  const effectiveSystemInstruction = useSharding
-    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
-    : systemInstruction;
+  const effectiveSystemInstruction = systemInstruction;
   const basePrompt = useSharding
     ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
     : prompt;

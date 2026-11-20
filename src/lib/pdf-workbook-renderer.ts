@@ -47,7 +47,7 @@ import {
 import { extractCalloutBox, resolveDemoCalloutTitle, type CalloutBoxData } from '@/lib/visual-engine/callout-box';
 import { extractComparisonTable, type ComparisonTableData } from '@/lib/visual-engine/comparison-table';
 import { readMaterialPng } from '@/lib/materials/material-figure-doc';
-import { parseMaterialTokensWithFallback, resolveMaterialTokensForMarkdown, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
+import { parseMaterialTokensWithFallback, stripMaterialTokens, stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { getVerificationUrl } from '@/lib/digital-signature';
@@ -207,7 +207,7 @@ const EMOJI_TO_TEXT: Record<string, string> = {
 };
 
 // Caracteres WinAnsi soportados por fuentes estándar jsPDF (Helvetica)
-const WIN_ANSI_REGEX = /[^\x20-\xFF€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡-ÿ\n\r\t]/g;
+const WIN_ANSI_REGEX = /[^\x20-\xFF√€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡-ÿ\n\r\t]/g;
 
 /**
  * Elimina cualquier carácter fuera del juego WinAnsi y reemplaza emojis
@@ -3510,7 +3510,7 @@ function drawProjectSection(
 
     for (const mat of project.requiredMaterials.slice(0, 4)) {
       const matStr = resolveMaterialString(mat);
-      const cleanMat = resolveMaterialTokensForMarkdown(matStr);
+      const cleanMat = stripMaterialTokens(matStr);
       y = printParagraph(doc, `[  ]  ${cleanMat}`, y, margin + 3, contentWidth - 3, pageHeight, {
         size: 7.2,
         fontStyle: 'normal',
@@ -3728,6 +3728,7 @@ function drawEvaluationSection(
   pageHeight: number,
   startY: number
 ): number {
+  evalSection = stripMaterialTokensDeep(evalSection);
   let y = startY;
 
   y = ensureVerticalSpace(doc, y, 22, margin, pageHeight);

@@ -363,24 +363,37 @@ function buildSectionII(content: GeneratedPlanningContent): (Paragraph | Table)[
   ];
 }
 
+function extractTransversalEntry(item: unknown): { area: string; desc: string } | null {
+  if (!item || typeof item !== 'object') return null;
+  const r = item as Record<string, unknown>;
+  const area = String(r.area || r.ambito || r.curriculumArea || '').trim();
+  const desc = String(
+    r.description || r.progresion || r.recursoSocioemocional || r.aprendizajesTrayectoria || r.connection || ''
+  ).trim();
+  if (!area && !desc) return null;
+  return { area: area || 'Eje transversal', desc };
+}
+
 function buildSectionIII(content: GeneratedPlanningContent): (Paragraph | Table)[] {
   const s = content.sectionIII;
   const c = [Math.floor(CONTENT * 0.28), Math.floor(CONTENT * 0.36), CONTENT - Math.floor(CONTENT * 0.28) - Math.floor(CONTENT * 0.36)];
+  const fundamentalRows = (s?.fundamentalCurriculum || []).map(extractTransversalEntry).filter((x): x is { area: string; desc: string } => x !== null);
+  const expandedRows = (s?.expandedCurriculum || []).map(extractTransversalEntry).filter((x): x is { area: string; desc: string } => x !== null);
 
   const rows: TableRow[] = [
     new TableRow({ children: [tcH('TABLA DE TRANSVERSALIDAD CURRICULAR', { w: CONTENT, span: 3, align: AlignmentType.CENTER, size: 20 })] }),
     new TableRow({ children: [tcM('Componente', { w: c[0] }), tcM('\u00c1rea / Elemento', { w: c[1] }), tcM('Descripción del Vínculo con la UAC', { w: c[2] })] }),
     new TableRow({ children: [tcL('CURRÍCULUM FUNDAMENTAL\n(Recursos Sociocognitivos y Áreas de Conocimiento)', { w: c[0] }), tcL('(Área)', { w: c[1] }), tcL('(Descripción del vínculo)', { w: c[2] })] }),
-    ...s.fundamentalCurriculum.map((item, i) => new TableRow({ children: [
+    ...fundamentalRows.map((item, i) => new TableRow({ children: [
       tcE(c[0], i % 2 === 0 ? C.white : C.alt),
       tc(item.area, { w: c[1], fill: i % 2 === 0 ? C.white : C.alt }),
-      tc(item.description, { w: c[2], fill: i % 2 === 0 ? C.white : C.alt }),
+      tc(item.desc, { w: c[2], fill: i % 2 === 0 ? C.white : C.alt }),
     ]})),
     new TableRow({ children: [tcL('CURRÍCULUM AMPLIADO', { w: c[0] }), tcL('(Área)', { w: c[1] }), tcL('(Descripción del vínculo)', { w: c[2] })] }),
-    ...s.expandedCurriculum.map((item, i) => new TableRow({ children: [
+    ...expandedRows.map((item, i) => new TableRow({ children: [
       tcE(c[0], i % 2 === 0 ? C.alt : C.white),
       tc(item.area, { w: c[1], fill: i % 2 === 0 ? C.alt : C.white }),
-      tc(item.description, { w: c[2], fill: i % 2 === 0 ? C.alt : C.white }),
+      tc(item.desc, { w: c[2], fill: i % 2 === 0 ? C.alt : C.white }),
     ]})),
   ];
 

@@ -16,6 +16,8 @@ import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
 import {
   buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
+  dedupeInfographicSpecs,
+  selectInfographicTargets,
   type SacrintDeckSpec,
   type SacrintInfographicSpec,
 } from '@/lib/visual-engine/sacrint/spec';
@@ -408,8 +410,9 @@ async function handleBulkDocx(request: NextRequest) {
         const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
 
         if (effectiveEntries.length > 0) {
+          const misconceptionTracker = new Map<string, number>();
           const sacrintDecks: SacrintDeckSpec[] = effectiveEntries.flatMap((entry) =>
-            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide' })
+            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide', misconceptionTracker })
           );
           if (sacrintDecks.length > 0) {
             const pptxBuf = await generateCombinedSacrintPptx(sacrintDecks, {
@@ -441,13 +444,18 @@ async function handleBulkDocx(request: NextRequest) {
         if (effectiveEntries.length > 0) {
           const specs: SacrintInfographicSpec[] = [];
           for (const entry of effectiveEntries) {
-            const missionCount = Math.max(1, (entry.workbook.missions ?? []).length);
-            for (let m = 0; m < missionCount; m++) {
-              specs.push(buildSacrintInfographic(entry.workbook, 'wide', { missionIndex: m }));
+            for (const target of selectInfographicTargets(entry.workbook)) {
+              specs.push(
+                buildSacrintInfographic(entry.workbook, 'wide', {
+                  missionIndex: target.missionIndex,
+                  sessionIndex: target.sessionIndex,
+                })
+              );
             }
           }
-          if (specs.length > 0) {
-            const infoBytes = await renderCombinedSacrintInfographicsPdf(specs, 'wide');
+          const dedupedSpecs = dedupeInfographicSpecs(specs);
+          if (dedupedSpecs.length > 0) {
+            const infoBytes = await renderCombinedSacrintInfographicsPdf(dedupedSpecs, 'wide');
             zip.file(`09_Infografias_${subjectCode}.pdf`, infoBytes);
           }
         }

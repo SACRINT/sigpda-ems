@@ -324,13 +324,44 @@ export function countSessionPlanWords(plan: {
   saberesPrevios?: string;
   contenido?: string;
   ejemploResuelto?: string;
-  practica?: Array<{ enunciado?: string; pista?: string }>;
+  practica?: Array<{ enunciado?: string; pista?: string; solucion?: string[] | string }>;
   aplicacion?: string;
   autoevaluacion?: string[];
   recursos?: Array<{ titulo?: string }>;
   productoIntegrador?: string;
+  sintesisVisual?: {
+    conceptoBreve?: string;
+    formulaOReglaClave?: string;
+    ejemploBreve?: { planteamiento?: string; pasos?: string[]; conclusion?: string };
+    mapaConceptual?: {
+      definicionClave?: string;
+      criterioDesarrollo?: string;
+      errorComun?: string;
+      correccionBreve?: string;
+    };
+  };
 }): number {
   if (!plan) return 0;
+
+  const visual = plan.sintesisVisual;
+  const practicaParts = (plan.practica || []).flatMap((p) => [
+    p.enunciado || '',
+    p.pista || '',
+    ...(Array.isArray(p.solucion) ? p.solucion : p.solucion ? [p.solucion] : []),
+  ]);
+  const visualParts = visual
+    ? [
+        visual.conceptoBreve || '',
+        visual.formulaOReglaClave || '',
+        visual.ejemploBreve?.planteamiento || '',
+        ...(visual.ejemploBreve?.pasos || []),
+        visual.ejemploBreve?.conclusion || '',
+        visual.mapaConceptual?.definicionClave || '',
+        visual.mapaConceptual?.criterioDesarrollo || '',
+        visual.mapaConceptual?.errorComun || '',
+        visual.mapaConceptual?.correccionBreve || '',
+      ]
+    : [];
 
   const parts: string[] = [
     plan.objetivo || '',
@@ -338,11 +369,12 @@ export function countSessionPlanWords(plan: {
     plan.saberesPrevios || '',
     plan.contenido || '',
     plan.ejemploResuelto || '',
-    ...(plan.practica || []).map((p) => `${p.enunciado || ''} ${p.pista || ''}`),
+    ...practicaParts,
     plan.aplicacion || '',
     ...(plan.autoevaluacion || []),
     ...(plan.recursos || []).map((r) => r.titulo || ''),
     plan.productoIntegrador || '',
+    ...visualParts,
   ];
 
   return parts

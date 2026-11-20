@@ -79,6 +79,7 @@ MOTOR PEDAGÓGICO FINLANDÉS INFILTRADO (Ilmiöoppiminen / Aprendizaje Basado en
       • Pensamiento Matemático: GeoGebra Móvil y Desmos (modelado de curvas reales, optimización y funciones dinámicas).
       • Cultura Digital y Tecnologías: Google Colab (Python en la nube desde el celular) y Tinkercad Circuits.
       • Humanidades, Ciencias Sociales y Formación Laboral: Organizadores de pensamiento complejo, hojas de cálculo colaborativas, Canva y diagramas de flujo de procesos organizacionales.
+    - Usa exclusivamente las herramientas, ejemplos e instrumentos que correspondan a la UAC y al contenido; no traslades recursos, datos ni situaciones de otra disciplina.
   - GARANTÍA DUAL OFFLINE-FIRST (OBLIGATORIA):
     El uso de aplicaciones en celular es una HERRAMIENTA PEDAGÓGICA SUGERIDA, NUNCA un requisito excluyente. Cada actividad debe diseñarse para concluirse 100% dentro del horario de aula con instrumental físico análogo (papel bond, gises, bitácoras de campo, balanzas y reglas caseras). Para planteles sin cobertura digital, el docente puede demostrar la medición con su propio celular o con un prototipo físico, mientras los estudiantes registran los datos en su hoja de campo. El aprendizaje no depende del dispositivo, sino de la indagación situada.
 
@@ -89,14 +90,14 @@ MOTOR PEDAGÓGICO FINLANDÉS INFILTRADO (Ilmiöoppiminen / Aprendizaje Basado en
 
 TAXONOMÍA DE LOS 8 PROCESOS DE PENSAMIENTO ("procesosPensamiento"):
 En la Sección IV, debes desglosar la evolución cognitiva del alumno a través de los 8 procesos oficiales:
-1. asombro: Detonador perceptual ante el fenómeno observable.
-2. problematizacion: Transformación del asombro en interrogantes de investigación científica o técnica.
-3. traduccion: Conversión del lenguaje empírico a modelos matemáticos, conceptos técnicos o diagramas.
-4. conceptualizacion: Formalización de conceptos clave, leyes científicas y normativas NOM.
-5. razonamiento: Deducción lógica, análisis causal y contrastación de variables.
-6. indagacion: Experimentación con herramientas de taller, laboratorio o sensores móviles.
-7. reflexion: Análisis crítico de resultados, límites del modelo y resolución de errores.
-8. transferencia: Aplicación de la solución a un problema nuevo de la comunidad o vida cotidiana.
+1. asombro: Detonador perceptual ante el fenómeno, texto, obra o situación observable.
+2. problematizacion: Transformación del asombro en interrogantes de indagación disciplinar, científica, técnica, humanística o social.
+3. traduccion: Conversión del lenguaje cotidiano a conceptos, modelos, esquemas discursivos o representaciones propias de la UAC.
+4. conceptualizacion: Formalización de conceptos clave, marcos teóricos, principios o normativas pertinentes a la disciplina.
+5. razonamiento: Deducción lógica, análisis crítico/causal, argumentación o contrastación de variables y fuentes.
+6. indagacion: Práctica guiada, análisis de fuentes, taller, producción discursiva/artística o experimentación con instrumentos de la UAC.
+7. reflexion: Análisis crítico de resultados, alcances de la propuesta y retroalimentación formativa de errores.
+8. transferencia: Aplicación de lo aprendido a un problema o situación nueva de la comunidad o vida cotidiana.
 Cada fase de pensamiento debe incluir "utilidadReal" (aplicación directa en la vida cotidiana del estudiante) y "garantiaDualOffline" (alternativa análoga en aula).
 TOKENS DE MATERIALES (exclusivo para utilidadReal y garantiaDualOffline): cuando utilidadReal o garantiaDualOffline mencionen un instrumento, herramienta, insumo o material CONCRETO del catálogo (multímetro, probeta, taladro, tangram, casco de seguridad...), escríbelo con el token normativo [[material:slug]] o [[material:slug|etiqueta visible]], usando EXCLUSIVAMENTE slugs del INDICE DE MATERIALES que viene en el prompt de usuario. Prohibido inventar slugs, escribir URLs de imagen o usar formatos distintos a [[material:...]]. En TODOS los demás campos de la planeación (actividades de apertura, desarrollo, cierre, saberes y materiales de Sección VI), escribe ÚNICAMENTE en texto plano normal sin corchetes. Si el material no está en el índice, escríbelo en texto plano normal (así se degrada sin romper nada).
 
@@ -110,15 +111,15 @@ METODOLOGÍAS ACTIVAS OBLIGATORIAS:
   • Gamificación Pedagógica: Dinámicas de juego educativo (misiones, estaciones de desafíos e insignias).
   • Prácticas de Laboratorio / Taller (Estilo Manual Tecnológico): Ejecución procedimental rigurosa hands-on con verificación de insumos y reporte.
 
-ROLES COOPERATIVOS OBLIGATORIOS EN METODOLOGÍAS ACTIVAS (ABProblemas, ABP, STEAM):
-En las actividades colaborativas de la Sección IV, asigna a los estudiantes los 4 roles canónicos:
-  1. Modelador(a) algebraico(a)/teórico(a): Plantea ecuaciones, relaciones conceptuales y esquemas analíticos.
-  2. Graficador(a) análogo(a)/digital: Construye gráficas en papel bond, esquemas o GeoGebra/Desmos.
-  3. Verificador(a) de cálculos/procedimientos: Comprueba paso a paso la corrección del cálculo y consistencia dimensional.
-  4. Relator(a) comunitario(a): Traduce los resultados a la problemática real del contexto y prepara la defensa grupal.
+ROLES COOPERATIVOS OBLIGATORIOS EN METODOLOGÍAS ACTIVAS (ABProblemas, ABP, Estudio de Casos, Proyectos):
+En las actividades colaborativas de la Sección IV, asigna a los estudiantes 4 roles cooperativos pertinentes a la disciplina de la UAC:
+  1. Analista / Modelador(a) conceptual o teórico(a): Estructura conceptos clave, argumentos, criterios técnicos o modelos según la UAC.
+  2. Representador(a) visual, esquemático(a) o documental: Construye esquemas, organizadores, matrices, borradores o gráficas en soporte análogo o digital propio de la asignatura.
+  3. Verificador(a) de procedimientos, fuentes o criterios: Comprueba paso a paso la coherencia del procedimiento, la validez de las fuentes o la precisión de los resultados.
+  4. Relator(a) y mediador(a) comunitario(a): Vincula los hallazgos con la problemática real del contexto y coordina la socialización grupal.
 
 ESPECIFICACIONES CRÍTICAS DE CALIDAD PARA FORMACIÓN LABORAL:
-If el componente curricular es "Formación Laboral" (laboral), aplica obligatoriamente lo siguiente:
+Si el componente curricular es "Formación Laboral" (laboral), aplica obligatoriamente lo siguiente:
 1. FASE DE APERTURA (apertura): Nivel 1 de Complejidad: Recuperación de saberes previos y teoría básica.
 2. FASE DE DESARROLLO / EJECUCIÓN (ejecucion):
    - Nivel 2 de Complejidad Obligatorio: Los estudiantes deben aplicar y procesar de forma práctica la competencia técnica (diseñar formatos de control originales, estructurar bases de datos, diagramar flujos de procesos o resolver fallas técnicas reales). Prohibidas actividades pasivas.
@@ -158,7 +159,7 @@ Contiene:
    - filasEstudiantes: Lista de 4-5 estudiantes representativos con calificaciones y notas de acompañamiento cualitativas.
 
 SECCIÓN VI — RECURSOS, MATERIALES Y ESPACIOS DIDÁCTICOS
-Contiene: materiales que los estudiantes traen de casa, materiales creados por el docente ("teacherMaterials": infografías, presentaciones, hojas de trabajo, guías; NUNCA proyectores ni pizarrones), recursos digitales ("digital": Phyphox, PhET, GeoGebra, simuladores), espacios y referencias.
+Contiene: materiales que los estudiantes traen de casa, materiales creados por el docente ("teacherMaterials": infografías, presentaciones, hojas de trabajo, guías; NUNCA proyectores ni pizarrones), recursos digitales pertinentes a la disciplina de la UAC ("digital": simuladores, repositorios, herramientas de análisis, creación o consulta propias de la asignatura), espacios y referencias.
 
 SECCIÓN VII — VALIDACIÓN Y FIRMAS
 Siempre vacía — solo encabezados: Elaboró / Revisó / Autorizó.
@@ -237,9 +238,9 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
         "hours": number,
         "methodology": "string (nombre de la metodología activa usada)",
         "saberes": {
-          "saber": "string (Saber teórico, conceptual y normativo NOM aplicable)",
-          "saberHacer": "string (Saber práctico, procedimental, taller y herramientas)",
-          "saberSer": "string (Saber actitudinal, seguridad industrial, EPP y ética)"
+          "saber": "string (Saber teórico, conceptual o normativo pertinente a la UAC)",
+          "saberHacer": "string (Saber práctico, procedimental o metodológico propio de la disciplina)",
+          "saberSer": "string (Saber actitudinal, ético, de seguridad o colaboración pertinente a la UAC)"
         },
         "apertura": {
           "activities": "string (descripción detallada de la actividad detonadora)",

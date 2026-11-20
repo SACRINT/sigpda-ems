@@ -165,6 +165,22 @@ export interface PracticaItem {
  * Estructura pedagógica: objetivo → motivación/saberes → teoría → ejemplo →
  * práctica (con pistas) → aplicación → autoevaluación → recursos.
  */
+export interface SessionVisualSynthesis {
+  conceptoBreve: string;
+  formulaOReglaClave: string;
+  ejemploBreve: {
+    planteamiento: string;
+    pasos: string[];
+    conclusion: string;
+  };
+  mapaConceptual: {
+    definicionClave: string;
+    criterioDesarrollo: string;
+    errorComun: string;
+    correccionBreve: string;
+  };
+}
+
 export interface SessionPlan {
   sessionNumber: number;
   /** "Lo que vas a aprender" — objetivo de aprendizaje del estudiante (1-2 frases). */
@@ -187,6 +203,8 @@ export interface SessionPlan {
   recursos: RecursoItem[];
   /** Producto integrador: qué agrega el estudiante a su proyecto hoy. */
   productoIntegrador: string;
+  /** Síntesis visual nativa generada por el LLM para 08_Presentaciones y 09_Infografías. */
+  sintesisVisual?: SessionVisualSynthesis;
   /** Marca interna: indica si el plan proviene de fallback/stub sintético en lugar de IA directa. */
   isFallback?: boolean;
 }

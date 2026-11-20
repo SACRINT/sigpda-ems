@@ -26,7 +26,15 @@ export type DisciplinaryDomainId =
   | 'artes_educacion_artistica_cultural'
   | 'socioemocional_tutoria_educacion_integral'
   | 'formacion_laboral_servicios_gestion_turismo'
-  | 'formacion_laboral_industrial_agro_salud';
+  | 'formacion_laboral_industrial_agro_salud'
+  | 'indagacion_interdisciplinaria_general';
+
+export type EpistemologicalFamily =
+  | 'cuantitativa_experimental'
+  | 'humanistica_comunicativa_social'
+  | 'computacional_algoritmica'
+  | 'corporal_motriz'
+  | 'tecnica_laboral';
 
 export interface DisciplinaryAdapter {
   id: DisciplinaryDomainId;
@@ -39,7 +47,19 @@ export interface DisciplinaryAdapter {
   fewShotExampleBlock: string;
 }
 
-const ADAPTERS: Record<DisciplinaryDomainId, DisciplinaryAdapter> = {
+export interface DisciplinaryAdapterV2 extends DisciplinaryAdapter {
+  family: EpistemologicalFamily;
+  workedExampleDirective: string;
+  defaultTableColumns: string[];
+  keyFormulaOrRuleDirective: string;
+}
+
+type DisciplinaryAdapterBase = Omit<
+  DisciplinaryAdapterV2,
+  'family' | 'workedExampleDirective' | 'defaultTableColumns' | 'keyFormulaOrRuleDirective'
+>;
+
+const ADAPTERS_BASE: Record<DisciplinaryDomainId, DisciplinaryAdapterBase> = {
   pensamiento_matematico: {
     id: 'pensamiento_matematico',
     displayName: 'Pensamiento Matemático, Variacional y Estadístico',
@@ -598,7 +618,272 @@ const ADAPTERS: Record<DisciplinaryDomainId, DisciplinaryAdapter> = {
   - Prueba Funcional y Entrega Técnica (2h): Demostración práctica del protocolo o producto bajo criterios de tolerancia y seguridad.
   - Evaluación por Competencias (1h): Lista de cotejo de desempeño técnico y rúbrica de reporte de taller.`,
   },
+
+  indagacion_interdisciplinaria_general: {
+    id: 'indagacion_interdisciplinaria_general',
+    displayName: 'Formación Curricular General e Indagación Interdisciplinaria (MCCEMS)',
+    epistemologicalApproach:
+      'Construcción crítica del conocimiento mediante indagación situada, análisis de problemas reales, contrastación de fuentes de información, resolución estructurada de casos y transferencia al entorno escolar y comunitario.',
+    allowedPhysicalEquipment: [
+      'Cuaderno de trabajo y bitácora de indagación',
+      'Fuentes documentales, lecturas seleccionadas y estudios de caso',
+      'Organizadores gráficos (mapas conceptuales, cuadros comparativos, diagramas)',
+      'Instrumentos de registro y observación de campo',
+    ],
+    allowedDigitalTools: [
+      'Bibliotecas y repositorios académicos digitales institucionales',
+      'Herramientas de elaboración de esquemas y presentaciones',
+      'Buscadores académicos y portales de datos públicos oficiales (INEGI / SEP)',
+    ],
+    forbiddenCrossDomainTerms: [
+      'tabla de cortar',
+      'cuchillo de chef',
+      'matraz erlenmeyer',
+      'mechero bunsen',
+      'microscopio compuesto',
+      'tiras reactivas de pH',
+      'cautín',
+      'osciloscopio',
+      'balanza romana',
+    ],
+    workbookVoiceDirective:
+      'Desarrolla explicaciones conceptuales rigurosas, estudios de caso analizados paso a paso, tablas comparativas claras y actividades de aplicación situada pertinentes al objeto de estudio de la UAC.',
+    fewShotExampleBlock: `SECUENCIA DIDÁCTICA EJEMPLO (Indagación Curricular MCCEMS | 18h | Corte 1):
+  APERTURA (3h):
+  - Problematización Situada (1.5h): Análisis de un caso real vinculado a los contenidos de la UAC y su relación con el entorno escolar.
+  - Diagnóstico de Saberes Previos (1.5h): Recuperación de conceptos antecedentes mediante preguntas detonadoras y organizador gráfico inicial.
+  DESARROLLO (12h):
+  - Fundamentación y Modelado (4h): Construcción de conceptos centrales, análisis de ejemplos resueltos y contrastación de fuentes confiables.
+  - Práctica Guiada y Colaborativa (4h): Resolución de casos prácticos y ejercicios estructurados en equipos con retroalimentación formativa.
+  - Aplicación al Proyecto Integrador (4h): Elaboración de avance tangible del producto del bloque aplicando los criterios de la asignatura.
+  CIERRE (3h):
+  - Socialización de Evidencias (2h): Presentación argumentada de resultados y revisión entre pares.
+  - Evaluación Formativa y Metacognición (1h): Aplicación de rúbrica analítica, lista de cotejo y reflexión sobre lo aprendido.`,
+  },
 };
+
+const FAMILY_WORKED_EXAMPLE_DIRECTIVES: Record<EpistemologicalFamily, string> = {
+  cuantitativa_experimental:
+    "Ejemplo cuantitativo o geométrico resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:' (situación con datos explícitos, unidades y qué se busca determinar), 'Paso 1: Datos e incógnitas' (variables definidas con unidades), 'Paso 2: Modelo o fórmula' (ecuación o relación completa sin abreviar), 'Paso 3: Sustitución y desarrollo' (operaciones intermedias explícitas hasta obtener el valor), y 'Paso 4: Conclusión y verificación' (comprobación en la ecuación original e interpretación del resultado con unidades).",
+  humanistica_comunicativa_social:
+    "Ejemplo de análisis textual, histórico, argumentativo, lingüístico o estudio de caso resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:' (fragmento, caso situado, fuente o dilema concreto a analizar, más la pregunta o criterio rector), 'Paso 1: Contextualización e identificación de elementos', 'Paso 2: Aplicación del criterio o categoría de análisis', 'Paso 3: Contraste y fundamentación', y 'Paso 4: Conclusión sintética'. PROHIBIDO inventar ecuaciones algebraicas o cálculos numéricos artificiales.",
+  computacional_algoritmica:
+    "Ejemplo algorítmico o de procesamiento de datos resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:' (problema de automatización o análisis de datos con entradas y salida esperada), 'Paso 1: Definición de entradas, variables y tipos', 'Paso 2: Algoritmo, fórmula de hoja de cálculo o estructura lógica', 'Paso 3: Prueba de escritorio paso a paso con valores reales', y 'Paso 4: Verificación de salida y caso borde'.",
+  corporal_motriz:
+    "Ejemplo práctico de prescripción motriz o monitoreo fisiológico resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:', 'Paso 1: Valoración basal y calentamiento articular', 'Paso 2: Dosificación de estaciones o secuencia técnica', 'Paso 3: Monitoreo de frecuencia cardíaca (ppm) y escala de esfuerzo (Borg)', y 'Paso 4: Vuelta a la calma e interpretación del desempeño saludable'.",
+  tecnica_laboral:
+    "Caso técnico o procedimiento operativo estandarizado (POE) resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): 'Planteamiento:' (orden de trabajo, servicio o diagnóstico técnico con especificaciones y normativa aplicable), 'Paso 1: Seguridad (EPP/higiene), insumos y parámetros de entrada', 'Paso 2: Aplicación de la norma técnica, fórmula de costeo o protocolo operativo', 'Paso 3: Ejecución paso a paso y registro de mediciones/controles', y 'Paso 4: Dictamen de calidad, tolerancia y entrega del servicio/producto'.",
+};
+
+const FAMILY_KEY_FORMULA_DIRECTIVES: Record<EpistemologicalFamily, string> = {
+  cuantitativa_experimental:
+    "Ecuación, identidad o proporción matemática completa (con ambos miembros de la igualdad, ej. '12x + 300 = 1800' o 'c² = a² + b²'), nunca sub-igualdades truncadas como 'x = 1800' ni funciones en texto como 'raiz(' o 'sqrt('.",
+  humanistica_comunicativa_social:
+    "Principio rector, estructura lógica/gramatical o relación conceptual sintética en máximo 12 palabras (ej. 'Tesis + Evidencia Verificable + Garantía → Conclusión Argumentada' o 'Subject + modal verb (should/must) + base verb').",
+  computacional_algoritmica:
+    "Expresión lógica, sintaxis de función o estructura de control clave (ej. 'SI(promedio >= 6, \"Aprobado\", \"Regularización\")' o 'Entrada → Proceso (Condición) → Salida').",
+  corporal_motriz:
+    "Fórmula fisiológica o regla biomecánica clave (ej. 'FC máx = 220 - edad (años)' o 'Calentamiento → Fase Medular Aeróbica → Vuelta a la Calma').",
+  tecnica_laboral:
+    "Fórmula técnico-productiva, ecuación de costeo o regla normativa clave (ej. 'Punto de Equilibrio = Costos Fijos / (Precio - Costo Variable)' o 'Ley de Ohm: V = I · R').",
+};
+
+const ADAPTER_V2_METADATA: Record<
+  DisciplinaryDomainId,
+  Pick<DisciplinaryAdapterV2, 'family' | 'workedExampleDirective' | 'defaultTableColumns' | 'keyFormulaOrRuleDirective'>
+> = {
+  pensamiento_matematico: {
+    family: 'cuantitativa_experimental',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.cuantitativa_experimental,
+    defaultTableColumns: [
+      'Variable x',
+      'Sustitución en el Modelo',
+      'Valor Obtenido y',
+      'Par Ordenado (x, y)',
+      'Interpretación en el Caso',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.cuantitativa_experimental,
+  },
+  ciencias_fisica_ingenieria: {
+    family: 'cuantitativa_experimental',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.cuantitativa_experimental,
+    defaultTableColumns: [
+      'Magnitud Medida',
+      'Valor Teórico',
+      'Medición Experimental 1',
+      'Medición Experimental 2',
+      'Error Porcentual (%)',
+      'Unidad (SI)',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.cuantitativa_experimental,
+  },
+  ciencias_quimica_biologia_ambiental: {
+    family: 'cuantitativa_experimental',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.cuantitativa_experimental,
+    defaultTableColumns: [
+      'Muestra / Ensayo',
+      'Condición Inicial',
+      'Observación o Medición',
+      'Cambio Registrado',
+      'Interpretación Biológica/Química',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.cuantitativa_experimental,
+  },
+  dibujo_tecnico_diseno_arquitectura: {
+    family: 'cuantitativa_experimental',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.cuantitativa_experimental,
+    defaultTableColumns: [
+      'Elemento del Plano',
+      'Dimensión Real (m)',
+      'Escala Aplicada',
+      'Dimensión en Dibujo (cm)',
+      'Calidad de Línea Normalizada',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.cuantitativa_experimental,
+  },
+  lengua_comunicacion_literatura: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.humanistica_comunicativa_social,
+    defaultTableColumns: [
+      'Fragmento o Fuente',
+      'Intención Comunicativa',
+      'Tesis o Idea Central',
+      'Argumento / Recurso Discursivo',
+      'Postura Crítica Personal',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.humanistica_comunicativa_social,
+  },
+  lengua_extranjera_ingles: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.humanistica_comunicativa_social,
+    defaultTableColumns: [
+      'Communicative Situation',
+      'Grammar Structure / Pattern',
+      'Affirmative Example',
+      'Negative / Question Form',
+      'Meaning in Context',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.humanistica_comunicativa_social,
+  },
+  conciencia_historica_ciencias_sociales: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.humanistica_comunicativa_social,
+    defaultTableColumns: [
+      'Proceso o Caso Histórico-Social',
+      'Causas Estructurales',
+      'Actores e Intereses',
+      'Fuente o Indicador Oficial',
+      'Consecuencia en el Presente',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.humanistica_comunicativa_social,
+  },
+  humanidades_filosofia_logica_etica: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.humanistica_comunicativa_social,
+    defaultTableColumns: [
+      'Postura o Dilema Filosófico',
+      'Premisa Principal',
+      'Premisa Secundaria / Evidencia',
+      'Posible Objeción o Falacia',
+      'Conclusión Deliberativa',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.humanistica_comunicativa_social,
+  },
+  artes_educacion_artistica_cultural: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.humanistica_comunicativa_social,
+    defaultTableColumns: [
+      'Elemento Formal / Técnico',
+      'Observación en la Obra o Referente',
+      'Intención Expresiva',
+      'Aplicación en tu Boceto',
+      'Material o Soporte',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.humanistica_comunicativa_social,
+  },
+  socioemocional_tutoria_educacion_integral: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.humanistica_comunicativa_social,
+    defaultTableColumns: [
+      'Situación o Dilema Vivencial',
+      'Emoción o Factor Identificado',
+      'Riesgo o Necesidad',
+      'Estrategia de Regulación / Cuidado',
+      'Acuerdo o Acción Preventiva',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.humanistica_comunicativa_social,
+  },
+  cultura_digital_programacion_ti: {
+    family: 'computacional_algoritmica',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.computacional_algoritmica,
+    defaultTableColumns: [
+      'Paso / Iteración',
+      'Entrada Recibida',
+      'Estado de Variables',
+      'Condición Evaluada',
+      'Salida Generada',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.computacional_algoritmica,
+  },
+  actividades_fisicas_deportivas_salud: {
+    family: 'corporal_motriz',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.corporal_motriz,
+    defaultTableColumns: [
+      'Fase o Estación Motriz',
+      'Tiempo / Repeticiones',
+      'FC Inicial (ppm)',
+      'FC Esfuerzo (ppm)',
+      'Esfuerzo Percibido (Borg 1-10)',
+      'Observación Técnica',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.corporal_motriz,
+  },
+  formacion_laboral_servicios_gestion_turismo: {
+    family: 'tecnica_laboral',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.tecnica_laboral,
+    defaultTableColumns: [
+      'Etapa del Proceso / POE',
+      'Norma o Estándar Aplicable',
+      'Parámetro o Insumo Crítico',
+      'Valor / Control Registrado',
+      'Dictamen de Conformidad',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.tecnica_laboral,
+  },
+  formacion_laboral_industrial_agro_salud: {
+    family: 'tecnica_laboral',
+    workedExampleDirective: FAMILY_WORKED_EXAMPLE_DIRECTIVES.tecnica_laboral,
+    defaultTableColumns: [
+      'Etapa del Proceso / POE',
+      'Norma o Estándar Aplicable',
+      'Parámetro o Insumo Crítico',
+      'Valor / Control Registrado',
+      'Dictamen de Conformidad',
+    ],
+    keyFormulaOrRuleDirective: FAMILY_KEY_FORMULA_DIRECTIVES.tecnica_laboral,
+  },
+  indagacion_interdisciplinaria_general: {
+    family: 'humanistica_comunicativa_social',
+    workedExampleDirective:
+      'Estudio de caso o problema disciplinar resuelto de 220 a 300 palabras en 5 bloques separados por salto de línea (\\n): Planteamiento contextualizado, Paso 1 (Identificación de datos o elementos clave), Paso 2 (Criterio, principio o modelo aplicable), Paso 3 (Desarrollo y análisis paso a paso) y Paso 4 (Conclusión verificable e interpretación).',
+    defaultTableColumns: [
+      'Elemento o Categoría',
+      'Definición / Datos Clave',
+      'Evidencia o Desarrollo',
+      'Aplicación en el Caso',
+      'Conclusión',
+    ],
+    keyFormulaOrRuleDirective:
+      'Principio, relación conceptual o fórmula central de la sesión expresada con claridad en una sola línea.',
+  },
+};
+
+const ADAPTERS = Object.fromEntries(
+  (Object.keys(ADAPTERS_BASE) as DisciplinaryDomainId[]).map((id) => [
+    id,
+    { ...ADAPTERS_BASE[id], ...ADAPTER_V2_METADATA[id] },
+  ])
+) as Record<DisciplinaryDomainId, DisciplinaryAdapterV2>;
 
 /**
  * Resuelve deterministamente el Adaptador Disciplinar para cualquier UAC de BGE o BT.
@@ -607,7 +892,7 @@ export function getDisciplinaryAdapter(
   uacName: string = '',
   component: string = '',
   careerOrProgramName: string = ''
-): DisciplinaryAdapter {
+): DisciplinaryAdapterV2 {
   const normUac = (uacName || '')
     .toLowerCase()
     .normalize('NFD')
@@ -823,7 +1108,7 @@ export function getDisciplinaryAdapter(
   }
 
   // Fallback seguro hacia Ciencias / Indagación General
-  return ADAPTERS.ciencias_quimica_biologia_ambiental;
+  return ADAPTERS.indagacion_interdisciplinaria_general;
 }
 
 /**

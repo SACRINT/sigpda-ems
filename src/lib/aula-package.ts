@@ -300,6 +300,7 @@ export async function buildAulaPackageZip(
       const decks: SacrintDeckSpec[] = [];
       let excludedCount = 0;
       const allTheorySources = entries.flatMap((entry) => collectWorkbookTheorySources(entry.workbook));
+      const misconceptionTracker = new Map<string, number>();
 
       for (const entry of entries) {
         let extracted: ExtractedBlockMaterials | undefined;
@@ -318,6 +319,7 @@ export async function buildAulaPackageZip(
               mode: 'lesson-guide',
               missionIndex,
               extraTheorySources: allTheorySources,
+              misconceptionTracker,
             });
             const review = reviewBlockMaterials({
               workbook: entry.workbook,

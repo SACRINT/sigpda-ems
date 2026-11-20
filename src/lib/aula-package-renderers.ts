@@ -1,5 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
+import { normalizePdfEditorialText } from '@/lib/editorial/text-normalization';
 import { generatePptxBuffer } from '@/lib/presentation-engine/pptx-generator';
 import { getPalette } from '@/lib/presentation-engine/slide-templates';
 import type { SlideDeck } from '@/lib/presentation-engine/slide-model';
@@ -15,7 +17,12 @@ interface PackageMeta {
 }
 
 function clean(value: unknown): string {
-  return String(value ?? '')
+  return normalizePdfEditorialText(String(value ?? ''))
+    .replace(/[\u21D2]/g, '=>')
+    .replace(/[\u21D0]/g, '<=')
+    .replace(/[\u21D4]/g, '<=>')
+    .replace(/[\u2610]/g, '[ ]')
+    .replace(/[\u2713\u2714]/g, '[v]')
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -81,6 +88,7 @@ export function generateExitTicketsPdf(
   meta: PackageMeta
 ): Buffer {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  loadEditorialFonts(doc);
   const acts = activitiesOf(content);
   const tickets = acts.length > 0
     ? acts
@@ -133,6 +141,7 @@ export function generateWorksheetsPdf(
   meta: PackageMeta
 ): Buffer {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  loadEditorialFonts(doc);
   const acts = activitiesOf(content);
   const worksheets = acts.length > 0
     ? acts
@@ -160,8 +169,9 @@ export function generateWorksheetsPdf(
         `Saber hacer: ${clean(saberes.saberHacer)}`,
         `Saber ser: ${clean(saberes.saberSer)}`,
       ].join('\n');
-      doc.text(doc.splitTextToSize(saberesText, 186), 14, cursor + 5);
-      cursor += 22;
+      const saberesLines = doc.splitTextToSize(saberesText, 186) as string[];
+      doc.text(saberesLines, 14, cursor + 5);
+      cursor += Math.max(18, saberesLines.length * 3.8 + 8);
     }
 
     doc.setFont('helvetica', 'bold');
@@ -194,6 +204,7 @@ export function generateFallbackRubricsPdf(
   meta: PackageMeta
 ): Buffer {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+  loadEditorialFonts(doc);
   const acts = activitiesOf(content);
   const rubrics = acts.length > 0
     ? acts

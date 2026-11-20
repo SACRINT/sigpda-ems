@@ -7,7 +7,6 @@ import {
   cleanSacrintText,
   distillConciseText,
   distillLessonBundle,
-  distillProblemOrExerciseText,
   distillStepPreservingMath,
   extractBulletSentences,
   extractChalkboardTopicTitle,
@@ -19,6 +18,7 @@ import {
   preventSixGramTheoryOverlap,
   sanitizePedagogicalMetaPhrases,
   sixGramOverlapRatio,
+  paraphraseSixGramOverlap,
   type DistilledExample,
   type DistilledLessonBundle,
   type DistilledPracticeActivity,
@@ -45,7 +45,6 @@ import {
   fitPedagogicalText,
   hasDanglingEnding,
   repairDanglingEnding,
-  splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import {
   isValidRenderableFormula,
@@ -320,6 +319,8 @@ export interface SacrintBuildOptions {
   theme?: SacrintThemeMode;
   /** Fuentes teóricas adicionales (p. ej. de otros bloques del mismo libro) para prevenir traslape de 6-gramas. */
   extraTheorySources?: Array<string | null | undefined>;
+  /** Contador por compilación para diversificar errores comunes sin estado global de módulo. */
+  misconceptionTracker?: Map<string, number>;
 }
 
 function splitLabeledItems(value: string | null | undefined, label: 'PASO' | 'Instrucción', max: number): string[] {
@@ -507,6 +508,18 @@ function resolveMissionMisconceptionParts(
   bundle?: DistilledLessonBundle,
   options: { session?: SessionPlan; allowMissionFallback?: boolean } = {}
 ): { error: string; correction: string } {
+  const visualMap = options.session?.sintesisVisual?.mapaConceptual;
+  const visualError = sanitizePedagogicalMetaPhrases(cleanSacrintText(visualMap?.errorComun));
+  if (visualError && !isRubricOrBoilerplateLeak(visualError)) {
+    const visualCorrection = sanitizePedagogicalMetaPhrases(cleanSacrintText(visualMap?.correccionBreve));
+    return {
+      error: visualError,
+      correction:
+        visualCorrection && !isRubricOrBoilerplateLeak(visualCorrection)
+          ? visualCorrection
+          : 'Contrastar cada afirmación con evidencia y criterios explícitos de la sesión.',
+    };
+  }
   const allowMission = options.allowMissionFallback ?? true;
   if (allowMission) {
     const firstRow = mission.conceptZero?.contrastTable?.[0];
@@ -657,7 +670,7 @@ function resolveMissionMisconceptionParts(
       [
         {
           pattern: /margen de error|intervalo de confianza/i,
-          error: 'Usar margen porcentual sin pasarlo a decimal.',
+          error: 'Usar el margen de error porcentual sin pasarlo a decimal.',
           correction: 'Expresar el margen como decimal (ej. 5% = 0.05) y verificar el tamaño muestral.',
         },
         {
@@ -1084,6 +1097,20 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
   return sources;
 }
 
+function collectDiagramText(value: unknown, out: string[]): void {
+  if (typeof value === 'string') {
+    if (value.trim()) out.push(value.trim());
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectDiagramText(item, out);
+    return;
+  }
+  if (value && typeof value === 'object') {
+    for (const item of Object.values(value as Record<string, unknown>)) collectDiagramText(item, out);
+  }
+}
+
 function slideVisibleText(slide: SacrintSlide): string {
   const parts: string[] = [];
   const add = (value: string | undefined | null) => {
@@ -1092,19 +1119,31 @@ function slideVisibleText(slide: SacrintSlide): string {
   add(slide.title);
   add(slide.subtitle);
   if (slide.kind === 'concept') {
+    const hasRenderedDiagram = Boolean(slide.diagram?.available);
     add(slide.explanation);
-    add(slide.analogy);
+    if (!slide.isLessonGuide) {
+      add(slide.analogy);
+    }
     add(slide.misconception);
-    add(slide.formulas && slide.formulas.length > 0 ? slide.formulas[0] : slide.formula);
-    for (const item of slide.keyTakeaways ?? []) add(item);
+    if (!slide.isLessonGuide || !hasRenderedDiagram) {
+      add(slide.formulas && slide.formulas.length > 0 ? slide.formulas[0] : slide.formula);
+      for (const item of slide.keyTakeaways ?? []) add(item);
+    }
     if (slide.workedExample) {
       add(slide.workedExample.problemStatement);
-      for (const step of slide.workedExample.steps) add(step);
+      for (const step of slide.workedExample.steps.slice(0, 3)) add(step);
       add(slide.workedExample.interpretation);
     }
-    for (const variable of slide.variables ?? []) {
-      add(variable.label);
-      add(variable.meaning);
+    if (!slide.isLessonGuide) {
+      for (const variable of slide.variables ?? []) {
+        add(variable.label);
+        add(variable.meaning);
+      }
+    }
+    if (hasRenderedDiagram) {
+      const diagramText: string[] = [];
+      collectDiagramText(slide.diagram, diagramText);
+      for (const item of diagramText) add(item);
     }
   }
   if (slide.kind === 'practice') {
@@ -1116,14 +1155,18 @@ function slideVisibleText(slide: SacrintSlide): string {
             statement: checkpoint,
             hint: '',
           }));
-    for (const activity of activities) {
+    const visibleActivities = slide.isLessonGuide ? activities.slice(0, 2) : activities;
+    for (const activity of visibleActivities) {
       add(activity.label);
       add(activity.statement);
       add(activity.hint);
     }
     add(slide.applicationText || slide.practiceText);
-    for (const item of slide.objectiveBullets ?? []) add(item);
-    for (const item of slide.evaluationCriteria ?? []) add(item);
+    for (const item of (slide.objectiveBullets ?? []).slice(0, 2)) add(item);
+    for (const item of (slide.evaluationCriteria ?? []).slice(0, 2)) add(item);
+    if (!slide.isLessonGuide) {
+      for (const item of slide.exitChecks ?? []) add(item);
+    }
     add(slide.artifactName);
     add(slide.artifactStep);
   }
@@ -1133,12 +1176,438 @@ function slideVisibleText(slide: SacrintSlide): string {
 export function countSlideWords(slide: SacrintSlide): number {
   const text = slideVisibleText(slide);
   const visibleWords = text ? text.split(/\s+/).filter(Boolean).length : 0;
-  const chromeWords = slide.kind === 'concept' ? 22 : slide.kind === 'practice' ? 26 : 0;
+  const chromeWords =
+    slide.kind === 'concept'
+      ? slide.isLessonGuide
+        ? slide.diagram?.available
+          ? 52
+          : 36
+        : 44
+      : slide.kind === 'practice'
+        ? slide.isLessonGuide
+          ? 40
+          : 44
+        : 0;
   return visibleWords + chromeWords;
 }
 
+function compactConceptNarrative(value: string): string {
+  return String(value || '')
+    .replace(/\bObservamos que\b/gi, '')
+    .replace(/\bpor lo que podemos sustituir directamente su valor\b/gi, 'y sustituimos')
+    .replace(/\bde manera (?:exacta|precisa|rigurosa|detallada)\b/gi, '')
+    .replace(/\bredactas en el registro de coevaluaci[oó]n que\b/gi, '')
+    .replace(/\bdebido a un fallo en el signo del despeje\b/gi, 'por un fallo de signo')
+    .replace(/\bAplica la ra[ií]z cuadrada en ambos miembros de la ecuaci[oó]n para despejar\b/gi, 'Despeja con la raíz cuadrada')
+    .replace(/\bEl plano indica que\b/gi, '')
+    .replace(/\bformado entre ellas en el v[eé]rtice superior es exactamente de\b/gi, 'entre ellas es de')
+    .replace(/\bEn la comunidad de estudio se realiz[oó] un censo inicial que determin[oó] una poblaci[oó]n base de\b/gi, 'La población base es')
+    .replace(/\belaborando la memoria de c[aá]lculo paso a paso y determinando\b/gi, 'y determina')
+    .replace(/\bDurante el proceso de coevaluaci[oó]n de tu expediente t[eé]cnico,\s*tus compa[ñn]eros revisan[^,]+y detectan que\b/gi, 'En coevaluación se detecta que')
+    .replace(/\bDebes aplicar la correcci[oó]n y documentar el registro de coevaluaci[oó]n\./gi, 'Corrige y documenta la coevaluación.')
+    .replace(/\bSe desea dise[ñn]ar (una|un) ([^.]{5,80}) con forma rectangular\./gi, 'Diseña $1 $2 rectangular.')
+    .replace(/\bDebes calcular anal[ií]ticamente ([^.]{4,70}) y validar gr[aá]ficamente el resultado para integrarlo en tu [^.]+\./gi, 'Calcula $1 y valida el resultado gráficamente.')
+    .replace(/\bResuelve la ecuaci[oó]n algebraica:\s*Agrupa los t[eé]rminos con ([a-z]) en un miembro y los t[eé]rminos independientes(?:\s+en\s+el\s+otro)?:\s*/gi, 'Agrupa $1 y constantes: ')
+    .replace(/\bIdentificar los coeficientes de la ecuaci[oó]n en su forma general ([^:]+):\s*/gi, 'Identifica los coeficientes ($1): ')
+    .replace(/\butilizando el Teorema de Pit[aá]goras,\s*donde la hipotenusa es ([^,]{2,20}) y el cateto base es la mitad del lado \(([^)]+)\)\./gi, 'por Pitágoras (hipotenusa $1, cateto $2):')
+    .replace(/\bdebido al paralelismo de los soportes met[aá]licos,?\s*/gi, 'por paralelismo, ')
+    .replace(/\ben el marco del Pensamiento Matem[aá]tico\b/gi, 'en Pensamiento Matemático')
+    .replace(/\bSi se ha determinado algebraicamente que uno de los [aá]ngulos internos mide\b/gi, 'Si un ángulo interno mide')
+    .replace(/\by su [aá]ngulo alterno interno correspondiente mide\b/gi, 'y su alterno interno mide')
+    .replace(/\bcalcula el valor exacto de la inc[oó]gnita ([a-z]),\s*determina la medida num[eé]rica de esos [aá]ngulos para validar el plano estructural/gi, 'calcula $1 y la medida de ambos ángulos')
+    .replace(/\basegurando el uso correcto de dos cifras decimales en todas las operaciones intermedias\b/gi, 'con dos decimales')
+    .replace(/\badem[aá]s de un error menor de redondeo en el c[aá]lculo de\b/gi, 'y un error de redondeo en')
+    .replace(/(\$[\d.,]+)\s+pesos\b/gi, '$1')
+    .replace(/\s*\([^)\d=]{14,90}\)/g, '')
+    .replace(/\bde dichos\b/gi, 'de esos')
+    .replace(/\bde el\b/gi, 'del')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .trim();
+}
+
+function compactProblemPreamble(value: string): string {
+  return compactConceptNarrative(
+    String(value || '')
+      .replace(
+        /\bDurante\s+[^,]{5,140},\s*(?:analizas|revisas|estudias)\s+el\s+procedimiento\s+(?:empleado\s+)?para\s+resolver\b/gi,
+        'Resuelve'
+      )
+      .replace(
+        /^Si el presupuesto (?:total )?disponible(?: para esta [a-záéíóúñ]+)? es de (\$[\d.,]+)(?:\s+pesos)?,\s+/i,
+        'Con presupuesto de $1, '
+      )
+  );
+}
+
+function compactEvaluationCriterion(value: string): string {
+  const cleaned = String(value || '')
+    .replace(/^¿(?:Puedo|Soy capaz de|Fui capaz de|Logr[eé])\s+/i, '')
+    .replace(/\?$/, '.')
+    .replace(/\bcon mis propias palabras\b/gi, '')
+    .replace(/\bcon claridad\b/gi, '')
+    .replace(/\bcon orden y rigor\b/gi, '')
+    .replace(/\brigor met[oó]dico y orden al\b/gi, 'orden al')
+    .replace(/\btodos los elementos requeridos en mi\b/gi, 'los elementos de mi')
+    .replace(/\ben qu[eé] se diferencia de\b/gi, 'cómo se diferencia de')
+    .replace(/\by en qu[eé] se diferencia\b/gi, 'y cómo se diferencia')
+    .replace(/\bexact[oa]s?\b/gi, '')
+    .replace(/\bpara verificar la precisi[oó]n de mis (?:c[aá]lculos|resultados)[^,.?]*/gi, 'para verificar mis resultados')
+    .replace(/\bde mi compa[ñn]er[oa]\b/gi, 'del procedimiento')
+    .replace(/\ben mi (?:modelo|proyecto|reporte)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;?])/g, '$1')
+    .trim();
+  return cleaned
+    .replace(/^¿([a-záéíóúñ])/, (_, letter: string) => `¿${letter.toUpperCase()}`)
+    .replace(/^([a-záéíóúñ])/, (_, letter: string) => letter.toUpperCase());
+}
+
+function compactHintText(value: string | undefined): string | undefined {
+  if (!value) return value;
+  const cleaned = String(value)
+    .replace(
+      /^(?:Recuerda|Ten en cuenta|Considera|Observa|Nota)\s+que\s+(?:para\s+[^,]{3,40},?\s*)?(?:debes|puedes|tienes que|hay que|se debe)\s+/i,
+      ''
+    )
+    .replace(/^(?:Recuerda|Ten en cuenta|Considera)\s+que\s+/i, '')
+    .replace(/,?\s*o\s+plantea\s+que\s+[^,]{15,85},\s*es\s+decir,\s*/gi, ' o plantea ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  if (!cleaned || cleaned.length < 24 || /^(?:para|por|con|de|en|a)\b/i.test(cleaned)) {
+    return value;
+  }
+  return cleaned.replace(/^([a-záéíóúñ])/, (_, ch: string) => ch.toUpperCase());
+}
+
 function compactActivityStatement(statement: string): string {
-  return String(statement || '').trim();
+  const original = String(statement || '').trim();
+  if (!original) return original;
+  const compacted = original
+    .replace(
+      /^(?:Para|Con el fin de|Con la finalidad de|Con el prop[oó]sito de)\s+(?:la\s+|el\s+|los\s+|las\s+)?(?:acondicionar|adecuar|organizar|promover|prevenir|mejorar|remodelar|rehabilitar|construir|dise[ñn]ar|impulsar|fortalecer|apoyar|celebrar|ambientar|adornar|fondear|financiar|implementar|evaluar)\b[^,]{0,110},\s*/i,
+      ''
+    )
+    .replace(/^En\s+(?:una|un|el|la)\s+[^,]{8,95},\s*(?=[A-ZÁÉÍÓÚÑa-záéíóúñ])/i, '')
+    .replace(/\s+destinad[oa]s?\s+a\s+[^,.]{3,65}(?=[,.]|$)/gi, '')
+    .replace(/\bcon el (?:fin|prop[oó]sito|objetivo) de\s+[^,.]{3,65}(?=[,.]|$)/gi, '')
+    .replace(/\bpara modelar (?:la situaci[oó]n|este escenario|el caso|el fenómeno)\b/gi, 'para modelar')
+    .replace(/\bcon tu calculadora cient[ií]fica\b/gi, 'con calculadora')
+    .replace(/\bredacta tus observaciones t[eé]cnicas\b/gi, 'redacta tus observaciones')
+    .replace(/\bredacta las conclusiones t[eé]cnicas de viabilidad\b/gi, 'concluye su viabilidad')
+    .replace(/\by redacta una breve interpretaci[oó]n de(?:l)?\b/gi, 'e interpreta')
+    .replace(/\bdetermina si la soluci[oó]n final es [a-záéíóúñ]+mente correcta\b/gi, 'determina si la solución es correcta')
+    .replace(/\bverifica tu resultado mediante sustituci[oó]n\b/gi, 'verifica por sustitución')
+    .replace(
+      /^Realiza la revisi[oó]n cruzada del siguiente procedimiento desarrollado por un[a]? compa[ñn]er[oa] para resolver\b/i,
+      'Revisa el procedimiento para resolver'
+    )
+    .replace(/\bEn su reporte,\s*(?:el|la) compa[ñn]er[oa] afirma que al agrupar [^,]+ obtuvo\b/gi, 'El reporte indica que obtuvo')
+    .replace(/\blo que resulta en\b/gi, 'y obtiene')
+    .replace(/\butilizando las propiedades de\b/gi, 'con las propiedades de')
+    .replace(
+      /\bAudita el reporte t[eé]cnico de un[a]? compa[ñn]er[oa] que modela [^.]*? mediante\b/gi,
+      'Audita el reporte modelado mediante'
+    )
+    .replace(/\b(?:El|La) compa[ñn]er[oa] indica que\b/gi, 'Se indica que')
+    .replace(
+      /\bVerifica si el procedimiento cumple con el rigor [a-záéíóúñ]+ y redacta tu retroalimentaci[oó]n en la bit[aá]cora\./gi,
+      'Verifica el procedimiento y redacta tu retroalimentación.'
+    )
+    .replace(/\bElabora la tabla de progresi[oó]n [a-záéíóúñ]+ para validar los datos en tu [^.]+\./gi, 'Tabula la progresión para validar los datos.')
+    .replace(/\b(?:Construye|Utiliza) una matriz de comprobaci[oó]n evaluando (?:valores de )?/gi, 'Evalúa ')
+    .replace(/\bpara verificar en qu[eé] momento exacto los costos se cruzan y cu[aá]l opci[oó]n conviene para un evento de\b/gi, 'para determinar cuándo se igualan costos y qué conviene para')
+    .replace(/\bpara determinar el punto de equilibrio y verificar los costos\b/gi, 'para hallar el equilibrio y verificar costos')
+    .replace(/\bcobra un dep[oó]sito fijo de\b/gi, 'cobra fijo')
+    .replace(/\by una renta de\b/gi, 'más')
+    .replace(
+      /\b(Determina|Calcula)\s+el\s+([^.]{3,35})\s+que\s+(?:tu equipo|el grupo|la comunidad|el comit[eé])[^.]{0,30}?(?:deber[aá]|tendr[aá] que|puede)\s+([a-záéíóúñ]+r)\b/gi,
+      '$1 el $2 a $3'
+    )
+    .replace(/(\$[\d.,]+)\s+pesos\b/gi, '$1')
+    .replace(/\s*\([^)\d=]{14,90}\)/g, '')
+    .replace(/\bElabora un guion de exposici[oó]n que incluya\b/gi, 'Elabora un guion con')
+    .replace(/\bExplica ante el grupo por qu[eé]\b/gi, 'Explica por qué')
+    .replace(/\bpara su centro comunitario\b/gi, '')
+    .replace(/\bpara cubrir ambos conceptos\b/gi, '')
+    .replace(/\butilizando el principio de la balanza algebraica\b/gi, 'con la balanza algebraica')
+    .replace(/\bSi las proyecciones socioecon[oó]micas indican que la poblaci[oó]n crecer[aá] a una tasa anual constante del\b/gi, 'Con crecimiento anual del')
+    .replace(/\bdebido a la llegada de nuevas familias,?\s*/gi, '')
+    .replace(/\butilizando el modelo exponencial\b/gi, 'con')
+    .replace(/\be interpreta(?: el)? impacto en los servicios p[uú]blicos\b/gi, 'e interpreta el impacto')
+    .replace(/\bSi se implementa un programa comunitario de retenci[oó]n escolar y bienestar,\s*se espera que la tasa de crecimiento poblacional moderado se mantenga en\b/gi, 'Con tasa moderada del')
+    .replace(/\bdurante los pr[oó]ximos\b/gi, 'en')
+    .replace(/\bal t[eé]rmino de este periodo\b/gi, 'al cierre')
+    .replace(/,\s*construye una tabla de valores(?:\s+rigurosa)?(?:\s+asignando\s+a|\s+para)\s+/gi, ', tabula para ')
+    .replace(/\btomando los valores\b/gi, 'con')
+    .replace(/\bdetermina los cinco pares ordenados resultantes y redacta una conclusi[oó]n sobre el comportamiento financiero\b/gi, 'determina los cinco pares y concluye')
+    .replace(/\bque se pueden realizar con un fondo fijo cumplen la ecuaci[oó]n lineal\b/gi, 'cumplen')
+    .replace(/\bmodela el costo de mantenimiento de un espacio deportivo recreativo mediante la ecuaci[oó]n lineal con dos inc[oó]gnitas\b/gi, 'modela el mantenimiento con')
+    .replace(/\bestablece que el costo semanal de operaci[oó]n \(([^)]+)\) de un taller de artes pl[aá]sticas depende de una tarifa fija de servicios de\b/gi, 'modela el costo semanal ($1) con tarifa fija de')
+    .replace(/\bSi las pol[ií]ticas de desarrollo comunitario y la implementaci[oó]n de programas de bienestar generan una tasa de crecimiento anual estimada de\b/gi, 'Con tasa de crecimiento anual')
+    .replace(/\bUna localidad rural del estado de Puebla registra actualmente una poblaci[oó]n juvenil base de\b/gi, 'Una localidad registra población base')
+    .replace(/\bSe aplica un modelo de crecimiento demogr[aá]fico discreto\b/gi, 'Con el modelo')
+    .replace(/\bcon una tasa de crecimiento anual\b/gi, 'y tasa anual')
+    .replace(/\by elabora la gr[aá]fica en papel milim[eé]trico\b/gi, 'y grafícalo')
+    .replace(/\bConstruye la tabla de valores a[ñn]o por a[ñn]o desde\b/gi, 'Tabula de')
+    .replace(/\bUn centro comunitario juvenil en Puebla\b/gi, 'Un centro comunitario')
+    .replace(/\bUn comit[eé] vecinal en Puebla\b/gi, 'Un comité vecinal')
+    .replace(/\bUn comit[eé] pro-construcci[oó]n de un parque recreativo en Puebla solicita\b/gi, 'Un comité solicita')
+    .replace(/\ba una instituci[oó]n de desarrollo social con una tasa de inter[eé]s simple del\b/gi, 'a interés simple del')
+    .replace(/\bSi el pr[eé]stamo se liquidar[aá] en un plazo de\b/gi, 'A un plazo de')
+    .replace(/\bcalcula el inter[eé]s total generado y el monto acumulado\b/gi, 'calcula el interés y monto acumulado')
+    .replace(/\by plasma el procedimiento algebraico completo en tu dossier\b/gi, 'y registra el procedimiento')
+    .replace(/\by valida los datos para incorporarlos en la secci[oó]n anal[ií]tica de tu portafolio\b/gi, 'y valida los datos')
+    .replace(/\bubicados en uno de los v[eé]rtices principales de la techumbre est[aá]n representados algebraicamente por las expresiones\b/gi, 'se expresan como')
+    .replace(/\bsabiendo por definici[oó]n geom[eé]trica que los [aá]ngulos colaterales internos entre paralelas son suplementarios \(su suma = 180°\)/gi, '(colaterales internos: suman 180°)')
+    .replace(/\bTeniendo en cuenta que por definici[oó]n dos [aá]ngulos complementarios suman\b/gi, 'Como los complementarios suman')
+    .replace(/\bcalcula el valor num[eé]rico de la inc[oó]gnita ([a-z]), determina la medida (?:exacta|angular exacta) de cada (?:[aá]ngulo|componente)\b/gi, 'calcula $1 y cada ángulo')
+    .replace(/\bcalcula el valor de ([a-z]), determina la medida angular exacta de cada componente\b/gi, 'calcula $1 y cada ángulo')
+    .replace(/\bpara organizar un torneo rel[aá]mpago seg[uú]n la expresi[oó]n\b/gi, 'de un torneo con')
+    .replace(/\ben funci[oó]n de las horas de asesor[ií]a 'x' impartidas est[aá] modelado por la ecuaci[oó]n\b/gi, "según horas de asesoría 'x' sigue")
+    .replace(/,\s*donde\s+'x'\s+representa\s+el\s+n[uú]mero\s+de\s+equipos\s+inscritos/gi, ' (x = equipos)')
+    .replace(/\bSe calcula que el costo total \(y\) de premiaci[oó]n y arbitraje est[aá] dado por\b/gi, 'El costo (y) de premiación y arbitraje es')
+    .replace(/\by elabora la tabulaci[oó]n para\b/gi, 'y tabula para')
+    .replace(/\bdonde el n[uú]mero de j[oó]venes asistentes \(y\) a un taller de arte depende de la inversi[oó]n en publicidad \(x\) en cientos de pesos,\s*dado por\b/gi, 'de asistentes (y) según inversión en publicidad (x, en cientos de pesos):')
+    .replace(/\ben una escala del 1 al 100,\s*definido por\b/gi, '(escala 1 a 100):')
+    .replace(/\bsu representaci[oó]n gr[aá]fica y una breve conclusi[oó]n metacognitiva\b/gi, 'su gráfica y conclusión')
+    .replace(/\ben el contexto del espacio recreativo\b/gi, 'en contexto')
+    .replace(/\ben el contexto de la asistencia inicial\b/gi, 'en contexto')
+    .replace(/\ben el contexto de la jornada\b/gi, 'en contexto')
+    .replace(/\bpara determinar el costo unitario de cada tipo de bal[oó]n,\s*y elabora la matriz de comprobaci[oó]n num[eé]rica que valide tus resultados algebraicos\b/gi, 'para hallar el costo de cada balón y comprobarlo')
+    .replace(/\bde dichos\b/gi, 'de esos')
+    .replace(/\b(?:paso a paso|exactamente|posteriormente|correspondiente|rigurosamente)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .trim();
+  const normalizedStart =
+    /^[a-záéíóúñ]/.test(compacted) && /^[A-ZÁÉÍÓÚÑ]/.test(original)
+      ? compacted.charAt(0).toUpperCase() + compacted.slice(1)
+      : compacted;
+  const digits = (text: string) => text.match(/\d+(?:[.,]\d+)?/g) ?? [];
+  const originalDigits = digits(original).sort().join('|');
+  const compactedDigits = digits(normalizedStart).sort().join('|');
+  if (!normalizedStart || originalDigits !== compactedDigits) return original;
+  return normalizedStart;
+}
+
+const ACTIVITY_TASK_RE =
+  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|escribe|redacta|prepara|elabora|integra|organiza|audita|revisa|verifica|comprueba|justifica|identifica|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|explica|construye|crea|consolida|completa|obt[eé]n|usa|utiliza|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala)\b/i;
+
+const IMPERATIVE_MODELA_RE = /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i;
+
+function hasActivityTask(value: string): boolean {
+  if (ACTIVITY_TASK_RE.test(value)) return true;
+  const withoutDescriptiveModela = value
+    .replace(/\b(?:se|que|donde|cuyo|cuya)\s+modela\b/gi, '')
+    .replace(
+      /\b(?:ecuaci[oó]n|expresi[oó]n|funci[oó]n|f[oó]rmula|gr[aá]fica|club|comit[eé]|centro|programa|tabla)\b[^.?!]{0,45}\bmodela\b/gi,
+      ''
+    )
+    .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+muestra\b/gi, '');
+  return IMPERATIVE_MODELA_RE.test(withoutDescriptiveModela);
+}
+
+function capitalizeProseStart(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  if (/^[a-z](?:[0-9₀-₉²³]|\([^)]+\))?\s*(?:[=<>≤≥≠≈+\-*/·×^]|²|³)/.test(trimmed)) return trimmed;
+  return /^[a-záéíóúñ]/.test(trimmed) ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1) : trimmed;
+}
+
+function hasIncompleteConditionalEnding(value: string): boolean {
+  const sentences = value
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length === 0) return false;
+  const last = sentences[sentences.length - 1]!;
+  if (!/^Si\s+/i.test(last)) return false;
+  const outsideParens = last.replace(/\([^)]*\)/g, '');
+  if (!/[,?]/.test(outsideParens)) return true;
+  return !hasActivityTask(last);
+}
+
+function ensureActivityClosure(statement: string): string {
+  const cleaned = capitalizeProseStart(
+    String(statement || '')
+      .replace(/\.,/g, ',')
+      .replace(/,\./g, '.')
+      .replace(/,\s*([xy])\s*\.(?=\s|$)/gi, ' ($1).')
+      .replace(/(?<=[.?!]\s+)([a-záéíóúñ])/g, (_, ch: string) => ch.toUpperCase())
+      .trim()
+  );
+  if (!cleaned) return cleaned;
+  const value = /[.?!]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+  const incompleteCond = hasIncompleteConditionalEnding(value);
+  if (!incompleteCond && hasActivityTask(value) && value.length >= 55) return value;
+  const base = value.replace(/[.!?]+$/, '').trim();
+  if (incompleteCond) {
+    return `${base}, calcula y determina los valores requeridos.`;
+  }
+  if (!hasActivityTask(value)) {
+    const withTask = `${base}. Calcula y determina los valores requeridos.`;
+    return withTask.length >= 55
+      ? withTask
+      : `${base}. Calcula, registra el procedimiento y determina los valores requeridos.`;
+  }
+  return `${base}. Registra tu procedimiento y comprueba la respuesta.`;
+}
+
+const HEADLESS_ANAPHORIC_START_RE =
+  /^(?:Para\s+[a-záéíóúñ]+(?:lo|la|los|las)\b|Esto\b|Esta\b|Este\b|Estos\b|Estas\b|Ello\b|Por\s+ello\b|Por\s+lo\s+tanto\b|En\s+consecuencia\b|Sin\s+embargo\b|Adem[aá]s\b|Asimismo\b|De\s+este\s+modo\b|De\s+esta\s+manera\b)/i;
+
+function isHeadlessAnaphoricStart(value: string | undefined): boolean {
+  return Boolean(value && HEADLESS_ANAPHORIC_START_RE.test(value.trim()));
+}
+
+function requiresStrictNumericPreservation(reference: string): boolean {
+  return (
+    /=/.test(reference) ||
+    /\b(?:opci[oó]n\s*[ab]|proveedor|tarifa|compara|cu[aá]l\s+(?:opci[oó]n\s+)?conviene|frente\s+a|audita|revisa|compa[ñn]er[oa]|procedimiento|reporte|obtuvo|afirma)\b/i.test(
+      reference
+    )
+  );
+}
+
+function compactActivityPreservingTaskAndData(
+  rawStatement: string,
+  maxChars: number,
+  maxWords: number,
+  allowPartialNumbers = false
+): string {
+  const base = ensureActivityClosure(compactActivityStatement(rawStatement));
+  if (!base) return base;
+  const mathTokens = (text: string): string[] =>
+    (text.match(/\d+(?:[.,]\d+)?|=/g) ?? []).map((t) => t.replace(/,/g, ''));
+  const isValidActivity = (candidate: string, reference: string): boolean => {
+    const c = candidate.trim();
+    const minLen = Math.min(55, reference.trim().length);
+    if (c.length < minLen) return false;
+    if (/^[a-záéíóúñ]/.test(c)) return false;
+    if (!hasActivityTask(c) || hasIncompleteConditionalEnding(c) || hasDanglingEnding(c)) return false;
+    if (/\.,|,\.|;\.|\.\s*\./.test(c) || /,\s*[a-zA-ZÁÉÍÓÚáéíóúñÑ]\.$/.test(c)) return false;
+    if (/=/.test(reference) && !/=/.test(c)) return false;
+    const uniqueRef = new Set(mathTokens(reference));
+    if (uniqueRef.size > 0) {
+      const candSet = new Set(mathTokens(c));
+      const strictNumbers = !allowPartialNumbers || requiresStrictNumericPreservation(reference) || uniqueRef.size <= 3;
+      if (strictNumbers) {
+        for (const tok of uniqueRef) {
+          if (!candSet.has(tok)) return false;
+        }
+      } else if (candSet.size < Math.min(3, uniqueRef.size)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const wordCount = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length;
+  if (base.length <= maxChars && wordCount(base) <= maxWords && isValidActivity(base, base)) {
+    return base;
+  }
+
+  const directFit = fitPedagogicalText(base, { maxChars, maxWords, role: 'activity' });
+  if (directFit && isValidActivity(directFit, base)) {
+    return directFit;
+  }
+
+  const sentences = base
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length > 1) {
+    let taskIdx = -1;
+    for (let i = sentences.length - 1; i >= 0; i--) {
+      if (hasActivityTask(sentences[i]!)) {
+        taskIdx = i;
+        break;
+      }
+    }
+    if (taskIdx === -1) taskIdx = sentences.length - 1;
+
+    const essential = sentences.filter((s, idx) => mathTokens(s).length > 0 || idx === taskIdx);
+    const essentialJoined = essential.join(' ').trim();
+    if (essentialJoined && isValidActivity(essentialJoined, base)) {
+      if (essentialJoined.length <= maxChars && wordCount(essentialJoined) <= maxWords) {
+        return essentialJoined;
+      }
+      const fittedEssential = fitPedagogicalText(essentialJoined, {
+        maxChars,
+        maxWords,
+        role: 'activity',
+      });
+      if (fittedEssential && isValidActivity(fittedEssential, base)) {
+        return fittedEssential;
+      }
+    }
+
+    const taskSentence = sentences[taskIdx]!;
+    const taskNormPrefix = taskSentence.toLowerCase().slice(0, 32);
+    const dataSentences = sentences.filter(
+      (s, idx) =>
+        idx !== taskIdx &&
+        mathTokens(s).length > 0 &&
+        !taskSentence.toLowerCase().includes(s.toLowerCase().slice(0, Math.min(32, s.length))) &&
+        !s.toLowerCase().startsWith(taskNormPrefix)
+    );
+    if (dataSentences.length > 0) {
+      const dataPart = dataSentences
+        .map((s) =>
+          capitalizeProseStart(
+            s
+              .replace(/^(?:En|Para|Durante|Tras|Al|Con|Seg[uú]n)\b[^,:\d=()]{8,80},\s+(?=[A-ZÁÉÍÓÚÑa-záéíóúñ\d])/u, '')
+              .trim()
+          )
+        )
+        .join(' ')
+        .replace(/[.!?]+$/, '')
+        .trim();
+      const rawShortTask =
+        fitPedagogicalText(taskSentence, {
+          maxChars: Math.max(48, maxChars - dataPart.length - 2),
+          maxWords: Math.max(8, maxWords - wordCount(dataPart)),
+          role: 'activity',
+        }) || taskSentence;
+      const shortTask =
+        hasIncompleteConditionalEnding(rawShortTask) || !hasActivityTask(rawShortTask)
+          ? compactActivityStatement(taskSentence)
+          : rawShortTask;
+      const combined = ensureActivityClosure(`${dataPart}. ${shortTask}`.replace(/\s{2,}/g, ' ').trim());
+      if (isValidActivity(combined, base)) {
+        if (combined.length <= maxChars && wordCount(combined) <= maxWords) {
+          return combined;
+        }
+        const shortData =
+          fitPedagogicalText(dataPart, {
+            maxChars: Math.max(65, maxChars - shortTask.length - 2),
+            maxWords: Math.max(11, maxWords - wordCount(shortTask)),
+            role: 'problem',
+          }) || dataPart;
+        const tighterCombined = ensureActivityClosure(
+          `${capitalizeProseStart(shortData).replace(/[.!?]+$/, '')}. ${shortTask}`
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+        );
+        if (isValidActivity(tighterCombined, base)) {
+          return tighterCombined;
+        }
+        return combined;
+      }
+    }
+  }
+
+  return base;
+}
+
+function isValidEvaluationCriterionItem(value: string | undefined): value is string {
+  if (!value) return false;
+  const clean = value.trim();
+  if (clean.length < 22) return false;
+  if (clean.split(/\s+/).filter(Boolean).length < 3) return false;
+  if (hasDanglingEnding(clean)) return false;
+  return true;
 }
 
 function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
@@ -1146,67 +1615,117 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
     value: string | undefined,
     maxChars: number,
     maxWords: number,
-    role: 'concept' | 'problem' | 'step' | 'conclusion' | 'activity' | 'application' | 'hint' | 'general'
-  ): string | undefined =>
-    value ? fitPedagogicalText(value, { maxChars, maxWords, role }) || value : value;
+    role: 'concept' | 'problem' | 'step' | 'conclusion' | 'activity' | 'application' | 'hint' | 'general',
+    minChars = 18
+  ): string | undefined => {
+    if (!value) return value;
+    const fitted = fitPedagogicalText(value, { maxChars, maxWords, role });
+    if (!fitted || fitted.trim().length < Math.min(minChars, value.trim().length) || hasDanglingEnding(fitted)) {
+      return value;
+    }
+    return fitted;
+  };
   const compactMathStep = (step: string, maxChars: number, maxWords: number): string =>
     /[=+\-*/^]|\d/.test(step) ? step : distillStepPreservingMath(step, maxChars, maxWords);
 
   if (slide.kind === 'concept') {
     const cs = slide as SacrintConceptSlide;
+    const problemCapChars = cs.diagram?.available ? 215 : 250;
+    const problemCapWords = cs.diagram?.available ? 34 : 40;
+    const rawProblem = cs.workedExample?.problemStatement || '';
+    const fitProblemForBox = (raw: string): string => {
+      if (!raw || raw.length <= problemCapChars) return raw;
+      // Eliminar oraciones puramente narrativas sin datos numéricos ni ecuación cuando el planteamiento rebasa la caja
+      const rawSentences = raw
+        .split(/(?<=[.?!])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const dataOrTaskSentences =
+        rawSentences.length > 1
+          ? rawSentences.filter((s) => /\d|=|\$|%|\?|\b(?:calcula|determina|encuentra|resuelve|construye|tabula|plantea|utiliza|compara)\b/i.test(s))
+          : rawSentences;
+      const cleanedBase = (dataOrTaskSentences.length > 0 ? dataOrTaskSentences.join(' ') : raw)
+        .replace(/,\s*donde\s+['"]?[a-z]['"]?\s+(?:es|representa)\s+[^.;]+?(?=[.;]|$)/gi, '')
+        .replace(/\butilizando tu regla graduada y un sistema de coordenadas\b/gi, '')
+        .replace(/\by presentar el argumento cuantitativo correspondiente\b/gi, '')
+        .replace(/\by construir una matriz de comprobaci[oó]n para verificar el resultado(?:\s+en un rango de [^.]+)?\b/gi, '')
+        .replace(/\bPreparas la defensa de tu proyecto ante el comit[eé] evaluador y necesitas argumentar\b/gi, 'Se estima')
+        .replace(/\bTras analizar las tendencias demogr[aá]ficas locales,\s*se estima una tasa de crecimiento anual constante del\b/gi, 'Con tasa anual constante')
+        .replace(/\bEl presupuesto operativo establece que el costo total en miles de pesos se modela exactamente mediante la ecuaci[oó]n lineal con dos inc[oó]gnitas:\s*/gi, 'Costo operativo (miles de pesos): ')
+        .replace(/\bEl costo total 'y' \(en pesos\) para adecuar un espacio recreativo juvenil y comprar 'x' paquetes de material deportivo est[aá] modelado por la ecuaci[oó]n lineal\b/gi, 'El costo total y de x paquetes sigue')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+([,.;])/g, '$1')
+        .trim();
+      const pre = compactProblemPreamble(cleanedBase);
+      if (pre.length <= problemCapChars && !hasDanglingEnding(pre)) return pre;
+      const fitted = fitPedagogicalText(pre, {
+        maxChars: problemCapChars,
+        maxWords: problemCapWords,
+        role: 'problem',
+      });
+      const eqPreserved = !/=/.test(pre) || /=/.test(fitted);
+      if (fitted && fitted.length >= 42 && !hasDanglingEnding(fitted) && eqPreserved) {
+        return fitted;
+      }
+      return pre;
+    };
     return {
       ...cs,
-      explanation: fitShort(cs.explanation, 235, 38, 'concept') || cs.explanation,
-      analogy: fitShort(cs.analogy, 70, 11, 'hint'),
-      misconception: fitShort(cs.misconception, 140, 22, 'concept') || cs.misconception,
+      explanation: fitShort(cs.explanation, 235, 38, 'concept', 55) || cs.explanation,
+      analogy: fitShort(cs.analogy, 70, 11, 'hint', 18),
+      misconception: cs.misconception,
       keyTakeaways: (cs.keyTakeaways ?? [])
         .slice(0, 1)
-        .map((item) => fitShort(item, 60, 10, 'concept'))
+        .map((item) => fitShort(item, 60, 10, 'concept', 18))
         .filter((item): item is string => Boolean(item)),
       workedExample: cs.workedExample
         ? {
-            problemStatement: cs.workedExample.problemStatement,
+            problemStatement: fitProblemForBox(rawProblem),
             steps: cs.workedExample.steps
               .slice(0, 3)
               .map((step) => compactMathStep(step, 60, 9))
               .filter(Boolean),
             interpretation:
-              fitShort(cs.workedExample.interpretation, 90, 14, 'conclusion') ||
+              fitShort(cs.workedExample.interpretation, 116, 18, 'conclusion', 18) ||
               cs.workedExample.interpretation,
           }
         : cs.workedExample,
       variables: (cs.variables ?? []).slice(0, 3).map((variable) => ({
         ...variable,
-        meaning: fitShort(variable.meaning, 32, 5, 'concept') || variable.meaning,
+        meaning: fitShort(variable.meaning, 32, 5, 'concept', 8) || variable.meaning,
       })),
       facts: (cs.facts ?? []).slice(0, 1),
     } as unknown as SacrintConceptSlide;
   }
   if (slide.kind === 'practice') {
     const ps = slide as SacrintPracticeSlide;
+    const validCriteria = (ps.evaluationCriteria ?? [])
+      .slice(0, 2)
+      .map((item) => fitShort(compactEvaluationCriterion(item), 84, 13, 'general', 22))
+      .filter(isValidEvaluationCriterionItem);
     return {
       ...ps,
       activities: (ps.activities ?? []).slice(0, 2).map((activity) => ({
         ...activity,
-        statement: compactActivityStatement(activity.statement),
-        hint: fitShort(activity.hint, 70, 11, 'hint'),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 220, 36),
+        hint: fitShort(compactHintText(activity.hint), 100, 16, 'hint', 22),
       })),
-      applicationText: fitShort(ps.applicationText, 90, 14, 'application'),
-      practiceText: fitShort(ps.practiceText, 90, 14, 'application'),
+      applicationText: fitShort(ps.applicationText, 116, 18, 'application', 44),
+      practiceText: fitShort(ps.practiceText, 116, 18, 'application', 44),
       objectiveBullets: (ps.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitShort(item, 60, 9, 'concept'))
+        .map((item) => fitShort(item, 64, 10, 'concept', 20))
         .filter((item): item is string => Boolean(item)),
-      evaluationCriteria: (ps.evaluationCriteria ?? [])
-        .slice(0, 2)
-        .map((item) => fitShort(item, 48, 8, 'general'))
-        .filter((item): item is string => Boolean(item)),
+      evaluationCriteria:
+        validCriteria.length > 0
+          ? validCriteria
+          : ['Procedimiento ordenado y conclusión coherente con el planteamiento.'],
       exitChecks: (ps.exitChecks ?? [])
         .slice(0, 2)
-        .map((item) => fitShort(item, 48, 8, 'general'))
-        .filter((item): item is string => Boolean(item)),
-      artifactName: fitShort(ps.artifactName, 40, 6, 'concept'),
-      artifactStep: fitShort(ps.artifactStep, 60, 9, 'application'),
+        .map((item) => fitShort(compactEvaluationCriterion(item), 56, 9, 'general', 22))
+        .filter(isValidEvaluationCriterionItem),
+      artifactName: fitShort(ps.artifactName, 40, 6, 'concept', 10),
+      artifactStep: fitShort(ps.artifactStep, 106, 16, 'application', 34),
       facts: (ps.facts ?? []).slice(0, 1),
     } as unknown as SacrintPracticeSlide;
   }
@@ -1216,59 +1735,270 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
 function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
   if (countSlideWords(slide) <= maxWords) return slide;
 
-  const fitShort = (
+  const fitPreserving = (
     value: string | undefined,
     maxChars: number,
     maxWordsValue: number,
-    role: 'concept' | 'problem' | 'step' | 'conclusion' | 'activity' | 'application' | 'hint' | 'general'
-  ): string | undefined =>
-    value ? fitPedagogicalText(value, { maxChars, maxWords: maxWordsValue, role }) || value : value;
-  const compactMathStep = (step: string, maxChars: number, maxWordsValue: number): string =>
-    /[=+\-*/^]|\d/.test(step) ? step : distillStepPreservingMath(step, maxChars, maxWordsValue);
+    role: 'concept' | 'problem' | 'step' | 'conclusion' | 'activity' | 'application' | 'hint' | 'general',
+    minChars = 24
+  ): string | undefined => {
+    if (!value) return value;
+    const original = value.trim();
+    if (!original) return value;
+    const fitted = fitPedagogicalText(value, { maxChars, maxWords: maxWordsValue, role });
+    if (!fitted) return value;
+    const safeMin = Math.min(minChars, original.length);
+    if (fitted.trim().length < safeMin || hasDanglingEnding(fitted)) return value;
+    if (role === 'concept') {
+      if (isHeadlessAnaphoricStart(fitted) && !isHeadlessAnaphoricStart(original)) return value;
+      if (/=/.test(original) && !/=/.test(fitted)) return value;
+    }
+    const mathTokens = (text: string): string[] =>
+      (text.match(/\$?\d[\d.,]*|=/g) ?? []).map((t) => t.replace(/[$,]/g, ''));
+    if (role === 'step') {
+      const fittedTokens = new Set(mathTokens(fitted));
+      if (mathTokens(original).some((token) => !fittedTokens.has(token))) return value;
+      if (/=[^.;]*\/\s*[\d(a-zA-Z]/.test(original) && !/=[^.;]*\/\s*[\d(a-zA-Z]/.test(fitted)) return value;
+    } else if (role === 'hint' || role === 'conclusion') {
+      if (/=/.test(original) && !/=/.test(fitted)) return value;
+      if (/=[^.;]*\/\s*[\d(a-zA-Z]/.test(original) && !/=[^.;]*\/\s*[\d(a-zA-Z]/.test(fitted)) return value;
+      if ((original.match(/=/g)?.length ?? 0) >= 2 && (fitted.match(/=/g)?.length ?? 0) < 2) return value;
+      if (role === 'hint' && /\d+\s*,\s*\d+/.test(original)) {
+        const fittedTokens = new Set(mathTokens(fitted));
+        if (mathTokens(original).some((token) => !fittedTokens.has(token))) return value;
+      }
+    } else if (role === 'problem' || role === 'activity') {
+      if (hasIncompleteConditionalEnding(fitted)) return value;
+      if (/=/.test(original) && !/=/.test(fitted)) return value;
+      const origTokens = [...new Set(mathTokens(original))];
+      if (origTokens.length > 0) {
+        const fittedTokens = new Set(mathTokens(fitted));
+        if (origTokens.some((token) => !fittedTokens.has(token))) return value;
+      }
+    } else if (role === 'application') {
+      if (hasIncompleteConditionalEnding(fitted)) return value;
+      if (original.length >= 48 && fitted.trim().length < 44) return value;
+      const origTokens = [...new Set(mathTokens(original))];
+      if (origTokens.length > 0) {
+        const fittedTokens = new Set(mathTokens(fitted));
+        const requiredCount = origTokens.length <= 2 ? origTokens.length : 2;
+        if (fittedTokens.size < Math.min(requiredCount, origTokens.length)) return value;
+      }
+    }
+    return fitted;
+  };
+  const isSolutionStep = (step: string): boolean =>
+    /=/.test(step) ||
+    /^(?:respuesta|resultado|conclusi[oó]n|por tanto|as[ií]|en consecuencia|comprobaci[oó]n)/i.test(step.trim());
+  const stepTokens = (value: string): Set<string> =>
+    new Set(
+      value
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .split(/\s+/)
+        .filter((token) => token.length > 1)
+    );
+  const nearDuplicateSteps = (a: string, b: string): boolean => {
+    const left = stepTokens(a);
+    const right = stepTokens(b);
+    if (left.size < 8 || right.size < 8) return false;
+    let shared = 0;
+    for (const token of left) if (right.has(token)) shared += 1;
+    const union = left.size + right.size - shared;
+    return union > 0 && shared / union >= 0.8;
+  };
+  const fitOrDistillStep = (source: string, maxChars: number, maxWordsValue: number): string => {
+    const fitted = fitPreserving(source, maxChars, maxWordsValue, 'step', 16);
+    if (fitted && fitted !== source) return fitted;
+    if (source.length > maxChars) {
+      const distilled = distillStepPreservingMath(source, maxChars, maxWordsValue);
+      if (distilled && distilled.trim().length >= 14 && !hasDanglingEnding(distilled)) {
+        return distilled;
+      }
+    }
+    return fitted || source;
+  };
+  const compactSteps = (steps: string[], maxChars: number, maxWordsValue: number, maxSteps: number): string[] => {
+    if (steps.length === 0) return [];
+    const dedupedSteps = steps.filter(
+      (step, index) => !steps.slice(0, index).some((previous) => nearDuplicateSteps(previous, step))
+    );
+    const rawSolution = [...dedupedSteps].reverse().find(isSolutionStep) ?? [...steps].reverse().find(isSolutionStep);
+    const solutionSource = rawSolution ? compactConceptNarrative(rawSolution) : undefined;
+    const solution = solutionSource
+      ? fitOrDistillStep(solutionSource, maxChars, maxWordsValue)
+      : undefined;
+    const kept: string[] = [];
+    for (const step of dedupedSteps.slice(0, maxSteps)) {
+      const source = compactConceptNarrative(step);
+      const fitted = fitOrDistillStep(source, maxChars, maxWordsValue);
+      if (!kept.includes(fitted)) kept.push(fitted);
+    }
+    if (solution && !kept.some((step) => step.includes(solution) || solution.includes(step))) {
+      if (kept.length >= maxSteps && maxSteps > 0) kept[maxSteps - 1] = solution;
+      else kept.push(solution);
+    }
+    return kept;
+  };
+  const dedupe = (values: string[] | undefined): string[] =>
+    [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
 
   if (slide.kind === 'concept') {
+    const conceptSlide = slide as SacrintConceptSlide;
     const first = {
-      ...(slide as SacrintConceptSlide),
+      ...conceptSlide,
+      explanation: compactConceptNarrative(conceptSlide.explanation),
+      activationNote: conceptSlide.activationNote
+        ? fitPreserving(
+            compactConceptNarrative(conceptSlide.activationNote),
+            78,
+            11,
+            'concept',
+            18
+          ) || conceptSlide.activationNote
+        : conceptSlide.activationNote,
+      workedExample: conceptSlide.workedExample
+        ? {
+            ...conceptSlide.workedExample,
+            problemStatement: compactProblemPreamble(conceptSlide.workedExample.problemStatement),
+            steps: conceptSlide.workedExample.steps.map((step) => compactConceptNarrative(step)),
+            interpretation: compactConceptNarrative(conceptSlide.workedExample.interpretation),
+          }
+        : conceptSlide.workedExample,
       analogy: undefined,
       keyTakeaways: [],
       facts: [],
-      variables: (slide.variables ?? []).slice(0, 2),
+      variables: [],
     } as unknown as SacrintConceptSlide;
     if (countSlideWords(first) <= maxWords) return first;
 
     const second = {
       ...first,
-      explanation: fitShort(first.explanation, 120, 18, 'concept') || first.explanation,
-      misconception: fitShort(first.misconception, 80, 12, 'concept') || first.misconception,
+      activationNote:
+        fitPreserving(first.activationNote, 110, 17, 'hint', 20) || first.activationNote,
+      explanation:
+        fitPreserving(compactConceptNarrative(first.explanation), 165, 25, 'concept', 55) ||
+        first.explanation,
+      misconception:
+        first.misconception && first.misconception.length > 104
+          ? fitPreserving(first.misconception, 104, 16, 'concept', 38) || first.misconception
+          : first.misconception,
       workedExample: first.workedExample
         ? {
             problemStatement:
-              fitShort(first.workedExample.problemStatement, 90, 14, 'problem') ||
-              first.workedExample.problemStatement,
-            steps: first.workedExample.steps
-              .slice(0, 3)
-              .map((step) => compactMathStep(step, 55, 8))
-              .filter(Boolean),
+              fitPreserving(
+                compactProblemPreamble(first.workedExample.problemStatement),
+                185,
+                28,
+                'problem',
+                45
+              ) || first.workedExample.problemStatement,
+            steps: compactSteps(first.workedExample.steps, 78, 12, 3),
             interpretation:
-              fitShort(first.workedExample.interpretation, 45, 7, 'conclusion') ||
+              fitPreserving(first.workedExample.interpretation, 112, 17, 'conclusion', 20) ||
               first.workedExample.interpretation,
           }
         : first.workedExample,
-      variables: (first.variables ?? []).slice(0, 1),
     } as SacrintConceptSlide;
     if (countSlideWords(second) <= maxWords) return second;
 
-    return {
+    const third = {
       ...second,
-      explanation: fitShort(second.explanation, 100, 15, 'concept') || second.explanation,
-      misconception: fitShort(second.misconception, 60, 9, 'concept') || second.misconception,
-      variables: [],
+      activationNote:
+        fitPreserving(second.activationNote, 86, 13, 'hint', 18) || second.activationNote,
+      explanation:
+        fitPreserving(compactConceptNarrative(second.explanation), 140, 21, 'concept', 55) ||
+        second.explanation,
+      misconception: second.misconception,
       workedExample: second.workedExample
         ? {
             ...second.workedExample,
-            steps: second.workedExample.steps.slice(0, 3),
+            problemStatement:
+              fitPreserving(second.workedExample.problemStatement, 155, 23, 'problem', 38) ||
+              second.workedExample.problemStatement,
+            steps: compactSteps(second.workedExample.steps, 70, 11, 3),
+            interpretation:
+              fitPreserving(second.workedExample.interpretation, 96, 15, 'conclusion', 18) ||
+              second.workedExample.interpretation,
           }
         : second.workedExample,
+    } as SacrintConceptSlide;
+    if (countSlideWords(third) <= maxWords) return third;
+
+    const compactProblemFallback = (raw: string, maxChars: number, maxWordsValue: number): string => {
+      const pre = compactProblemPreamble(raw);
+      const fitted = fitPreserving(pre, maxChars, maxWordsValue, 'problem', 42);
+      if (fitted && fitted !== pre && fitted.length <= maxChars + 18) return fitted;
+      const viaActivity = compactActivityPreservingTaskAndData(pre, maxChars + 18, maxWordsValue + 4, false);
+      if (viaActivity && !hasDanglingEnding(viaActivity) && viaActivity.length <= maxChars + 26) {
+        return viaActivity;
+      }
+      return fitted || pre;
+    };
+
+    const fourth = {
+      ...third,
+      activationNote:
+        fitPreserving(third.activationNote, 68, 10, 'hint', 18) || third.activationNote,
+      explanation:
+        fitPreserving(compactConceptNarrative(third.explanation), 125, 19, 'concept', 55) ||
+        third.explanation,
+      misconception: third.misconception,
+      workedExample: third.workedExample
+        ? {
+            ...third.workedExample,
+            problemStatement: compactProblemFallback(third.workedExample.problemStatement, 135, 20),
+            steps: compactSteps(third.workedExample.steps, 64, 10, 3),
+            interpretation:
+              fitPreserving(third.workedExample.interpretation, 86, 13, 'conclusion', 22) ||
+              third.workedExample.interpretation,
+          }
+        : third.workedExample,
+    } as SacrintConceptSlide;
+    if (countSlideWords(fourth) <= 185) return fourth;
+
+    const fifth = {
+      ...fourth,
+      title:
+        fitPreserving(fourth.title, 68, 10, 'concept', 20)?.replace(/\.$/, '') || fourth.title,
+      explanation:
+        fitPreserving(compactConceptNarrative(fourth.explanation), 115, 18, 'concept', 55) ||
+        fourth.explanation,
+      misconception:
+        fourth.misconception && fourth.misconception.length > 92
+          ? fitPreserving(fourth.misconception, 92, 14, 'concept', 38) || fourth.misconception
+          : fourth.misconception,
+      workedExample: fourth.workedExample
+        ? {
+            ...fourth.workedExample,
+            interpretation:
+              fitPreserving(fourth.workedExample.interpretation, 78, 12, 'conclusion', 20) ||
+              fourth.workedExample.interpretation,
+          }
+        : fourth.workedExample,
+    } as SacrintConceptSlide;
+    if (countSlideWords(fifth) <= 188) return fifth;
+    return {
+      ...fifth,
+      explanation:
+        fitPreserving(compactConceptNarrative(fifth.explanation), 106, 16, 'concept', 55) ||
+        fifth.explanation,
+      workedExample: fifth.workedExample
+        ? {
+            ...fifth.workedExample,
+            problemStatement:
+              fitPreserving(fifth.workedExample.problemStatement, 145, 22, 'problem', 40) ||
+              fifth.workedExample.problemStatement,
+            steps: fifth.workedExample.steps.map((step) =>
+              step.split(/\s+/).length > 11
+                ? fitOrDistillStep(compactConceptNarrative(step), 72, 11) || step
+                : step
+            ),
+            interpretation:
+              fitPreserving(fifth.workedExample.interpretation, 72, 11, 'conclusion', 18) ||
+              fifth.workedExample.interpretation,
+          }
+        : fifth.workedExample,
     } as SacrintConceptSlide;
   }
 
@@ -1282,35 +2012,104 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
     } as SacrintPracticeSlide;
     if (countSlideWords(first) <= maxWords) return first;
 
+    const sanitizeCriteriaList = (items: string[] | undefined, maxChars: number, maxWordsValue: number, limit: number): string[] => {
+      const candidates = dedupe(
+        (items ?? [])
+          .slice(0, limit)
+          .map((item) => fitPreserving(compactEvaluationCriterion(item), maxChars, maxWordsValue, 'general', 24) || compactEvaluationCriterion(item))
+          .filter(isValidEvaluationCriterionItem)
+      );
+      return candidates.length > 0
+        ? candidates
+        : ['Procedimiento ordenado y conclusión coherente con el planteamiento.'];
+    };
+
     const second = {
       ...first,
       activities: (first.activities ?? []).slice(0, 2).map((activity) => ({
         ...activity,
-        statement: compactActivityStatement(activity.statement),
-        hint: fitShort(activity.hint, 50, 7, 'hint'),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 215, 35, false),
+        hint: fitPreserving(activity.hint, 96, 16, 'hint', 22) || activity.hint,
       })),
-      applicationText: fitShort(first.applicationText, 70, 11, 'application'),
-      practiceText: fitShort(first.practiceText, 70, 11, 'application'),
+      applicationText:
+        fitPreserving(first.applicationText, 110, 18, 'application', 44) || first.applicationText,
+      practiceText: '',
       objectiveBullets: (first.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitShort(item, 50, 7, 'concept'))
+        .map((item) => fitPreserving(item, 72, 11, 'concept', 22) || item)
         .filter((item): item is string => Boolean(item)),
-      evaluationCriteria: (first.evaluationCriteria ?? [])
-        .slice(0, 1)
-        .map((item) => fitShort(item, 44, 7, 'general'))
-        .filter((item): item is string => Boolean(item)),
-      artifactStep: fitShort(first.artifactStep, 45, 7, 'application'),
+      evaluationCriteria: sanitizeCriteriaList(first.evaluationCriteria, 78, 12, 2),
+      artifactStep:
+        fitPreserving(first.artifactStep, 100, 16, 'application', 34) || first.artifactStep,
     } as SacrintPracticeSlide;
     if (countSlideWords(second) <= maxWords) return second;
 
-    return {
+    const third = {
       ...second,
       activities: (second.activities ?? []).slice(0, 2).map((activity) => ({
         ...activity,
-        statement: compactActivityStatement(activity.statement),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 185, 30, false),
+        hint: fitPreserving(activity.hint, 88, 14, 'hint', 22) || activity.hint,
       })),
-      applicationText: fitShort(second.applicationText, 60, 9, 'application'),
-      artifactStep: fitShort(second.artifactStep, 40, 6, 'application'),
+      applicationText:
+        fitPreserving(second.applicationText, 96, 15, 'application', 44) || second.applicationText,
+      objectiveBullets: (second.objectiveBullets ?? [])
+        .slice(0, 1)
+        .map((item) => fitPreserving(item, 64, 10, 'concept', 22) || item)
+        .filter((item): item is string => Boolean(item)),
+      evaluationCriteria: sanitizeCriteriaList(second.evaluationCriteria, 56, 9, 1),
+      artifactStep:
+        fitPreserving(second.artifactStep, 90, 14, 'application', 34) || second.artifactStep,
+    } as SacrintPracticeSlide;
+    if (countSlideWords(third) <= maxWords) return third;
+
+    const fourth = {
+      ...third,
+      activities: (third.activities ?? []).slice(0, 2).map((activity) => ({
+        ...activity,
+        statement: compactActivityPreservingTaskAndData(activity.statement, 165, 27, false),
+        hint: fitPreserving(activity.hint, 78, 13, 'hint', 22) || activity.hint,
+      })),
+      applicationText:
+        fitPreserving(third.applicationText, 84, 14, 'application', 44) || third.applicationText,
+      objectiveBullets: (third.objectiveBullets ?? [])
+        .slice(0, 1)
+        .map((item) => fitPreserving(item, 54, 9, 'concept', 20) || item)
+        .filter((item): item is string => Boolean(item)),
+      evaluationCriteria: sanitizeCriteriaList(third.evaluationCriteria, 50, 8, 1),
+      artifactStep:
+        fitPreserving(third.artifactStep, 80, 12, 'application', 32) || third.artifactStep,
+    } as SacrintPracticeSlide;
+    if (countSlideWords(fourth) <= 188) return fourth;
+
+    const fifth = {
+      ...fourth,
+      activities: (fourth.activities ?? []).slice(0, 2).map((activity) => ({
+        ...activity,
+        statement: compactActivityPreservingTaskAndData(activity.statement, 155, 26, false),
+        hint: fitPreserving(activity.hint, 68, 11, 'hint', 20) || activity.hint,
+      })),
+      applicationText:
+        fitPreserving(fourth.applicationText, 72, 12, 'application', 44) || fourth.applicationText,
+      objectiveBullets: (fourth.objectiveBullets ?? [])
+        .slice(0, 1)
+        .map((item) => fitPreserving(item, 48, 7, 'concept', 20) || item)
+        .filter((item): item is string => Boolean(item)),
+      evaluationCriteria: sanitizeCriteriaList(fourth.evaluationCriteria, 44, 7, 1),
+      artifactStep:
+        fitPreserving(fourth.artifactStep, 70, 11, 'application', 30) || fourth.artifactStep,
+    } as SacrintPracticeSlide;
+    if (countSlideWords(fifth) <= 192) return fifth;
+    return {
+      ...fifth,
+      activities: (fifth.activities ?? []).slice(0, 2).map((activity) => ({
+        ...activity,
+        statement: compactActivityPreservingTaskAndData(activity.statement, 145, 24, false),
+      })),
+      applicationText:
+        fitPreserving(fifth.applicationText, 64, 10, 'application', 44) || fifth.applicationText,
+      artifactStep:
+        fitPreserving(fifth.artifactStep, 64, 10, 'application', 30) || fifth.artifactStep,
     } as SacrintPracticeSlide;
   }
 
@@ -1324,12 +2123,16 @@ function buildLessonGuideSlidesForSession(
   meta: SacrintMissionMeta,
   session: SessionPlan,
   options: SacrintBuildOptions,
-  workbookTheorySources: string[] = collectWorkbookTheorySources(workbook)
+  workbookTheorySources: string[] = collectWorkbookTheorySources(workbook),
+  sessionOrdinal = 0,
+  misconceptionTracker: Map<string, number> = new Map<string, number>()
 ): SacrintSlide[] {
   const bundle = distillLessonBundle(mission, session, {
     allowMissionFallback: false,
     extraTheorySources: workbookTheorySources,
   });
+  const isQuantitative =
+    pack.id === 'matematicas' || pack.id === 'fisica' || pack.id === 'quimica';
   const sesLabel = String(bundle.sessionNumber ?? session.sessionNumber).padStart(2, '0');
   const diagram = buildSacrintDiagram(mission, pack, {
     ...options,
@@ -1346,21 +2149,58 @@ function buildLessonGuideSlidesForSession(
   const variables = isQuantOrReactionDiagram ? buildDiagramVariables(diagram) : [];
   const formula = diagramFormula(diagram);
   const facts = baseFacts(meta, mission, bundle.sessionNumber);
-  const misconceptionParts = resolveMissionMisconceptionParts(mission, bundle, {
-    session,
-    allowMissionFallback: false,
-  });
+  const visualMap = session.sintesisVisual?.mapaConceptual;
+  const visualError = sanitizePedagogicalMetaPhrases(cleanSacrintText(visualMap?.errorComun));
+  const visualCorrection = sanitizePedagogicalMetaPhrases(cleanSacrintText(visualMap?.correccionBreve));
+  const resolvedMisconceptionBase = visualError
+    ? {
+        error: visualError,
+        correction:
+          visualCorrection ||
+          'Contrastar cada afirmación con evidencia y criterios explícitos de la sesión.',
+      }
+    : resolveMissionMisconceptionParts(mission, bundle, {
+        session,
+        allowMissionFallback: false,
+      });
+  const misconceptionTitle = stripLeadingSessionTag(
+    sanitizePedagogicalMetaPhrases(bundle.topicTitle || mission.title || meta.missionTitle)
+  );
+  const misconceptionParts = alignMisconceptionWithTitle(
+    misconceptionTitle,
+    resolvedMisconceptionBase,
+    isQuantitative
+  );
   const normalizedMisconception = normalizeEditorialText(
     normalizeSessionDescriptorTense(misconceptionParts.error)
   );
   const rawMisconception = fitPedagogicalText(sanitizePedagogicalMetaPhrases(normalizedMisconception), {
-    maxChars: 88,
-    maxWords: 13,
+    maxChars: visualError ? 136 : 96,
+    maxWords: visualError ? 22 : 15,
     role: 'hint',
   });
-  const misconception =
-    enforceSixGramOverlap(rawMisconception, workbookTheorySources, 0.12, 'concept') ||
-    preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
+  const misconception = visualError
+    ? rawMisconception || normalizedMisconception
+    : enforceSixGramOverlap(rawMisconception, workbookTheorySources, 0.12, 'concept') ||
+      preventSixGramTheoryOverlap(rawMisconception, workbookTheorySources);
+  const globalSessionSeed =
+    (Math.max(1, Number(meta.blockNumber || 1)) - 1) * 24 +
+    (Math.max(1, Number(meta.missionNumber || 1)) - 1) * 6 +
+    (sessionOrdinal || Number(bundle.sessionNumber ?? session.sessionNumber) || 1);
+  const alignedMisconception = alignMisconceptionWithTitle(
+    misconceptionTitle,
+    {
+      error: misconception,
+      correction: misconceptionParts.correction,
+    },
+    isQuantitative
+  ).error;
+  const finalMisconception = diversifyRepeatedMisconception(
+    alignedMisconception,
+    globalSessionSeed,
+    misconceptionTracker,
+    isQuantitative
+  );
 
   const rawArtifactTitle = sanitizePedagogicalMetaPhrases(
     cleanSacrintText(workbook.projectSection?.artifactName) || `Producto de la sesión ${sesLabel}`
@@ -1480,6 +2320,56 @@ function buildLessonGuideSlidesForSession(
     .slice(0, 2);
   const validFormulas = bundle.concepts.formulas.filter((item) => isValidRenderableFormula(item));
   const effectiveFormulas = validFormulas.length > 0 ? validFormulas.slice(0, 2) : formula ? [formula] : [];
+  const primaryFormula = effectiveFormulas[0] ?? formula;
+
+  const softenField = (value: string | undefined, maxChars = 140): string | undefined => {
+    if (!value) return value;
+    const clean = sanitizePedagogicalMetaPhrases(cleanSacrintText(value));
+    const rewritten = preventSixGramTheoryOverlap(clean, workbookTheorySources);
+    if (sixGramOverlapRatio(rewritten, workbookTheorySources) <= 0.18) {
+      return paraphraseSixGramOverlap(rewritten, workbookTheorySources);
+    }
+    const compacted = fitPedagogicalText(rewritten, {
+      maxChars,
+      maxWords: 22,
+      role: 'concept',
+    });
+    if (compacted && sixGramOverlapRatio(compacted, workbookTheorySources) <= 0.18) {
+      return paraphraseSixGramOverlap(compacted, workbookTheorySources);
+    }
+    return paraphraseSixGramOverlap(compacted || rewritten, workbookTheorySources);
+  };
+
+  const rawFirstContentSentence = session.contenido
+    ? paraphraseSixGramOverlap(
+        sanitizePedagogicalMetaPhrases(firstSentence(cleanSacrintText(session.contenido))),
+        workbookTheorySources
+      )
+    : '';
+  const softenedExplanation = softenField(cleanExplanation, 165) ?? cleanExplanation;
+  const explanationCandidate = [
+    softenedExplanation,
+    rawFirstContentSentence,
+    bundle.concepts.keyRules[0],
+    bundle.activation,
+    bundle.question,
+  ].find(
+    (value) =>
+      Boolean(value) &&
+      String(value).trim().length >= 55 &&
+      !isHeadlessAnaphoricStart(String(value)) &&
+      !hasDanglingEnding(String(value)) &&
+      !isRubricOrBoilerplateLeak(String(value))
+  );
+  const guardedExplanationBase = explanationCandidate || softenedExplanation;
+  const guardedExplanation =
+    guardedExplanationBase.trim().length >= 55 &&
+    !isHeadlessAnaphoricStart(guardedExplanationBase) &&
+    !hasDanglingEnding(guardedExplanationBase)
+      ? guardedExplanationBase
+      : `${guardedExplanationBase.replace(/[.!?]+$/, '')}. Este concepto permite interpretar datos del entorno y justificar decisiones con evidencia.`;
+
+  const guardedExplanationFinal = guardedExplanation.replace(/\bentre dos\.$/i, 'entre dos expresiones.');
 
   const conceptSlide: SacrintConceptSlide = {
     kind: 'concept',
@@ -1489,20 +2379,23 @@ function buildLessonGuideSlidesForSession(
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
     isLessonGuide: true,
-    activationNote: bundle.activation,
+    activationNote: softenField(bundle.activation),
     analogy: bundle.question || bundle.activation,
-    explanation: cleanExplanation,
+    explanation: guardedExplanationFinal,
     formulas: effectiveFormulas,
     keyTakeaways: conceptTakeaways,
     workedExample: bundle.example,
-    misconception,
-    formula,
+    misconception: finalMisconception,
+    formula: primaryFormula,
     variables,
     diagram,
     facts,
   };
 
-  const primaryObjective = fitPedagogicalText(cleanObjective, {
+  const normalizedCleanObjective = cleanObjective
+    .replace(/\blos\s+habilidades\b/gi, 'las habilidades')
+    .replace(/\by\s+([a-záéíóúñ]{2,}[aei])r[aá]s\b/gi, (_m, stem: string) => `y ${stem}r`);
+  const primaryObjective = fitPedagogicalText(normalizedCleanObjective, {
     maxChars: 92,
     maxWords: 14,
     role: 'concept',
@@ -1528,20 +2421,55 @@ function buildLessonGuideSlidesForSession(
         !isRubricOrBoilerplateLeak(item) &&
         (isLabOrWorkshopSubject || !/normas\s+de\s+seguridad\s+e\s+higiene/i.test(item))
     );
-  const rawEvalPool = [...rawAutoChecks, ...bundle.exitChecks.filter((c) => isLabOrWorkshopSubject || !/normas\s+de\s+seguridad\s+e\s+higiene/i.test(c))];
+  const rawEvalPool =
+    rawAutoChecks.length > 0
+      ? rawAutoChecks
+      : bundle.exitChecks.filter((c) => isLabOrWorkshopSubject || !/normas\s+de\s+seguridad\s+e\s+higiene/i.test(c));
   const evaluationCriteriaRaw = rawEvalPool
     .map((item) =>
       fitPedagogicalText(
-        preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(item), workbookTheorySources),
-        { maxChars: 52, maxWords: 8, role: 'general', ensurePeriod: false }
+        compactEvaluationCriterion(
+          preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(item), workbookTheorySources)
+        ),
+        { maxChars: 68, maxWords: 11, role: 'general', ensurePeriod: false }
       )
     )
-    .filter((item, idx, arr): item is string => Boolean(item) && arr.indexOf(item) === idx)
+    .filter((item, idx, arr): item is string => isValidEvaluationCriterionItem(item) && arr.indexOf(item) === idx)
     .slice(0, 2);
   const evaluationCriteria =
     evaluationCriteriaRaw.length > 0
       ? evaluationCriteriaRaw
       : ['Procedimiento ordenado y conclusión coherente con el planteamiento.'];
+
+  const rawAppCandidate = (softenField(bundle.application, 120) ?? bundle.application ?? '').trim();
+  const rawAppText =
+    rawAppCandidate.length >= 36 && !hasDanglingEnding(rawAppCandidate)
+      ? rawAppCandidate
+      : (bundle.application ?? '').trim().length >= 36 && !hasDanglingEnding(bundle.application ?? '')
+        ? fitPedagogicalText(paraphraseSixGramOverlap(bundle.application ?? '', workbookTheorySources), {
+            maxChars: 130,
+            maxWords: 20,
+            role: 'application',
+          }) || rawAppCandidate
+        : rawAppCandidate;
+  const guardedApplicationText =
+    rawAppText.length >= 36 && !hasDanglingEnding(rawAppText)
+      ? rawAppText
+      : rawAppText.endsWith('?')
+        ? `${rawAppText} Identifícalos y regístralos en estructuras reales de tu entorno.`
+        : `Aplica ${fittedTopicTitle.toLowerCase()} en una situación real de tu comunidad y documenta tus resultados.`;
+
+  const rawArtifactStepCandidate = (softenField(bundle.artifactStep, 105) ?? bundle.artifactStep ?? '').trim();
+  const safeArtifactStep =
+    rawArtifactStepCandidate.length >= 30 && !hasDanglingEnding(rawArtifactStepCandidate)
+      ? rawArtifactStepCandidate
+      : (bundle.artifactStep ?? '').trim().length >= 30 && !hasDanglingEnding(bundle.artifactStep ?? '')
+        ? fitPedagogicalText(paraphraseSixGramOverlap(bundle.artifactStep ?? '', workbookTheorySources), {
+            maxChars: 115,
+            maxWords: 17,
+            role: 'application',
+          }) || rawArtifactStepCandidate
+        : `Integra los resultados validados de esta sesión en ${artifactName}.`;
 
   const practiceSlide: SacrintPracticeSlide = {
     kind: 'practice',
@@ -1551,21 +2479,27 @@ function buildLessonGuideSlidesForSession(
     missionIndex: meta.missionNumber,
     sessionNumber: bundle.sessionNumber,
     isLessonGuide: true,
-    practiceText: bundle.application,
+    practiceText: guardedApplicationText,
     activities: bundle.activities.slice(0, 2),
-    checkpoints: bundle.activities.slice(0, 2).map((item) => `${item.label}: ${item.statement}`),
+    checkpoints: bundle.activities.slice(0, 2).map((item) => `${item.label}: ${softenField(item.statement, 120) ?? item.statement}`),
     objectiveBullets,
     evaluationCriteria,
-    hint: bundle.activities[0]?.hint,
-    applicationText: bundle.application,
+    hint: softenField(bundle.activities[0]?.hint, 90),
+    applicationText: guardedApplicationText,
     artifactName,
-    artifactStep: bundle.artifactStep,
-    exitChecks: bundle.exitChecks.slice(0, 2),
+    artifactStep: safeArtifactStep,
+    exitChecks: bundle.exitChecks.slice(0, 2).map((item) => softenField(item, 100) ?? item),
     facts,
   };
 
-  const budgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide), 260);
-  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 230);
+  const rawBudgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide), 146) as SacrintConceptSlide;
+  const budgetedConcept: SacrintConceptSlide =
+    rawBudgetedConcept.explanation &&
+    rawBudgetedConcept.explanation.trim().length >= 55 &&
+    !isHeadlessAnaphoricStart(rawBudgetedConcept.explanation)
+      ? rawBudgetedConcept
+      : { ...rawBudgetedConcept, explanation: conceptSlide.explanation };
+  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 168);
   return [budgetedConcept, budgetedPractice];
 }
 
@@ -1684,10 +2618,21 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     if (sessionPlans.length === 0) {
       throw new LessonGuideNoSessionsError(meta.blockNumber, meta.missionNumber, meta.missionTitle);
     }
+    const misconceptionTracker = options.misconceptionTracker ?? new Map<string, number>();
     const targetSessions =
       typeof options.sessionIndex === 'number' && selectedSession ? [selectedSession] : sessionPlans;
     const sessionSlides = targetSessions.flatMap((session) =>
-      buildLessonGuideSlidesForSession(workbook, mission, pack, meta, session, options, workbookTheorySources)
+      buildLessonGuideSlidesForSession(
+        workbook,
+        mission,
+        pack,
+        meta,
+        session,
+        options,
+        workbookTheorySources,
+        Math.max(0, sessionPlans.indexOf(session)) + 1,
+        misconceptionTracker
+      )
     );
     meta.expectedSlideCount = 1 + 2 * targetSessions.length;
     return {
@@ -1757,7 +2702,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
       conceptHighlights.definition
     ),
     misconception: misconception || 'Sin error común registrado.',
-    formula,
+    formula: sanitizePedagogicalMetaPhrases(cleanSacrintText(selectedSession?.sintesisVisual?.formulaOReglaClave)) || formula,
     variables,
     diagram,
     formulas: conceptHighlights.formulas,
@@ -1924,9 +2869,11 @@ export function buildSacrintDecksForWorkbook(
   options: Omit<SacrintBuildOptions, 'missionIndex'> = {}
 ): SacrintDeckSpec[] {
   const missionCount = Math.max(1, workbook.missions?.length ?? 0);
+  const misconceptionTracker = options.misconceptionTracker ?? new Map<string, number>();
   const effectiveOptions: Omit<SacrintBuildOptions, 'missionIndex'> = {
     mode: 'lesson-guide',
     ...options,
+    misconceptionTracker,
   };
   return Array.from({ length: missionCount }, (_, missionIndex) =>
     buildSacrintDeck(workbook, { ...effectiveOptions, missionIndex })
@@ -2053,7 +3000,12 @@ function isInfographicDiagramCoherent(
   // Coherencia numérica: si la gráfica introduce coeficientes que no aparecen
   // ni en el ejemplo ni en las fórmulas válidas, es una gráfica de otro problema.
   const diagramEquation = diagramFormula(diagram);
-  if (diagramEquation && /=/.test(diagramEquation) && /=/.test(combined)) {
+  const canonicalGeometryDiagram =
+    diagram.kind === 'geometry' &&
+    /angul|grados|°|recto|llano|agudo|obtuso|complement|suplement|triangulo|poligono/i.test(
+      normalize(diagramText)
+    );
+  if (!canonicalGeometryDiagram && diagramEquation && /=/.test(diagramEquation) && /=/.test(combined)) {
     const contextNumbers = numbersIn(combined);
     const diagramNumbers = numbersIn(diagramEquation);
     if (diagramNumbers.size > 0 && [...diagramNumbers].some((n) => !contextNumbers.has(n))) {
@@ -2096,6 +3048,7 @@ export type ConceptFamily =
   | 'congruence'
   | 'linear'
   | 'quadratic'
+  | 'exponential'
   | 'statistics'
   | 'other';
 
@@ -2108,16 +3061,414 @@ function normalizeConceptFamilyText(value: string): string {
 
 export function conceptFamily(text: string): ConceptFamily {
   const t = normalizeConceptFamilyText(text);
-  if (/pitagor|hipotenusa|cateto|triangulo\s+rectangulo|c\s*(?:\u00B2|\^?2)\s*=\s*a\s*(?:\u00B2|\^?2)\s*\+\s*b/.test(t)) {
+  if (
+    /pitagor|hipotenusa|cateto|triangulo\s+rectangulo|c\s*(?:\u00B2|\^?2)\s*=\s*a\s*(?:\u00B2|\^?2)\s*\+\s*b|c\s*(?:\u00B2|\^?2)\s*=/.test(
+      t
+    )
+  ) {
     return 'pythagoras';
   }
-  if (/angul|complement|suplement|paralel|transversal|grados|\u00B0/.test(t)) return 'angles';
-  if (/perimetro|area|superficie|rectangulo|triangulo|poligono/.test(t)) return 'area-perimeter';
   if (/congruen|semejan|\blll\b|\blal\b|\bala\b/.test(t)) return 'congruence';
+  if (/\bangulos?\b|complement|suplement|paralel|transversal|grados|\u00B0/.test(t)) return 'angles';
+  if (/geometria|perimetro|area|superficie|rectangulo|triangulo|poligono/.test(t)) return 'area-perimeter';
+  if (/interes\s+(?:simple|compuesto)|exponencial|capitalizacion|crecimiento\s+poblacional|tasa\s+(?:anual|compuesta|de\s+crecimiento)/.test(t)) return 'exponential';
   if (/ecuacion\s+lineal|pendiente|interseccion|recta/.test(t)) return 'linear';
   if (/cuadratica|parabola|vertice|raices/.test(t)) return 'quadratic';
   if (/estadistica|muestra|poblacion|frecuencia|media|mediana|moda/.test(t)) return 'statistics';
   return 'other';
+}
+
+function neutralizeAngleCongruenceTerms<T>(value: T): T {
+  if (typeof value === 'string') {
+    return value
+      .replace(/\(\s*LLL\s*,\s*LAL\s+o\s+ALA\s*\)/gi, '(relación angular)')
+      .replace(/LLL\s*(?:↔|->|—|-)\s*LAL\s*(?:↔|->|—|-)\s*ALA/gi, 'relaciones angulares')
+      .replace(/Lado[-\s]?[ÁA]ngulo[-\s]?[Ll]ado\s*\(LAL\)/g, 'relación angular')
+      .replace(/\b(?:LLL|LAL|ALA)\b/g, 'relación angular') as T;
+  }
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      value[index] = neutralizeAngleCongruenceTerms(value[index]);
+    }
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      (value as Record<string, unknown>)[key] = neutralizeAngleCongruenceTerms(
+        (value as Record<string, unknown>)[key]
+      );
+    }
+  }
+  return value;
+}
+
+function normalizeMisconceptionComparable(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function isWeakMisconceptionText(error: string, title: string): boolean {
+  const normalizedError = normalizeMisconceptionComparable(error);
+  const normalizedTitle = normalizeMisconceptionComparable(title);
+  if (!normalizedError) return true;
+  if (
+    normalizedError === normalizedTitle ||
+    normalizedTitle.includes(normalizedError) ||
+    normalizedError.includes(normalizedTitle)
+  ) {
+    return true;
+  }
+  if (normalizedError.length < 35) return true;
+  return !/(confund|creer|pensar|supon|asum|sum|rest|aplic|igual|omit|interpret|us|multiplic|divid|resol|generaliz|invert|mezcl|olvid|ignor|medir|calcul|eleg|seleccion|compar|despej|sustitu|simplific|traslad|juzg|codific|valid|cit|contextualiz|descontextualiz|atribu|copi|plagi|reduc|separ|aisl|memoriz|repet|acept|rechaz|descuid|salt|ejecut|escrib|redact|le|argument|conclu|afirm|neg|contradec|traz|dibuj|calibr|manipul|conect|configur|program|iter|declar|evalu|estim|aproxim|redonde|convert|transform|orden|clasific|distingu|relacion|vincul|justific|respald|comprob|verific|sin\s+(?:verificar|comprobar|validar|contextualizar|respaldar|citar|justificar|revisar|considerar|evaluar|definir|aislar|contrastar))/.test(
+    normalizedError
+  );
+}
+
+const MISCONCEPTION_VARIANTS: Record<string, string[]> = {
+  'cometer error de signo al despejar y': [
+    'Cometer error de signo al despejar la incógnita y.',
+    'Invertir el signo de y al despejar la variable.',
+    'Olvidar el signo negativo al despejar la variable y.',
+    'Cambiar el signo de y sin justificar la operación.',
+    'Despejar y con el signo contrario al original.',
+    'Omitir el cambio de signo al dividir entre un coeficiente negativo.',
+    'Trasladar un término con y sin invertir su signo algebraico.',
+    'Perder el signo negativo del coeficiente al aislar la incógnita.',
+  ],
+  'interpretar una medida de tendencia central como si describiera': [
+    'Interpretar la media como si describiera todos los datos sin dispersión.',
+    'Usar la media como si describiera por sí sola todos los datos.',
+    'Interpretar una medida central sin revisar la dispersión.',
+    'Suponer que la media representa cada dato individual del conjunto.',
+    'Leer la tendencia central sin considerar los valores extremos.',
+    'Omitir el rango y la desviación al interpretar el promedio.',
+    'Concluir sobre la muestra usando solo la media sin ver su variabilidad.',
+    'Ignorar el efecto de datos atípicos sobre el promedio aritmético.',
+  ],
+  'factorizar o despejar sin igualar antes a cero': [
+    'Factorizar o despejar sin igualar antes la ecuación a cero.',
+    'Factorizar sin llevar primero la ecuación cuadrática a cero.',
+    'Despejar sin igualar a cero antes de factorizar el trinomio.',
+    'Omitir la forma general igualada a cero antes de factorizar.',
+    'Resolver por factores sin igualar previamente la expresión a cero.',
+    'Separar factores cuando el segundo miembro aún no es cero.',
+    'Aplicar la propiedad del producto nulo sin igualar antes a cero.',
+    'Intentar factorizar el polinomio con términos sueltos del otro lado.',
+  ],
+  'sumar un incremento fijo en lugar de factor exponencial': [
+    'Sumar un incremento fijo en lugar de aplicar el factor exponencial.',
+    'Modelar un crecimiento exponencial como si fuera una suma fija.',
+    'Sumar una cantidad constante en vez de multiplicar por la tasa.',
+    'Confundir el incremento lineal aditivo con el factor exponencial.',
+    'Tratar el cambio porcentual compuesto como una diferencia constante.',
+    'Aplicar una tasa compuesta como si fuera un aumento lineal fijo.',
+    'Multiplicar la tasa por el tiempo en vez de elevar el factor base.',
+    'Reemplazar la potencia del periodo por una suma acumulativa simple.',
+  ],
+  'asumir congruencia sin comprobar criterio ni orden angular': [
+    'Asumir congruencia sin comprobar el criterio ni el orden angular.',
+    'Afirmar congruencia sin verificar lados y ángulos correspondientes.',
+    'Suponer figuras congruentes sin aplicar LLL, LAL o ALA.',
+    'Declarar congruencia sin revisar el orden de los ángulos homólogos.',
+    'Comparar triángulos sin comprobar la correspondencia de sus lados.',
+    'Usar dos lados y un ángulo no comprendido como si fuera criterio LAL.',
+    'Confundir la igualdad visual con una demostración por LLL, LAL o ALA.',
+    'Emparejar vértices no homólogos al plantear la congruencia triangular.',
+  ],
+  'elegir una incognita distinta a la magnitud preguntada': [
+    'Elegir una incógnita distinta a la magnitud preguntada.',
+    'Elegir una variable que no representa la magnitud solicitada.',
+    'Definir la incógnita con una magnitud distinta a la pregunta.',
+    'Asignar la variable principal a un dato que no se busca.',
+    'Confundir la incógnita buscada con una cantidad ya conocida.',
+    'Plantear la ecuación despejando una variable ajena a la pregunta.',
+    'Responder con el valor auxiliar sin calcular la magnitud pedida.',
+    'Omitir la definición explícita de qué magnitud representa la variable.',
+  ],
+  'multiplicar solo un termino al igualar coeficientes': [
+    'Multiplicar solo un término al igualar coeficientes del sistema.',
+    'Multiplicar solo una parte de la ecuación al igualar coeficientes.',
+    'Aplicar el factor a un solo término en lugar de toda la ecuación.',
+    'Ajustar un coeficiente sin multiplicar el término independiente.',
+    'Igualar coeficientes dejando el segundo miembro sin escalar.',
+    'Amplificar la incógnita a eliminar olvidando multiplicar el resto.',
+    'Alterar el balance de la ecuación al escalar solo el primer término.',
+    'Omitir el factor multiplicador en la constante del lado derecho.',
+  ],
+  'aplicar una regla sin comprobar las condiciones especificas': [
+    'Aplicar una regla sin comprobar las condiciones específicas del caso.',
+    'Aplicar el procedimiento sin revisar las condiciones del problema.',
+    'Usar una regla general sin validar que corresponda al planteamiento.',
+    'Resolver sin comprobar las condiciones específicas de los datos.',
+    'Elegir una fórmula sin verificar las restricciones del contexto.',
+    'Sustituir datos en la expresión sin validar unidades ni supuestos.',
+    'Operar mecánicamente sin contrastar si el modelo aplica al caso.',
+    'Omitir la verificación de condiciones iniciales antes de calcular.',
+  ],
+  'sumar constantes sueltas con coeficientes': [
+    'Sumar constantes sueltas con coeficientes de x como términos semejantes.',
+    'Agrupar el término independiente con el coeficiente de la variable x.',
+    'Reducir términos con variable junto con constantes numéricas sueltas.',
+    'Combinar números independientes y coeficientes de x en un solo término.',
+    'Tratar una constante sin variable como si fuera un término con x.',
+    'Operar el coeficiente de la incógnita directamente con el término fijo.',
+    'Mezclar términos algebraicos en x con constantes al simplificar.',
+    'Ignorar la literal x al sumar los términos de un mismo miembro.',
+  ],
+  'sustituir el despeje en la misma ecuacion': [
+    'Sustituir el despeje en la misma ecuación de donde salió (0 = 0).',
+    'Reemplazar la incógnita despejada en la misma ecuación de origen.',
+    'Sustituir la expresión aislada en la ecuación inicial en vez de la otra.',
+    'Usar la misma ecuación para despejar y sustituir, llegando a 0 = 0.',
+    'Omitir la segunda ecuación del sistema al momento de sustituir.',
+    'Evaluar el despeje en la ecuación ya usada en lugar de la complementaria.',
+    'Ciclar el despeje en una sola ecuación sin vincular la segunda.',
+    'Obtener una identidad trivial por sustituir en la ecuación de partida.',
+  ],
+  'confundir un cateto con la hipotenusa': [
+    'Confundir un cateto con la hipotenusa al aplicar Pitágoras.',
+    'Sustituir la hipotenusa como si fuera uno de los catetos perpendiculares.',
+    'Asignar la etiqueta c a un lado que forma el ángulo recto de 90°.',
+    'Sumar la hipotenusa al cuadrado con un cateto en lugar de despejarla.',
+    'Elegir el lado mayor como cateto sin ubicar primero el ángulo recto.',
+    'Despejar un cateto sumando cuadrados en vez de restar a la hipotenusa.',
+    'Aplicar c² = a² + b² sin identificar qué lado se opone a los 90°.',
+    'Tomar la diagonal como cateto al plantear la relación pitagórica.',
+  ],
+  'igualar terminos no semejantes o invertir el despeje': [
+    'Igualar términos no semejantes o invertir la operación al despejar.',
+    'Transponer un término al otro miembro sin aplicar la operación inversa.',
+    'Pasar un término sumando al otro lado conservando el mismo signo.',
+    'Dividir antes de haber agrupado todos los términos independientes.',
+    'Despejar el coeficiente restándolo en vez de dividir ambos miembros.',
+    'Agrupar términos de distinto grado o naturaleza en el mismo miembro.',
+    'Invertir numerador y denominador al despejar el coeficiente de x.',
+    'Aplicar operaciones distintas en cada miembro y romper la igualdad.',
+  ],
+  'sumar angulos complementarios como si fueran suplementarios': [
+    'Sumar ángulos complementarios a 180° en lugar de igualarlos a 90°.',
+    'Confundir un par complementario (90°) con uno suplementario (180°).',
+    'Igualar a 90° dos ángulos que forman un par lineal sobre una recta.',
+    'Suponer que dos ángulos son iguales sin verificar si son opuestos.',
+    'Aplicar suma de 180° a ángulos agudos que forman una esquina recta.',
+    'No distinguir entre ángulos suplementarios y opuestos por el vértice.',
+    'Plantear la ecuación angular sin identificar si el par suma 90° o 180°.',
+    'Igualar ángulos adyacentes suplementarios como si tuvieran igual medida.',
+  ],
+  'sumar angulos suplementarios como si sumaran 90': [
+    'Sumar ángulos suplementarios como si sumaran 90° en vez de 180°.',
+    'Plantear 90° para un par lineal que debe sumar 180° sobre la recta.',
+    'Confundir ángulos adyacentes sobre una recta con un ángulo recto.',
+    'Asumir congruencia en ángulos colaterales que en realidad suman 180°.',
+    'Omitir que los ángulos internos de un triángulo siempre suman 180°.',
+    'Tratar ángulos alternos internos como suplementarios en rectas paralelas.',
+    'Restar a 90° un ángulo obtuso que forma par suplementario de 180°.',
+    'Mezclar la relación de ángulos opuestos al vértice con la de 90°.',
+  ],
+};
+
+const NEUTRAL_MISCONCEPTION_VARIANTS = [
+  'Aplicar un criterio sin comprobar las condiciones específicas del caso.',
+  'Concluir sin contrastar las evidencias con el contexto de la sesión.',
+  'Generalizar una observación aislada sin verificar fuentes ni criterios.',
+  'Omitir la revisión crítica de supuestos antes de formular la respuesta.',
+  'Responder de manera intuitiva sin justificar el criterio disciplinar.',
+  'Separar el análisis del contexto real en que ocurre la situación.',
+];
+
+function diversifyRepeatedMisconception(
+  error: string,
+  sessionNumber: number,
+  emitCounts: Map<string, number>,
+  isQuantitative = true
+): string {
+  const normalized = normalizeMisconceptionComparable(error);
+  const key =
+    normalized in MISCONCEPTION_VARIANTS
+      ? normalized
+      : Object.keys(MISCONCEPTION_VARIANTS).find(
+          (candidate) => normalized.includes(candidate) || candidate.includes(normalized)
+        );
+  const variants = key ? MISCONCEPTION_VARIANTS[key] : undefined;
+  if (!variants || variants.length === 0) {
+    const count = emitCounts.get(normalized) ?? 0;
+    if (count < 2) {
+      emitCounts.set(normalized, count + 1);
+      return error;
+    }
+    const fallbackPool = isQuantitative
+      ? MISCONCEPTION_VARIANTS['aplicar una regla sin comprobar las condiciones especificas'] ??
+        NEUTRAL_MISCONCEPTION_VARIANTS
+      : NEUTRAL_MISCONCEPTION_VARIANTS;
+    for (const candidate of fallbackPool) {
+      const cKey = normalizeMisconceptionComparable(candidate);
+      const cCount = emitCounts.get(cKey) ?? 0;
+      if (cCount < 2) {
+        emitCounts.set(cKey, cCount + 1);
+        return candidate;
+      }
+    }
+    return error;
+  }
+  const startIndex = Math.abs(Math.trunc(sessionNumber) - 1) % variants.length;
+  for (let offset = 0; offset < variants.length; offset++) {
+    const candidate = variants[(startIndex + offset) % variants.length]!;
+    const cKey = normalizeMisconceptionComparable(candidate);
+    const cCount = emitCounts.get(cKey) ?? 0;
+    if (cCount < 2) {
+      emitCounts.set(cKey, cCount + 1);
+      return candidate;
+    }
+  }
+  return variants[startIndex] ?? error;
+}
+
+function stripMisconceptionTitlePrefix(error: string, title: string): string {
+  const cleaned = error.trim();
+  if (!cleaned) return cleaned;
+  const colonIndex = cleaned.indexOf(':');
+  if (colonIndex > 0 && colonIndex <= 80) {
+    const prefix = cleaned.slice(0, colonIndex).trim();
+    if (
+      title.toLowerCase().includes(prefix.toLowerCase()) ||
+      isWeakMisconceptionText(prefix, title)
+    ) {
+      return cleaned.slice(colonIndex + 1).trim();
+    }
+  }
+  const normalizedTitle = normalizeMisconceptionComparable(title);
+  const normalizedError = normalizeMisconceptionComparable(cleaned);
+  if (normalizedTitle && normalizedError.startsWith(`${normalizedTitle} `)) {
+    return cleaned.slice(title.length).replace(/^[\s:;\-–—]+/, '').trim();
+  }
+  return cleaned;
+}
+
+function defaultMisconceptionForTitle(
+  title: string,
+  isQuantitative = true
+): { error: string; correction: string } {
+  const family = conceptFamily(title);
+  if (family === 'angles') {
+    return {
+      error: 'Sumar ángulos complementarios como si fueran suplementarios o ignorar el tipo de par.',
+      correction:
+        'Identifica si el par es complementario (90°), suplementario (180°) u opuesto por el vértice (iguales) antes de operar.',
+    };
+  }
+  if (family === 'pythagoras') {
+    return {
+      error: 'Confundir un cateto con la hipotenusa al aplicar el teorema de Pitágoras.',
+      correction: 'Ubica el ángulo recto, identifica la hipotenusa y despeja c² = a² + b² con las medidas correctas.',
+    };
+  }
+  if (family === 'congruence') {
+    return {
+      error: 'Afirmar que dos figuras son congruentes sin verificar lados y ángulos correspondientes.',
+      correction: 'Justifica la congruencia con un criterio LLL, LAL o ALA antes de concluir o calcular medidas.',
+    };
+  }
+  if (family === 'linear') {
+    return {
+      error: 'Igualar términos no semejantes o invertir el despeje al resolver la ecuación lineal.',
+      correction: 'Agrupa términos semejantes, aplica la misma operación en ambos miembros y comprueba sustituyendo el valor.',
+    };
+  }
+  if (family === 'quadratic') {
+    return {
+      error: 'Aplicar la fórmula cuadrática sin ordenar la ecuación o perder una de las raíces.',
+      correction: 'Ordena la ecuación como ax² + bx + c = 0, sustituye con signos completos y verifica ambas raíces.',
+    };
+  }
+  if (family === 'area-perimeter') {
+    return {
+      error: 'Confundir perímetro con área o aplicar una fórmula geométrica sin verificar las unidades de la figura.',
+      correction: 'Identifica si calculas contorno (longitud) o superficie (unidades cuadradas) y verifica base y altura.',
+    };
+  }
+  if (family === 'exponential') {
+    return {
+      error: 'Sumar un incremento fijo en lugar de aplicar el factor exponencial compuesto en cada periodo.',
+      correction: 'Multiplica por el factor (1 + r)ᵗ sobre el total vigente de cada periodo y verifica la tasa en decimal.',
+    };
+  }
+  if (family === 'statistics') {
+    return {
+      error: 'Interpretar una medida de tendencia central como si describiera todos los datos.',
+      correction: 'Contrasta la media con la dispersión y con los valores extremos antes de concluir.',
+    };
+  }
+  if (!isQuantitative) {
+    return {
+      error: 'Aplicar un criterio sin comprobar las condiciones específicas del caso.',
+      correction: 'Contrasta evidencias, contexto y criterios de la sesión antes de formular tu conclusión.',
+    };
+  }
+  return {
+    error: 'Aplicar una regla sin comprobar las condiciones específicas del problema.',
+    correction: 'Identifica datos, condiciones y unidades; verifica que la regla elegida sea aplicable antes de operar.',
+  };
+}
+
+function alignMisconceptionWithTitle(
+  title: string,
+  parts: { error: string; correction: string },
+  isQuantitative = true
+): { error: string; correction: string } {
+  const errorText = stripMisconceptionTitlePrefix(parts.error, title);
+  if (isWeakMisconceptionText(errorText, title)) {
+    return defaultMisconceptionForTitle(title, isQuantitative);
+  }
+  const family = conceptFamily(title);
+  const fullMisconception = `${errorText} ${parts.correction}`;
+  const errorHasCongruence = /\b(?:lll|lal|ala)\b|congruen|semejan/i.test(errorText);
+  const hasCongruence = /\b(?:lll|lal|ala)\b|congruen|semejan/i.test(fullMisconception);
+  const hasAngles = /angul|complement|suplement|opuestos?\s+por\s+el\s+v[eé]rtice|par\s+lineal/i.test(
+    fullMisconception
+  );
+  const hasPythagoras = /pit[aá]goras|hipotenusa|cateto|c\s*(?:\u00B2|\^?2)\s*=/i.test(
+    fullMisconception
+  );
+  const hasStatistics = /muestra\s+sesgada|tama[ñn]o\s+muestral|margen\s+de\s+error|tendencia\s+central|frecuencia|media\s+aritm[eé]tica|dispersi[oó]n/i.test(
+    fullMisconception
+  );
+  const hasExponential = /factor\s+exponencial|inter[eé]s\s+compuesto|capitalizaci[oó]n|P₀\s*\(1\s*\+\s*r\)/i.test(
+    fullMisconception
+  );
+  if (family === 'angles' && (errorHasCongruence || (hasCongruence && !hasAngles))) {
+    return {
+      error: 'Sumar ángulos suplementarios como si sumaran 90° o no distinguir el tipo de par.',
+      correction:
+        'Verifica primero si el par es complementario (90°), suplementario (180°) u opuesto por el vértice (iguales).',
+    };
+  }
+  if (family === 'pythagoras' && hasCongruence && !hasPythagoras) {
+    return {
+      error: 'Confundir un cateto con la hipotenusa del triángulo rectángulo.',
+      correction: 'Identifica el ángulo recto y aplica c² = a² + b² con la hipotenusa despejada.',
+    };
+  }
+  if (family === 'congruence' && hasPythagoras && !hasCongruence) {
+    return {
+      error: 'Aplicar una relación métrica sin comprobar la correspondencia entre figuras.',
+      correction: 'Justifica la congruencia o semejanza con LLL, LAL o ALA antes de calcular medidas.',
+    };
+  }
+  // Rechazar contaminación cruzada de ramas (ej. error de Estadística en Geometría plana o Álgebra)
+  if (family !== 'statistics' && family !== 'other' && hasStatistics) {
+    return defaultMisconceptionForTitle(title, isQuantitative);
+  }
+  if (
+    (family === 'area-perimeter' || family === 'angles' || family === 'pythagoras' || family === 'congruence') &&
+    hasExponential
+  ) {
+    return defaultMisconceptionForTitle(title, isQuantitative);
+  }
+  return { error: errorText, correction: parts.correction };
 }
 
 function isFormulaPartCoherentWithTitle(title: string, part: string): boolean {
@@ -2147,12 +3498,12 @@ export function isFormulaCoherentWithTitle(title: string, formula: string): bool
 function selectCoherentFormula(title: string, candidates: string[]): string {
   for (const candidate of candidates) {
     if (!candidate.trim()) continue;
-    const part = candidate
+    const coherentParts = candidate
       .split('|')
       .map((value) => value.trim())
       .filter(Boolean)
-      .find((value) => isFormulaPartCoherentWithTitle(title, value));
-    if (part) return part;
+      .filter((value) => isFormulaPartCoherentWithTitle(title, value));
+    if (coherentParts.length > 0) return coherentParts.join(' | ');
   }
   return '';
 }
@@ -2266,7 +3617,7 @@ function enforceInfographicOverlap(
     ) {
       return compacted;
     }
-    return fallback;
+    return compacted || rewritten || fallback;
   };
   const deOverlapList = (values: string[] | undefined): string[] =>
     (values ?? []).map((value) => deOverlapField(value));
@@ -2316,7 +3667,15 @@ function enforceInfographicOverlap(
   if (spec.quickExample) {
     spec.quickExample = {
       problemStatement: deOverlapField(spec.quickExample.problemStatement),
-      steps: spec.quickExample.steps.map((step) => deOverlapField(step)),
+      steps: spec.quickExample.steps.map((step) => {
+        const clean = finalizeVisibleText(step, { ensurePeriod: true });
+        if (sixGramOverlapRatio(clean, sources) <= maxRatio) return clean;
+        const compacted = preventSixGramTheoryOverlap(clean, sources);
+        if (compacted.length >= Math.min(24, clean.length * 0.5)) {
+          return finalizeVisibleText(compacted, { ensurePeriod: true });
+        }
+        return finalizeVisibleText(paraphraseSixGramOverlap(clean, sources), { ensurePeriod: true });
+      }),
       interpretation: deOverlapField(spec.quickExample.interpretation),
     };
   }
@@ -2409,25 +3768,38 @@ export function buildSacrintInfographic(
   const project = workbook.projectSection;
   const infographicSources = collectWorkbookTheorySources(workbook);
   const deOverlap = (value: string) =>
-    preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(value), infographicSources);
+    preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(value), infographicSources).replace(
+      /\bdentro de\s+/gi,
+      'en '
+    );
 
   const conceptHighlights = extractConceptHighlights(mission, selectedSession);
   const quickExample = extractWorkedExample(mission, selectedSession);
+  const visualSynthesis = selectedSession?.sintesisVisual;
+  const visualMap = visualSynthesis?.mapaConceptual;
   const misconceptionFixRaw = resolveMissionMisconceptionParts(mission, bundle, {
     session: selectedSession,
     allowMissionFallback: !selectedSession,
   });
-  const misconceptionFix = {
+  let visualMisconceptionError = sanitizePedagogicalMetaPhrases(
+    cleanSacrintText(visualMap?.errorComun)
+  );
+  let visualMisconceptionCorrection = sanitizePedagogicalMetaPhrases(
+    cleanSacrintText(visualMap?.correccionBreve)
+  );
+  let misconceptionFix = {
     error: finalizeVisibleText(
-      sanitizePedagogicalMetaPhrases(
-        normalizeEditorialText(normalizeSessionDescriptorTense(misconceptionFixRaw.error))
-      ),
+      visualMisconceptionError ||
+        sanitizePedagogicalMetaPhrases(
+          normalizeEditorialText(normalizeSessionDescriptorTense(misconceptionFixRaw.error))
+        ),
       { ensurePeriod: true }
     ),
     correction: finalizeVisibleText(
-      sanitizePedagogicalMetaPhrases(
-        normalizeEditorialText(normalizeSessionDescriptorTense(misconceptionFixRaw.correction))
-      ),
+      visualMisconceptionCorrection ||
+        sanitizePedagogicalMetaPhrases(
+          normalizeEditorialText(normalizeSessionDescriptorTense(misconceptionFixRaw.correction))
+        ),
       { ensurePeriod: true }
     ),
   };
@@ -2461,11 +3833,20 @@ export function buildSacrintInfographic(
 
   const validFormulas = conceptHighlights.formulas.filter(isValidRenderableFormula);
   const cleanTitle = stripLeadingSessionTag(sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle));
+  const isQuantitative =
+    pack.id === 'matematicas' || pack.id === 'fisica' || pack.id === 'quimica';
+  misconceptionFix = alignMisconceptionWithTitle(cleanTitle, misconceptionFix, isQuantitative);
+  if (isWeakMisconceptionText(visualMisconceptionError, cleanTitle)) {
+    visualMisconceptionError = misconceptionFix.error;
+    visualMisconceptionCorrection = misconceptionFix.correction;
+  }
+  const visualClaim = sanitizePedagogicalMetaPhrases(cleanSacrintText(visualSynthesis?.conceptoBreve));
   const rawClaimCandidate = deOverlap(
-    cleanMissionTopicLine(
-      conceptHighlights.definition || mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
-      conceptHighlights.definition || meta.missionTitle
-    )
+    visualClaim ||
+      cleanMissionTopicLine(
+        conceptHighlights.definition || mission.sessionFocus || mission.sessionTopic || bundle?.concepts.definition,
+        conceptHighlights.definition || meta.missionTitle
+      )
   );
   const cleanClaim = finalizeVisibleText(
     rawClaimCandidate.length <= 220
@@ -2517,6 +3898,14 @@ export function buildSacrintInfographic(
   const sanitizedDiagram = sanitizeInfographicDiagram(diagram);
   const variables = sanitizedDiagram.available ? buildDiagramVariables(sanitizedDiagram) : [];
 
+  const titleConceptFamily = conceptFamily(cleanTitle);
+  const isCompatibleKeyConcept = (item: string): boolean => {
+    const itemFamily = conceptFamily(item);
+    if (titleConceptFamily === 'angles' && itemFamily === 'congruence') return false;
+    if (titleConceptFamily === 'congruence' && itemFamily === 'angles') return false;
+    if (titleConceptFamily === 'pythagoras' && itemFamily === 'congruence') return false;
+    return true;
+  };
   const rawKeyConcepts = (
     conceptHighlights.keyRules.length > 0 ? conceptHighlights.keyRules : [conceptHighlights.definition]
   )
@@ -2528,7 +3917,8 @@ export function buildSacrintInfographic(
         Boolean(item) &&
         !isRubricOrBoilerplateLeak(item) &&
         !hasDanglingEnding(item) &&
-        hasBalancedDelimiters(item)
+        hasBalancedDelimiters(item) &&
+        isCompatibleKeyConcept(item)
     );
   const distinctKeyConcepts = rawKeyConcepts
     .filter((item) => isDistinctConceptText(item, [cleanTitle, cleanClaim]))
@@ -2573,7 +3963,27 @@ export function buildSacrintInfographic(
       });
     }
   }
-  const definitions: ConceptManualDefinition[] = distinctDefinitionEntries;
+  const visualDefinitionEntries: ConceptManualDefinition[] = [];
+  if (visualMap?.definicionClave) {
+    visualDefinitionEntries.push({
+      term: cleanTitle,
+      definition: finalizeVisibleText(
+        deOverlap(sanitizePedagogicalMetaPhrases(cleanSacrintText(visualMap.definicionClave))),
+        { ensurePeriod: true }
+      ),
+    });
+  }
+  if (visualMap?.criterioDesarrollo) {
+    visualDefinitionEntries.push({
+      term: 'Criterio de desarrollo',
+      definition: finalizeVisibleText(
+        deOverlap(sanitizePedagogicalMetaPhrases(cleanSacrintText(visualMap.criterioDesarrollo))),
+        { ensurePeriod: true }
+      ),
+    });
+  }
+  const definitions: ConceptManualDefinition[] =
+    visualDefinitionEntries.length > 0 ? visualDefinitionEntries : distinctDefinitionEntries;
 
   const conceptMap: ConceptMapNode[] = [
     {
@@ -2596,6 +4006,15 @@ export function buildSacrintInfographic(
             concept: 'Criterio de desarrollo',
             relation: 'Conduce',
             detail: misconceptionFix.correction || distinctKeyConcepts[2] || distinctKeyConcepts[0],
+          },
+        ]
+      : []),
+    ...(visualMisconceptionError
+      ? [
+          {
+            concept: 'Error frecuente',
+            relation: 'Se corrige con',
+            detail: visualMisconceptionCorrection || visualMisconceptionError,
           },
         ]
       : []),
@@ -2626,9 +4045,10 @@ export function buildSacrintInfographic(
     `Criterio de verificación: ${fitPedagogicalText(misconceptionFix.correction, { maxChars: 105, maxWords: 16, role: 'hint', ensurePeriod: true })}`,
   ];
 
+  const coherentCriteria = criteria.filter(isCompatibleKeyConcept);
   const masteryChecklist =
-    criteria.length >= 2
-      ? criteria.slice(0, 3).map((item) => finalizeVisibleText(item, { ensurePeriod: true }))
+    coherentCriteria.length >= 2
+      ? coherentCriteria.slice(0, 3).map((item) => finalizeVisibleText(item, { ensurePeriod: true }))
       : [
           'Identificar datos clave, relaciones y condiciones iniciales del planteamiento.',
           'Aplicar el procedimiento o argumento paso a paso justificando cada transformación.',
@@ -2662,7 +4082,7 @@ export function buildSacrintInfographic(
     },
     quickExample: {
       problemStatement: finalizeVisibleText(deOverlap(quickExample.problemStatement), { ensurePeriod: true }),
-      steps: quickExample.steps.map((s) => finalizeVisibleText(deOverlap(s), { ensurePeriod: true })),
+      steps: quickExample.steps.map((s) => finalizeVisibleText(s, { ensurePeriod: true })),
       interpretation: finalizeVisibleText(deOverlap(quickExample.interpretation), { ensurePeriod: true }),
     },
     variables,
@@ -2680,5 +4100,6 @@ export function buildSacrintInfographic(
     },
     facts,
   };
+  if (titleConceptFamily === 'angles') neutralizeAngleCongruenceTerms(spec);
   return enforceInfographicOverlap(spec, infographicSources, 0.15);
 }

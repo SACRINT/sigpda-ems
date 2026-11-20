@@ -369,10 +369,10 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     expect(monomials).not.toContain('$7x$');
     expect(monomials).toContain('2x');
     expect(monomials).toContain('7x');
-    expect(normalizeEditorialText('raiz(16) y sqrt(25)')).toContain('V(16)');
+    expect(normalizeEditorialText('raiz(16) y sqrt(25)')).toContain('√(16)');
     expect(normalizeEditorialText('raiz(16) y sqrt(25)')).not.toMatch(/\b(?:raiz|sqrt)\s*\(/i);
-    expect(normalizeEditorialText('raiz(9 - 4(1)(-108))')).toContain('V(9 - 4(1)(-108))');
-    expect(normalizeEditorialText('sqrt((p*q)/N)')).toContain('V((p*q)/N)');
+    expect(normalizeEditorialText('raiz(9 - 4(1)(-108))')).toContain('√(9 - 4(1)(-108))');
+    expect(normalizeEditorialText('sqrt((p*q)/N)')).toContain('√((p*q)/N)');
 
     const completeQuestion = fitPedagogicalText(
       '¿Comprendo la diferencia entre una expresión algebraica y una ecuación con incógnita?',

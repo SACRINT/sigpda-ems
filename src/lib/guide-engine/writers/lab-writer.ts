@@ -40,6 +40,10 @@ import { logger } from '@/lib/logger';
 import { countSessionPlanWords } from '../content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import {
+  buildCanonicalSessionPlanInstructions,
+  buildCanonicalSessionPlanJsonExample,
+} from './session-prompt-contract';
+import {
   resolveCheckpoint,
   resolveConceptZero,
   resolvePhenomenonHook,
@@ -116,61 +120,72 @@ ALINEACION DURA — TERMINOS OBLIGATORIOS DE LA PLANEACION (reproduce su redacci
  ` : '');
 
   // NOTA DE DISEÑO (F-06): materialsList de manuales no se tokeniza; los renderers strippan defensivamente.
+  const canonicalSessionContract = buildCanonicalSessionPlanInstructions(discipline, 'lab', {
+    firstSession: coveredSessions[0],
+  });
+  const canonicalSessionJson = buildCanonicalSessionPlanJsonExample(
+    discipline,
+    coveredSessions[0]
+  );
+  const shardingEnabled = Boolean(input.scheduler);
+  const canonicalSessionBlocks = shardingEnabled
+  ? ''
+  : [
+      '',
+      'ESTRUCTURA OBLIGATORIA DE LA PROPIEDAD "sessionPlans" DENTRO DEL MISMO OBJETO JSON ANTERIOR:',
+      canonicalSessionContract,
+      '',
+      'EJEMPLO DE REFERENCIA PARA "sessionPlans" (intégralo dentro del mismo JSON raíz de salida):',
+      canonicalSessionJson,
+      '',
+      'PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota o ejemplo de sessionPlans indicado antes.',
+    ].join('\n');
+
+  const tableColsList = discipline.defaultTableColumns.join(',');
+  const tableColsJson = JSON.stringify(discipline.defaultTableColumns);
   const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO práctico para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en ${discipline.displayName}.
 Tu tarea es redactar la misión de ${practiceLabel} ("${missionTitle}") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder realizar la actividad SOLO, leyendo el libro, sin que el maestro esté presente.
 UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 Equipo, recursos o instrumentos pertinentes: ${equipmentHint || 'los recursos propios de la disciplina'}.
 ${planningAlignmentChunk}
 ${seedPromptChunk}
+FAMILIA EPISTEMOLÓGICA: ${discipline.family}.
+TABLA CANÓNICA DE REGISTRO: ${discipline.defaultTableColumns.join(', ')}.
+DIRECTIVA DEL EJEMPLO RESUELTO: ${discipline.workedExampleDirective}
 
 REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 - Escribe SIEMPRE en segunda persona dirigida al estudiante ("tú", "vas a realizar", "tu cuaderno", "observa", "registra").
 - PROHIBIDO usar etiquetas "Docente:" o "Estudiante:", y verbos de instrucción al maestro ("activar el interés", "exponer y problematizar", "verificar comprensión", "orientar el avance"). Eso va en el plan de clase, NO en el libro.
-- El contenido debe ser REAL y AUTODIDACTA: procedimientos, fórmulas, tabla de datos, ejemplos con NÚMEROS y ejercicios con datos concretos. Un estudiante que lee el libro realiza la práctica y aprende.
+- El contenido debe ser REAL y AUTODIDACTA: procedimientos, criterios o fórmulas, tablas de registro, ejemplos y ejercicios con datos concretos. Un estudiante que lee el libro realiza la actividad y aprende.
 
 DIRECTIVAS TÉCNICAS Y METAS DE EXTENSIÓN:
-1. Objetivo y Materiales: Formulación rigurosa y lista de recursos pertinentes con casilla de verificación [✓].
+1. Objetivo y Materiales: Formulación rigurosa y lista de recursos pertinentes con casilla de verificación [✓]: ${equipmentHint || 'los recursos propios de la disciplina'}.
 2. Procedimiento paso a paso (400 a 600 palabras, 8-12 pasos): Explicación de cada paso con espacios <!--workbook:lines:rows=3--> o tablas.
-3. Tabla o formato de registro: Encabezados descriptivos con <!--workbook:table:cols=Parámetro,Referencia,Registro 1,Registro 2,Observaciones,Unidad-->.
+3. Tabla o formato de registro: Encabezados propios de ${discipline.displayName} con <!--workbook:table:cols=${tableColsList}-->.
 4. Código, protocolo o producto (300 a 500 palabras): Bloques de código reales y comentados en BT; protocolo, análisis o producto disciplinar en BGE, según corresponda a ${discipline.displayName}.
-5. Reto autónomo ("Tú Haces" - 200 a 350 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables cuantitativas y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
-6. Contenido por sesión para el ESTUDIANTE (OBLIGATORIO — genera un "plan" por cada sesión de ${coveredSessions.join(', ')}, ~950 a 1,150 palabras por plan):
-   Para CADA sesión asignada (${coveredSessions.join(', ')}) genera un objeto en "sessionPlans". NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
-   (a) objetivo: "Lo que vas a aprender" (1-2 frases en voz de estudiante);
-   (b) motivacion: (80 a 120 palabras) caso real de la comunidad o PAEC contado al estudiante;
-   (c) saberesPrevios: (50 a 80 palabras) qué ya sabe y preguntas diagnósticas;
-   (d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) LA TEORÍA REAL en 3 párrafos formales separados por saltos de línea (\n\n): definiciones, fórmulas y procedimiento de taller/laboratorio explicado con rigor conceptual (al menos 150 palabras por párrafo). PROHIBIDO redactar menos de 440 palabras en contenido;
-   (e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ejemplo numérico/experimental paso a paso con datos de laboratorio, sustitución y cálculos en 4 pasos numerados (Planteamiento, Paso 1 Datos, Paso 2 Ecuación, Paso 3 Operaciones, Paso 4 Conclusión). PROHIBIDO redactar menos de 300 palabras en ejemploResuelto;
-   (f) practica: 2 ejercicios/tareas concretas con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados;
-   (g) aplicacion: (80 a 120 palabras) tarea aplicada al entorno real o comunitario;
-   (h) autoevaluacion: 2-3 preguntas de autorevisión;
-   (i) recursos: 1-2 enlaces reales a video o web de ampliación;
-   (j) productoIntegrador: (60 a 90 palabras) qué agrega el estudiante a su proyecto hoy.
-   Los planes deben VARIAR entre sesiones y ser específicos del contexto PAEC/comunidad. VOZ DE ESTUDIANTE en todo.
-7. Preguntas y Casos de Error: 4-6 preguntas analíticas amplias y al menos 3 casos de fallo (Síntoma → Causa → Solución → Prevención).
-8. Sintaxis JSON: Usa comillas simples ('...') en código/citas. Cero comillas dobles sin escapar dentro de valores JSON.
+5. Reto autónomo ("Tú Haces" - 200 a 350 palabras): EXACTAMENTE 5 a 7 PASOS NUMERADOS con variables o criterios concretos y vinculación PAEC: "${input.paecContext}". OBLIGATORIO: anclar cada paso a una aplicación real en la vida diaria del estudiante o su comunidad en Puebla (no ejercicios abstractos); el estudiante debe percibir para qué le sirve en la práctica.
 
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
 {
   "phenomenonHook": {
-    "story": "Caso real de la comunidad o del taller que detona la práctica (2-4 frases, con datos del PAEC)...",
-    "detonatingQuestion": "Pregunta que confronta el error conceptual o la decisión técnica central de la práctica..."
+    "story": "Narración del fenómeno cotidiano situado en la comunidad...",
+    "detonatingQuestion": "Pregunta detonadora que abre el tema..."
   },
   "conceptZero": {
-    "physicalAnalogy": "Analogía física o cotidiana ESPECÍFICA de esta práctica (no una frase genérica)...",
-    "coreExplanation": "Explicación conceptual central que el estudiante debe construir..."
+    "physicalAnalogy": "Analogía intuitiva y disciplinar (80-140 palabras)...",
+    "coreExplanation": "Explicación conceptual rigurosa con ejemplo resuelto paso a paso y datos concretos..."
   },
   "formativeCheckpoint": {
-    "question": "Pregunta de verificación de comprensión propia de esta práctica...",
-    "criteriaChecklist": ["Criterio de auto-verificación específico 1", "Criterio específico 2"]
+    "question": "Pregunta de verificación del procedimiento...",
+    "criteriaChecklist": ["Explica el procedimiento con tus palabras", "Ejecuta la práctica con datos nuevos"]
   },
   "labTitle": "Título oficial de la práctica...",
   "objective": "Objetivo claro y contundente...",
   "materialsList": ["✓ Insumo / Herramienta 1", "✓ Software / Equipo 2"],
-  "stepByStepProcedure": "1. Paso uno con explicación técnica...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
-  "dataTableColumns": ["Parámetro", "Referencia", "Registro 1", "Registro 2", "Observaciones", "Unidad"],
+  "stepByStepProcedure": "1. Paso uno con explicación disciplinar...\\n<!--workbook:lines:rows=3-->\\n2. Paso dos...",
+  "dataTableColumns": ${tableColsJson},
   "executableCodeOrProtocol": "Código, protocolo, análisis o producto completo según la disciplina...",
-  "autonomousChallenge": "1. Paso uno con instrucción clara...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...",
+  "autonomousChallenge": "1. Paso uno...\\n2. Paso dos...\\n3. Paso tres...\\n4. Paso cuatro...\\n5. Paso cinco...",
   "reflectionQuestions": [
     "¿Qué relación observaste entre las variables o categorías de la actividad?",
     "¿Cómo aplicarías este procedimiento para resolver un problema en tu comunidad?"
@@ -182,29 +197,11 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
       "solutionSteps": ["Solución directa paso a paso."],
       "preventionTip": "Acción preventiva para evitarlo."
     }
-  ],
-  "sessionPlans": [
-    {
-      "sessionNumber": 3,
-      "objetivo": "Lo que vas a aprender en la sesión 3 (1-2 frases)...",
-      "motivacion": "Caso real / historia contada al estudiante...",
-      "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "Párrafo 1: En esta sesión aprenderás las bases conceptuales...\\n\\nPárrafo 2: El procedimiento analítico formal requiere...\\n\\nPárrafo 3: Las restricciones prácticas en el entorno comunitario son...",
-      "ejemploResuelto": "Planteamiento: Se monitorea la magnitud...\\nPaso 1: Variables...\\nPaso 2: Ecuación y sustitución...\\nPaso 3: Cálculo...\\nPaso 4: Conclusión e impacto...",
-      "practica": [
-        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: sustituir los datos medidos...", "Paso 2: operar y despejar...", "Respuesta final: ..."] },
-        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
-      ],
-      "aplicacion": "Aplicación a la vida real del estudiante...",
-      "autoevaluacion": ["¿Puedo explicar el procedimiento?", "¿Logré la práctica sin mirar?"],
-      "recursos": [
-        { "titulo": "Simulaciones y laboratorio virtual", "url": "https://phet.colorado.edu/es/", "tipo": "web" },
-        { "titulo": "Práctica guiada y ejercicios", "url": "https://www.khanacademy.org/", "tipo": "video" }
-      ],
-      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
-    }
-  ]
-}`;
+  ]${shardingEnabled ? '' : `,\n  "sessionPlans": [ /* EXACTAMENTE ${sessionCount} planes completos (sesiones ${coveredSessions.join(', ')}) según Contrato Canónico V2 */ ]`}
+}
+
+${canonicalSessionBlocks}
+`;
 
   const totalPlansTarget = sessionCount * targetWordsPerPlan;
   const remainingNarrativeTarget = Math.max(300, input.targetWords.ideal - totalPlansTarget);
@@ -222,10 +219,10 @@ Problemática PAEC: ${input.paecContext}
 Presupuesto total para esta misión: mínimo ${input.targetWords.min} palabras (ideal ~${input.targetWords.ideal} palabras).
 
 DISTRIBUCIÓN CALIBRADA DE PALABRAS:
-- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Cada plan debe contener mínimo 440 a 500 palabras en contenido (3 párrafos extensos de fundamentación y modelación técnica, mínimo 150 palabras por párrafo) y mínimo 300 a 360 palabras en ejemploResuelto (planteamiento concreto y 4 pasos detallados de desarrollo algebraico y numérico).
-- stepByStepProcedure: ~${procedureTarget} palabras (redacta 8 a 10 pasos experimentales exhaustivos con parámetros técnicos y mediciones de laboratorio)
-- executableCodeOrProtocol: ~${protocolTarget} palabras (código fuente funcional documentado o protocolo experimental riguroso)
-- autonomousChallenge: ~${challengeTarget} palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones técnicas precisas)
+- sessionPlans (${sessionCount} sesiones): OBLIGATORIO redactar las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}), con ~${targetWordsPerPlan} palabras por sesión (total planes: ~${totalPlansTarget} palabras). Respeta íntegramente la estructura y profundidad del Contrato Canónico V2; no comprimas campos ni omitas la solución de las prácticas, el ejemplo resuelto ni sintesisVisual.
+- stepByStepProcedure: ~${procedureTarget} palabras (redacta 8 a 10 pasos detallados con criterios, parámetros o evidencias propios de ${discipline.displayName})
+- executableCodeOrProtocol: ~${protocolTarget} palabras (${discipline.family === 'computacional_algoritmica' ? 'código fuente funcional documentado y prueba de escritorio' : discipline.family === 'humanistica_comunicativa_social' ? 'guía analítica, matriz o producto textual disciplinar completo' : 'protocolo o procedimiento riguroso de la disciplina'})
+- autonomousChallenge: ~${challengeTarget} palabras (OBLIGATORIAMENTE de 5 a 7 pasos numerados correlativos con instrucciones claras y contextualizadas)
 - reflectionQuestions: ~${reflectionTarget} palabras (análisis técnico y transferencia)
 
 Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesiones completas (${coveredSessions.join(', ')}) con máxima profundidad y rigor experimental sin abreviar:`;
@@ -233,9 +230,7 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
   const useSharding = Boolean(input.scheduler);
   const narrativeMaxTokens = useSharding ? 8192 : 16384;
   const narrativeTimeoutMs = useSharding ? 75000 : 85000;
-  const effectiveSystemInstruction = useSharding
-    ? systemInstruction.replace(/,\s*"sessionPlans"\s*:\s*\[[\s\S]*?\]\s*\}/, '\n}')
-    : systemInstruction;
+  const effectiveSystemInstruction = systemInstruction;
   const basePrompt = useSharding
     ? prompt.replace(/- sessionPlans[^\n]*\n/, '')
     : prompt;
@@ -362,11 +357,11 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
     // Consolidación de tags consecutivos para evitar redundancia de renglones
     workbookElements = consolidateWorkbookElements(workbookElements);
 
-    // Si no hay tags en el texto, generar los elementos oficiales de laboratorio
+    // Si no hay tags en el texto, generar los elementos oficiales de la disciplina
     if (workbookElements.length === 0) {
       const cols = parsed.dataTableColumns && parsed.dataTableColumns.length > 0
         ? parsed.dataTableColumns
-        : ['Parámetro', 'Valor Esperado', 'Medición 1', 'Medición 2', 'Unidad'];
+        : discipline.defaultTableColumns;
 
       workbookElements = [
         {
@@ -421,10 +416,10 @@ Redacta la Misión Práctica de Laboratorio/Taller Y las ${sessionCount} sesione
 
     const troubles: TroubleshootItem[] = (parsed.quickTroubleshooting || []).map((t: Record<string, unknown>, i: number) => ({
       id: `tb-lab-${i + 1}`,
-      symptom: typeof t.symptom === 'string' ? t.symptom : 'Falla en lectura o ejecución',
-      rootCause: typeof t.rootCause === 'string' ? t.rootCause : 'Parámetros incorrectos o desconexión',
-      solutionSteps: Array.isArray(t.solutionSteps) ? (t.solutionSteps as string[]) : ['Verificar conexiones y reintentar'],
-      preventionTip: typeof t.preventionTip === 'string' ? t.preventionTip : 'Revisar manual antes de energizar',
+      symptom: typeof t.symptom === 'string' ? t.symptom : 'Inconsistencia o error durante el desarrollo',
+      rootCause: typeof t.rootCause === 'string' ? t.rootCause : 'Omisión de criterios iniciales o datos incompletos',
+      solutionSteps: Array.isArray(t.solutionSteps) ? (t.solutionSteps as string[]) : ['Verificar los criterios de la sesión y corregir el paso'],
+      preventionTip: typeof t.preventionTip === 'string' ? t.preventionTip : 'Revisar las instrucciones y parámetros antes de continuar',
     }));
 
     const sectionWordCount = fullText.split(/\s+/).filter(Boolean).length;

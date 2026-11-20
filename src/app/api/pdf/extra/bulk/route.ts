@@ -411,8 +411,9 @@ async function handleBulkPdf(request: NextRequest) {
         const effectiveEntries = canonicalEntries.length > 0 ? canonicalEntries : entries.slice(0, 3);
 
         if (effectiveEntries.length > 0) {
+          const misconceptionTracker = new Map<string, number>();
           const sacrintDecks: SacrintDeckSpec[] = effectiveEntries.flatMap((entry) =>
-            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide' })
+            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide', misconceptionTracker })
           );
           if (sacrintDecks.length > 0) {
             const pptxBuf = await generateCombinedSacrintPptx(sacrintDecks, {

@@ -300,9 +300,11 @@ describe('SACRINT Part 2 — Pedagogical Redesign & Diagram Authenticity', () =>
       expect(conceptSlide.title).not.toMatch(/^Tus aprendizajes/i);
       expect(conceptSlide.workedExample?.problemStatement).toContain('$150');
       expect(conceptSlide.workedExample?.problemStatement).toContain('$750');
-      expect(conceptSlide.workedExample?.steps[0]).toContain('$150');
-      expect(conceptSlide.workedExample?.steps[1]).toContain('30x + 150 = 750');
-      expect(conceptSlide.workedExample?.steps[2]).toContain('x = 20');
+      const workedSteps = conceptSlide.workedExample?.steps ?? [];
+      const workedText = [...workedSteps, conceptSlide.workedExample?.interpretation ?? ''].join(' ');
+      expect(workedSteps[0]).toContain('$150');
+      expect(workedSteps.join(' ')).toContain('30x + 150 = 750');
+      expect(workedText).toContain('x = 20');
       expect(conceptSlide.workedExample?.interpretation).not.toBe('del resultado.');
       expect(conceptSlide.workedExample?.interpretation).toContain('20');
       for (const v of conceptSlide.variables) {

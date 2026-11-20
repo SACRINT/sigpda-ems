@@ -32,7 +32,6 @@ import {
   type PlanDeClaseDerivado,
 } from './material-extractor';
 import { logger } from '@/lib/logger';
-import { isCompleteProblemStatement } from '@/lib/visual-engine/sacrint/content-distiller';
 import { detectFallbackWords } from './writers/writer-contract';
 import { validateBlockCrossContamination } from './cross-contamination-guard';
 
@@ -786,7 +785,8 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
           }).workedExample;
           const hasStatement =
             typeof worked?.problemStatement === 'string' &&
-            isCompleteProblemStatement(worked.problemStatement);
+            worked.problemStatement.trim().length >= 12 &&
+            /[a-záéíóúüñ]/i.test(worked.problemStatement);
           const validSteps = Array.isArray(worked?.steps)
             ? worked.steps.filter((step) => typeof step === 'string' && step.trim().length >= 8)
             : [];

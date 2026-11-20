@@ -86,6 +86,7 @@ function addText(
     truncate: _truncate = false,
     ...textOptions
   } = options;
+  void _truncate;
   const lineHeightRatio = explicitLineHeightRatio ?? lineSpacingMultiple ?? 1.15;
   const requestedPt = textOptions.fontSize ?? pt(20);
   const minPt = height <= 28 ? 7 : 7.5;

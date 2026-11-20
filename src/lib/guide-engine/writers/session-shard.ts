@@ -18,6 +18,11 @@ import { logger } from '@/lib/logger';
 import type { SessionPlan } from '@/types/work-textbook';
 import { countSessionPlanWords } from '../content-budget';
 import { buildPlanningAlignmentPrompt } from './planning-alignment-prompt';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import {
+  buildCanonicalSessionPlanInstructions,
+  buildCanonicalSessionPlanJsonExample,
+} from './session-prompt-contract';
 import { runScheduled } from '../writer-scheduler';
 import {
   completeSessionPlans,
@@ -78,6 +83,8 @@ export interface DensityThresholds {
   minPracticaEnunciadoWords: number;
   /** Palabras totales mínimas del plan (ver `sessionPlanWordTarget`). */
   minTotalWords: number;
+  /** Exigir dígito o '=' en el cierre del ejemplo (familias cuantitativas). */
+  requireNumericExample?: boolean;
 }
 
 export interface DensityReport {
@@ -98,15 +105,19 @@ export function sessionPlanWordTarget(idealWordsForMission: number, sessionCount
 }
 
 /** Umbrales de densidad (≈85 % de lo exigido en el prompt, para no disparar reparaciones por 1-2 palabras). */
-export function densityThresholdsFor(targetWordsPerPlan: number): DensityThresholds {
+export function densityThresholdsFor(
+  targetWordsPerPlan: number,
+  requireNumericExample = false
+): DensityThresholds {
   return {
-    minContenidoWords: 380,
+    minContenidoWords: 300,
     minContenidoParagraphs: 3,
-    minEjemploWords: 250,
+    minEjemploWords: 190,
     minEjemploSteps: 3,
     minPractica: 2,
-    minPracticaEnunciadoWords: 30,
-    minTotalWords: Math.round(targetWordsPerPlan * 0.82),
+    minPracticaEnunciadoWords: 28,
+    minTotalWords: Math.min(720, Math.round(targetWordsPerPlan * 0.78)),
+    requireNumericExample,
   };
 }
 
@@ -136,7 +147,7 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
   if (steps < t.minEjemploSteps) {
     deficits.push(`ejemploResuelto tiene ${steps} pasos numerados (mínimo ${t.minEjemploSteps})`);
   }
-  if (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '')) {
+  if (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '', { requireNumeric: t.requireNumericExample })) {
     deficits.push('ejemploResuelto no cierra con resultado, ecuación o conclusión verificable');
   }
   const practica = plan.practica || [];
@@ -158,70 +169,6 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
 }
 
 // ─── Prompts ────────────────────────────────────────────────────────────────
-
-interface SessionSpecVariant {
-  motivacion: string;
-  saberesPrevios: string;
-  contenido: string;
-  ejemplo: string;
-  practica: string;
-  recursos: string;
-  productoLabel: string;
-}
-
-function specVariant(type: SessionMissionType, discipline: string): SessionSpecVariant {
-  switch (type) {
-    case 'foundation':
-      return {
-        motivacion: 'caso o dilema real de la comunidad escolar de Puebla o del proyecto PAEC contada directamente al estudiante',
-        saberesPrevios: 'qué conocimientos previos conectan con la sesión y qué preguntas diagnósticas debe responder en su cuaderno',
-        contenido:
-          'LA TEORÍA REAL de la sesión — definiciones formales, leyes o fórmulas explicadas con rigor, desarrollo teórico estructurado en 3 párrafos sustanciales (al menos 150 palabras por párrafo). NO resumas en 1-2 frases; explica como un verdadero libro de texto Santillana/Pearson',
-        ejemplo:
-          'ejemplo numérico o procedimental con planteamiento contextualizado, datos explícitos, desarrollo paso a paso numerado en 4 pasos y análisis del resultado',
-        practica:
-          '2 ejercicios contextualizados con datos reales; enunciados detallados (mínimo 60 palabras cada uno) con "pista" orientadora (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados con operaciones completas',
-        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
-        productoLabel: 'avance concreto y fechado del entregable para el portafolio',
-      };
-    case 'lab':
-      return {
-        motivacion: 'caso real de la comunidad o PAEC contado al estudiante',
-        saberesPrevios: 'qué ya sabe y preguntas diagnósticas',
-        contenido:
-          'LA TEORÍA REAL en 3 párrafos formales separados por saltos de línea (\\n\\n): definiciones, fórmulas y procedimiento de taller/laboratorio explicado con rigor conceptual (al menos 150 palabras por párrafo)',
-        ejemplo:
-          'ejemplo numérico/experimental paso a paso con datos de laboratorio, sustitución y cálculos en 4 pasos numerados (Planteamiento, Paso 1 Datos, Paso 2 Ecuación, Paso 3 Operaciones, Paso 4 Conclusión)',
-        practica:
-          '2 ejercicios/tareas concretas con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados',
-        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
-        productoLabel: 'qué agrega el estudiante a su proyecto hoy',
-      };
-    case 'project':
-      return {
-        motivacion: 'caso real del proyecto o la comunidad contado al estudiante',
-        saberesPrevios: 'qué fundamentos previos sustentan la etapa actual',
-        contenido: `LA TEORÍA REAL de la sesión — especificaciones, criterios, fórmulas o modelos propios de ${discipline} en 3 párrafos sustanciales (al menos 150 palabras por párrafo)`,
-        ejemplo: 'ejemplo numérico, procedimental o analítico resuelto paso a paso con datos del proyecto en 4 pasos numerados',
-        practica:
-          '2 tareas/ejercicios con datos concretos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados',
-        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
-        productoLabel: 'avance concreto del producto del proyecto',
-      };
-    case 'evaluation':
-      return {
-        motivacion: 'caso real que da sentido a la evaluación de lo aprendido, contado al estudiante',
-        saberesPrevios: 'qué aprendizajes consolidados del bloque se ponen en juego',
-        contenido:
-          'LA TEORÍA REAL de la sesión — marcos conceptuales de evaluación, validación de hipótesis o modelación formal en 3 párrafos sustanciales (al menos 150 palabras por párrafo)',
-        ejemplo: 'ejemplo evaluativo resuelto paso a paso con rúbrica comentada, cálculos y 4 pasos numerados',
-        practica:
-          '2 reactivos formativos complejos con datos; enunciados detallados (mínimo 60 palabras cada uno) con "pista" (mínimo 30 palabras) y "solucion" con 3-6 pasos numerados',
-        recursos: '1-2 enlaces directos del catálogo curado (prohibido google/youtube results)',
-        productoLabel: 'evidencia final que el estudiante integra a su portafolio',
-      };
-  }
-}
 
 const MISSION_LABEL: Record<SessionMissionType, string> = {
   foundation: 'fundamentación e intuición (Concepto Cero)',
@@ -268,7 +215,6 @@ export function buildSessionPackPrompts(
   opts: { packTerms?: string[]; directive?: string } = {}
 ): { system: string; user: string } {
   const { input, missionType } = ctx;
-  const v = specVariant(missionType, ctx.disciplineName);
   const alignment = buildPlanningAlignmentPrompt(
     input.planningActivities,
     missionType,
@@ -279,10 +225,19 @@ export function buildSessionPackPrompts(
   );
   const termsBlock =
     opts.packTerms && opts.packTerms.length > 0
-      ? `\nCONCEPTOS, SABERES Y MATERIALES DE LA PLANEACION QUE ESTAS SESIONES DEBEN CUBRIR (intégralos de forma orgánica reproduciendo su redacción original al menos una vez; no los enumeres como lista): ${opts.packTerms.join(' | ')}`
+      ? `\nCONCEPTOS, SABERES Y MATERIALES DE LA PLANEACIÓN QUE ESTAS SESIONES DEBEN CUBRIR (intégralos de forma natural en sustantivo o presente dentro de la explicación, ejemplos y prácticas; si algún término viene conjugado en futuro como 'Identificarás...', conviértelo a forma conceptual o presente): ${opts.packTerms.join(' | ')}`
       : '';
   const directiveBlock = opts.directive ? `\n[REQUISITO CRÍTICO DE REPARACIÓN]: ${opts.directive}` : '';
   const firstSession = packSessions[0];
+  const adapter = getDisciplinaryAdapter(
+    input.uacName,
+    input.component,
+    input.careerOrProgramName
+  );
+  const canonicalSessionContract = buildCanonicalSessionPlanInstructions(adapter, missionType, {
+    firstSession,
+  });
+  const canonicalSessionJson = buildCanonicalSessionPlanJsonExample(adapter, firstSession);
 
   const system = `Eres AUTOR DE LIBRO DE TEXTO para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en ${ctx.disciplineName}.
 Redactas los PLANES DE SESIÓN de la misión de ${MISSION_LABEL[missionType]} ("${ctx.missionTitle}") de un LIBRO PARA EL ESTUDIANTE, NO una guía para el docente: el estudiante debe poder aprender SOLO, leyendo el libro, sin que el maestro esté presente.
@@ -294,43 +249,15 @@ REGLAS DE VOZ (CRÍTICO — el libro es del ESTUDIANTE):
 - PROHIBIDO usar etiquetas "Docente:" o "Estudiante:", y verbos de instrucción al maestro ("activar el interés", "exponer y problematizar", "verificar comprensión", "orientar el avance", "plantear la situación", "retomar el desafío"). Eso va en el plan de clase, NO en el libro.
 - El contenido debe ser REAL y AUTODIDACTA: definiciones, explicaciones, ejemplos resueltos con datos concretos y ejercicios con datos concretos. Un estudiante que lee el libro aprende el tema.
 
-CONTENIDO POR SESIÓN (OBLIGATORIO — un objeto por cada sesión de ${packSessions.join(', ')}, ~${ctx.targetWordsPerPlan} palabras por plan). NUNCA omitas ninguna sesión ni uses resúmenes telegráficos. Cada objeto es material que el estudiante LEE para aprender de forma autodidacta:
-(a) objetivo: "Lo que vas a aprender" (1-2 frases concretas, voz en tú);
-(b) motivacion: (80 a 120 palabras) ${v.motivacion};
-(c) saberesPrevios: (50 a 80 palabras) ${v.saberesPrevios};
-(d) contenido: (OBLIGATORIO MÍNIMO 440 A 520 PALABRAS) ${v.contenido}. PROHIBIDO redactar menos de 440 palabras en contenido;
-(e) ejemploResuelto: (OBLIGATORIO MÍNIMO 300 A 360 PALABRAS) ${v.ejemplo}. PROHIBIDO redactar menos de 300 palabras en ejemploResuelto. Debe cerrar con resultado numérico, ecuación resuelta o conclusión verificable; PROHIBIDO terminar en el planteamiento sin resolver;
-(f) practica: ${v.practica}. Cada enunciado DEBE contener datos concretos y una pregunta o verbo de tarea explícito; PROHIBIDO entregar solo datos sin consigna;
-(g) aplicacion: (80 a 120 palabras) tarea de transferencia aplicada al entorno real o comunitario del estudiante en Puebla;
-(h) autoevaluacion: 2-3 preguntas reflexivas metacognitivas;
-(i) recursos: ${v.recursos};
-(j) productoIntegrador: (60 a 90 palabras) ${v.productoLabel}.
-Cada sesión aborda una arista DISTINTA del tema (su tema y enfoque se indican abajo) y es específica del contexto PAEC/comunidad. Sintaxis JSON: usa comillas simples ('...') dentro de los textos; cero comillas dobles sin escapar dentro de valores JSON.
 
-Devuelve EXCLUSIVAMENTE un objeto JSON válido con este formato:
-{
-  "sessionPlans": [
-    {
-      "sessionNumber": ${firstSession},
-      "objetivo": "Lo que vas a aprender en la sesión ${firstSession} (1-2 frases)...",
-      "motivacion": "Caso real / historia contada al estudiante...",
-      "saberesPrevios": "Qué ya sabes que conecta con esto...",
-      "contenido": "Párrafo 1: ...\\n\\nPárrafo 2: ...\\n\\nPárrafo 3: ...",
-      "ejemploResuelto": "Planteamiento: ...\\nPaso 1: ...\\nPaso 2: ...\\nPaso 3: ...\\nPaso 4: ...",
-      "practica": [
-        { "enunciado": "Ejercicio 1 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] },
-        { "enunciado": "Ejercicio 2 con datos concretos", "pista": "Pista de cómo empezar (sin solución)", "solucion": ["Paso 1: ...", "Respuesta final: ..."] }
-      ],
-      "aplicacion": "Aplicación a la vida real del estudiante...",
-      "autoevaluacion": ["¿Pregunta 1?", "¿Pregunta 2?"],
-      "recursos": [
-        { "titulo": "Khan Academy — Recurso de apoyo del tema", "url": "https://www.khanacademy.org/", "tipo": "video" },
-        { "titulo": "MEJOREDU — Material educativo de consulta", "url": "https://www.gob.mx/mejoredu", "tipo": "web" }
-      ],
-      "productoIntegrador": "Qué agregas hoy a tu producto integrador..."
-    }
-  ]
-}`;
+Devuelve EXCLUSIVAMENTE un objeto JSON válido con el Contrato Canónico V2 de abajo:
+
+${canonicalSessionContract}
+
+EJEMPLO JSON CANÓNICO DE REFERENCIA:
+${canonicalSessionJson}
+
+PRECEDENCIA: este Contrato Canónico V2 sustituye cualquier cuota, estructura o ejemplo de sessionPlans indicado antes en este prompt.`;
 
   const siblings = ctx.coveredSessions.filter((n) => !packSessions.includes(n));
   const siblingLines = siblings.map((n) => `- ${sessionLine(input, n)}`).join('\n');
@@ -536,7 +463,15 @@ export async function generateShardedSessionPlans(
   }
 
   // Valida densidad por sesión sobre planes ya sanitizados
-  const thresholds = densityThresholdsFor(ctx.targetWordsPerPlan);
+  const adapter = getDisciplinaryAdapter(
+    ctx.input.uacName,
+    ctx.input.component,
+    ctx.input.curriculumName || ctx.input.careerOrProgramName
+  );
+  const thresholds = densityThresholdsFor(
+    ctx.targetWordsPerPlan,
+    adapter.family === 'cuantitativa_experimental'
+  );
   let sanitized = sanitizeSessionPlans(raw, ctx.coveredSessions, ctx.fallbackContext) ?? [];
   const deficient = sanitized
     .map((plan) => ({ plan, report: evaluateSessionPlanDensity(plan, thresholds) }))
@@ -564,7 +499,7 @@ export async function generateShardedSessionPlans(
               `Tu borrador previo de la sesión ${plan.sessionNumber} fue insuficiente: ${report.deficits.join('; ')}. ` +
               `No repitas el mismo error. Ejemplo previo (recortado): "${(plan.ejemploResuelto || '').slice(0, 420)}". ` +
               `Práctica previa (recortada): "${(plan.practica || []).map((p) => p.enunciado).join(' | ').slice(0, 360)}". ` +
-              'Redáctala de nuevo COMPLETA cumpliendo exactamente la estructura: contenido en 3 párrafos sustanciales separados por saltos de línea (>=150 palabras cada uno), ejemploResuelto con Planteamiento y 4 pasos numerados (Paso 1..Paso 4) que cierre con resultado numérico o conclusión verificable, 2 ejercicios con datos concretos y consigna explícita (pregunta o verbo de tarea), pista propia y solución.',
+              'Redáctala de nuevo COMPLETA cumpliendo exactamente el Contrato Canónico V2: contenido en 3 párrafos sustanciales separados por doble salto de línea (\\n\\n, 320 a 440 palabras en total), ejemploResuelto de 220 a 300 palabras con Planteamiento y 4 pasos numerados (Paso 1..Paso 4) que cierre con resultado o conclusión verificable, 2 ejercicios con datos concretos y consigna explícita (pregunta o verbo de tarea), pista propia y solución, y el objeto sintesisVisual completo (conceptoBreve, formulaOReglaClave, ejemploBreve y mapaConceptual).',
           },
           `${label}-reparacion[${plan.sessionNumber}]`
         );

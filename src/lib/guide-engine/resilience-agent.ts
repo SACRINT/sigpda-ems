@@ -60,7 +60,9 @@ export async function generateTroubleshootingMatrix(
     ? `\nADVERTENCIAS DETECTADAS POR OTROS REDACTORES A MITIGAR:\n${input.writerWarnings.map((w) => `- ${w}`).join('\n')}`
     : '';
 
-  const systemInstruction = `Eres un docente de Educacion Media Superior en Puebla (MCCEMS Puebla), especialista en ${discipline.displayName}.
+  const systemInstruction = `Eres AUTOR DE LIBRO DE TEXTO autodidacta para estudiantes de Educación Media Superior (MCCEMS), especialista en ${discipline.displayName}.
+Escribe SIEMPRE en segunda persona ("tú"), con aislamiento disciplinar estricto. Equipo permitido: ${discipline.allowedPhysicalEquipment.join(', ')}. PROHIBIDO introducir: ${discipline.forbiddenCrossDomainTerms.join(', ')}.
+Cada "solution" debe separar sus pasos con salto de línea y comenzar cada uno como "Paso N:".
 Tu tarea es generar la "Zona de Depuracion: Que hacer si falla?" para el bloque formativo de la UAC: "${input.uacName}" (${input.subsystem.toUpperCase()}).
 
 ENFOQUE FORMATIVO OBLIGATORIO:

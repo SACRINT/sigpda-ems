@@ -1,6 +1,8 @@
 import { generateWithRotation } from '@/lib/ai-provider';
 import { robustJsonParse } from '@/lib/ai-response-parser';
 import { logger } from '@/lib/logger';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
+import { buildCanonicalSessionPlanInstructions } from './session-prompt-contract';
 
 interface MissingPlanParams {
   missionType: 'lab' | 'project';
@@ -68,17 +70,23 @@ async function generateMissingChunk(
 ): Promise<unknown[]> {
   const missionLabel = params.missionType === 'lab' ? 'laboratorio/taller' : 'proyecto integrador';
   const examplePlan = existingPlans.length > 0 ? JSON.stringify(existingPlans[0], null, 2) : '{}';
+  const adapter = getDisciplinaryAdapter(params.uacName);
+  const canonicalContract = buildCanonicalSessionPlanInstructions(adapter, params.missionType, {
+    firstSession: missingSessions[0],
+  });
   const systemInstruction = `Eres autor de libro de texto para Educación Media Superior (MCCEMS Puebla), en voz de estudiante (tú).
 UAC: ${params.uacName}. Bloque: ${params.blockName || 'Bloque actual'}. Subsistema: ${params.subsystem.toUpperCase()}.
 Debes completar los planes de sesión faltantes de una misión de ${missionLabel}.`;
 
-  const userPrompt = `Sesiones ya cubiertas: ${params.coveredSessions.join(', ')}.
+  const userPrompt = `${canonicalContract}
+
+Sesiones ya cubiertas: ${params.coveredSessions.join(', ')}.
 Sesiones faltantes: ${missingSessions.join(', ')}.
 
 Genera EXACTAMENTE un plan por cada sesión faltante (${missingSessions.join(', ')}), sin omitir ninguna y sin duplicar las ya cubiertas. Cada plan debe conservar la misma estructura, campos y profundidad que este plan de ejemplo:
 ${examplePlan}
 
-Requisitos por plan: contenido teórico real de al menos 440 palabras en 3 párrafos; ejemplo resuelto de al menos 300 palabras con 4 pasos numerados; práctica con enunciados, pistas y solución; aplicación, autoevaluación y recursos. No uses marcadores ni puntos suspensivos.
+Requisitos por plan: contenido teórico real de 320 a 440 palabras en 3 párrafos; ejemplo resuelto de 220 a 300 palabras con 4 pasos separados por salto de línea; 2 prácticas autocontenidas con datos, consigna, pista y solución; aplicación, autoevaluación, recursos y sintesisVisual completo. No uses marcadores ni puntos suspensivos.
 Devuelve EXCLUSIVAMENTE un objeto JSON válido con la forma {"sessionPlans": [ ... ]} que contenga únicamente las sesiones faltantes.`;
 
   const raw = await generateWithRotation(

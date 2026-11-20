@@ -15,7 +15,7 @@ import { getMaterial } from '@/lib/materials/materials-catalog';
 import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
 import { stripMarkdownTables } from '@/lib/editorial/markdown-table-sanitizer';
 import { parseContenidoToBloques, parseEjemploResuelto } from '@/lib/editorial/student-content-model';
-import { fitPedagogicalText, hasDanglingEnding, repairDanglingEnding, splitSpanishSentences } from '@/lib/editorial/pedagogical-text-fitter';
+import { fitPedagogicalText, hasDanglingEnding, splitSpanishSentences } from '@/lib/editorial/pedagogical-text-fitter';
 import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
 import { isValidRenderableFormula, normalizeSessionDescriptorTense } from '@/lib/editorial/text-normalization';
 import { normalizeMathNotation } from './math-text';
@@ -80,7 +80,12 @@ export function cleanSacrintText(value: string | null | undefined): string {
     .replace(/^\s*[-*•]\s+/gm, '')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1');
   text = stripInlineMarkdownEmphasis(text);
+  text = text
+    .replace(/\\\$/g, '$')
+    .replace(/\$(\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?)\$/g, '$1')
+    .replace(/\$(\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km))\$/gi, '$1');
   text = normalizeMathNotation(text);
+  text = text.replace(/\bdentro de\s+/gi, 'en ');
   return text.replace(/\s+/g, ' ').trim();
 }
 
@@ -94,7 +99,12 @@ function cleanSacrintTextPreservingLines(value: string | null | undefined): stri
     .replace(/(^|\r?\n)\s{0,3}#{1,6}\s+/g, '$1')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1');
   text = stripInlineMarkdownEmphasis(text);
+  text = text
+    .replace(/\\\$/g, '$')
+    .replace(/\$(\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?)\$/g, '$1')
+    .replace(/\$(\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km))\$/gi, '$1');
   text = normalizeMathNotation(text);
+  text = text.replace(/\bdentro de\s+/gi, 'en ');
   return text
     .split(/\r?\n/)
     .map((line) => line.replace(/\s+/g, ' ').trim())
@@ -120,10 +130,14 @@ export function sanitizePedagogicalMetaPhrases(value: string | null | undefined)
     .replace(/\bEste\s+contenido\s+formativo\s+sienta\s+las\s+bases\s+metodol[oó]gicas[^.?!]*[.?!]?/gi, '')
     .replace(/\bConocimientos\s+construidos\s+en\s+la\s+sesi[oó]n\s+previa\s+de[^.?!]*[.?!]?/gi, '')
     .replace(/^(?:Trabajo\s+colaborativo|Actividad\s+colaborativa)\s*(?:\(\s*\d+\s*min\.?\s*\))?\s*:\s*/gi, '')
+    .replace(/\bde\s+el\b/gi, 'del')
     .replace(/\s{2,}/g, ' ')
     .replace(/^[.,;:\s]+/, '')
     .trim();
-  if (out) {
+  if (
+    out &&
+    !/^[a-z](?:[0-9₀-₉²³]|\([^)]+\))?\s*(?:[=<>≤≥≠≈+\-*/·×^]|²|³)/.test(out)
+  ) {
     out = out.charAt(0).toUpperCase() + out.slice(1);
   }
   return out;
@@ -285,16 +299,34 @@ export function extractBulletSentences(
 }
 
 const MATH_EXPR_RE =
-  /(?:\b(?:sen|cos|tan)\s*(?:\([A-Za-z0-9θ°αβ\s+-]+\)|[θ°αβ]|\d+\s*°)\s*=\s*[-+0-9A-Za-z/()*^²³√.,·×\s]{1,36}|(?:\([A-Za-z0-9\s+*/.-]+\)(?:\s*[+*/-]\s*\([A-Za-z0-9\s+*/.-]+\))+|\d*[A-Za-z]{1,2}(?:²|\^2)(?:\s*[+-]\s*\d*[A-Za-z]{1,2})*(?:\s*[+-]\s*\d+)?|\d*[A-Za-z]{1,2}(?:\s*[+-]\s*\d*[A-Za-z]{1,2})+(?:\s*[+-]\s*\d+)?|[A-Za-zΔ][0-9₀₁₂]?(?:\([A-Za-z0-9,\s+-]+\))?|\d+\s*[A-Za-z²³]+(?:\s*[+-]\s*\d*\s*[A-Za-z²³]+)*|\([A-Za-z0-9\s+-]+\))\s*=\s*[-+0-9A-Za-zθ°αβπΔ/()*^²³√.,·×\s]{1,56})/g;
+  /(?:\b(?:sen|cos|tan)\s*(?:\([A-Za-z0-9θ°αβ\s+-]+\)|[θ°αβ]|\d+\s*°)\s*=\s*[-+0-9A-Za-zθ°αβπΔ/()*^²³⁰¹⁴⁵⁶⁷⁸⁹₀-₉ᵗⁿ√.,·×\s]{1,44}|(?<![A-Za-zÁÉÍÓÚÑáéíóúñ])(?:\([A-Za-z0-9₀-₉²³\s+*/.-]+\)(?:\s*[+*/-]\s*\([A-Za-z0-9₀-₉²³\s+*/.-]+\))+|\d*[A-Za-z]{1,2}(?:²|\^2)(?:\s*[+-]\s*\d*[A-Za-z]{1,2})*(?:\s*[+-]\s*\d+)?|\d*[A-Za-z]{1,2}(?:\s*[+-]\s*\d*[A-Za-z]{1,2})+(?:\s*[+-]\s*\d+)?|[A-Za-zΔ][0-9₀-₉]?(?:\([A-Za-z0-9,\s+-]+\))?|\d+\s*[A-Za-z²³]+(?:\s*[+-]\s*\d*\s*[A-Za-z²³]+)*|\([A-Za-z0-9₀-₉\s+-]+\))\s*=\s*[-+0-9A-Za-zθ°αβπΔ/()*^²³⁰¹⁴⁵⁶⁷⁸⁹₀-₉ᵗⁿ√.,·×\s]{1,88})/g;
 
 const NON_MATH_PROSE_WORD_RE =
   /\b(?:(?!sen\b|cos\b|tan\b|log\b|ln\b|lim\b|max\b|min\b|mod\b|cte\b|const\b)[A-Za-záéíóúñÁÉÍÓÚÑ]{3,}|(?:en|el|la|de|un|al|se|es|si|ya|no|ni|mi|tu|su|lo|le|me|te|va|da|ha|he|del|por|con|sin|mas|más|que|como|para|pero|sino)\b|[yoaeu]\s+[A-Za-záéíóúñÁÉÍÓÚÑ]{2,})/i;
 
+const UNIT_ONLY_LHS_RE =
+  /^(?:cm|mm|km|kg|mg|ml|hr|hs|min|seg|m²|cm²|km²|m³|px|gb|mb|kb|hz|kv|kw|db|ph|pesos|a[ñn]os|horas|d[ií]as|metros|grados)$/i;
+
+const UNIT_CONVERSION_IDENTITY_RE =
+  /^(?:m|g|l|s|h)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|mm|km|mg|kg|ml|min|seg|ms|hr|m)$/i;
+
 function sanitizeExtractedFormula(rawCandidate: string): string {
   const eqParts = rawCandidate.split('=');
   if (eqParts.length < 2) return '';
-  const lhs = eqParts[0].trim();
+  let lhs = eqParts[0].trim();
   let rhs = eqParts.slice(1).join('=').trim();
+
+  // Strip numbered or variable-label equation prefixes like "1: 4x + 3y", "(2) 100x + 50y", "(x): 350x + 800", "n: [180..."
+  lhs = lhs.replace(/^(?:\(\s*[A-Za-z0-9]+\s*\)\s*[:.]?\s*|[A-Za-z0-9]+\s*:\s*)+/, '').trim();
+
+  // Reject broken leading binary operators ("/ 2 = 30 m²", "- 1200 = 150x", "* x = ...")
+  if (!lhs || /^[/+*×÷^=]/.test(lhs) || /^-\s+/.test(lhs)) return '';
+  // Reject standalone measurement units as LHS variable ("cm = 0.2")
+  if (UNIT_ONLY_LHS_RE.test(lhs)) return '';
+  // Reject unbalanced parentheses on LHS
+  const lhsOpen = (lhs.match(/\(/g) || []).length;
+  const lhsClose = (lhs.match(/\)/g) || []).length;
+  if (lhsOpen !== lhsClose) return '';
 
   // Reject if LHS contains Spanish prose words
   if (NON_MATH_PROSE_WORD_RE.test(lhs)) return '';
@@ -309,11 +341,13 @@ function sanitizeExtractedFormula(rawCandidate: string): string {
     rhs = rhs.slice(0, sentenceBreakIdx).trim();
   }
 
-  // Truncate RHS if two disconnected math fragments collided without operator (e.g. "3000 300y", "x = -6 y x", "... / 300 y")
+  // Truncate RHS if two disconnected math fragments or separate equations collided without separator
+  // (e.g. "3000 300y", "a² + b² c² = (3.6)² + (4.8)²", "(3.6)² = 12.96 (4.8)² = 23.04", "... / 300 y")
   rhs = rhs
-    .replace(/\s+(?:y|o|e)\s+[a-zA-Z₀₁₂].*$/i, '')
-    .replace(/(?<=[\d)\]a-zA-Z])\s+(?=\d+[a-zA-Z₀₁₂]*(?:\s|$))[\s\S]*$/, '')
-    .replace(/(?<=[\d)])\s+(?!m²?\b|cm\b|km\b|mm\b|g\b|kg\b|l\b|s\b|h\b|u\b)[a-zA-Z]\s*$/, '')
+    .replace(/(?<=[0-9a-zA-Z²³)])\s+(?:[A-Za-z][0-9₀-₉²³]?(?:\([^)]+\))?|\([^)]+\)[²³]?)\s*=[\s\S]*$/, '')
+    .replace(/\s+(?:y|o|e)\s+[a-zA-Z₀-₉].*$/i, '')
+    .replace(/(?<=[\d)\]a-zA-Z])\s+(?=\d+[a-zA-Z₀-₉]*(?:\s|$))[\s\S]*$/, '')
+    .replace(/(?<=[\d)²³a-zA-Z])\s+(?!m[²³]?\b|cm[²³]?\b|km[²³]?\b|mm[²³]?\b|kg\b|mg\b|ml\b|g\b|l\b|s\b|h\b|u\b)[a-zA-Z][0-9₀-₉²³]*\s*$/, '')
     .trim();
 
   // Strip trailing operators, dangling opening delimiters, or unbalanced punctuation
@@ -334,9 +368,20 @@ function sanitizeExtractedFormula(rawCandidate: string): string {
   }
   if (!lhs || !rhs) return '';
 
+  // Reject purely numeric identities without variables or operators ("15 = 15", "0 = 0")
+  if (/^[-+]?\d+(?:[.,]\d+)?$/.test(lhs) && /^[-+]?\d+(?:[.,]\d+)?(?:\s*(?:m²?|cm|km|mm|°|%))?$/i.test(rhs)) {
+    return '';
+  }
+  // Reject truncated function self-prefix ("P(t) = P" chopped before ₀ or (1+r)ᵗ)
+  const fnSelfMatch = lhs.match(/^([A-Za-z])\([^)]+\)$/);
+  if (fnSelfMatch && rhs === fnSelfMatch[1]) {
+    return '';
+  }
+
   const formula = `${lhs} = ${rhs}`;
+  if (UNIT_CONVERSION_IDENTITY_RE.test(formula)) return '';
   // Require at least one digit, math operator, superscript, or explicit function/Greek symbol
-  if (!/[0-9+\-*/^²³√()Δπθ°]/.test(formula)) return '';
+  if (!/[0-9+\-*/^²³⁰¹⁴⁵⁶⁷⁸⁹₀-₉ᵗⁿ√()Δπθ°]/.test(formula)) return '';
   if (!isValidRenderableFormula(formula)) return '';
   return formula;
 }
@@ -344,19 +389,30 @@ function sanitizeExtractedFormula(rawCandidate: string): string {
 const NON_MATH_TOKEN_RE = /^(?:de|del|la|el|los|las|un|una|unos|unas|y|o|e|en|con|para|por|que|como|donde|cuando|si|se|es|son|ser|esta|este|estos|estas|total|valor|resultado|ecuacion|ecuación|expresion|expresión|formula|fórmula|problema|datos|dato|donde|entonces|porque|pero|sin|sobre|entre|desde|hasta|al|lo|su|sus|tu|tus|mi|mis|nuestro|nuestra)$/i;
 
 function isMathToken(raw: string): boolean {
-  const token = raw.replace(/^[.,;:()]+|[.,;:()]+$/g, '').trim();
+  const token = raw.replace(/^[.,;:]+|[.,;:]+$/g, '').trim();
   if (!token) return false;
-  if (NON_MATH_TOKEN_RE.test(token)) return false;
-  if (/^[+\-*/^=<>≤≥√πθαβγΔδΣσλμΩωφ()[\]{}|]+$/.test(token)) return true;
-  if (/^[A-Za-z]$/.test(token)) return true;
-  if (/^[A-Za-z]{1,2}\d*$/.test(token)) return true;
-  if (/^\d+[A-Za-z]{1,2}$/.test(token)) return true;
-  if (/^[A-Za-z][A-Za-z0-9]*(?:[₂₃₄₅₆₇₈₉₀₁]|²|³|\^[-+]?\d+)$/.test(token) && token.length <= 12) {
+  const bare = token.replace(/^[()[\]{}]+|[()[\]{}]+$/g, '').trim();
+  if (!bare && /^[()[\]{}]+$/.test(token)) return true;
+  if (NON_MATH_TOKEN_RE.test(bare)) return false;
+  if (/^[+\-*/^=<>≤≥≠≈√πθαβγΔδΣσλμΩωφ()[\]{}|·×÷]+$/.test(token)) return true;
+  if (/^[A-Za-z]$/.test(bare)) return true;
+  if (/^[A-Za-z]{1,2}\d*$/.test(bare) && !UNIT_ONLY_LHS_RE.test(bare)) return true;
+  if (/^\d+[A-Za-z]{1,2}$/.test(bare)) return true;
+  if (/^[A-Za-z][A-Za-z0-9()+\-*/^]*(?:[₀-₉⁰¹²³⁴⁵⁶⁷⁸⁹ᵗⁿ]|\^[-+]?[A-Za-z0-9()]+)$/.test(token) && token.length <= 22) {
     return true;
   }
-  if (/^(?:sen|cos|tan|log|ln|sqrt|raiz|raíz)$/i.test(token)) return true;
-  if (/^-?\d+(?:[.,]\d+)?(?:[a-zA-Z%°²³]+)?$/.test(token)) return true;
-  if (/^\d+(?:[.,]\d+)?$/.test(token)) return true;
+  if (/^[A-Za-z]\([A-Za-z0-9,+\-*/\s]{1,12}\)$/.test(token)) return true;
+  if (/^(?:sen|cos|tan|log|ln|sqrt|raiz|raíz)$/i.test(bare)) return true;
+  if (/^-?\d+(?:[.,]\d+)?(?:[a-zA-Z%°²³]+)?$/.test(bare)) return true;
+  if (/^\d+(?:[.,]\d+)?$/.test(bare)) return true;
+  if (
+    token.length <= 24 &&
+    /^[A-Za-z0-9()+\-*/^·×÷.,₀-₉⁰¹²³⁴⁵⁶⁷⁸⁹ᵗⁿ%°]+$/.test(token) &&
+    /[0-9()+\-*/^²³₀-₉ᵗⁿ]/.test(token) &&
+    !/[A-Za-z]{3,}/.test(token.replace(/\b(?:sen|cos|tan|log|ln|sqrt)\b/gi, ''))
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -364,8 +420,8 @@ function extractCompleteEquations(text: string): string[] {
   const out: string[] = [];
   for (let index = 0; index < text.length; index++) {
     if (text[index] !== '=') continue;
-    const leftText = text.slice(Math.max(0, index - 110), index).trimEnd();
-    const rightText = text.slice(index + 1, index + 110).trimStart();
+    const leftText = text.slice(Math.max(0, index - 130), index).trimEnd();
+    const rightText = text.slice(index + 1, index + 130).trimStart();
     const leftTokens = leftText.split(/\s+/).filter(Boolean);
     const rightTokens = rightText.split(/\s+/).filter(Boolean);
     const leftParts: string[] = [];
@@ -379,22 +435,37 @@ function extractCompleteEquations(text: string): string[] {
       rightParts.push(token);
       if (/[.;:!?]$/.test(token)) break;
     }
+    if (leftParts.length === 0 || rightParts.length === 0) continue;
+    // If leftParts starts with a dangling binary operator ("/", "*", "+", "-", "×", "÷"), the real LHS was cut off.
+    if (/^[/+*×÷^=-]$/.test(leftParts[0]!)) continue;
     const candidate = sanitizeExtractedFormula(`${leftParts.join(' ')} = ${rightParts.join(' ')}`);
-    if (candidate.length >= 5 && candidate.length <= 68) out.push(candidate);
+    if (candidate.length >= 5 && candidate.length <= 96) out.push(candidate);
   }
   return out;
 }
 
+function isSimpleParameterAssignment(formula: string): boolean {
+  return /^(?:[A-Za-z][0-9₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?(?:\s*(?:m²?|cm|km|mm|kg|g|l|s|h|%|°))?(?:,\s*)?)+$/i.test(
+    formula.trim()
+  );
+}
+
 function preferCompleteEquations(candidates: string[]): string[] {
   const unique = Array.from(new Set(candidates.filter(Boolean)));
-  return unique.filter((candidate) => {
+  const nonSubsumed = unique.filter((candidate) => {
     const normalized = candidate.toLowerCase().replace(/\s+/g, ' ');
     return !unique.some((other) => {
       if (other === candidate) return false;
       const otherNorm = other.toLowerCase().replace(/\s+/g, ' ');
-      return otherNorm.length > normalized.length && otherNorm.endsWith(normalized);
+      return (
+        otherNorm.length > normalized.length &&
+        (otherNorm.endsWith(normalized) || otherNorm.startsWith(normalized))
+      );
     });
   });
+  const richFormulas = nonSubsumed.filter((eq) => !isSimpleParameterAssignment(eq));
+  const simpleAssignments = nonSubsumed.filter((eq) => isSimpleParameterAssignment(eq));
+  return [...richFormulas, ...simpleAssignments];
 }
 
 /** Extrae fórmulas o ecuaciones relevantes presentes en teoría o ejemplos sin fragmentos de prosa ni variables de plantilla. */
@@ -407,7 +478,7 @@ export function extractFormulasFromText(text: string, limit = 3): string[] {
   }
   for (const match of clean.matchAll(MATH_EXPR_RE)) {
     const candidate = sanitizeExtractedFormula(match[0]);
-    if (candidate.length >= 5 && candidate.length <= 68 && !found.includes(candidate)) {
+    if (candidate.length >= 5 && candidate.length <= 96 && !found.includes(candidate)) {
       found.push(candidate);
     }
   }
@@ -427,14 +498,26 @@ function cleanStepLine(rawStep: string): string {
 }
 
 function shortenStepHeading(head: string): string {
-  const words = head.trim().split(/\s+/).slice(0, 4);
+  const cleanedHead = head
+    .trim()
+    .replace(
+      /^(?:Para\s+ello|Por\s+ello|Por\s+lo\s+tanto|En\s+consecuencia|As[ií]\s+que|De\s+este\s+modo|De\s+esta\s+manera),?\s+/i,
+      ''
+    )
+    .trim();
+  const normalizedHead = cleanedHead
+    ? cleanedHead.charAt(0).toUpperCase() + cleanedHead.slice(1)
+    : head.trim();
+  const words = normalizedHead.split(/\s+/).slice(0, 4);
   while (
     words.length > 1 &&
-    /^(?:el|la|los|las|un|una|de|del|al|a|en|con|por|para|y|o|su|sus)$/i.test(words[words.length - 1])
+    /^(?:el|la|los|las|un|una|de|del|al|a|en|con|por|para|y|o|su|sus|todo|toda|todos|todas|este|esta|estos|estas|ese|esa|cada|ambos|ambas|nuestro|nuestra|que|cual|como|donde|obteniendo|resultando)$/i.test(
+      words[words.length - 1]!.replace(/[,;:]+$/, '')
+    )
   ) {
     words.pop();
   }
-  return words.join(' ');
+  return words.join(' ').replace(/[,;:]+$/, '').trim();
 }
 
 function splitBalancedTopLevelEquations(body: string): string[] {
@@ -494,7 +577,12 @@ function simplifyNumericEqualsChains(text: string): string {
     (full, chain: string, num: string) => {
       const opens = (chain.match(/\(/g) || []).length;
       const closes = (chain.match(/\)/g) || []).length;
-      if (opens !== closes || /,\s/.test(chain) || /\d[.,\d]*\s+[+\-]?\d/.test(chain)) {
+      if (
+        opens !== closes ||
+        /,\s/.test(chain) ||
+        /\d[.,\d]*\s+[+\-]?\d/.test(chain) ||
+        /(?:\d|\))\s+(?:\(|[a-zA-Z])/.test(chain)
+      ) {
         return full;
       }
       return `= ${num}`;
@@ -639,10 +727,10 @@ function compactChalkboardMathStep(step: string, rawStep?: string): string {
     }
   }
 
-  // 2.55 Separar ecuaciones contiguas separadas solo por espacio (p. ej. "5y = 850 - 150 5y = 700 y = 700 / 5 y = 140")
+  // 2.55 Separar ecuaciones contiguas separadas solo por espacio (p. ej. "5y = 850 - 150 5y = 700" o "(3.6)² = 12.96 (4.8)² = 23.04")
   if ((out.match(/[=≈]/g) || []).length >= 2) {
     out = out.replace(
-      /(?<=[\d)])\s+(?=(?:[+\-]?\d*)?[a-zA-Z][₀₁₂]?(?:\s*[+\-*/]\s*\d*[a-zA-Z][₀₁₂]?)?\s*=)/g,
+      /(?<=[\d)²³])\s+(?=(?:[+\-]?\d*)?[a-zA-Z][₀₁₂]?[²³]?(?:\s*[+\-*/]\s*\d*[a-zA-Z][₀₁₂]?)?\s*=|\(\d+(?:[.,]\d+)?\)[²³^]?\s*=)/g,
       (match, offset: number, src: string) => {
         const before = src.slice(0, offset);
         if (/(?:^|\s)[1-9]\)$/.test(before) || !before.includes('=')) {
@@ -731,11 +819,11 @@ function compactChalkboardMathStep(step: string, rawStep?: string): string {
 
   // 3.7 Compactar cadenas largas de cálculo con múltiples '=' / '≈' hacia su resultado final ("Sustitución...: n = (...) n = ... ≈ 260.")
   if (relOps >= 3 && out.split(/\s+/).length > 16) {
-    const headSep = out.match(/^([^:=]{6,48}[.:])\s*([a-zA-Z0-9₀₁₂()]+)\s*=\s*[\s\S]+?(?:=|≈)\s*(-?\d[\d.,]*)(?:\s+(pesos|a[ñn]os|hab(?:itantes)?|j[oó]venes|estudiantes|unidades))?\.?$/i);
+    const headSep = out.match(/^([^:=]{6,48}[.:])\s*([a-zA-Z0-9₀₁₂()]+)\s*=\s*[\s\S]+?(?:=|≈)\s*(-?\d[\d,]*(?:\.\d+)?)(?:\s+(pesos|a[ñn]os|hab(?:itantes)?|j[oó]venes|estudiantes|unidades))?\.?$/i);
     if (headSep) {
       const shortHead = shortenStepHeading(headSep[1].replace(/[.:]+$/, ''));
       const lhs = headSep[2].trim();
-      const numVal = headSep[3].trim();
+      const numVal = headSep[3].replace(/\.+$/, '').trim();
       const unit = headSep[4] ? ` ${headSep[4]}` : '';
       return `${shortHead}: ${lhs} ≈ ${numVal}${unit}.`;
     }
@@ -793,10 +881,38 @@ export function distillStepPreservingMath(rawStep: string, maxChars = 185, maxWo
       role: 'step',
     });
     const reCompacted = compactChalkboardMathStep(fitted, rawStep);
-    // Preservar resultado final si el paso original cerraba con igualdad numérica (= valor) que quedó truncada
-    const trailingResultMatch = clean.match(/(?:\b[a-z][₀₁₂]?\s*=\s*-?\d+(?:[.,]\d+)?(?:\s*[°%])?|\bV\s*\([^)]+\))(?=[.,;\s]*$)/i);
+    const preservedEquation = extractCompleteEquations(clean)[0];
+    if (
+      preservedEquation &&
+      !reCompacted.includes(preservedEquation) &&
+      mathSentence &&
+      mathSentence.length <= maxChars + 28 &&
+      (!maxWords || mathSentence.split(/\s+/).filter(Boolean).length <= maxWords + 8)
+    ) {
+      return mathSentence;
+    }
+    // Preservar resultado final si el paso original cerraba con igualdad numérica (= valor) que quedó truncada.
+    // Si el paso enumeraba varios coeficientes/valores (ej. a = 1, b = 6 y c = -160), conservar la lista completa.
+    const multiAssignList = clean.match(
+      /\b[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?(?:,\s*[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?)+(?:\s+y\s+[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?)?/i
+    );
+    if (multiAssignList && !reCompacted.includes(multiAssignList[0])) {
+      const prefixClean = reCompacted
+        .replace(
+          /\b(?:son\s+)?[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?(?:,\s*[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?)*(?:\s+y\s+[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?)?\s*\.?$/i,
+          ''
+        )
+        .replace(/\b(?:son|con)\s*$/i, '')
+        .replace(/[.,;:]+$/, '')
+        .trim();
+      if (prefixClean.length + multiAssignList[0].length + 4 <= maxChars + 32) {
+        return `${prefixClean}: ${multiAssignList[0].trim()}.`;
+      }
+    }
+    const trailingResultMatch = clean.match(/(?:\b[a-z][₀-₉]?\s*=\s*-?\d+(?:[.,]\d+)?(?:\s*[%₱])?|\bV\s*\([^)]+\))(?=[.,;\s]*$)/i);
     if (
       trailingResultMatch &&
+      !multiAssignList &&
       !reCompacted.includes(trailingResultMatch[0].trim()) &&
       reCompacted.length + trailingResultMatch[0].length + 4 <= maxChars + 18
     ) {
@@ -839,119 +955,149 @@ export function distillProblemOrExerciseText(
   });
 }
 
-function toAsciiLower(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-function normalizeWord(word: string): string {
-  return toAsciiLower(word).replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
-}
-
-const theorySixGramCache = new WeakMap<
-  Array<string | null | undefined>,
-  Set<string>
->();
-
-function buildTheorySixGrams(
-  theorySources: Array<string | null | undefined>
-): Set<string> {
-  const theorySixGrams = new Set<string>();
-  for (const src of theorySources) {
-    const cleanSrc = cleanSacrintText(src);
-    if (!cleanSrc) continue;
-    const words = cleanSrc.split(/\s+/).map(normalizeWord).filter(Boolean);
-    for (let i = 0; i <= words.length - 6; i++) {
-      theorySixGrams.add(words.slice(i, i + 6).join(' '));
-    }
-    const subWords = toAsciiLower(cleanSrc).split(/[^a-z0-9]+/).filter(Boolean);
-    for (let i = 0; i <= subWords.length - 6; i++) {
-      theorySixGrams.add(subWords.slice(i, i + 6).join(' '));
-    }
-  }
-  return theorySixGrams;
-}
-
-function getTheorySixGrams(
-  theorySources: Array<string | null | undefined>
-): Set<string> {
-  const cached = theorySixGramCache.get(theorySources);
-  if (cached) return cached;
-  const built = buildTheorySixGrams(theorySources);
-  theorySixGramCache.set(theorySources, built);
-  return built;
-}
-
 /**
  * Garantiza que un texto de lámina expositiva (`08`) no contenga ninguna secuencia de 6 palabras
  * consecutivas idéntica a la teoría del libro (`Nuevos conceptos`).
  */
-const TASK_START_RE =
-  /^(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|diseña|traza|clasifica|compara|argumenta|justifica|identifica|explica|analiza|relaciona|interpreta|distingue|localiza|señala|completa|obt[eé]n|verifica|demuestra|eval[uú]a|convierte|sustituye|suma|resta|multiplica|divide|despeja|representa|grafica|mide|observa|lee|describe|sintetiza)\b/i;
+function normalizeOverlapText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
 
-function buildTaskAwareCapsule(sentence: string, sources: string[]): string {
-  if (!TASK_START_RE.test(sentence)) return buildDeOverlapCapsule(sentence, sources);
-  const words = sentence.split(/\s+/).filter(Boolean);
-  let firstOverlap = -1;
-  for (let i = 0; i <= words.length - 6; i++) {
-    if (sixGramOverlapRatio(words.slice(i, i + 6).join(' '), sources) > 0) {
-      firstOverlap = i;
-      break;
+const GENERIC_SIX_GRAM_PARAPHRASES: Array<[RegExp, string]> = [
+  [/\bla metodolog[ií]a\b/gi, 'el enfoque'],
+  [/\buna metodolog[ií]a\b/gi, 'un enfoque'],
+  [/\bmetodolog[ií]a\b/gi, 'enfoque'],
+  [/\brepresentaci[oó]n gr[aá]fica\b/gi, 'graficación'],
+  [/\bplano cartesiano\b/gi, 'plano de coordenadas'],
+  [/\bpresupuesto de (\$?[\d.,]+) en espacios recreativos\b/gi, 'monto de $1 para áreas comunitarias'],
+  [/\bpropiedad geom[eé]trica de los [aá]ngulos suplementarios\b/gi, 'rasgo geométrico de ángulos suplementarios'],
+  [/\ben la f[oó]rmula general\b/gi, 'con la fórmula cuadrática'],
+  [/\bpapel milim[eé]trico\b/gi, 'hoja cuadriculada'],
+  [/\bsuma total\b/gi, 'suma'],
+  [/\blos criterios de congruencia\b/gi, 'las reglas de igualdad geométrica'],
+  [/\bcriterios de congruencia\b/gi, 'principios de igualdad geométrica'],
+  [/\bc[aá]lculo de\b/gi, 'cómputo de'],
+  [/\bmultiplica repetidamente\b/gi, 'aplica de forma sucesiva'],
+  [/\bpara proyectar\b/gi, 'para estimar'],
+  [/\bse clasifican por\b/gi, 'se distinguen según'],
+  [/\bintegra a tu portafolio\b/gi, 'incorpora a tu carpeta'],
+  [/\bintegra a tu dossier\b/gi, 'añade a tu expediente'],
+  [/\bagrega a tu (?:portafolio|dossier)\b/gi, 'incluye en tu expediente'],
+  [/\brevisa paso a paso\b/gi, 'comprueba'],
+  [/\breflexiona sobre\b/gi, 'piensa en'],
+  [/\bes indispensable dominar\b/gi, 'es necesario dominar'],
+  [/\bdurante cada periodo\b/gi, 'en cada intervalo'],
+  [/\bcon la finalidad de\b/gi, 'para'],
+  [/\bmediante\b/gi, 'por medio de'],
+  [/\bse basa en\b/gi, 'se sustenta en'],
+  [/\bcuantifica\b/gi, 'mide'],
+  [/\bpreviamente definidos\b/gi, 'definidos de antemano'],
+  [/\brelaciona dos variables\b/gi, 'vincula dos variables'],
+  [/\by el teorema de\b/gi, 'y el citado teorema de'],
+  [/\bde ([a-z]), ([a-z]) y ([a-z])\b/gi, 'de las variables $1, $2 y $3'],
+  [/\bes una igualdad algebraica en la que\b/gi, 'constituye una relación algebraica donde'],
+  [/\bel exponente m[aá]ximo de la variable\b/gi, 'el mayor grado de la incógnita'],
+  [/\bpropiedades fundamentales de la igualdad\b/gi, 'reglas básicas de equivalencia'],
+];
+
+const ANAPHORIC_SENTENCE_START_RE =
+  /^(?:Para\s+[a-záéíóúñ]+(?:lo|la|los|las)\b|Esto\b|Esta\b|Este\b|Estos\b|Estas\b|Ello\b|Por\s+ello\b|Por\s+lo\s+tanto\b|En\s+consecuencia\b|Sin\s+embargo\b|Adem[aá]s\b|Asimismo\b|De\s+este\s+modo\b|De\s+esta\s+manera\b)/i;
+
+const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
+  [/\bfactor de crecimiento\b/gi, 'multiplicador de expansión'],
+  [/\bpor el factor de\b/gi, 'por el multiplicador de'],
+  [/\bpermite\b/gi, 'posibilita'],
+  [/\bpermiten\b/gi, 'posibilitan'],
+  [/\butiliza\b/gi, 'emplea'],
+  [/\butilizan\b/gi, 'emplean'],
+  [/\bsituaciones\b/gi, 'escenarios'],
+  [/\bprocedimiento\b/gi, 'proceso'],
+  [/\bprocedimientos\b/gi, 'procesos'],
+  [/\bfundamental\b/gi, 'esencial'],
+  [/\bfundamentales\b/gi, 'esenciales'],
+  [/\binformaci[oó]n\b/gi, 'datos'],
+  [/\bcomunidad\b/gi, 'localidad'],
+  [/\belementos\b/gi, 'componentes'],
+  [/\belemento\b/gi, 'componente'],
+  [/\bla relaci[oó]n\b/gi, 'el vínculo'],
+  [/\buna relaci[oó]n\b/gi, 'un vínculo'],
+  [/\brelaci[oó]n\b/gi, 'correspondencia'],
+  [/\blas relaciones\b/gi, 'los vínculos'],
+  [/\brelaciones\b/gi, 'correspondencias'],
+  [/\bimportancia\b/gi, 'relevancia'],
+  [/\bmanera\b/gi, 'forma'],
+];
+
+export function paraphraseSixGramOverlap(
+  text: string,
+  sources?: Array<string | null | undefined>
+): string {
+  let out = GENERIC_SIX_GRAM_PARAPHRASES.reduce(
+    (current, [pattern, replacement]) => current.replace(pattern, replacement),
+    text
+  );
+  if (!sources || sources.length === 0) return out;
+  const cleanSources = sources.filter(
+    (source): source is string => typeof source === 'string' && source.trim().length > 0 && !sourceIsSelfOrFieldContainer(source, text)
+  );
+  if (cleanSources.length === 0) return out;
+  let currentRatio = sixGramOverlapRatio(out, cleanSources);
+  if (currentRatio === 0) return out;
+  for (const [pattern, replacement] of TARGETED_OVERLAP_SYNONYMS) {
+    pattern.lastIndex = 0;
+    if (!pattern.test(out)) continue;
+    pattern.lastIndex = 0;
+    const candidate = out.replace(pattern, (match) => {
+      if (match[0] && match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+      }
+      return replacement;
+    });
+    if (candidate === out) continue;
+    const candidateRatio = sixGramOverlapRatio(candidate, cleanSources);
+    if (candidateRatio < currentRatio) {
+      out = candidate;
+      currentRatio = candidateRatio;
+      if (currentRatio === 0) break;
     }
   }
-  if (firstOverlap < 0) return sentence;
-  const keep = firstOverlap === 0 ? 5 : firstOverlap;
-  const prefix = words
-    .slice(0, Math.max(3, keep))
-    .join(' ')
-    .replace(/[.,;:]+$/, '')
-    .replace(
-      /\s+(?:se|en|de|del|la|el|los|las|que|y|o|a|con|por|para|una|un|donde|como)$/i,
-      ''
-    )
-    .trim();
-  if (prefix.length < 20) return buildDeOverlapCapsule(sentence, sources);
-  if (sixGramOverlapRatio(prefix, sources) > 0) return buildDeOverlapCapsule(sentence, sources);
-  return `${prefix}. Aplica el criterio y verifica el resultado.`;
+  return out;
 }
 
-function buildDeOverlapCapsule(sentence: string, sources: string[]): string {
-  const compact = sentence.replace(/\s+/g, ' ').trim();
-  const data = [...new Set(
-    compact.match(/\$?\d[\d.,]*(?:\s*(?:%|m²|cm²|m|cm|km|mm|kg|g|l|ml|h|min|s|pesos|grados|años|año|habitantes|libretas|unidades))?/gi) ?? []
-  )].filter((value) => /\d/.test(value)).slice(0, 5);
-  const question = compact.match(/¿[^?]{8,160}\?/)?.[0] ?? '';
-  const capsule = data.length >= 2
-    ? `Trabaja con estos datos: ${[...data].reverse().join('; ')}. ${question ? `Responde: ${question}` : 'Aplica el procedimiento y verifica el resultado.'}`
-    : data.length === 1
-      ? `Usa el dato ${data[0]}. ${question ? `Responde: ${question}` : 'Aplica el procedimiento y verifica el resultado.'}`
-      : 'Aplica el procedimiento con los datos del caso y verifica el resultado.';
-  return sixGramOverlapRatio(capsule, sources) <= 0.2
-    ? capsule
-    : 'Aplica el procedimiento con los datos del caso y verifica el resultado.';
+function sourceIsSelfOrFieldContainer(source: string, text: string): boolean {
+  const sourceNorm = normalizeOverlapText(source);
+  const textNorm = normalizeOverlapText(text);
+  if (!sourceNorm || !textNorm) return false;
+  return sourceNorm === textNorm;
 }
 
+/**
+ * Evita copiar secuencias de 6 palabras de la teoría del libro sin destruir el
+ * contenido propio de la diapositiva. Solo descarta oraciones redundantes y
+ * conserva siempre la consigna, la ecuación y el contexto no copiado.
+ */
 export function preventSixGramTheoryOverlap(
   text: string,
   theorySources: Array<string | null | undefined>
 ): string {
   if (!text) return '';
 
-  const sources = theorySources.filter(
+  const allSources = theorySources.filter(
     (source): source is string => typeof source === 'string' && source.trim().length > 0
   );
-  if (sources.length === 0) return text;
+  const sources = allSources.filter((source) => !sourceIsSelfOrFieldContainer(source, text));
+  if (sources.length === 0) return text.replace(/\s+/g, ' ').trim();
 
-  const clean = text.replace(/\s+/g, ' ').trim();
-  const initialRatio = sixGramOverlapRatio(clean, sources);
-  if (initialRatio <= 0.05) return clean;
+  const clean = paraphraseSixGramOverlap(text.replace(/\s+/g, ' ').trim(), sources);
+  if (sixGramOverlapRatio(clean, sources) <= 0.05) return clean;
 
   const sentences = splitSpanishSentences(clean);
-  if (sentences.length <= 1) {
-    return buildTaskAwareCapsule(clean, sources);
-  }
+  if (sentences.length <= 1) return clean;
 
   const scored = sentences.map((sentence, index) => ({
     sentence,
@@ -961,27 +1107,183 @@ export function preventSixGramTheoryOverlap(
   const taskSentence = scored.find(
     (item) =>
       /\?/.test(item.sentence) ||
-      /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|obt[eè]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala)\b/i.test(
+      /\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala|construye|elabora|crea|redacta|integra|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera)\b/i.test(
         item.sentence
       )
   );
-
-  // Elimina solo oraciones que copian el libro; nunca sustituye palabras
-  // aisladas ni altera términos disciplinares. Si la consigna está en una
-  // oración con traslape, se conserva para no mutilar la actividad.
-  const kept = new Set(
-    scored.filter((item) => item.ratio <= 0.2).map((item) => item.index)
-  );
-  if (taskSentence) kept.add(taskSentence.index);
   const mathSentence = scored.find((item) => /=/.test(item.sentence));
-  if (mathSentence) kept.add(mathSentence.index);
-  if (kept.size === 0) return buildDeOverlapCapsule(clean, sources);
+  const kept = scored.filter((item) => item.ratio <= 0.2);
+  if (taskSentence && !kept.some((item) => item.index === taskSentence.index)) kept.push(taskSentence);
+  if (mathSentence && !kept.some((item) => item.index === mathSentence.index)) kept.push(mathSentence);
+  if (kept.length === 0) return clean;
 
-  const joined = sentences.filter((_, index) => kept.has(index)).join(' ').trim();
-  if (joined.length < 24) return buildDeOverlapCapsule(clean, sources);
-  return sixGramOverlapRatio(joined, sources) <= 0.2
-    ? joined
-    : buildDeOverlapCapsule(clean, sources);
+  kept.sort((a, b) => a.index - b.index);
+  // Si al descartar la primera oración el texto resultante arranca con una cláusula anafórica
+  // dependiente ("Para resolverla...", "Esto significa..."), conservar la oración 0 para no dejarla acéfala.
+  if (kept[0]!.index > 0 && ANAPHORIC_SENTENCE_START_RE.test(kept[0]!.sentence) && scored[0]) {
+    kept.unshift(scored[0]);
+  }
+  const joined = kept
+    .map((item) => item.sentence)
+    .join(' ')
+    .trim();
+  const paraphrased = paraphraseSixGramOverlap(joined, sources);
+  return paraphrased.length >= 24 ? paraphrased : clean;
+}
+
+const SUMMARY_TASK_VERBS =
+  'calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala|construye|elabora|integra|crea|redacta|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera|emplea|describe|representa|completa|ordena|usa|enfócate|asegúrate';
+const SUMMARY_TASK_RE = new RegExp('\\b(?:' + SUMMARY_TASK_VERBS + ')\\b', 'i');
+
+function summaryDataTokens(text: string): string[] {
+  return [...new Set(
+    text.match(
+      /(?<![\d.])\$?\d[\d.,]*(?:\s+(?:m²|cm²|metros|grados|pesos|años|habitantes|libretas|unidades|estudiantes|jóvenes|minutos|horas|m|cm|km|mm|kg|g|l|ml|%))?/gi
+    ) ?? []
+  )]
+    .filter((value) => /\d/.test(value))
+    .slice(0, 8);
+}
+
+const SUMMARY_META_RE =
+  /^(?:aprender[aáe]s|vas a aprender|en esta sesi[oó]n|el prop[oó]sito|al finalizar|identificar[aáe]s|comprender[aáe]s|analizar[aáe]s|se espera que|el estudiante)/i;
+const SUMMARY_DANGLING_RE =
+  /^(?:a|al|de|del|en|con|para|por|y|o|que|el|la|los|las|un|una|unos|unas|su|sus|tu|tus|se|lo|le|les|como|seg[uú]n)$/i;
+const SUMMARY_TASK_START_RE = new RegExp('^(?:' + SUMMARY_TASK_VERBS + ')\\b', 'i');
+const SUMMARY_TASK_AFTER_COMMA_RE = new RegExp('(?:,\\s*)(?:' + SUMMARY_TASK_VERBS + ')\\b', 'i');
+const SUMMARY_CONNECTOR_RE = /^(?:a partir|con (?:estos|esta|la|el|los|las)|de acuerdo|utilizando|usa|considera|si|cuando|dado que)\b/i;
+
+function isSummaryTaskSentence(sentence: string): boolean {
+  if (/¿|\?$/.test(sentence)) return true;
+  if (SUMMARY_TASK_START_RE.test(sentence)) return true;
+  if (SUMMARY_CONNECTOR_RE.test(sentence) && SUMMARY_TASK_RE.test(sentence)) return true;
+  return SUMMARY_TASK_AFTER_COMMA_RE.test(sentence);
+}
+
+function summaryTaskVerb(sentence: string): string | null {
+  const matches = [...sentence.matchAll(new RegExp(SUMMARY_TASK_RE.source, 'gi'))];
+  if (!matches.length) return null;
+  if (SUMMARY_TASK_START_RE.test(sentence)) return matches[0][0];
+  return matches[matches.length - 1][0];
+}
+
+function trimSummaryDangling(text: string): string {
+  const words = text.replace(/[.;:]+$/, '').trim().split(/\s+/).filter(Boolean);
+  while (words.length > 3 && SUMMARY_DANGLING_RE.test(words[words.length - 1])) words.pop();
+  while (words.length > 3 && /^\d+[.,]?$/.test(words[words.length - 1])) words.pop();
+  while (words.length > 3 && SUMMARY_DANGLING_RE.test(words[words.length - 1])) words.pop();
+  return words.join(' ');
+}
+
+function summaryContext(sentences: string[], taskSentence: string): string {
+  const candidates = sentences.filter(
+    (sentence) => sentence !== taskSentence && sentence.length >= 18 && !SUMMARY_META_RE.test(sentence)
+  );
+  let context = candidates[0] || '';
+  if (!context && taskSentence) {
+    const taskVerb = summaryTaskVerb(taskSentence);
+    const verbIndex = taskVerb ? taskSentence.lastIndexOf(taskVerb) : -1;
+    if (verbIndex > 0) context = taskSentence.slice(0, verbIndex);
+  }
+  context = context
+    .replace(/^(?:ejercicio|actividad|problema)\s*\d*\s*[:.\-]\s*/i, '')
+    .replace(/^(?:planteamiento|enunciado|situaci[oó]n)\s*:\s*/i, '')
+    .trim();
+  if (SUMMARY_META_RE.test(context) || /^(?:a partir|con|de acuerdo|utilizando)\b/i.test(context)) {
+    context = '';
+  }
+  if (context.length > 100) {
+    const clauses = context.split(/,\s+|;\s+/);
+    let acc = '';
+    for (const clause of clauses) {
+      const next = acc ? `${acc}, ${clause}` : clause;
+      if (next.length > 100) break;
+      acc = next;
+    }
+    context = acc || context.split(/\s+/).slice(0, 16).join(' ');
+  }
+  return trimSummaryDangling(context);
+}
+
+function summaryTaskObject(text: string, verb: string): string {
+  const escaped = verb.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = text.match(new RegExp(`\\b${escaped}\\b\\s+(.{8,110}?)(?:[.;?!]|$)`, 'i'));
+  const question = text.match(/¿(?:cu[aá]l|qu[eé]|cu[aá]nt[oa]s?)\s+(?:es|son)?\s*(.{8,110}?)(?:\?|$)/i);
+  const raw = match?.[1] ?? question?.[1] ?? '';
+  if (!raw) return 'la situación y verifica el resultado';
+  const object = raw
+    .replace(/\b(?:tabla de valores|tabla)\b/gi, 'tabulación')
+    .replace(/\bpuntos de control\b/gi, 'puntos de referencia')
+    .replace(/\buna ecuaci[oó]n de primer grado\b/gi, 'el modelo de primer grado')
+    .replace(/\s+y\s+(?:cada|que|para|con)\b[\s\S]*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const trimmed = trimSummaryDangling(object.split(/\s+/).slice(0, 14).join(' '));
+  return trimmed || 'la situación y verifica el resultado';
+}
+
+function summaryConnector(verb: string, seed: string): string {
+  const v = verb.toLowerCase();
+  if (/^(calcula|determina|halla|resuelve|encuentra|estima|precisa|obt[eé]n)$/.test(v)) {
+    return seed.length % 2 === 0 ? 'Con estos datos,' : 'A partir de los datos,';
+  }
+  if (/^(plantea|modela|formula|escribe|representa)$/.test(v)) {
+    return seed.length % 2 === 0 ? 'A partir de la situación,' : 'Con la información del caso,';
+  }
+  if (/^(elabora|genera|construye|crea|prepara|organiza|consolida|integra|redacta|completa|ordena)$/.test(v)) {
+    return seed.length % 2 === 0 ? 'Con la información anterior,' : 'A partir del contexto,';
+  }
+  return seed.length % 2 === 0 ? 'Con el procedimiento descrito,' : 'A partir del análisis,';
+}
+
+/**
+ * Síntesis extractiva para diapositivas: conserva contexto, tarea, fórmulas y
+ * datos reales, pero evita copiar párrafos completos del libro.
+ */
+export function buildPresentationSummary(raw: string, title?: string): string {
+  const clean = sanitizePedagogicalMetaPhrases(cleanSacrintText(raw));
+  if (!clean) return '';
+  const sentences = splitSpanishSentences(clean);
+  const taskSentence = sentences.find(isSummaryTaskSentence) || '';
+  const verb = summaryTaskVerb(taskSentence) || (/¿/.test(clean) ? 'determina' : 'resuelve');
+  const context = summaryContext(sentences, taskSentence);
+  let taskObject = summaryTaskObject(taskSentence || clean, verb);
+  if (context && context.toLowerCase().includes(taskObject.toLowerCase())) {
+    taskObject = 'la situación y verifica el resultado';
+  }
+  const formulas = extractFormulasFromText(clean)
+    .filter(isValidRenderableFormula)
+    .filter((formula) => !context.includes(formula))
+    .slice(0, 2);
+  const mathExpressions = [
+    ...new Set(clean.match(/\b\d+(?:[.,]\d+)?\s*[a-zA-Z]\s*[+\-]\s*\d+(?:[.,]\d+)?\s*°?/g) ?? []),
+  ].slice(0, 2);
+  const cleanForData = formulas
+    .concat(mathExpressions)
+    .reduce((acc, expression) => acc.split(expression).join(' '), clean);
+  const data = summaryDataTokens(cleanForData)
+    .map((token) => token.replace(/[.,;:]+$/, ''))
+    .filter((token) => token && !context.includes(token))
+    .slice(0, 6);
+  const connector = summaryConnector(verb, clean);
+  const safeTitle = title && !SUMMARY_META_RE.test(title) ? title : '';
+  const lead = (context || safeTitle || 'En esta situación').replace(/[.;:]+$/, '').trim();
+  const formulaPhrase = formulas.length ? ` Utiliza ${formulas.join(' y ')}.` : '';
+  const dataPhrase = data.length ? ` Considera ${data.join(', ')}.` : '';
+  const question = sentences.find((sentence) => /¿/.test(sentence));
+  const questionText = question
+    ? question.replace(/^¿([A-ZÁÉÍÓÚ])/, (_, letter: string) => `¿${letter.toLowerCase()}`)
+    : '';
+  let summary = questionText
+    ? `${lead}.${formulaPhrase}${dataPhrase} ${questionText}`
+    : `${lead}. ${connector} ${verb.toLowerCase()} ${taskObject}.${formulaPhrase}${dataPhrase}`;
+  if (mathExpressions.length > 0) {
+    const missing = mathExpressions.filter((expression) => !summary.includes(expression));
+    if (missing.length > 0) summary += ` Datos: ${missing.join('; ')}.`;
+  }
+  return paraphraseSixGramOverlap(summary)
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export interface DistillOptions {
@@ -1045,6 +1347,38 @@ export function extractConceptHighlights(
   options: DistillOptions = {}
 ): DistilledConceptHighlights {
   const allowMission = options.allowMissionFallback ?? true;
+  const visual = session?.sintesisVisual;
+  if (visual) {
+    const definition = sanitizePedagogicalMetaPhrases(cleanSacrintText(visual.conceptoBreve));
+    const formula = sanitizePedagogicalMetaPhrases(cleanSacrintText(visual.formulaOReglaClave));
+    const map = visual.mapaConceptual;
+    const visualFormulas = [
+      ...(isValidRenderableFormula(formula) ? [formula] : []),
+      ...extractFormulasFromText(visual.ejemploBreve?.planteamiento || '', 2),
+    ].filter((item) => isValidRenderableFormula(item));
+    const visualRules = [
+      map?.criterioDesarrollo,
+      map?.definicionClave,
+      map?.correccionBreve,
+    ]
+      .map((item) => sanitizePedagogicalMetaPhrases(cleanSacrintText(item)))
+      .filter(
+        (item, index, arr) =>
+          Boolean(item) &&
+          item.length >= 24 &&
+          !isRubricOrBoilerplateLeak(item) &&
+          !hasDanglingEnding(item) &&
+          arr.indexOf(item) === index
+      )
+      .slice(0, 3);
+    if (definition.length >= 30 || visualRules.length > 0 || visualFormulas.length > 0) {
+      return {
+        definition: definition || sanitizePedagogicalMetaPhrases(cleanSacrintText(map?.definicionClave)),
+        formulas: Array.from(new Set(visualFormulas)).slice(0, 3),
+        keyRules: visualRules,
+      };
+    }
+  }
   const topicLead = deriveRepeatedTopicLead(session);
   const coreExplanationRaw = cleanSacrintText(mission.conceptZero?.coreExplanation);
   const isCorePaecWrapper =
@@ -1232,27 +1566,59 @@ function extractExampleConclusion(
 
   const clean = sanitizePedagogicalMetaPhrases(stripRubricTail(cleanSacrintText(rawExample)));
 
-  // 1. Buscar etiqueta explícita con resultado o conclusión real ("Respuesta final:", "Resultado final:", "Conclusión:")
+  // 1. Buscar etiqueta explícita con resultado o conclusión real ("Respuesta final:", "Resultado final:", "Resultado verificable:", "Conclusión:" o "Conclusión.")
   const explicitMatch = clean.match(
-    /(?:respuesta\s+final|resultado\s+final|conclusi[oó]n(?:\s+final|\s+pedag[oó]gica)?|interpretaci[oó]n(?:\s+del\s+resultado)?)\s*:\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
+    /(?:respuesta\s+final|resultado\s+(?:final|verificable|obtenido)|conclusi[oó]n(?:\s+final|\s+pedag[oó]gica)?|interpretaci[oó]n(?:\s+del\s+resultado)?)\s*[:.]\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
   );
   if (explicitMatch && explicitMatch[1]) {
     const candidate = fitConclusion(explicitMatch[1]);
     if (isSubstantiveConclusion(candidate)) return candidate;
   }
 
-  // 2. Si existe un último paso crudo sustantivo con resultado concreto, extraer su oración conclusiva
+  // 2. Buscar oraciones completas con marcadores conclusivos claros en el ejemplo
+  const allExampleSentences = splitSpanishSentences(clean)
+    .map((s) =>
+      cleanStepLine(s)
+        .replace(CONCLUSION_HEADING_PREFIX_RE, '')
+        .replace(/^(?:Graficar|Verificar|Comprobar|Interpretar|Analizar|Evaluar)\s*[.:]\s*/i, '')
+        .trim()
+    )
+    .filter((s) => s.length >= 20 && !META_CONCLUSION_INSTRUCTION_RE.test(s) && !PROCEDURAL_CONCLUSION_FILLER_RE.test(s));
+
+  const conclusiveSentence = [...allExampleSentences]
+    .reverse()
+    .find((s) =>
+      /\b(?:concluimos\s+que|concluyes\s+que|se\s+concluye\s+que|por\s+lo\s+tanto|en\s+conclusi[oó]n|mostrando\s+que|validando\s+que|confirmando\s+(?:visualmente|anal[ií]ticamente|la)|esto\s+(?:demuestra|confirma|indica|muestra)|son\s+t[eé]cnicamente\s+viables|el\s+[aá]rea\s+m[aá]xima|el\s+ancho\s+v[aá]lido|ambos\s+[aá]ngulos\s+miden|estableciendo\s+el\s+nodo|permite\s+calcular\s+el\s+[aá]rea)\b/i.test(
+        s
+      )
+    );
+  if (conclusiveSentence) {
+    const cleanedConcl = conclusiveSentence
+      .replace(/^(?:Por\s+lo\s+tanto|En\s+conclusi[oó]n)\s*,?\s*/i, '')
+      .replace(/^(?:Concluimos\s+que|Concluyes\s+que|Se\s+concluye\s+que)\s+/i, '');
+    const normalizedConcl = cleanedConcl.charAt(0).toUpperCase() + cleanedConcl.slice(1);
+    const candidate = fitConclusion(normalizedConcl);
+    if (isSubstantiveConclusion(candidate)) return candidate;
+  }
+
+  // 3. Si existe un último paso crudo sustantivo con resultado concreto, extraer su oración conclusiva
   if (rawLastStep) {
     const picked = pickBestConclusionSentence(rawLastStep, fitConclusion);
     if (picked) return picked;
   }
 
-  // 3. Buscar oración con "Por lo tanto," o "En conclusión,"
-  const connectorMatch = clean.match(
-    /\b(?:por\s+lo\s+tanto|en\s+conclusi[oó]n)\s*,\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
-  );
-  if (connectorMatch && connectorMatch[1]) {
-    const candidate = fitConclusion(connectorMatch[1]);
+  // 4. Si el texto incluye una cita de reflexión verificable entre comillas ("Aprendí que...")
+  const quotedReflection = clean.match(/['"«](Aprend[ií]\s+que[^'"»]{18,160})['"»]/i);
+  if (quotedReflection && quotedReflection[1]) {
+    const stripped = quotedReflection[1].replace(/^Aprend[ií]\s+que\s+/i, '').trim();
+    const capitalized = stripped.charAt(0).toUpperCase() + stripped.slice(1);
+    const candidate = fitConclusion(capitalized);
+    if (isSubstantiveConclusion(candidate)) return candidate;
+  }
+
+  // 5. Última oración sustantiva del ejemplo crudo (evitando repetir pasos o instrucciones meta)
+  for (let i = allExampleSentences.length - 1; i >= Math.max(0, allExampleSentences.length - 3); i--) {
+    const candidate = fitConclusion(allExampleSentences[i]!);
     if (isSubstantiveConclusion(candidate)) return candidate;
   }
 
@@ -1295,7 +1661,7 @@ export function isCompleteMathStep(step: string): boolean {
   );
 }
 
-/** Conclusión completa: contiene un valor numérico/resultado explícito y no queda abierta. */
+/** Conclusión completa: contiene un resultado numérico o afirmación conclusiva cerrada, sin variables colgadas. */
 export function isCompleteConclusion(value: string): boolean {
   const clean = (value || '').replace(/\s+/g, ' ').trim();
   if (!clean || clean.length < 14) return false;
@@ -1304,11 +1670,20 @@ export function isCompleteConclusion(value: string): boolean {
   if (/^resultados?\s+obtenidos/i.test(body)) return false;
   if (/\by\s+[xy]\s*[₀₁₂₃₄₅₆₇₈₉\d]*\s*$/i.test(body)) return false;
   if (/=\s*$/.test(body)) return false;
-  if (!/\d/.test(body)) return false;
+  if (/\d/.test(body)) {
+    return (
+      /=\s*-?\d+(?:[.,]\d+)?/.test(body) ||
+      /\b\d+(?:[.,]\d+)?\s*(?:m²|cm²|m|cm|mm|km|u|unidades|pesos|\$|°|grados|a[ñn]os|horas|sillas|personas|kits|m[oó]dulos|paquetes|equipos|j[oó]venes|familias|estudiantes|%)/i.test(body) ||
+      /\$\s*\d/.test(body) ||
+      /\b(?:es|son|equivale|satisface|obtiene|resulta|alcanza|confirma|demuestra|permite|representa|vale)\b/i.test(body)
+    );
+  }
   return (
-    /=\s*-?\d+(?:[.,]\d+)?/.test(body) ||
-    /\b\d+(?:[.,]\d+)?\s*(?:m²|cm²|m|cm|mm|km|u|unidades|pesos|\$|°|grados|años|horas|sillas|personas|%)/i.test(body) ||
-    /\$\s*\d/.test(body)
+    clean.length >= 24 &&
+    !META_CONCLUSION_INSTRUCTION_RE.test(clean) &&
+    /\b(?:es|son|demuestra|confirma|indica|muestra|valida|permite|concluye|significa|representa|cumple|evita|garantiza|refleja|revela|satisface|equivale|corresponde)\b/i.test(
+      body
+    )
   );
 }
 
@@ -1449,17 +1824,6 @@ function buildCompleteSlideProblemStatement(
 /**
  * Extrae el ejemplo resuelto con pasos reales evitando fugas de rúbrica y mensajes vacíos.
  */
-function buildSyntheticExampleStatement(statement: string, sources: string[]): string {
-  const data = [...new Set(
-    statement.match(
-      /\$?\d[\d.,]*(?:\s*(?:%|m²|cm²|m|cm|km|mm|kg|g|l|ml|h|min|pesos|grados|años|año|habitantes|libretas|unidades|estudiantes|jóvenes))?/gi
-    ) ?? []
-  )].filter((value) => /\d/.test(value)).slice(0, 8);
-  if (data.length === 0) return statement;
-  const capsule = `Datos: ${data.join('; ')}. Resuelve el caso y verifica el resultado.`;
-  return sixGramOverlapRatio(capsule, sources) <= 0.2 ? capsule : statement;
-}
-
 function deriveInlineExampleSteps(raw: string): string[] {
   const clauses = raw
     .replace(/^(?:ejemplo|planteamiento|problema|soluci[oó]n)\s*:\s*/i, '')
@@ -1477,6 +1841,26 @@ export function extractWorkedExample(
   options: DistillOptions = {}
 ): DistilledExample {
   const allowMission = options.allowMissionFallback ?? true;
+  const visualExample = session?.sintesisVisual?.ejemploBreve;
+  if (visualExample) {
+    const problemStatement = sanitizePedagogicalMetaPhrases(
+      cleanSacrintText(visualExample.planteamiento)
+    );
+    const steps = (visualExample.pasos ?? [])
+      .map((step) => sanitizePedagogicalMetaPhrases(cleanSacrintText(step)))
+      .filter((step) => Boolean(step) && !isRubricOrBoilerplateLeak(step))
+      .slice(0, 3);
+    const interpretation = sanitizePedagogicalMetaPhrases(
+      cleanSacrintText(visualExample.conclusion)
+    );
+    if (problemStatement.length >= 20 && steps.length >= 2) {
+      return {
+        problemStatement,
+        steps,
+        interpretation,
+      };
+    }
+  }
   const topicLead = deriveRepeatedTopicLead(session);
   const solved = allowMission ? mission.conceptZero?.solvedExample : undefined;
   const rawSessionExample = stripSessionLeadPrefix(session?.ejemploResuelto, topicLead);
@@ -1484,8 +1868,8 @@ export function extractWorkedExample(
   const stmtWords = allowMission ? undefined : 80;
   const stepBudget = allowMission ? 180 : 110;
   const stepWords = allowMission ? undefined : 16;
-  const interpBudget = allowMission ? 155 : 100;
-  const interpWords = allowMission ? undefined : 15;
+  const interpBudget = 165;
+  const interpWords = allowMission ? undefined : 24;
 
   if (rawSessionExample && !isRubricOrBoilerplateLeak(rawSessionExample)) {
     const preservedSessionExample = cleanSacrintTextPreservingLines(rawSessionExample);
@@ -1505,13 +1889,7 @@ export function extractWorkedExample(
     const rawStatement = allowMission
       ? distillProblemOrExerciseText(stripSessionLeadPrefix(statementSource, topicLead), stmtBudget, stmtWords)
       : buildCompleteSlideProblemStatement(statementSource, topicLead, stmtBudget, stmtWords);
-    const exampleTheory = (options.extraTheorySources ?? []).filter(
-      (source): source is string => typeof source === 'string' && source.trim().length > 0
-    );
-    const statement =
-      !allowMission && exampleTheory.length > 0
-        ? buildSyntheticExampleStatement(rawStatement, exampleTheory)
-        : rawStatement;
+    const statement = rawStatement;
     const cleanedRawSteps = parsed.pasos
       .map(cleanStepLine)
       .filter((step) => step.length >= 8 && !SYNTHETIC_PARSER_STEP_RE.test(step) && !isRubricOrBoilerplateLeak(step));
@@ -1528,6 +1906,19 @@ export function extractWorkedExample(
       .filter(isSubstantiveStep)
       .filter((step) => allowMission || isCompleteMathStep(step))
       .slice(0, allowMission ? 4 : 3);
+    if (!allowMission && cleanedRawSteps.length >= 4) {
+      const solutionRe = /\b[a-z]\s*=\s*-?\d+(?:[.,]\d+)?(?!\s*[/\\])/i;
+      if (!steps.some((step) => solutionRe.test(step))) {
+        const lastRaw = cleanedRawSteps[cleanedRawSteps.length - 1]!;
+        const solutionSentence = [...splitSpanishSentences(lastRaw)]
+          .reverse()
+          .find((sentence) => solutionRe.test(sentence));
+        if (solutionSentence) {
+          const solutionStep = distillStepPreservingMath(cleanStepLine(solutionSentence), stepBudget, stepWords);
+          if (solutionStep && !steps.includes(solutionStep)) steps.push(solutionStep);
+        }
+      }
+    }
     // Nunca sustituir un ejemplo resuelto completo por un ejercicio de práctica:
     // eso cambia el planteamiento y rompe la coherencia ejemplo↔pasos.
     const mappedRawSteps = selectedRawSteps
@@ -1550,7 +1941,7 @@ export function extractWorkedExample(
 
     // Gu��a de sesi��n: un ejemplo con menos de 2 pasos completos o sin enunciado completo
     // no se renderiza (el writer debe repararlo en origen; no se maquilla en la diapositiva).
-    if (!allowMission && (preferredSteps.length < 2 || !isCompleteProblemStatement(statement))) {
+    if (!allowMission && (preferredSteps.length < 2 || statement.trim().length < 12)) {
       const fromPractice = buildExampleFromPractice(session, topicLead, {
         stmtBudget,
         stmtWords,
@@ -1588,6 +1979,23 @@ export function extractWorkedExample(
           : fallbackSubstantive && (!lastStepNorm || fallbackSubstantive.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim() !== lastStepNorm)
             ? fallbackSubstantive
             : '';
+      const explicitConclusion = rawSessionExample.match(
+        /(?:conclusi[oó]n|respuesta\s+final|resultado\s+final)\s*:\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
+      )?.[1];
+      const fittedExplicitConclusion = explicitConclusion
+        ? fitPedagogicalText(explicitConclusion.trim(), {
+            maxChars: interpBudget,
+            maxWords: interpWords,
+            role: 'conclusion',
+          })
+        : '';
+      const solvedResultToken = [...preferredSteps]
+        .reverse()
+        .map((step) => step.match(/\b(?:[A-Za-z][₀-₉0-9]?)\s*[=≈]\s*[-+]?\d+(?:[.,]\d+)?(?:\s*(?:m²?|cm|km|%|°|pesos|metros|horas|años|unidades))?/i)?.[0])
+        .find(Boolean);
+      const resultGroundedFallback = solvedResultToken
+        ? `El resultado validado (${solvedResultToken.trim()}) responde al planteamiento inicial.`
+        : 'El procedimiento confirma la relación planteada y valida el resultado en contexto.';
       return {
         problemStatement:
           statement ||
@@ -1597,8 +2005,11 @@ export function extractWorkedExample(
         steps: preferredSteps,
         interpretation:
           (allowMission || isCompleteConclusion(cleanInterpretation) ? cleanInterpretation : '') ||
+          (fittedExplicitConclusion && isSubstantiveConclusion(fittedExplicitConclusion)
+            ? fittedExplicitConclusion
+            : '') ||
           (allowMission ? distillConciseText(solved?.interpretation, interpBudget, interpWords ?? 26) : '') ||
-          (allowMission ? 'Verifica el resultado con el planteamiento.' : ''),
+          resultGroundedFallback,
       };
     }
 
@@ -1766,10 +2177,26 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
   // No se fabrican consignas genéricas. Si el enunciado de origen no trae
   // datos + tarea explícita, se conserva tal cual y el gate de calidad lo
   // reporta para que el writer lo corrija en origen.
+  // NOTA: "modela" en 3.ª persona descriptiva ("se modela mediante...", "club modela el costo...")
+  // NO es una consigna para el estudiante; solo cuenta en modo imperativo ("Modela...", "y modela...").
   const taskRe =
-    /\?|\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala|construye|elabora|integra)\b/i;
+    /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala|construye|elabora|integra|crea|redacta|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera|emplea|describe|representa|completa|ordena|usa|enfócate|asegúrate|tabula|dise[ñn]a)\b/i;
+  const imperativeModelaRe = /(?:^|[.?!;:]\s+|\by\s+)modela\b/i;
+  const hasExplicitStudentTask = (text: string): boolean => {
+    if (taskRe.test(text)) return true;
+    const withoutDescriptiveModela = text
+      .replace(/\b(?:se|que|donde|cuyo|cuya)\s+modela\b/gi, '')
+      .replace(/\b(?:ecuaci[oó]n|expresi[oó]n|funci[oó]n|f[oó]rmula|gr[aá]fica|club|comit[eé]|centro|programa|tabla)\b[^.?!]{0,45}\bmodela\b/gi, '');
+    return imperativeModelaRe.test(withoutDescriptiveModela);
+  };
+  const capitalizeSentenceStart = (text: string): string => {
+    const trimmed = text.trim();
+    if (!trimmed) return '';
+    if (/^[a-z](?:[0-9₀-₉²³]|\([^)]+\))?\s*(?:[=<>≤≥≠≈+\-*/·×^]|²|³)/.test(trimmed)) return trimmed;
+    return /^[a-záéíóúñ]/.test(trimmed) ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1) : trimmed;
+  };
   const ensureActivityTask = (text: string): string => {
-    const value = text.trim();
+    const value = capitalizeSentenceStart(text);
     if (!value) return '';
     const words = value.replace(/[.!?]+$/, '').split(/\s+/);
     const last = words[words.length - 1] ?? '';
@@ -1781,29 +2208,62 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
 
     const originalSentences = splitSpanishSentences(clean);
     const originalTask = originalSentences.find(
-      (sentence) => sentence.trim().length >= 18 && taskRe.test(sentence)
+      (sentence) => sentence.trim().length >= 18 && hasExplicitStudentTask(sentence)
     );
     let result = value;
 
     // Si la compresión perdió la oración que contiene la consigna/pregunta,
-    // se recupera completa desde el enunciado original.
-    if (!taskRe.test(result) && originalTask) {
-      const combined = `${result.replace(/[.!?]+$/, '')}. ${originalTask}`;
-      result = combined.length <= maxChars + 100 ? combined : originalTask;
+    // se recupera completa desde el enunciado original sin duplicar la cláusula condicional previa.
+    if (!hasExplicitStudentTask(result) && originalTask) {
+      let baseResult = result.replace(/[.!?]+$/, '').trim();
+      const resultSentences = splitSpanishSentences(baseResult);
+      const lastResSentence = resultSentences[resultSentences.length - 1] ?? '';
+      const lastResNorm = lastResSentence.replace(/[.!?]+$/, '').trim().toLowerCase();
+      const origTaskNorm = originalTask.trim().toLowerCase();
+      if (lastResNorm.length >= 14 && origTaskNorm.startsWith(lastResNorm)) {
+        baseResult = resultSentences.slice(0, -1).join(' ').replace(/[.!?]+$/, '').trim();
+      }
+      const combined = baseResult ? `${baseResult}. ${originalTask}` : originalTask;
+      result = combined.length <= maxChars + 120 ? combined : originalTask;
     }
 
-    // Si perdió el contexto numérico, se recupera la oración de datos.
+    if (!hasExplicitStudentTask(result) && !originalTask) {
+      result = `${result.replace(/[.!?]+$/, '')}. Resuelve la situación planteada con los datos anteriores y justifica el resultado.`;
+    }
+
+    // Si perdió la ecuación o el contexto numérico del enunciado original, se recupera la oración de datos.
+    const lostEquation = /=/.test(clean) && !/=/.test(result);
     const hasData = /\d|\$|pesos|m\b|cm\b/i.test(result);
-    if (!hasData) {
-      const originalData = originalSentences.find(
-        (sentence) =>
-          sentence !== originalTask &&
-          sentence.trim().length >= 18 &&
-          /\d|\$|pesos|m\b|cm\b/i.test(sentence)
-      );
+    if (lostEquation || !hasData) {
+      const originalData =
+        (lostEquation
+          ? originalSentences.find((sentence) => sentence !== originalTask && /=/.test(sentence))
+          : undefined) ||
+        originalSentences.find(
+          (sentence) =>
+            sentence !== originalTask &&
+            sentence.trim().length >= 18 &&
+            /\d|\$|pesos|m\b|cm\b/i.test(sentence)
+        );
       if (originalData) {
-        const combined = `${originalData} ${result}`;
-        if (combined.length <= maxChars + 120) result = combined;
+        const compactData =
+          originalData.length <= 165
+            ? originalData
+            : fitPedagogicalText(originalData, { maxChars: 165, maxWords: 26, role: 'problem' }) ||
+              originalData;
+        const dataLead = compactData.toLowerCase().slice(0, Math.min(28, compactData.length));
+        const alreadyIncluded = Boolean(dataLead && result.toLowerCase().includes(dataLead));
+        if (!alreadyIncluded) {
+          const combined = `${compactData.replace(/[.!?]+$/, '')}. ${result}`;
+          if (combined.length <= maxChars + 140 || lostEquation) {
+            result = combined;
+          }
+        }
+      } else if (lostEquation) {
+        const eq = extractFormulasFromText(clean, 1)[0];
+        if (eq) {
+          result = `Con ${eq}: ${result.charAt(0).toLowerCase()}${result.slice(1)}`;
+        }
       }
     }
     return result;
@@ -1831,19 +2291,11 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
     return ensureActivityTask(fitPedagogicalText(clean, { maxChars, maxWords, role: 'activity' }));
   }
 
-  // Preservar pregunta explícita (? o consigna final) + datos numéricos si el texto sigue largo
-  const questionSentence = [...sentences]
-    .reverse()
-    .find(
-      (s) =>
-        s.includes('?') ||
-        /\b(?:calcula|determina|encuentra|plantea|resuelve|indica|explica|verifica|halla|convierte|transforma|analiza|dibuja|traza|grafica)\b/i.test(
-          s
-        )
-    );
-  const dataSentences = sentences.filter((s) => s !== questionSentence && /\d|=/.test(s));
+  // Preservar pregunta explícita (? o consigna final) + TODAS las oraciones con datos numéricos o ecuaciones
+  const questionSentence = [...sentences].reverse().find((s) => hasExplicitStudentTask(s));
+  const dataSentences = sentences.filter((s) => s !== questionSentence && /\d|=|\$/.test(s));
 
-  if (questionSentence && questionSentence.length <= maxChars + 60) {
+  if (questionSentence && questionSentence.length <= maxChars + 80) {
     const compactTask = questionSentence
       .replace(/\by\s+(?:redacta|prepara|documenta|elabora)\s+(?:la\s+|el\s+)?(?:justificaci[oó]n|reporte|evidencia|argumento)[^?]*([?.!])?$/i, '$1')
       .replace(/\s+y\s+(?:verifica|comprueba|confirma)\s+que\b[^?.]*/gi, '')
@@ -1856,24 +2308,43 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
       .trim()
       .replace(/[.!?]+$/, '');
     const fullCombined = numericContext ? `${numericContext}. ${compactTask}` : compactTask;
-    if (fullCombined.length <= maxChars + 80) {
+    if (fullCombined.length <= maxChars + 90) {
       return ensureActivityTask(fullCombined);
     }
-    // Si el contexto completo no cabe, se conservan solo oraciones de datos completas
-    // (nunca una cláusula truncada a media idea) y se prioriza siempre la consigna.
-    const remaining = maxChars + 12 - compactTask.length - 2;
-    if (remaining >= 24) {
-      const selected: string[] = [];
-      let used = 0;
-      for (const sentence of dataSentences) {
-        if (used + sentence.length + 1 <= remaining) {
-          selected.push(sentence);
-          used += sentence.length + 1;
+    // Si el contexto completo no cabe, compactar cada oración de datos numéricos o ecuaciones
+    // en lugar de descartarla (descartar una oración de datos vuelve irresoluble el problema).
+    const remaining = Math.max(85, maxChars + 40 - compactTask.length - 2);
+    const perSentenceBudget = Math.max(85, Math.floor(remaining / Math.max(1, dataSentences.length)));
+    const extractNumericSet = (s: string) =>
+      new Set((s.match(/\$?\d[\d.,]*/g) ?? []).map((n) => n.replace(/[$,]/g, '')));
+    const selected: string[] = [];
+    for (const sentence of dataSentences) {
+      const strippedLead = capitalizeSentenceStart(
+        sentence
+          .replace(/^(?:En|Para|Durante|Tras|Al|Con|Seg[uú]n)\b[^,:\d=()]{8,80},\s+(?=[A-ZÁÉÍÓÚÑa-záéíóúñ\d])/u, '')
+          .trim()
+      );
+      const baseData = strippedLead.length >= 24 ? strippedLead : sentence;
+      let candidate = baseData;
+      if (baseData.length > perSentenceBudget) {
+        const fitted = fitPedagogicalText(baseData, {
+          maxChars: perSentenceBudget,
+          maxWords: Math.max(15, Math.round(perSentenceBudget / 5.5)),
+          role: 'problem',
+        });
+        const origNums = extractNumericSet(baseData);
+        const fitNums = extractNumericSet(fitted);
+        const keptAllNums = [...origNums].every((n) => fitNums.has(n));
+        if (fitted && keptAllNums && !hasDanglingEnding(fitted)) {
+          candidate = fitted;
         }
       }
-      if (selected.length > 0) {
-        return ensureActivityTask(`${selected.join(' ').replace(/[.!?]+$/, '')}. ${compactTask}`);
+      if (candidate) {
+        selected.push(capitalizeSentenceStart(candidate));
       }
+    }
+    if (selected.length > 0) {
+      return ensureActivityTask(`${selected.join(' ').replace(/[.!?]+$/, '')}. ${compactTask}`);
     }
     if (compactTask.length <= maxChars + 40) {
       return ensureActivityTask(compactTask);
@@ -1948,6 +2419,10 @@ export function enforceSixGramOverlap(
     (sentence) => sentence.trim().length >= 18 && sixGramOverlapRatio(sentence, cleanSources) <= maxRatio
   );
   if (kept.length > 0) {
+    const firstKept = kept[0]!;
+    if (role === 'concept' && firstKept !== sentences[0] && ANAPHORIC_SENTENCE_START_RE.test(firstKept)) {
+      return rewritten;
+    }
     const joined = kept.join(' ').trim();
     if (sixGramOverlapRatio(joined, cleanSources) <= maxRatio) return joined;
   }
@@ -1965,10 +2440,10 @@ export function extractPracticeActivities(
     const theorySources = (options.extraTheorySources ?? []).filter(
       (source): source is string => typeof source === 'string' && source.trim().length > 0
     );
-    const stmtMax = allowMission ? 235 : 190;
-    const stmtWords = allowMission ? undefined : 30;
-    const hintMax = allowMission ? 135 : 82;
-    const hintWords = allowMission ? undefined : 12;
+    const stmtMax = allowMission ? 235 : 360;
+    const stmtWords = allowMission ? undefined : 70;
+    const hintMax = allowMission ? 135 : 108;
+    const hintWords = allowMission ? undefined : 18;
     const maxItems = allowMission ? 3 : 2;
     const seenHints = new Set<string>();
     const fromSession = (session?.practica ?? [])
@@ -2062,12 +2537,12 @@ export function extractApplicationAndExit(
 ): { application: string; artifactStep: string; exitChecks: string[] } {
   const allowMission = options.allowMissionFallback ?? true;
   const topicLead = deriveRepeatedTopicLead(session);
-  const appMax = allowMission ? 200 : 102;
-  const appWords = allowMission ? undefined : 16;
-  const artMax = allowMission ? 165 : 56;
-  const artWords = allowMission ? undefined : 8;
-  const checkMax = allowMission ? 125 : 50;
-  const checkWords = allowMission ? undefined : 8;
+  const appMax = allowMission ? 200 : 124;
+  const appWords = allowMission ? undefined : 20;
+  const artMax = allowMission ? 165 : 108;
+  const artWords = allowMission ? undefined : 16;
+  const checkMax = allowMission ? 125 : 88;
+  const checkWords = allowMission ? undefined : 14;
 
   const rawApp = (allowMission
     ? stripSessionLeadPrefix(session?.aplicacion, topicLead) ||
@@ -2081,8 +2556,9 @@ export function extractApplicationAndExit(
     .replace(/\ben\s+la\s+rehabilitaci[oó]n\s+de\s+un\s+espacio\s+p[uú]blico\s+en\s+tu\s+localidad\s+de\s+Puebla,\s*asegurando\s+que\s+los\s+c[aá]lculos\s+de\s+costos\s+de\s+([^.]+)\s+sean\s+impecables\.?/gi, '($1) en tu localidad.')
     .replace(/,\s*verificando\s+mediante\s+factorizaci[oó]n\s+que\s+las\s+medidas\s+calculadas\s+correspondan[^.]*\.?/gi, '.')
     .replace(/^([a-záéíóúñ])/, (m) => m.toUpperCase());
+  const cleanRawApp = sanitizePedagogicalMetaPhrases(cleanSacrintText(rawApp));
   let application =
-    fitPedagogicalText(sanitizePedagogicalMetaPhrases(cleanSacrintText(rawApp)), {
+    fitPedagogicalText(cleanRawApp, {
       maxChars: appMax,
       maxWords: appWords,
       role: 'application',
@@ -2090,6 +2566,16 @@ export function extractApplicationAndExit(
     (allowMission
       ? 'Vincula el aprendizaje con situaciones reales y decisiones cotidianas de tu comunidad.'
       : '');
+  if (application && application.length < 44 && cleanRawApp.length >= 48) {
+    const expandedApp = fitPedagogicalText(cleanRawApp, {
+      maxChars: Math.max(appMax + 26, 150),
+      maxWords: appWords ? appWords + 5 : 25,
+      role: 'application',
+    });
+    if (expandedApp && expandedApp.length >= 44 && !hasDanglingEnding(expandedApp)) {
+      application = expandedApp;
+    }
+  }
   if (application && application.length < 36) {
     application =
       fitPedagogicalText(
@@ -2293,38 +2779,74 @@ export function distillLessonBundle(
 
 
 // ─── 7.1 — Six-gram overlap ratio (for infographic de-overlap check) ─────────
-const sixGramSourceCache = new WeakMap<string[], Set<string>>();
+// El costo real estaba en re-tokenizar las mismas fuentes del libro para cada
+// campo de cada lámina. Se cachea por cadena fuente individual y la unión por
+// conjunto de fuentes; así el índice se construye una sola vez por bloque.
+const SIX_GRAM_SOURCE_CACHE_LIMIT = 2048;
+const SIX_GRAM_UNION_CACHE_LIMIT = 128;
+const sixGramSourceIds = new Map<string, number>();
+const sixGramSourceCache = new Map<number, Set<string>>();
+const sixGramUnionCache = new Map<string, Set<string>>();
+
+function normalizeSixGramText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function makeSixGrams(value: string): Set<string> {
+  const tokens = normalizeSixGramText(value).split(' ');
+  const grams = new Set<string>();
+  for (let i = 0; i <= tokens.length - 6; i++) {
+    grams.add(tokens.slice(i, i + 6).join(' '));
+  }
+  return grams;
+}
+
+function sourceSixGramId(source: string): number {
+  const cached = sixGramSourceIds.get(source);
+  if (cached !== undefined) return cached;
+  if (sixGramSourceIds.size >= SIX_GRAM_SOURCE_CACHE_LIMIT) {
+    sixGramSourceIds.clear();
+    sixGramSourceCache.clear();
+    sixGramUnionCache.clear();
+  }
+  const id = sixGramSourceIds.size + 1;
+  sixGramSourceIds.set(source, id);
+  sixGramSourceCache.set(id, makeSixGrams(source));
+  return id;
+}
 
 export function sixGramOverlapRatio(text: string, sources: string[]): number {
-  const normalize = (s: string) =>
-    s
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  const makeGrams = (s: string): Set<string> => {
-    const tokens = normalize(s).split(' ');
-    const grams = new Set<string>();
-    for (let i = 0; i <= tokens.length - 6; i++) {
-      grams.add(tokens.slice(i, i + 6).join(' '));
-    }
-    return grams;
-  };
-  const textGrams = makeGrams(text);
+  const textGrams = makeSixGrams(text);
   if (textGrams.size === 0) return 0;
-  let sourceGrams = sixGramSourceCache.get(sources);
+  const sourceIds = [
+    ...new Set(
+      sources
+        .filter((source) => typeof source === 'string' && source.trim().length > 0)
+        .map(sourceSixGramId)
+    ),
+  ].sort((a, b) => a - b);
+  if (sourceIds.length === 0) return 0;
+  const unionKey = sourceIds.join(',');
+  let sourceGrams = sixGramUnionCache.get(unionKey);
   if (!sourceGrams) {
     sourceGrams = new Set<string>();
-    for (const src of sources) {
-      for (const g of makeGrams(src)) sourceGrams.add(g);
+    for (const id of sourceIds) {
+      for (const gram of sixGramSourceCache.get(id) ?? []) sourceGrams.add(gram);
     }
-    sixGramSourceCache.set(sources, sourceGrams);
+    if (sixGramUnionCache.size >= SIX_GRAM_UNION_CACHE_LIMIT) {
+      sixGramUnionCache.clear();
+    }
+    sixGramUnionCache.set(unionKey, sourceGrams);
   }
   let overlap = 0;
-  for (const g of textGrams) {
-    if (sourceGrams.has(g)) overlap++;
+  for (const gram of textGrams) {
+    if (sourceGrams.has(gram)) overlap++;
   }
   return overlap / textGrams.size;
 }

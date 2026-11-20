@@ -59,10 +59,12 @@ describe('P0 regresiones semánticas', () => {
     expect(formulas).not.toContain('x = 180');
   });
 
-  it('no degrada raíz cuadrada a raiz(...) en WinAnsi', () => {
+  it('conserva el glifo √ en lugar de degradarlo a sqrt o V', () => {
     const out = toWinAnsiMathSafe('√25');
     expect(out).not.toMatch(/raiz/i);
-    expect(out).toContain('V');
+    expect(out).not.toContain('sqrt');
+    expect(out).not.toMatch(/\bV\b/);
+    expect(out).toContain('√');
   });
 
   it('separa Paso N pegado después de una operación', () => {
