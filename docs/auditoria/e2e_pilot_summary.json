@@ -1,0 +1,303 @@
+[
+  {
+    "uac": "Lenguaje y Comunicación I",
+    "subsystem": "bge",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sessionsExpected": 18,
+    "adapterId": "lengua_comunicacion_literatura",
+    "status": "FAILED_WRITER",
+    "jobAttempts": 2,
+    "attemptHistory": [
+      {
+        "attempt": 1,
+        "durationMs": 161244,
+        "outcome": "TRANSIENT_RETRY",
+        "transient": true,
+        "keptWriters": [
+          "foundation"
+        ],
+        "evictedWriters": [],
+        "errors": [
+          {
+            "name": "AiServiceUnavailableError",
+            "message": "El presupuesto de tiempo de ejecución de la solicitud se agotó antes del siguiente intento."
+          },
+          {
+            "name": "AiServiceUnavailableError",
+            "message": "El presupuesto de tiempo de ejecución de la solicitud se agotó antes del siguiente intento."
+          },
+          {
+            "name": "AiServiceUnavailableError",
+            "message": "Gemini 3.5 Flash Lite está en circuito abierto por 503 recientes y no queda presupuesto para el fallback."
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "durationMs": 98641,
+        "outcome": "DEFICIENCY_RECOVERY",
+        "transient": false,
+        "keptWriters": [
+          "foundation",
+          "lab",
+          "project"
+        ],
+        "evictedWriters": [
+          "evaluation"
+        ],
+        "errors": [
+          {
+            "name": "SessionDensityDeficiencyError",
+            "message": "[SessionDensity] evaluation de \"Lenguaje y Comunicación I\" quedó por debajo del umbral de densidad tras reparar. Sesiones afectadas: 16, 17, 18. Reparadas con mejora parcial: 15, 16, 17, 18. Detalle: S16: solo 1 ejercicios completos con enunciado y pista propia (mínimo 2) | S17: solo 1 ejercicios completos con enunciado y pista propia (mínimo 2) | S18: solo 1 ejercicios completos con enunciado y pista propia (mínimo 2). No se persiste; reintente la misión.",
+            "missionType": "evaluation",
+            "sessions": [
+              16,
+              17,
+              18
+            ],
+            "deficits": [
+              {
+                "session": 16,
+                "deficits": [
+                  "solo 1 ejercicios completos con enunciado y pista propia (mínimo 2)"
+                ]
+              },
+              {
+                "session": 17,
+                "deficits": [
+                  "solo 1 ejercicios completos con enunciado y pista propia (mínimo 2)"
+                ]
+              },
+              {
+                "session": 18,
+                "deficits": [
+                  "solo 1 ejercicios completos con enunciado y pista propia (mínimo 2)"
+                ]
+              }
+            ],
+            "repairedSessions": [
+              15,
+              16,
+              17,
+              18
+            ]
+          }
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "name": "SessionDensityDeficiencyError",
+        "message": "[SessionDensity] evaluation de \"Lenguaje y Comunicación I\" quedó por debajo del umbral de densidad tras reparar. Sesiones afectadas: 16, 17, 18. Reparadas con mejora parcial: 15, 16, 17, 18. Detalle: S16: solo 1 ejercicios completos con enunciado y pista propia (mínimo 2) | S17: solo 1 ejercicios completos con enunciado y pista propia (mínimo 2) | S18: solo 1 ejercicios completos con enunciado y pista propia (mínimo 2). No se persiste; reintente la misión.",
+        "missionType": "evaluation",
+        "sessions": [
+          16,
+          17,
+          18
+        ],
+        "deficits": [
+          {
+            "session": 16,
+            "deficits": [
+              "solo 1 ejercicios completos con enunciado y pista propia (mínimo 2)"
+            ]
+          },
+          {
+            "session": 17,
+            "deficits": [
+              "solo 1 ejercicios completos con enunciado y pista propia (mínimo 2)"
+            ]
+          },
+          {
+            "session": 18,
+            "deficits": [
+              "solo 1 ejercicios completos con enunciado y pista propia (mínimo 2)"
+            ]
+          }
+        ],
+        "repairedSessions": [
+          15,
+          16,
+          17,
+          18
+        ]
+      }
+    ],
+    "setupMs": 5,
+    "writerMs": 172260,
+    "repairMs": 90628,
+    "assemblyMs": 0,
+    "renderMs": 0,
+    "qaMs": 0,
+    "totalMs": 262893,
+    "firstAttemptTotalMs": 161249,
+    "latencyMs": 262893,
+    "repairedAttemptSessions": [
+      2,
+      5,
+      6,
+      7,
+      8,
+      9,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "repairBatchesAttempted": 13,
+    "phase1ApiHealth": {
+      "httpCalls": 27,
+      "http2xx": 15,
+      "http429": 0,
+      "http503": 11,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 1,
+      "avgHttpLatencyMs": 10990,
+      "rate429_503": 0.4074
+    },
+    "phase2RepairHealth": {
+      "httpCalls": 14,
+      "http2xx": 9,
+      "http429": 0,
+      "http503": 3,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 2,
+      "avgHttpLatencyMs": 7808,
+      "rate429_503": 0.2143
+    },
+    "network": {
+      "httpCalls": 41,
+      "http2xx": 24,
+      "http429": 0,
+      "http503": 14,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 3,
+      "avgHttpLatencyMs": 9904,
+      "byModel": {
+        "gemini-3.5-flash-lite": {
+          "total": 17,
+          "ok": 3,
+          "http429": 0,
+          "http503": 14,
+          "otherErr": 0
+        },
+        "gemini-3.1-flash-lite": {
+          "total": 24,
+          "ok": 21,
+          "http429": 0,
+          "http503": 0,
+          "otherErr": 3
+        }
+      },
+      "rate429_503": 0.3415
+    }
+  },
+  {
+    "uac": "Mecánica Dental",
+    "subsystem": "bt",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "status": "EXCEPTION",
+    "errorName": "TypeError",
+    "errorMessage": "Cannot read properties of undefined (reading 'map')",
+    "setupMs": 1,
+    "writerMs": 183996,
+    "repairMs": 75073,
+    "assemblyMs": 0,
+    "renderMs": 0,
+    "qaMs": 0,
+    "totalMs": 259182,
+    "latencyMs": 259182,
+    "repairedAttemptSessions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      15
+    ],
+    "network": {
+      "httpCalls": 37,
+      "http2xx": 21,
+      "http429": 0,
+      "http503": 14,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 2,
+      "byModel": {
+        "gemini-3.5-flash-lite": {
+          "total": 20,
+          "ok": 5,
+          "http429": 0,
+          "http503": 14,
+          "otherErr": 1
+        },
+        "gemini-3.1-flash-lite": {
+          "total": 17,
+          "ok": 16,
+          "http429": 0,
+          "http503": 0,
+          "otherErr": 1
+        }
+      },
+      "rate429_503": 0.3784
+    }
+  },
+  {
+    "uac": "Pensamiento Matemático I",
+    "subsystem": "bge",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "status": "EXCEPTION",
+    "errorName": "TypeError",
+    "errorMessage": "Cannot read properties of undefined (reading 'map')",
+    "setupMs": 1,
+    "writerMs": 97919,
+    "repairMs": 34504,
+    "assemblyMs": 0,
+    "renderMs": 0,
+    "qaMs": 0,
+    "totalMs": 132466,
+    "latencyMs": 132466,
+    "repairedAttemptSessions": [
+      3,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "network": {
+      "httpCalls": 26,
+      "http2xx": 17,
+      "http429": 0,
+      "http503": 9,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 0,
+      "byModel": {
+        "gemini-3.5-flash-lite": {
+          "total": 12,
+          "ok": 4,
+          "http429": 0,
+          "http503": 8,
+          "otherErr": 0
+        },
+        "gemini-3.1-flash-lite": {
+          "total": 14,
+          "ok": 13,
+          "http429": 0,
+          "http503": 1,
+          "otherErr": 0
+        }
+      },
+      "rate429_503": 0.3462
+    }
+  }
+]

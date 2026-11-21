@@ -284,7 +284,7 @@ export function ensureCuratedResourceList(
 export function hasExplicitPracticeTask(text: string): boolean {
   return (
     /[?¿]/.test(text) ||
-    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica)\b/i.test(
+    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|contrasta|clasifica|distingue|selecciona|ordena|organiza|extrae|resume|formula|prop[oó]n|integra|revisa|corrige|escribe|reescribe|sustenta|fundamenta|localiza|reconoce|transforma|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica)\b/i.test(
       text
     )
   );
@@ -350,7 +350,27 @@ export function sanitizeSessionPlans(
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
     const visual = value as Record<string, unknown>;
     const conceptoBreve = toStudentVoice(asText(visual.conceptoBreve, 20));
-    const formulaOReglaClave = asText(visual.formulaOReglaClave, 3);
+    const rawFormulaORegla = asText(visual.formulaOReglaClave, 3);
+    const formulaOReglaClave = rawFormulaORegla.replace(
+      /^(cm|mm|km|m|kg|g|ml|l|s|h)(\s*=)/i,
+      (_match, sym: string, eq: string) => {
+        const label =
+          sym === 'M'
+            ? 'Monto'
+            : sym === 'm'
+              ? 'Pendiente'
+              : sym.toLowerCase() === 'h'
+                ? 'Altura'
+                : sym.toLowerCase() === 'g'
+                  ? 'Valor_g'
+                  : sym.toLowerCase() === 'l'
+                    ? 'Longitud'
+                    : sym.toLowerCase() === 's'
+                      ? 'Valor_s'
+                      : `Valor_${sym}`;
+        return `${label}${eq}`;
+      }
+    );
     const exampleRaw =
       visual.ejemploBreve && typeof visual.ejemploBreve === 'object'
         ? (visual.ejemploBreve as Record<string, unknown>)
@@ -502,7 +522,7 @@ export function sanitizeSessionPlans(
           rec.demostracion,
         20
       )
-    );
+    ).replace(/(\d)\.[ \t]*(\n+[ \t]*Paso\s+\d+\s*:)/gi, '$1;$2');
     const motivacion = toStudentVoice(asText(rec.motivacion ?? rec.contexto ?? rec.enganche, 20));
     const saberesPrevios = toStudentVoice(asText(rec.saberesPrevios ?? rec.conocimientosPrevios ?? rec.diagnostico, 10));
     const aplicacion = toStudentVoice(asText(rec.aplicacion ?? rec.transferencia ?? rec.vinculacion, 15));

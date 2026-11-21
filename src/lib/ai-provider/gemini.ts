@@ -3,16 +3,18 @@ import { API_CONFIG } from '@/lib/config';
 
 /**
  * Normalizes Gemini model names to enforce strictly authorized models:
- * - gemini-3.5-flash-lite (default)
- * - gemini-3.1-flash-lite
- * Any legacy or prohibited models (e.g. gemini-2.5-flash, gemini-1.5-flash)
- * are mapped safely to gemini-3.5-flash-lite.
+ * - gemini-3.1-flash-lite (default / primary)
+ * - gemini-3.5-flash-lite (fallback / premium)
+ * - gemini-2.5-flash (last-resort fallback)
+ * Any unknown or prohibited model is mapped safely to gemini-3.1-flash-lite.
  */
 export function sanitizeGeminiModel(model?: string | null): string {
-  if (!model) return 'gemini-3.5-flash-lite';
+  if (!model) return 'gemini-3.1-flash-lite';
   const clean = model.trim().toLowerCase();
   if (clean === 'gemini-3.1-flash-lite') return 'gemini-3.1-flash-lite';
-  return 'gemini-3.5-flash-lite';
+  if (clean === 'gemini-3.5-flash-lite') return 'gemini-3.5-flash-lite';
+  if (clean === 'gemini-2.5-flash') return 'gemini-2.5-flash';
+  return 'gemini-3.1-flash-lite';
 }
 
 export interface GeminiGenerateOptions {
@@ -33,12 +35,52 @@ export interface GeminiMultimodalOptions {
   jsonMode?: boolean;
 }
 
+export function parseGeminiRetryAfterMs(retryAfterHeader: string | null, errText: string): number | undefined {
+  if (retryAfterHeader) {
+    const trimmed = retryAfterHeader.trim();
+    const numericSec = Number(trimmed);
+    if (Number.isFinite(numericSec) && numericSec > 0) {
+      return Math.round(numericSec * 1000);
+    }
+    const dateMs = Date.parse(trimmed);
+    if (Number.isFinite(dateMs)) {
+      const delta = dateMs - Date.now();
+      if (delta > 0) return delta;
+    }
+  }
+  const delayMatch =
+    errText.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/i) ||
+    errText.match(/retry\s+in\s+(\d+(?:\.\d+)?)s/i);
+  if (delayMatch) {
+    const sec = Number(delayMatch[1]);
+    if (Number.isFinite(sec) && sec > 0) return Math.round(sec * 1000);
+  }
+  return undefined;
+}
+
+function buildGeminiHttpError(res: Response, errText: string): Error & {
+  status?: number;
+  statusCode?: number;
+  retryAfterMs?: number;
+} {
+  const err: Error & { status?: number; statusCode?: number; retryAfterMs?: number } = new Error(
+    `HTTP ${res.status}: ${errText}`
+  );
+  err.status = res.status;
+  err.statusCode = res.status;
+  const retryAfterMs = parseGeminiRetryAfterMs(res.headers.get('retry-after'), errText);
+  if (retryAfterMs !== undefined) {
+    err.retryAfterMs = retryAfterMs;
+  }
+  return err;
+}
+
 export class GeminiProvider implements AIProvider {
   providerId = 'gemini';
   modelId: string;
   private apiKey: string;
 
-  constructor(apiKey: string, modelId = 'gemini-3.5-flash-lite') {
+  constructor(apiKey: string, modelId = 'gemini-3.1-flash-lite') {
     this.apiKey = apiKey;
     this.modelId = sanitizeGeminiModel(modelId);
   }
@@ -96,12 +138,7 @@ export class GeminiProvider implements AIProvider {
 
     if (!res.ok) {
       const errText = await res.text();
-      const err: Error & { status?: number; statusCode?: number } = new Error(
-        `HTTP ${res.status}: ${errText}`
-      );
-      err.status = res.status;
-      err.statusCode = res.status;
-      throw err;
+      throw buildGeminiHttpError(res, errText);
     }
 
     const data = await res.json();
@@ -184,12 +221,7 @@ export class GeminiProvider implements AIProvider {
 
     if (!res.ok) {
       const errText = await res.text();
-      const err: Error & { status?: number; statusCode?: number } = new Error(
-        `HTTP ${res.status}: ${errText}`
-      );
-      err.status = res.status;
-      err.statusCode = res.status;
-      throw err;
+      throw buildGeminiHttpError(res, errText);
     }
 
     const data = await res.json();

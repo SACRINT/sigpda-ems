@@ -31,6 +31,8 @@ export interface SchedulerOptions {
   maxConcurrency: number;
   /** Jitter máximo (ms) previo al lanzamiento de cada tarea. Default 300. */
   jitterMs?: number;
+  /** Pacing mínimo (ms) entre inicios consecutivos de tareas. Default 0. */
+  minSpacingMs?: number;
   signal?: AbortSignal;
   breaker?: {
     /** Fallos transitorios consecutivos que abren el breaker. Default 3. */
@@ -44,14 +46,18 @@ export interface SchedulerOptions {
   now?: () => number;
 }
 
-/** Errores transitorios de capacidad/cuota del proveedor (comparten breaker). */
+/** Errores transitorios de capacidad/cuota/presupuesto del proveedor (comparten breaker/backoff). */
 export function isTransientCapacityError(err: unknown): boolean {
   const errName = err instanceof Error ? err.name : '';
   const msg = err instanceof Error ? err.message : String(err ?? '');
-  if (errName === 'AiCooldownExhaustedError' || errName === 'AiServiceUnavailableError') {
+  if (
+    errName === 'AiCooldownExhaustedError' ||
+    errName === 'AiServiceUnavailableError' ||
+    errName === 'RepairBudgetExhaustedError'
+  ) {
     return true;
   }
-  return /503|UNAVAILABLE|high demand|alta demanda|service unavailable|overloaded|429|RESOURCE_EXHAUSTED|rate.?limit|cooldown|enfriamiento|fast-fail|AiServiceUnavailable|AiCooldownExhausted/i.test(
+  return /503|UNAVAILABLE|high demand|alta demanda|service unavailable|overloaded|429|RESOURCE_EXHAUSTED|rate.?limit|cooldown|enfriamiento|fast-fail|AiServiceUnavailable|AiCooldownExhausted|RepairBudgetExhausted|presupuesto cr[ií]tico para reparar/i.test(
     msg
   );
 }
@@ -67,6 +73,7 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 export function createWriterScheduler(options: SchedulerOptions): WriterScheduler {
   const maxConcurrency = Math.max(1, Math.floor(options.maxConcurrency));
   const jitterMs = Math.max(0, options.jitterMs ?? 300);
+  const minSpacingMs = Math.max(0, options.minSpacingMs ?? 0);
   const threshold = Math.max(1, options.breaker?.threshold ?? 3);
   const baseCooldown = Math.max(0, options.breaker?.baseCooldownMs ?? 4000);
   const maxCooldown = Math.max(baseCooldown, options.breaker?.maxCooldownMs ?? 30000);
@@ -87,6 +94,7 @@ export function createWriterScheduler(options: SchedulerOptions): WriterSchedule
   let inFlight = 0;
   let consecutiveTransient = 0;
   let breakerOpenUntil = 0;
+  let nextSpacingAt = 0;
   let currentCooldown = baseCooldown;
   let pumping = false;
 
@@ -103,13 +111,16 @@ export function createWriterScheduler(options: SchedulerOptions): WriterSchedule
           while (queue.length > 0) queue.shift()!.reject(reason);
           return;
         }
-        const wait = breakerOpenUntil - now();
+        const wait = Math.max(breakerOpenUntil, nextSpacingAt) - now();
         if (wait > 0) {
           await sleep(wait);
           continue;
         }
         const item = queue.shift()!;
         inFlight++;
+        if (minSpacingMs > 0) {
+          nextSpacingAt = now() + minSpacingMs;
+        }
         stats.maxObservedConcurrency = Math.max(stats.maxObservedConcurrency, inFlight);
         // Jitter ANTES de arrancar, sin bloquear el reparto del resto de slots libres
         const delay = jitterMs > 0 ? Math.floor(random() * jitterMs) : 0;

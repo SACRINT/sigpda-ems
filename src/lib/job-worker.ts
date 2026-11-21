@@ -26,7 +26,13 @@ import {
   type GenerationJob,
 } from '@/lib/db';
 import { generateBlockWorkTextbook } from './guide-engine/block-guide-orchestrator';
+import { SessionPlanExpansionError } from './guide-engine/session-plan-expansion';
+import { SessionFinalizationDeficitError } from './guide-engine/session-plan-finalizer';
 import { isTransientCapacityError } from './guide-engine/writer-scheduler';
+import {
+  RepairBudgetExhaustedError,
+  SessionDensityDeficiencyError,
+} from './guide-engine/writers/session-shard';
 import type { WriterOutput } from './guide-engine/writers/writer-contract';
 import type { SessionPlan } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
@@ -71,10 +77,11 @@ function hasAnyPartialSessionPlans(partials?: PartialSessionPlansMap): boolean {
   return Object.values(partials).some((plans) => Array.isArray(plans) && plans.length > 0);
 }
 
-function isTransientJobError(error: unknown): boolean {
+export function isTransientJobError(error: unknown): boolean {
+  if (error instanceof RepairBudgetExhaustedError) return true;
   if (isTransientCapacityError(error)) return true;
   const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  return /timeout|econnreset|fetch failed|network|socket|presupuesto.*cr[ií]tico|job_max_duration_seconds/i.test(
+  return /timeout|econnreset|fetch failed|network|socket|presupuesto.*cr[ií]tico|job_max_duration_seconds|repairbudgetexhausted/i.test(
     msg
   );
 }
@@ -120,31 +127,77 @@ export function isVolumeOnlyBlockIntegrity(errorMsg: string): boolean {
   return aiWords < maxWords;
 }
 
+const MISSION_WRITER_TYPES: readonly MissionWriterType[] = [
+  'foundation',
+  'lab',
+  'project',
+  'evaluation',
+];
+
+function extractListedMissionTypes(errorMsgLower: string): MissionWriterType[] {
+  const listMatch = errorMsgLower.match(
+    /misiones\s+(?:debajo\s+del\s+m[ií]nimo|deficientes)\s*:\s*([^.\n]+)/i
+  );
+  if (!listMatch) return [];
+  const raw = listMatch[1];
+  const found = new Set<MissionWriterType>();
+  for (const m of MISSION_WRITER_TYPES) {
+    if (new RegExp(`\\b${m}\\b`, 'i').test(raw)) {
+      found.add(m);
+    }
+  }
+  return Array.from(found);
+}
+
+function resolveOwnersBySessionNumbers(
+  sessionNumbers: number[],
+  writers: WriterOutput[]
+): MissionWriterType[] {
+  if (sessionNumbers.length === 0) return [];
+  const counts = new Map<MissionWriterType, number>();
+  for (const writer of writers) {
+    const covered = writer.section?.coveredSessions ?? [];
+    const matches = sessionNumbers.filter((s) => covered.includes(s)).length;
+    if (matches > 0) {
+      counts.set(writer.type, (counts.get(writer.type) ?? 0) + matches);
+    }
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([type]) => type);
+}
+
+function pickLowestWordCountWriter(writers: WriterOutput[]): MissionWriterType[] {
+  const sorted = [...writers].sort((a, b) => (a.wordCount || 0) - (b.wordCount || 0));
+  return sorted[0]?.type ? [sorted[0].type] : [];
+}
+
 /**
  * Resuelve el redactor propietario a partir de las sesiones realmente cubiertas
- * por cada writer. Sin rangos hardcodeados: un bloque de 24 sesiones no puede
- * asumir que las sesiones 16-24 pertenecen a evaluación.
+ * por cada writer (o lista explícita de misiones deficientes). Sin rangos
+ * hardcodeados: un bloque de 24 sesiones no asume qué sesiones pertenecen a evaluación.
  */
 export function resolvePostRedactionEvictionTarget(
   errorMsgLower: string,
   writers: WriterOutput[]
 ): MissionWriterType | null {
   const affectedSessions = Array.from(
-    errorMsgLower.matchAll(/sesi[oó]n(?:es)?(?:\s+afectadas?)?[:\s]+([\d,\sy]+)/gi)
+    errorMsgLower.matchAll(/sesi[oó]n(?:es)?(?:\s+afectadas?|\s+sin\s+pr[aá]ctica)?[:\s]+([\d,\sy]+)/gi)
   ).flatMap((match) =>
     (match[1].match(/\d+/g) ?? []).map((n) => parseInt(n, 10)).filter(Number.isFinite)
   );
 
   if (affectedSessions.length > 0) {
-    let bestOwner: { type: MissionWriterType; matches: number } | null = null;
-    for (const writer of writers) {
-      const covered = writer.section?.coveredSessions ?? [];
-      const matches = affectedSessions.filter((session) => covered.includes(session)).length;
-      if (matches > 0 && (!bestOwner || matches > bestOwner.matches)) {
-        bestOwner = { type: writer.type, matches };
-      }
-    }
-    if (bestOwner) return bestOwner.type;
+    const owners = resolveOwnersBySessionNumbers(affectedSessions, writers);
+    if (owners.length > 0) return owners[0];
+  }
+
+  const listedMissions = extractListedMissionTypes(errorMsgLower);
+  if (listedMissions.length > 0) {
+    const ranked = writers
+      .filter((w) => listedMissions.includes(w.type))
+      .sort((a, b) => (a.wordCount || 0) - (b.wordCount || 0));
+    return ranked[0]?.type ?? listedMissions[0];
   }
 
   if (errorMsgLower.includes('evaluation') || errorMsgLower.includes('rúbrica') || errorMsgLower.includes('rubric')) {
@@ -154,6 +207,79 @@ export function resolvePostRedactionEvictionTarget(
     return 'project';
   }
   return null;
+}
+
+export interface PostRedactionRecoveryPlan {
+  mode: 'expand_only' | 'evict' | 'none';
+  evictedTypes: MissionWriterType[];
+}
+
+/**
+ * Decide recuperación determinista para fallos de expansión/cierre/integridad:
+ * - Si es déficit de volumen puro y aún no se probó `expandOnly`, preserva los 4
+ *   redactores y activa `expandOnly` para dar todo el presupuesto al expansor.
+ * - Si `expandOnly` ya se intentó sin éxito, hubo fallos de lote o faltan prácticas,
+ *   evicta únicamente las misiones deficientes/afectadas y apaga `expandOnly` para
+ *   regenerarlas desde cero.
+ */
+export function resolvePostRedactionRecoveryPlan(
+  error: unknown,
+  errorMsg: string,
+  writers: WriterOutput[],
+  alreadyExpandOnly: boolean
+): PostRedactionRecoveryPlan {
+  if (error instanceof SessionDensityDeficiencyError) {
+    return { mode: 'evict', evictedTypes: [error.missionType] };
+  }
+
+  if (error instanceof SessionPlanExpansionError) {
+    const targets =
+      error.deficientMissions.length > 0
+        ? error.deficientMissions
+        : pickLowestWordCountWriter(writers);
+    if (!alreadyExpandOnly && error.failedBatches === 0 && error.finalWords < error.targetMinWords) {
+      return { mode: 'expand_only', evictedTypes: [] };
+    }
+    return targets.length > 0
+      ? { mode: 'evict', evictedTypes: targets }
+      : { mode: 'none', evictedTypes: [] };
+  }
+
+  if (error instanceof SessionFinalizationDeficitError) {
+    if (error.sessionsWithoutPractice.length > 0) {
+      const owners = resolveOwnersBySessionNumbers(error.sessionsWithoutPractice, writers);
+      const targets = Array.from(new Set([...owners, ...error.underTargetMissions]));
+      return targets.length > 0
+        ? { mode: 'evict', evictedTypes: targets }
+        : { mode: 'none', evictedTypes: [] };
+    }
+    if (!alreadyExpandOnly && error.totalWords < error.targetMinWords) {
+      return { mode: 'expand_only', evictedTypes: [] };
+    }
+    const targets =
+      error.underTargetMissions.length > 0
+        ? error.underTargetMissions
+        : pickLowestWordCountWriter(writers);
+    return targets.length > 0
+      ? { mode: 'evict', evictedTypes: targets }
+      : { mode: 'none', evictedTypes: [] };
+  }
+
+  const volumeOnly = isVolumeOnlyBlockIntegrity(errorMsg);
+  if (volumeOnly) {
+    if (!alreadyExpandOnly) {
+      return { mode: 'expand_only', evictedTypes: [] };
+    }
+    const fallbackTargets = pickLowestWordCountWriter(writers);
+    return fallbackTargets.length > 0
+      ? { mode: 'evict', evictedTypes: fallbackTargets }
+      : { mode: 'none', evictedTypes: [] };
+  }
+
+  const singleTarget = resolvePostRedactionEvictionTarget(errorMsg.toLowerCase(), writers);
+  return singleTarget
+    ? { mode: 'evict', evictedTypes: [singleTarget] }
+    : { mode: 'none', evictedTypes: [] };
 }
 
 export async function processGenerationJob(
@@ -403,32 +529,39 @@ export async function processGenerationJob(
       const nextPartials = checkpointState.partialSessionPlans
         ? { ...checkpointState.partialSessionPlans }
         : undefined;
-      const volumeOnly = isVolumeOnlyBlockIntegrity(errorMsg);
+      const shouldResolveRecovery =
+        !transientError &&
+        (writersToKeep.length >= 4 || error instanceof SessionDensityDeficiencyError);
+      const recovery = shouldResolveRecovery
+        ? resolvePostRedactionRecoveryPlan(
+            error,
+            errorMsg,
+            writersToKeep,
+            checkpointState.expandOnly === true
+          )
+        : { mode: 'none' as const, evictedTypes: [] as MissionWriterType[] };
 
-      // Un déficit de volumen dentro de la política editorial se corrige con
-      // expansión dirigida, conservando los 4 redactores. Solo se evicta el
-      // writer propietario cuando el fallo es determinista y no recuperable
-      // por volumen (placeholders, contaminación, sesiones incompletas, etc.).
-      if (writersToKeep.length >= 4 && !transientError && !volumeOnly) {
-        const errorMsgLower = errorMsg.toLowerCase();
-        const evictedType = resolvePostRedactionEvictionTarget(errorMsgLower, writersToKeep);
-        if (evictedType) {
-          writersToKeep = writersToKeep.filter((w) => w.type !== evictedType);
+      if (shouldResolveRecovery) {
+        if (recovery.mode === 'expand_only') {
+          logger.warn(
+            `[job-worker] Déficit de volumen en job ${jobId}; se conservan los 4 redactores y se reintentará solo con expansión dirigida.`
+          );
+        } else if (recovery.mode === 'evict' && recovery.evictedTypes.length > 0) {
+          const evictedSet = new Set(recovery.evictedTypes);
+          writersToKeep = writersToKeep.filter((w) => !evictedSet.has(w.type));
           if (nextPartials) {
-            delete nextPartials[evictedType];
+            for (const t of evictedSet) {
+              delete nextPartials[t];
+            }
           }
           logger.warn(
-            `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor '${evictedType}' del checkpoint para forzar regeneración fresca en el reintento.`
+            `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor(es) '${recovery.evictedTypes.join(', ')}' del checkpoint para forzar regeneración fresca en el reintento.`
           );
         } else {
           logger.warn(
             `[job-worker] Error post-redacción sin propietario identificable en job ${jobId}; se conservan los 4 redactores para evitar evicción arbitraria.`
           );
         }
-      } else if (volumeOnly && writersToKeep.length >= 4) {
-        logger.warn(
-          `[job-worker] Déficit de volumen en job ${jobId}; se conservan los 4 redactores y se reintentará solo con expansión dirigida.`
-        );
       }
 
       const backoffMs = computeCooldownBackoffMs(errorMsg, transientError);
@@ -440,7 +573,8 @@ export async function processGenerationJob(
           : undefined;
 
       const nextExpandOnly =
-        volumeOnly || (transientError && checkpointState.expandOnly === true);
+        recovery.mode === 'expand_only' ||
+        (transientError && checkpointState.expandOnly === true);
       const nextCheckpoint: JobCheckpoint = {
         writerOutputs: writersToKeep,
         ...(nextPartials && Object.keys(nextPartials).length > 0

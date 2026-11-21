@@ -1084,6 +1084,8 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
     if (m.phenomenonHook?.story) sources.push(m.phenomenonHook.story);
     for (const s of m.sessionPlans ?? []) {
       if (s.objetivo) sources.push(s.objetivo);
+      if (s.motivacion) sources.push(s.motivacion);
+      if (s.saberesPrevios) sources.push(s.saberesPrevios);
       if (s.contenido) sources.push(s.contenido);
       if (s.ejemploResuelto) sources.push(s.ejemploResuelto);
       if (s.aplicacion) sources.push(s.aplicacion);
@@ -1969,7 +1971,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : third.workedExample,
     } as SacrintConceptSlide;
-    if (countSlideWords(fourth) <= 180) return fourth;
+    if (countSlideWords(fourth) <= maxWords) return fourth;
 
     const fifth = {
       ...fourth,
@@ -1991,7 +1993,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : fourth.workedExample,
     } as SacrintConceptSlide;
-    if (countSlideWords(fifth) <= 184) return fifth;
+    if (countSlideWords(fifth) <= maxWords) return fifth;
 
     const trimVerboseMathStep = (step: string): string => {
       if (step.split(/\s+/).length <= 16) return step;
@@ -2046,18 +2048,50 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : fifth.workedExample,
     } as SacrintConceptSlide;
-    if (countSlideWords(sixthConcept) <= 188) return sixthConcept;
-    return {
+    if (countSlideWords(sixthConcept) <= maxWords) return sixthConcept;
+    const seventhConcept = {
       ...sixthConcept,
+      explanation:
+        fitPedagogicalText(sixthConcept.explanation, {
+          maxChars: 105,
+          maxWords: 16,
+          role: 'concept',
+        }) || sixthConcept.explanation,
       workedExample: sixthConcept.workedExample
         ? {
             ...sixthConcept.workedExample,
-            steps: sixthConcept.workedExample.steps.map((step) =>
-              step.split(/\s+/).length > 14 ? trimVerboseMathStep(step.replace(/^(?:Datos e inc[oó]gnitas|Modelo o f[oó]rmula|Sustituci[oó]n y desarrollo|Presentaci[oó]n del modelo algebraico)\s*:\s*/i, '')) : step
-            ),
+            problemStatement:
+              fitPedagogicalText(sixthConcept.workedExample.problemStatement, {
+                maxChars: 120,
+                maxWords: 18,
+                role: 'problem',
+              }) || sixthConcept.workedExample.problemStatement,
+            steps: sixthConcept.workedExample.steps.map((step) => {
+              const stripped = step.replace(
+                /^(?:Datos e inc[oó]gnitas|Modelo o f[oó]rmula|Sustituci[oó]n y desarrollo|Presentaci[oó]n del modelo algebraico)\s*:\s*/i,
+                ''
+              );
+              if (stripped.split(/\s+/).length <= 12) return stripped;
+              const trimmed = trimVerboseMathStep(stripped);
+              if (trimmed.split(/\s+/).length <= 12) return trimmed;
+              return (
+                fitPedagogicalText(trimmed, {
+                  maxChars: 75,
+                  maxWords: 11,
+                  role: 'step',
+                }) || trimmed
+              );
+            }),
+            interpretation:
+              fitPedagogicalText(sixthConcept.workedExample.interpretation, {
+                maxChars: 72,
+                maxWords: 11,
+                role: 'conclusion',
+              }) || sixthConcept.workedExample.interpretation,
           }
         : sixthConcept.workedExample,
     } as SacrintConceptSlide;
+    return seventhConcept;
   }
 
   if (slide.kind === 'practice') {
@@ -2284,11 +2318,15 @@ function buildLessonGuideSlidesForSession(
   const misconceptionTitle = stripLeadingSessionTag(
     sanitizePedagogicalMetaPhrases(bundle.topicTitle || mission.title || meta.missionTitle)
   );
-  const misconceptionParts = alignMisconceptionWithTitle(
-    misconceptionTitle,
-    resolvedMisconceptionBase,
-    isQuantitative
-  );
+  const hasAuthoritativeV2Error =
+    Boolean(visualError) && visualError.length >= 35 && !isRubricOrBoilerplateLeak(visualError);
+  const misconceptionParts = hasAuthoritativeV2Error
+    ? resolvedMisconceptionBase
+    : alignMisconceptionWithTitle(
+        misconceptionTitle,
+        resolvedMisconceptionBase,
+        isQuantitative
+      );
   const normalizedMisconception = normalizeEditorialText(
     normalizeSessionDescriptorTense(misconceptionParts.error)
   );
@@ -2305,20 +2343,24 @@ function buildLessonGuideSlidesForSession(
     (Math.max(1, Number(meta.blockNumber || 1)) - 1) * 24 +
     (Math.max(1, Number(meta.missionNumber || 1)) - 1) * 6 +
     (sessionOrdinal || Number(bundle.sessionNumber ?? session.sessionNumber) || 1);
-  const alignedMisconception = alignMisconceptionWithTitle(
-    misconceptionTitle,
-    {
-      error: misconception,
-      correction: misconceptionParts.correction,
-    },
-    isQuantitative
-  ).error;
-  const finalMisconception = diversifyRepeatedMisconception(
-    alignedMisconception,
-    globalSessionSeed,
-    misconceptionTracker,
-    isQuantitative
-  );
+  const alignedMisconception = hasAuthoritativeV2Error
+    ? misconception
+    : alignMisconceptionWithTitle(
+        misconceptionTitle,
+        {
+          error: misconception,
+          correction: misconceptionParts.correction,
+        },
+        isQuantitative
+      ).error;
+  const finalMisconception = hasAuthoritativeV2Error
+    ? alignedMisconception
+    : diversifyRepeatedMisconception(
+        alignedMisconception,
+        globalSessionSeed,
+        misconceptionTracker,
+        isQuantitative
+      );
 
   const rawArtifactTitle = sanitizePedagogicalMetaPhrases(
     cleanSacrintText(workbook.projectSection?.artifactName) || `Producto de la sesión ${sesLabel}`
@@ -2446,13 +2488,20 @@ function buildLessonGuideSlidesForSession(
     return fNums.length >= 2 && fNums.every((n) => !exampleNums.has(n));
   };
   const coherentValidFormulas = validFormulas.filter((item) => !isConcreteMismatchFormula(item));
-  const effectiveFormulas =
+  const baseEffectiveFormulas =
     coherentValidFormulas.length > 0
       ? coherentValidFormulas.slice(0, 2)
       : formula
         ? [formula]
         : validFormulas.slice(0, 2);
-  const primaryFormula = effectiveFormulas[0] ?? formula;
+  const rawV2Formula = session.sintesisVisual?.formulaOReglaClave?.trim();
+  const effectiveFormulas =
+    rawV2Formula &&
+    rawV2Formula !== 'P1 + P2 → T' &&
+    !baseEffectiveFormulas.includes(rawV2Formula)
+      ? [rawV2Formula, ...baseEffectiveFormulas].slice(0, 3)
+      : baseEffectiveFormulas;
+  const primaryFormula = effectiveFormulas[0] ?? rawV2Formula ?? formula;
 
   const softenField = (value: string | undefined, maxChars = 140): string | undefined => {
     if (!value) return value;
@@ -3316,12 +3365,13 @@ function isWeakMisconceptionText(error: string, title: string): boolean {
   if (
     normalizedError === normalizedTitle ||
     normalizedTitle.includes(normalizedError) ||
-    normalizedError.includes(normalizedTitle)
+    (normalizedError.includes(normalizedTitle) &&
+      normalizedError.length < normalizedTitle.length + 12)
   ) {
     return true;
   }
   if (normalizedError.length < 35) return true;
-  return !/(confund|creer|pensar|supon|asum|sum|rest|aplic|igual|omit|interpret|us|multiplic|divid|resol|generaliz|invert|mezcl|olvid|ignor|medir|calcul|eleg|seleccion|compar|despej|sustitu|simplific|traslad|juzg|codific|valid|cit|contextualiz|descontextualiz|atribu|copi|plagi|reduc|separ|aisl|memoriz|repet|acept|rechaz|descuid|salt|ejecut|escrib|redact|le|argument|conclu|afirm|neg|contradec|traz|dibuj|calibr|manipul|conect|configur|program|iter|declar|evalu|estim|aproxim|redonde|convert|transform|orden|clasific|distingu|relacion|vincul|justific|respald|comprob|verific|sin\s+(?:verificar|comprobar|validar|contextualizar|respaldar|citar|justificar|revisar|considerar|evaluar|definir|aislar|contrastar))/.test(
+  return !/(confund|creer|pensar|supon|asum|sum|rest|aplic|igual|omit|interpret|us|multiplic|divid|resol|generaliz|invert|mezcl|olvid|ignor|medir|calcul|eleg|seleccion|compar|despej|sustitu|simplific|traslad|juzg|codific|valid|cit|contextualiz|descontextualiz|atribu|copi|plagi|reduc|separ|aisl|memoriz|repet|acept|rechaz|descuid|salt|ejecut|escrib|redact|le|argument|conclu|afirm|neg|contradec|traz|dibuj|calibr|manipul|conect|configur|program|iter|declar|evalu|estim|aproxim|redonde|convert|transform|orden|clasific|distingu|relacion|vincul|justific|respald|comprob|verific|vaci|vert|retir|desinfect|esteriliz|exced|incumpl|alter|contamin|emple|coloc|presion|recort|mont|almacen|hidrat|deshidrat|fractur|deform|desajust|sobrecalent|subestim|sobreestim|trunc|extrapol|interpol|reemplaz|no\s+[a-z0-9]{3,}|sin\s+(?:verificar|comprobar|validar|contextualizar|respaldar|citar|justificar|revisar|considerar|evaluar|definir|aislar|contrastar))/.test(
     normalizedError
   );
 }
@@ -4110,7 +4160,12 @@ export function buildSacrintInfographic(
     ...(candidateDiagram.available && isQuantitativeOrReaction && diagramEquation ? [diagramEquation] : []),
   ].filter(Boolean);
   const rawFormula = formulaCandidates[0] ?? '';
-  const formula = selectCoherentFormula(cleanTitle, formulaCandidates);
+  const selectedFormula = selectCoherentFormula(cleanTitle, formulaCandidates);
+  const formula = selectedFormula.replace(
+    /^(cm|mm|km|m|kg|g|ml|l|s|h)(\s*=)/i,
+    (_match, sym: string, eq: string) =>
+      `${sym === 'M' ? 'Monto' : sym === 'm' ? 'Pendiente' : `Valor_${sym}`}${eq}`
+  );
   const diagramFormulaCoherent =
     !diagramEquation || isFormulaCoherentWithTitle(cleanTitle, diagramEquation);
   const coherent =

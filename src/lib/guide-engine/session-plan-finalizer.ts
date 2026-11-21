@@ -4,7 +4,12 @@ import {
   repairDanglingEnding,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import { countSessionPlanWords, type MissionBudget } from './content-budget';
-import { evaluateQuality, type WriterOutput } from './writers/writer-contract';
+import {
+  evaluateQuality,
+  hasCompleteWorkedExampleClosure,
+  hasExplicitPracticeTask,
+  type WriterOutput,
+} from './writers/writer-contract';
 import type { SessionPlan } from '@/types/work-textbook';
 
 type WriterType = WriterOutput['type'];
@@ -76,9 +81,14 @@ function ensurePractice(plan: SessionPlan): boolean {
 
 function finalizePlanText(plan: SessionPlan): number {
   let repaired = 0;
-  const repairField = (value: string | undefined, set: (next: string) => void) => {
+  const wc = (s: string | undefined): number => (s ? s.split(/\s+/).filter(Boolean).length : 0);
+  const repairField = (
+    value: string | undefined,
+    set: (next: string) => void,
+    accept?: (next: string) => boolean
+  ) => {
     const result = repairText(value);
-    if (result.repaired) {
+    if (result.repaired && (!accept || accept(result.value))) {
       set(result.value);
       repaired++;
     }
@@ -93,12 +103,23 @@ function finalizePlanText(plan: SessionPlan): number {
   repairField(plan.saberesPrevios, (next) => {
     plan.saberesPrevios = next;
   });
-  repairField(plan.contenido, (next) => {
-    plan.contenido = next;
-  });
-  repairField(plan.ejemploResuelto, (next) => {
-    plan.ejemploResuelto = next;
-  });
+  repairField(
+    plan.contenido,
+    (next) => {
+      plan.contenido = next;
+    },
+    (next) => !(wc(plan.contenido) >= 320 && wc(next) < 320)
+  );
+  repairField(
+    plan.ejemploResuelto,
+    (next) => {
+      plan.ejemploResuelto = next;
+    },
+    (next) =>
+      !(wc(plan.ejemploResuelto) >= 220 && wc(next) < 220) &&
+      (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '') ||
+        hasCompleteWorkedExampleClosure(next))
+  );
   repairField(plan.aplicacion, (next) => {
     plan.aplicacion = next;
   });
@@ -107,9 +128,15 @@ function finalizePlanText(plan: SessionPlan): number {
   });
 
   for (const item of plan.practica ?? []) {
-    repairField(item.enunciado, (next) => {
-      item.enunciado = next;
-    });
+    repairField(
+      item.enunciado,
+      (next) => {
+        item.enunciado = next;
+      },
+      (next) =>
+        !(wc(item.enunciado) >= 28 && wc(next) < 28) &&
+        (!hasExplicitPracticeTask(item.enunciado || '') || hasExplicitPracticeTask(next))
+    );
     repairField(item.pista, (next) => {
       item.pista = next;
     });

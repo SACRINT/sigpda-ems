@@ -127,8 +127,12 @@ describe('Prompts V2 — adaptadores y contrato canónico', () => {
     const instructions = buildCanonicalSessionPlanInstructions(adapter, 'foundation', {
       firstSession: 4,
     });
-    expect(instructions).toContain('320 a 440 palabras');
-    expect(instructions).toContain('220 a 300 palabras');
+    expect(instructions).toContain('345 a 435 palabras');
+    expect(instructions).toContain('250 a 300 palabras');
+    expect(instructions).not.toContain('220 a 300 palabras');
+    expect(instructions).toContain('de 115 a 145 palabras CADA párrafo');
+    expect(instructions).toContain('"Paso 4: Conclusión:" o "Paso 4: Resultado:"');
+    expect(instructions).toContain('AUTOCHEQUEO ANTES DE RESPONDER');
     expect(instructions).toContain('"sintesisVisual"');
     expect(instructions).toContain(adapter.workedExampleDirective);
     expect(instructions).toContain(adapter.keyFormulaOrRuleDirective);
@@ -139,9 +143,30 @@ describe('Prompts V2 — adaptadores y contrato canónico', () => {
     const example = JSON.parse(
       buildCanonicalSessionPlanJsonExample(adapter, 4)
     ) as { sessionPlans: SessionPlan[] };
-    expect(example.sessionPlans[0]?.sessionNumber).toBe(4);
-    expect(example.sessionPlans[0]?.sintesisVisual?.mapaConceptual.errorComun).toBeTruthy();
-    expect(example.sessionPlans[0]?.practica).toHaveLength(2);
+    const plan = example.sessionPlans[0]!;
+    expect(plan.sessionNumber).toBe(4);
+    expect(plan.sintesisVisual?.mapaConceptual.errorComun).toBeTruthy();
+    expect(plan.practica).toHaveLength(2);
+
+    const wc = (s: string) => s.split(/\s+/).filter(Boolean).length;
+    for (const item of plan.practica) {
+      expect(wc(item.enunciado)).toBeGreaterThanOrEqual(45);
+      expect(wc(item.enunciado)).toBeLessThanOrEqual(75);
+      expect(wc(item.pista)).toBeGreaterThanOrEqual(18);
+      expect(wc(item.pista)).toBeLessThanOrEqual(30);
+    }
+    const paragraphs = plan.contenido.split(/\n\s*\n/);
+    expect(paragraphs).toHaveLength(3);
+    for (const p of paragraphs) {
+      expect(wc(p)).toBeGreaterThanOrEqual(115);
+      expect(wc(p)).toBeLessThanOrEqual(145);
+    }
+    expect(wc(plan.ejemploResuelto)).toBeGreaterThanOrEqual(250);
+    expect(wc(plan.ejemploResuelto)).toBeLessThanOrEqual(300);
+
+    const report = evaluateSessionPlanDensity(plan, densityThresholdsFor(1120, false, true));
+    expect(report.deficits).toEqual([]);
+    expect(report.ok).toBe(true);
   });
 });
 

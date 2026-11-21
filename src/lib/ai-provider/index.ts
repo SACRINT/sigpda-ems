@@ -48,14 +48,14 @@ export {
 };
 
 // ── Default model constants ──────────────────────────────────────────────────
-export const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
+export const DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite';
 export const DEFAULT_STANDARD_PROVIDER = 'gemini';
 export const DEFAULT_PREMIUM_MODEL = 'gemini-3.5-flash-lite';
 export const DEFAULT_PREMIUM_PROVIDER = 'gemini';
 
-// ── Default models per provider ──────────────────────────────────────────────
+// �"?�"? Default models per provider �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 export const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
-  gemini:     'gemini-3.5-flash-lite',
+  gemini:     'gemini-3.1-flash-lite',
   claude:     'claude-haiku-4-5',
   openai:     'gpt-4o-mini',
   nvidia:     'meta/llama-3.1-70b-instruct',
@@ -63,6 +63,17 @@ export const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
   mistral:    'mistral-small-latest',
   openrouter: process.env.OPENROUTER_FALLBACK_MODEL || 'openrouter/free',
 };
+
+// Cadena explícita de respaldo para Gemini. El primario puede ser 3.1 (estándar) o 3.5
+// (premium/legacy); ambos degradan al otro y, si también falla con 503, a 2.5 Flash.
+const GEMINI_FALLBACKS: Record<string, readonly string[]> = {
+  'gemini-3.1-flash-lite': ['gemini-3.5-flash-lite', 'gemini-2.5-flash'],
+  'gemini-3.5-flash-lite': ['gemini-3.1-flash-lite', 'gemini-2.5-flash'],
+};
+
+function getGeminiFallbacks(model: string): readonly string[] {
+  return GEMINI_FALLBACKS[model] ?? [];
+}
 
 // ── Read active provider config from DB ──────────────────────────────────────
 
@@ -149,10 +160,10 @@ export async function getAIProvider(isPremium = false): Promise<AIProvider> {
 // Circuit breaker en memoria para no repetir el par de llamadas 503 al modelo
 // primario en cada request. Las llaves NO se penalizan en DB por un 503.
 const PRIMARY_503_CIRCUIT_MS = 60_000;
-let primary503CircuitUntil = 0;
+const primary503CircuitUntilByModel = new Map<string, number>();
 
 export function __resetPrimary503CircuitForTests(): void {
-  primary503CircuitUntil = 0;
+  primary503CircuitUntilByModel.clear();
 }
 
 function isGemini503FallbackEligible(err: unknown): boolean {
@@ -209,13 +220,8 @@ export async function generateWithRotation(
   const runWithModel = (targetModel: string, budgetMs?: number) =>
     withKeyRotation(
       provider,
-      async (apiKey, _keyId, round, meta: AttemptMetadata) => {
-        // Si la Vuelta 1 sufrió 503/429 en Google, en Vuelta 2 probamos con gemini-3.1-flash-lite
-        const effectiveModel =
-          provider === 'gemini' && round === 2 && targetModel === 'gemini-3.5-flash-lite'
-            ? 'gemini-3.1-flash-lite'
-            : targetModel;
-        const ai = buildProvider(provider, effectiveModel, apiKey);
+      async (apiKey, _keyId, _round, meta: AttemptMetadata) => {
+        const ai = buildProvider(provider, targetModel, apiKey);
         return ai.generate(systemPrompt, userPrompt, {
           ...options,
           timeoutMs: meta?.timeoutMs ?? options?.timeoutMs,
@@ -230,8 +236,40 @@ export async function generateWithRotation(
       }
     );
 
-  const isPrimaryGeminiModel = provider === 'gemini' && model === 'gemini-3.5-flash-lite';
-  const primaryCircuitOpen = isPrimaryGeminiModel && Date.now() < primary503CircuitUntil;
+  const geminiFallbacks = provider === 'gemini' ? getGeminiFallbacks(model) : [];
+  const isPrimaryGeminiModel = geminiFallbacks.length > 0;
+  const primaryCircuitOpen =
+    isPrimaryGeminiModel &&
+    Date.now() < (primary503CircuitUntilByModel.get(model) ?? 0);
+
+  const runWithFallbacks = async (budgetMs?: number): Promise<string> => {
+    let lastError: unknown;
+    let remaining = budgetMs;
+
+    for (const fallbackModel of geminiFallbacks) {
+      if (options?.signal?.aborted) {
+        throw options.signal.reason instanceof Error
+          ? options.signal.reason
+          : new DOMException('Generation aborted', 'AbortError');
+      }
+      if (remaining !== undefined && remaining <= 15_000) break;
+
+      try {
+        logger.warn(`[ai-provider] Usando fallback Gemini ${fallbackModel} para ${model}.`);
+        return await runWithModel(fallbackModel, remaining);
+      } catch (fallbackErr) {
+        lastError = fallbackErr;
+        if (!isGemini503FallbackEligible(fallbackErr)) throw fallbackErr;
+        const elapsed = Date.now() - startedAt;
+        remaining = primaryRemaining !== undefined ? primaryRemaining - elapsed : undefined;
+      }
+    }
+
+    if (lastError) throw lastError;
+    throw new AiServiceUnavailableError(
+      `No quedó presupuesto para ejecutar un fallback de ${model}.`
+    );
+  };
 
   if (primaryCircuitOpen) {
     if (
@@ -239,18 +277,18 @@ export async function generateWithRotation(
       (primaryRemaining !== undefined && primaryRemaining <= 15_000)
     ) {
       throw new AiServiceUnavailableError(
-        'Gemini 3.5 Flash Lite está en circuito abierto por 503 recientes y no queda presupuesto para el fallback.'
+        `${model} está en circuito abierto por 503 recientes y no queda presupuesto para el fallback.`
       );
     }
     logger.warn(
-      '[ai-provider] Circuito 503 abierto para gemini-3.5-flash-lite; usando fallback gemini-3.1-flash-lite sin reintentar el primario.'
+      `[ai-provider] Circuito 503 abierto para ${model}; usando fallback sin reintentar el primario.`
     );
-    return runWithModel('gemini-3.1-flash-lite', primaryRemaining);
+    return runWithFallbacks(primaryRemaining);
   }
 
   try {
     const result = await runWithModel(model, primaryRemaining);
-    if (isPrimaryGeminiModel) primary503CircuitUntil = 0;
+    if (isPrimaryGeminiModel) primary503CircuitUntilByModel.delete(model);
     return result;
   } catch (err) {
     const elapsed = Date.now() - startedAt;
@@ -266,11 +304,11 @@ export async function generateWithRotation(
       throw err;
     }
 
-    primary503CircuitUntil = Date.now() + PRIMARY_503_CIRCUIT_MS;
+    primary503CircuitUntilByModel.set(model, Date.now() + PRIMARY_503_CIRCUIT_MS);
     logger.warn(
-      '[ai-provider] Fast-fail HTTP 503 en gemini-3.5-flash-lite; ejecutando fallback automático a gemini-3.1-flash-lite.'
+      `[ai-provider] Fast-fail HTTP 503 en ${model}; ejecutando fallback automático.`
     );
-    return runWithModel('gemini-3.1-flash-lite', remainingAfterPrimary);
+    return runWithFallbacks(remainingAfterPrimary);
   }
 }
 

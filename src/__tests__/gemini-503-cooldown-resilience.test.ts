@@ -61,12 +61,14 @@ interface PoolKeyRow {
 
 describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupuesto', () => {
   let poolKeys: PoolKeyRow[] = [];
+  let configuredModel: string | null = null;
   const originalDbUrl = process.env.DATABASE_URL;
 
   beforeEach(() => {
     vi.clearAllMocks();
     __resetPrimary503CircuitForTests();
     geminiInstances.length = 0;
+    configuredModel = null;
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/sigpda_test';
 
     poolKeys = Array.from({ length: 8 }, (_, idx) => ({
@@ -88,7 +90,11 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
       const query = strings.join(' ').replace(/\s+/g, ' ').trim();
 
       if (query.includes('FROM platform_config')) {
-        return Promise.resolve([]);
+        if (!configuredModel) return Promise.resolve([]);
+        return Promise.resolve([
+          { key: 'active_provider', value: 'gemini' },
+          { key: 'active_model', value: configuredModel },
+        ]);
       }
 
       if (query.includes('COUNT(*)::int as cnt FROM api_keys')) {
@@ -165,9 +171,9 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
     }
   });
 
-  it('tras fast-fail HTTP 503 en gemini-3.5-flash-lite (2 llaves), hace fallback automático a gemini-3.1-flash-lite con el resto del pool', async () => {
+  it('tras fast-fail HTTP 503 en gemini-3.1-flash-lite (2 llaves), hace fallback automático a gemini-3.5-flash-lite con el resto del pool', async () => {
     mockGeminiGenerate.mockImplementation(async (_apiKey: string, model: string) => {
-      if (model === 'gemini-3.5-flash-lite') {
+      if (model === 'gemini-3.1-flash-lite') {
         throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
       }
       return '{"ok":true,"fallback":true}';
@@ -180,12 +186,55 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
     expect(res).toBe('{"ok":true,"fallback":true}');
     const modelsCalled = geminiInstances.map((g) => g.model);
     expect(modelsCalled).toEqual([
+      'gemini-3.1-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash-lite',
+    ]);
+    // Key 3 (intacta) atiende el fallback de inmediato sin esperar enfriamiento
+    expect(geminiInstances[2].apiKey).toBe('AIzaFakeKey3');
+  });
+
+  it('si 3.1 y 3.5 fallan con 503, usa 2.5 Flash como último respaldo', async () => {
+    mockGeminiGenerate.mockImplementation(async (_apiKey: string, model: string) => {
+      if (model !== 'gemini-2.5-flash') {
+        throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
+      }
+      return '{"ok":true,"lastResort":true}';
+    });
+
+    const res = await generateWithRotation('SYS', 'USER', undefined, false, {
+      remainingBudgetMs: 180_000,
+    });
+
+    expect(res).toBe('{"ok":true,"lastResort":true}');
+    expect(geminiInstances.map((g) => g.model)).toEqual([
+      'gemini-3.1-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash-lite',
+      'gemini-3.5-flash-lite',
+      'gemini-2.5-flash',
+    ]);
+  });
+
+  it('si platform_config fija 3.5, conserva la compatibilidad de fallback a 3.1', async () => {
+    configuredModel = 'gemini-3.5-flash-lite';
+    mockGeminiGenerate.mockImplementation(async (_apiKey: string, model: string) => {
+      if (model === 'gemini-3.5-flash-lite') {
+        throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
+      }
+      return '{"ok":true,"fallback":true}';
+    });
+
+    const res = await generateWithRotation('SYS', 'USER', undefined, false, {
+      remainingBudgetMs: 180_000,
+    });
+
+    expect(res).toBe('{"ok":true,"fallback":true}');
+    expect(geminiInstances.map((g) => g.model)).toEqual([
       'gemini-3.5-flash-lite',
       'gemini-3.5-flash-lite',
       'gemini-3.1-flash-lite',
     ]);
-    // Key 3 (intacta) atiende el fallback de inmediato sin esperar enfriamiento
-    expect(geminiInstances[2].apiKey).toBe('AIzaFakeKey3');
   });
 
   it('corta en frío para presupuestos cortos (<30s) pero espera cooldown >5s cuando el job tiene presupuesto largo (240s)', async () => {

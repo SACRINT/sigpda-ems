@@ -1,0 +1,150 @@
+[
+  {
+    "uac": "Pensamiento Matemático I",
+    "subsystem": "bge",
+    "modelUsed": "gemini-3.1-flash-lite",
+    "adapterId": "pensamiento_matematico",
+    "status": "COMPLETED",
+    "jobAttempts": 1,
+    "attemptHistory": [
+      {
+        "attempt": 1,
+        "durationMs": 125304,
+        "outcome": "COMPLETED_WRITERS",
+        "keptWriters": [
+          "foundation",
+          "project",
+          "lab",
+          "evaluation"
+        ],
+        "evictedWriters": []
+      }
+    ],
+    "sessionsExpected": 18,
+    "sessionsGenerated": 18,
+    "wordsPerSession": {
+      "min": 1093,
+      "avg": 1193,
+      "max": 1281
+    },
+    "totalWords": 23229,
+    "targetWords": {
+      "min": 20250,
+      "ideal": 21375,
+      "max": 22500
+    },
+    "preExpansionWords": 23231,
+    "expansionResult": {
+      "expandedPlans": 0,
+      "addedWords": 0
+    },
+    "finalizationWithinTarget": true,
+    "repairedAttemptSessions": [
+      7,
+      9,
+      12,
+      18
+    ],
+    "repairBatchesAttempted": 3,
+    "repairSuccessCount": 3,
+    "stillDeficientCount": 0,
+    "stillDeficientDetails": [],
+    "crossContamination": {
+      "clean": true,
+      "issuesCount": 0
+    },
+    "setupMs": 4,
+    "writerMs": 107671,
+    "repairMs": 17633,
+    "assemblyMs": 58,
+    "renderMs": 6661,
+    "qaMs": 3722,
+    "totalMs": 135749,
+    "firstAttemptTotalMs": 125308,
+    "latencyMs": 135749,
+    "phase1ApiHealth": {
+      "httpCalls": 14,
+      "http2xx": 12,
+      "http429": 0,
+      "http503": 2,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 0,
+      "avgHttpLatencyMs": 13780,
+      "rate429_503": 0.1429
+    },
+    "phase2RepairHealth": {
+      "httpCalls": 3,
+      "http2xx": 3,
+      "http429": 0,
+      "http503": 0,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 0,
+      "avgHttpLatencyMs": 10087,
+      "rate429_503": 0
+    },
+    "network": {
+      "httpCalls": 17,
+      "http2xx": 15,
+      "http429": 0,
+      "http503": 2,
+      "httpOtherErr": 0,
+      "httpFetchThrow": 0,
+      "avgHttpLatencyMs": 13128,
+      "byModel": {
+        "gemini-3.1-flash-lite": {
+          "total": 17,
+          "ok": 15,
+          "http429": 0,
+          "http503": 2,
+          "otherErr": 0
+        }
+      },
+      "rate429_503": 0.1176
+    },
+    "qaStrict": {
+      "passed": true,
+      "failures": [],
+      "warnings": [],
+      "pdf06": {
+        "pages": 46,
+        "wordCount": 29812,
+        "findings": {},
+        "extraScan": {
+          "latexCmds": 0,
+          "gluedPaso": 0,
+          "orphanPaso": 0,
+          "latexMonomial": 0
+        }
+      },
+      "pdf09": {
+        "pages": 18,
+        "wordCount": 5657,
+        "findings": {},
+        "extraScan": {
+          "latexCmds": 0,
+          "gluedPaso": 0,
+          "orphanPaso": 0,
+          "latexMonomial": 0
+        }
+      },
+      "pptx08": {
+        "slideCount": 40,
+        "slide12Avg": 141.1,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "outOfBoundsShapes": 0,
+        "findings": {}
+      }
+    },
+    "visualAudit": {
+      "passed": true,
+      "infographicCount": 18,
+      "presentationFindingsCount": 0,
+      "presentationFindings": [],
+      "infographicFindingsCount": 0,
+      "infographicFindings": []
+    }
+  }
+]

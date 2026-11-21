@@ -24,7 +24,7 @@ import {
   buildCanonicalSessionPlanJsonExample,
   SESSION_PLAN_WORD_CONTRACT,
 } from './session-prompt-contract';
-import { runScheduled } from '../writer-scheduler';
+import { isTransientCapacityError, runScheduled } from '../writer-scheduler';
 import {
   completeSessionPlans,
   hasCompleteWorkedExampleClosure,
@@ -47,8 +47,8 @@ export function resolvePackSize(): number {
   return 3;
 }
 
-/** ~3 sesiones × ~1,100 palabras ≈ 5k tokens de salida: holgura amplia bajo este tope. */
-export const SESSION_PACK_MAX_TOKENS = 8192;
+/** ~3 sesiones × ~1,150 palabras en JSON + sintesisVisual: holgura amplia para evitar compresión de salida. */
+export const SESSION_PACK_MAX_TOKENS = 16384;
 export const SESSION_PACK_TIMEOUT_MS = 75_000;
 const PACK_ATTEMPTS = 2;
 
@@ -323,6 +323,14 @@ Problemática PAEC: ${input.paecContext}
 SESIONES QUE DEBES REDACTAR AHORA (exactamente ${packSessions.length}: ${packSessions.join(', ')}):
 ${packSessions.map((n) => `- ${sessionLine(input, n)}`).join('\n')}
 ${siblingLines ? `\nOTRAS SESIONES DE LA MISIÓN (las redactan otros autores; NO repitas su enfoque, solo mantén coherencia progresiva):\n${siblingLines}\n` : ''}${directiveBlock}
+GATE FINAL DE LONGITUD Y ESTRUCTURA (PROHIBIDO RESPONDER SI ALGUNA SESIÓN INCUMPLE):
+- No abrevies ninguna sesión del paquete (${packSessions.join(', ')}): cada sesión debe tener la misma extensión completa que la primera.
+- "contenido": 345 a 435 palabras en EXACTAMENTE 3 párrafos separados por \\n\\n (115 a 145 palabras cada párrafo).
+- "ejemploResuelto": 250 a 300 palabras en 5 líneas separadas por \\n: "Planteamiento:" (50–70 palabras), "Paso 1:", "Paso 2:", "Paso 3:" (40–55 palabras cada uno) y cierre LITERAL "Paso 4: Conclusión:" o "Paso 4: Resultado:" (30–45 palabras).
+- "practica": 2 ejercicios completos; cada "enunciado" de 45 a 75 palabras con datos y consigna explícita, cada "pista" de 18 a 30 palabras, y "solucion" de 20 a 40 palabras.
+- "sintesisVisual": objeto completo (conceptoBreve 25–38 palabras, formulaOReglaClave, ejemploBreve con planteamiento/pasos/conclusion y mapaConceptual con sus 4 campos).
+- Total por sesión: 1,150 a 1,250 palabras. Si algún campo queda corto en tu borrador, EXPÁNDELO antes de emitir el JSON.
+
 Redacta los ${packSessions.length} planes de sesión completos con máxima profundidad y rigor, cada uno con su "sessionNumber" correcto:`;
 
   return { system, user };
@@ -349,24 +357,15 @@ function extractPlans(raw: string, allowed: Set<number>): unknown[] {
   });
 }
 
-function isPoolExhaustedOrServiceError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const e = err as { name?: string; message?: string };
-  if (e.name === 'AiCooldownExhaustedError' || e.name === 'AiServiceUnavailableError') {
-    return true;
-  }
-  const msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
-  return /enfriamiento por cuota|fast-fail|alta demanda|cortando por deadline/i.test(msg);
-}
-
 async function callPack(
   ctx: SessionShardContext,
   sessions: number[],
-  opts: { packTerms?: string[]; directive?: string },
+  opts: { packTerms?: string[]; directive?: string; budgetDeadlineOverrideMs?: number },
   label: string
 ): Promise<unknown[]> {
   const { system, user } = buildSessionPackPrompts(ctx, sessions, opts);
-  const remainingBudgetMs = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
+  const deadlineMs = opts.budgetDeadlineOverrideMs ?? ctx.input.budgetDeadlineMs;
+  const remainingBudgetMs = resolveRemainingBudgetMs(deadlineMs);
   const raw = await runScheduled(ctx.input.scheduler, label, () =>
     generateWithRotation(system, user, ctx.input.planning.teacherId, false, {
       jsonMode: true,
@@ -383,7 +382,7 @@ async function callPack(
 async function generatePack(
   ctx: SessionShardContext,
   pack: number[],
-  opts: { packTerms?: string[]; directive?: string },
+  opts: { packTerms?: string[]; directive?: string; budgetDeadlineOverrideMs?: number },
   packLabel: string
 ): Promise<unknown[]> {
   const collected: unknown[] = [];
@@ -403,7 +402,7 @@ async function generatePack(
       lastError = err;
       if (ctx.input.signal?.aborted) throw err;
       logger.warn(`[SessionShard] ${packLabel} falló (intento ${attempt}):`, { error: String(err) });
-      if (isPoolExhaustedOrServiceError(err)) {
+      if (isTransientCapacityError(err)) {
         break;
       }
     }
@@ -464,14 +463,451 @@ export class SessionDensityDeficiencyError extends Error {
   }
 }
 
+export class RepairBudgetExhaustedError extends Error {
+  readonly missionType: SessionMissionType;
+  readonly uacName: string;
+  readonly remainingBudgetMs: number;
+  readonly minRequiredMs: number;
+  readonly pendingSessions: number[];
+
+  constructor(params: {
+    missionType: SessionMissionType;
+    uacName: string;
+    remainingBudgetMs: number;
+    minRequiredMs: number;
+    pendingSessions: number[];
+  }) {
+    const remainingSec = Math.max(0, Math.round(params.remainingBudgetMs / 1000));
+    const minSec = Math.round(params.minRequiredMs / 1000);
+    super(
+      `[SessionShard] Presupuesto crítico para reparar ${params.missionType} de "${params.uacName}" ` +
+        `(restan ${remainingSec}s < ${minSec}s; sesiones pendientes: ${params.pendingSessions.join(', ')}). ` +
+        'Error transitorio: se conserva el checkpoint para reintentar con presupuesto completo.'
+    );
+    this.name = 'RepairBudgetExhaustedError';
+    this.missionType = params.missionType;
+    this.uacName = params.uacName;
+    this.remainingBudgetMs = params.remainingBudgetMs;
+    this.minRequiredMs = params.minRequiredMs;
+    this.pendingSessions = params.pendingSessions;
+  }
+}
+
 /**
  * Genera TODOS los planes de sesión de una misión por paquetes paralelos, valida densidad por sesión
- * y repara quirúrgicamente solo las sesiones deficientes. Fail-closed:
+ * y repara quirúrgicamente SOLO los campos deficientes de cada sesión. Fail-closed:
+ *  - si el presupuesto restante no alcanza para reparar lanza `RepairBudgetExhaustedError` (transitorio);
  *  - si falta alguna sesión lanza `IncompleteSessionPlansError` (vía completeSessionPlans);
  *  - si tras reparar queda alguna sesión por debajo del umbral de densidad (incluido `sintesisVisual`
  *    incompleto) lanza `SessionDensityDeficiencyError`.
  * NUNCA rellena con contenido sintético ni baja umbrales.
  */
+const REPAIR_BATCH_SIZE = 3;
+export const REPAIR_RESERVE_MS = 40_000;
+export const MIN_REPAIR_BUDGET_MS = 30_000;
+export const FIELD_REPAIR_MAX_TOKENS = 8192;
+const FIELD_REPAIR_TIMEOUT_MS = 50_000;
+
+export type RepairableSessionField =
+  | 'contenido'
+  | 'ejemploResuelto'
+  | 'practica'
+  | 'sintesisVisual';
+
+export interface DeficientTarget {
+  plan: SessionPlan;
+  report: DensityReport;
+}
+
+function countContenidoParagraphs(contenido: string | undefined): number {
+  const explicitParagraphs = (contenido || '')
+    .split(/\n\s*\n/)
+    .filter((p) => wordCount(p) >= 40).length;
+  const discourseBlocks = (contenido || '')
+    .split(/(?:\n\s*\n|\.\s+|(?=Párrafo\s*\d+\s*:))/i)
+    .filter((p) => wordCount(p) >= 40).length;
+  return Math.max(explicitParagraphs, discourseBlocks);
+}
+
+function evaluateContenidoFieldDeficits(plan: SessionPlan, t: DensityThresholds): number {
+  let count = 0;
+  if (wordCount(plan.contenido) < t.minContenidoWords) count++;
+  if (countContenidoParagraphs(plan.contenido) < t.minContenidoParagraphs) count++;
+  return count;
+}
+
+function evaluateEjemploFieldDeficits(plan: SessionPlan, t: DensityThresholds): number {
+  let count = 0;
+  if (wordCount(plan.ejemploResuelto) < t.minEjemploWords) count++;
+  const steps = (plan.ejemploResuelto || '').match(/Paso\s*\d+/gi)?.length ?? 0;
+  if (steps < t.minEjemploSteps) count++;
+  if (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '', { requireNumeric: t.requireNumericExample })) {
+    count++;
+  }
+  return count;
+}
+
+function countValidPracticaItems(plan: SessionPlan, t: DensityThresholds): number {
+  const practica = plan.practica || [];
+  return practica.filter(
+    (p) =>
+      wordCount(p.enunciado) >= t.minPracticaEnunciadoWords &&
+      hasExplicitPracticeTask(p.enunciado) &&
+      p.pista &&
+      !isGenericText(p.pista)
+  ).length;
+}
+
+function countPracticaWords(plan: SessionPlan): number {
+  return (plan.practica || []).reduce(
+    (acc, p) =>
+      acc +
+      wordCount(p.enunciado) +
+      wordCount(p.pista) +
+      (p.solucion || []).reduce((sAcc, step) => sAcc + wordCount(step), 0),
+    0
+  );
+}
+
+/**
+ * Identifica quirúrgicamente qué campos de la sesión causan el déficit de densidad,
+ * evitando regenerar ni sobrescribir campos que ya cumplen el contrato V2.
+ */
+export function classifyDeficientFields(
+  plan: SessionPlan,
+  t: DensityThresholds
+): RepairableSessionField[] {
+  const fields: RepairableSessionField[] = [];
+  if (evaluateContenidoFieldDeficits(plan, t) > 0) {
+    fields.push('contenido');
+  }
+  if (evaluateEjemploFieldDeficits(plan, t) > 0) {
+    fields.push('ejemploResuelto');
+  }
+  if (countValidPracticaItems(plan, t) < t.minPractica) {
+    fields.push('practica');
+  }
+  if (t.requireVisualSynthesis && validateVisualSynthesisDeficits(plan).length > 0) {
+    fields.push('sintesisVisual');
+  }
+  if (fields.length === 0 && countSessionPlanWords(plan) < t.minTotalWords) {
+    fields.push('contenido', 'ejemploResuelto');
+  }
+  return fields;
+}
+
+/**
+ * Fusiona ÚNICAMENTE los campos solicitados que hayan mejorado respecto al plan original.
+ * Nunca sobrescribe campos ya válidos ni acepta un campo reparado que empeore o acorte el existente.
+ */
+export function mergeRepairedSessionFields(params: {
+  prevPlan: SessionPlan;
+  rawPatch: Record<string, unknown>;
+  fieldsToRepair: RepairableSessionField[];
+  thresholds: DensityThresholds;
+  fallbackContext: FallbackPlanContext;
+}): { plan: SessionPlan; updatedFields: RepairableSessionField[] } {
+  const { prevPlan, rawPatch, fieldsToRepair, thresholds, fallbackContext } = params;
+  let current: SessionPlan = { ...prevPlan };
+  const updatedFields: RepairableSessionField[] = [];
+
+  for (const field of fieldsToRepair) {
+    if (rawPatch[field] === undefined || rawPatch[field] === null) continue;
+    const rawCandidate = { ...current, [field]: rawPatch[field] };
+    const sanitizedCandidate = sanitizeSessionPlans(
+      [rawCandidate],
+      [prevPlan.sessionNumber],
+      fallbackContext
+    )?.[0];
+    if (!sanitizedCandidate) continue;
+
+    if (field === 'contenido') {
+      const beforeDef = evaluateContenidoFieldDeficits(current, thresholds);
+      const afterDef = evaluateContenidoFieldDeficits(sanitizedCandidate, thresholds);
+      const beforeWords = wordCount(current.contenido);
+      const afterWords = wordCount(sanitizedCandidate.contenido);
+      if (afterDef < beforeDef || (afterDef === beforeDef && afterWords > beforeWords)) {
+        current = { ...current, contenido: sanitizedCandidate.contenido };
+        updatedFields.push('contenido');
+      }
+    } else if (field === 'ejemploResuelto') {
+      const beforeDef = evaluateEjemploFieldDeficits(current, thresholds);
+      const afterDef = evaluateEjemploFieldDeficits(sanitizedCandidate, thresholds);
+      const beforeWords = wordCount(current.ejemploResuelto);
+      const afterWords = wordCount(sanitizedCandidate.ejemploResuelto);
+      if (afterDef < beforeDef || (afterDef === beforeDef && afterWords > beforeWords)) {
+        current = { ...current, ejemploResuelto: sanitizedCandidate.ejemploResuelto };
+        updatedFields.push('ejemploResuelto');
+      }
+    } else if (field === 'practica') {
+      const isValidPracticaItem = (p: SessionPlan['practica'][number]): boolean =>
+        wordCount(p.enunciado) >= thresholds.minPracticaEnunciadoWords &&
+        hasExplicitPracticeTask(p.enunciado) &&
+        Boolean(p.pista) &&
+        !isGenericText(p.pista);
+      const beforeValid = countValidPracticaItems(current, thresholds);
+      const afterValid = countValidPracticaItems(sanitizedCandidate, thresholds);
+      const beforeWords = countPracticaWords(current);
+      const afterWords = countPracticaWords(sanitizedCandidate);
+      if (afterValid > beforeValid || (afterValid === beforeValid && afterWords > beforeWords)) {
+        current = { ...current, practica: sanitizedCandidate.practica };
+        updatedFields.push('practica');
+      } else if (beforeValid === 1 && afterValid === 1) {
+        const goodOld = (current.practica || []).find(isValidPracticaItem);
+        const goodNew = (sanitizedCandidate.practica || []).find(
+          (p) => isValidPracticaItem(p) && p.enunciado !== goodOld?.enunciado
+        );
+        if (goodOld && goodNew) {
+          current = { ...current, practica: [goodOld, goodNew] };
+          updatedFields.push('practica');
+        }
+      }
+    } else if (field === 'sintesisVisual') {
+      const beforeDef = validateVisualSynthesisDeficits(current).length;
+      const afterDef = validateVisualSynthesisDeficits(sanitizedCandidate).length;
+      if (afterDef < beforeDef) {
+        current = { ...current, sintesisVisual: sanitizedCandidate.sintesisVisual };
+        updatedFields.push('sintesisVisual');
+      }
+    }
+  }
+
+  return { plan: current, updatedFields };
+}
+
+function extractFieldRepairPatches(
+  raw: string,
+  allowed: Set<number>
+): Array<Record<string, unknown>> {
+  const parsed = robustJsonParse(raw);
+  if (Array.isArray(parsed)) {
+    return parsed.filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === 'object' && allowed.has(sessionNumberOf(item) ?? -1))
+    );
+  }
+  if (parsed && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>;
+    if (Array.isArray(obj.sessionPlans)) {
+      return obj.sessionPlans.filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item && typeof item === 'object' && allowed.has(sessionNumberOf(item) ?? -1))
+      );
+    }
+    const sNum = sessionNumberOf(obj);
+    if (sNum !== null && allowed.has(sNum)) {
+      return [obj];
+    }
+    if (
+      allowed.size === 1 &&
+      ('contenido' in obj ||
+        'ejemploResuelto' in obj ||
+        'practica' in obj ||
+        'sintesisVisual' in obj)
+    ) {
+      return [{ ...obj, sessionNumber: Array.from(allowed)[0] }];
+    }
+  }
+  return [];
+}
+
+function buildFieldRepairPrompts(
+  ctx: SessionShardContext,
+  targets: DeficientTarget[],
+  thresholds: DensityThresholds
+): { system: string; user: string } {
+  const { input, missionType } = ctx;
+  const adapter = getDisciplinaryAdapter(
+    input.uacName,
+    input.component,
+    input.curriculumName || input.careerOrProgramName
+  );
+  const batchSessions = targets.map((t) => t.plan.sessionNumber);
+  const sessionList = batchSessions.join(', ');
+
+  const perSessionSpecs = targets
+    .map(({ plan, report }) => {
+      const fields = classifyDeficientFields(plan, thresholds);
+      const fieldInstructions: string[] = [];
+      for (const field of fields) {
+        if (field === 'contenido') {
+          fieldInstructions.push(
+            `  * Campo a reparar "contenido" (actual: ${wordCount(plan.contenido)} palabras; objetivo obligatorio: 345 a 435 palabras en EXACTAMENTE 3 párrafos separados por "\\n\\n", de 115 a 145 palabras CADA párrafo):\n` +
+              `    Texto actual de "contenido": ${JSON.stringify(plan.contenido ?? '')}`
+          );
+        } else if (field === 'ejemploResuelto') {
+          fieldInstructions.push(
+            `  * Campo a reparar "ejemploResuelto" (actual: ${wordCount(plan.ejemploResuelto)} palabras; objetivo obligatorio: 250 a 300 palabras en 5 bloques separados por "\\n": "Planteamiento:" 50–70 palabras, "Paso 1:" 40–55 palabras, "Paso 2:" 40–55 palabras, "Paso 3:" 40–55 palabras, y cierre LITERAL con "Paso 4: Conclusión:" o "Paso 4: Resultado:" de 30–45 palabras):\n` +
+              `    Directiva disciplinar: ${adapter.workedExampleDirective}\n` +
+              `    Texto actual de "ejemploResuelto": ${JSON.stringify(plan.ejemploResuelto ?? '')}`
+          );
+        } else if (field === 'practica') {
+          fieldInstructions.push(
+            `  * Campo a reparar "practica" (objetivo obligatorio: arreglo de EXACTAMENTE 2 ejercicios autocontenidos; cada "enunciado" de 50 a 70 palabras con contexto, datos completos y consigna explícita que incluya pregunta directa "¿...?" o los verbos "Analiza", "Identifica", "Explica", "Redacta", "Argumenta", "Determina", "Calcula" o "Justifica"; cada "pista" de 20 a 28 palabras específicas y no genéricas; cada "solucion" con 3 a 5 pasos de 20 a 40 palabras):\n` +
+              `    Valor actual de "practica": ${JSON.stringify(plan.practica ?? [])}`
+          );
+        } else if (field === 'sintesisVisual') {
+          fieldInstructions.push(
+            `  * Campo a reparar "sintesisVisual" (objetivo obligatorio: objeto completo con "conceptoBreve" de 25–38 palabras con verbo conjugado, "formulaOReglaClave" [${adapter.keyFormulaOrRuleDirective}], "ejemploBreve" con "planteamiento" 20–38 palabras, "pasos" [3 pasos de 10–20 palabras] y "conclusion" 10–20 palabras, y "mapaConceptual" con "definicionClave" 18–26, "criterioDesarrollo" 14–22, "errorComun" 12–20 y "correccionBreve" 12–20 palabras):\n` +
+              `    Valor actual de "sintesisVisual": ${JSON.stringify(plan.sintesisVisual ?? null)}`
+          );
+        }
+      }
+      return (
+        `- ${sessionLine(input, plan.sessionNumber)}\n` +
+        `  Déficits detectados: ${report.deficits.join('; ')}\n` +
+        `  Campos EXCLUSIVOS a devolver para la sesión ${plan.sessionNumber}: ["sessionNumber", ${fields.map((f) => `"${f}"`).join(', ')}]\n` +
+        fieldInstructions.join('\n')
+      );
+    })
+    .join('\n\n');
+
+  const system = `Eres EDITOR QUIRÚRGICO DE LIBRO DE TEXTO para estudiantes de Bachillerato en Puebla (MCCEMS), especialista en ${ctx.disciplineName}.
+Tu única tarea es EXPANDIR Y REPARAR EXCLUSIVAMENTE los campos deficientes solicitados de cada sesión de "${input.uacName}" (${input.subsystem.toUpperCase()}), en segunda persona dirigida al estudiante ("tú"), con rigor disciplinar real y símbolos Unicode limpios (PROHIBIDO LaTeX crudo como \\frac, \\begin{vmatrix}, sqrt(...) o etiquetas "Docente:"/"Estudiante:").
+NO devuelvas campos que no fueron solicitados: concentra toda la extensión y profundidad en los campos a reparar.`;
+
+  const outputShape =
+    targets.length === 1
+      ? `{ "sessionNumber": ${targets[0].plan.sessionNumber}, ...soloLosCamposSolicitados }`
+      : `{ "sessionPlans": [ { "sessionNumber": N, ...soloLosCamposSolicitados } ] }`;
+
+  const user = `UAC: ${input.uacName} (${input.subsystem.toUpperCase()}) — Bloque: ${input.blockName} — Misión: ${ctx.missionTitle} (${MISSION_LABEL[missionType]})
+Problemática PAEC: ${input.paecContext}
+
+SESIONES QUE DEBES REDACTAR AHORA (exactamente ${batchSessions.length}: ${sessionList}):
+REPARACIÓN DE DENSIDAD POR CAMPO PARA EL LOTE DE SESIONES (${sessionList}).
+
+${perSessionSpecs}
+
+GATE FINAL DE REPARACIÓN POR CAMPO (PROHIBIDO EMITIR EL JSON SI ALGÚN CAMPO SOLICITADO INCUMPLE):
+- Si se solicita "contenido": devuelve EXACTAMENTE 3 párrafos separados por "\\n\\n", con 115 a 145 palabras en CADA párrafo (total: 345 a 435 palabras).
+- Si se solicita "ejemploResuelto": devuelve 5 líneas separadas por "\\n": "Planteamiento:" (50–70 palabras), "Paso 1:", "Paso 2:", "Paso 3:" (40–55 palabras cada uno) y cierre LITERAL "Paso 4: Conclusión:" o "Paso 4: Resultado:" (30–45 palabras), sumando 250 a 300 palabras en total.
+- Si se solicita "practica": devuelve 2 ejercicios completos con "enunciado" de 45 a 75 palabras (con datos y consigna explícita), "pista" de 18 a 30 palabras y "solucion" de 20 a 40 palabras.
+- Si se solicita "sintesisVisual": devuelve el objeto completo con todos sus subcampos desarrollados.
+Devuelve EXCLUSIVAMENTE un JSON válido con la forma ${outputShape}:`;
+
+  return { system, user };
+}
+
+export async function repairDeficientFields(params: {
+  ctx: SessionShardContext;
+  targets: DeficientTarget[];
+  thresholds: DensityThresholds;
+  label: string;
+  round: number;
+  sanitizedBySession: Map<number, SessionPlan>;
+  attemptedRepairs: Set<number>;
+  repaired: Set<number>;
+}): Promise<void> {
+  const { ctx, targets, thresholds, label, round, sanitizedBySession, attemptedRepairs, repaired } =
+    params;
+  if (targets.length === 0 || ctx.input.signal?.aborted) return;
+
+  const preRoundBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
+  if (preRoundBudget !== undefined && preRoundBudget < MIN_REPAIR_BUDGET_MS) {
+    throw new RepairBudgetExhaustedError({
+      missionType: ctx.missionType,
+      uacName: ctx.input.uacName,
+      remainingBudgetMs: preRoundBudget,
+      minRequiredMs: MIN_REPAIR_BUDGET_MS,
+      pendingSessions: targets.map((t) => t.plan.sessionNumber),
+    });
+  }
+
+  const targetBySession = new Map(targets.map((t) => [t.plan.sessionNumber, t]));
+  const batches = shardSessions(
+    targets.map((t) => t.plan.sessionNumber),
+    REPAIR_BATCH_SIZE
+  );
+
+  const settled = await Promise.allSettled(
+    batches.map(async (batchSessions) => {
+      const remainingBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
+      if (remainingBudget !== undefined && remainingBudget < MIN_REPAIR_BUDGET_MS) {
+        throw new RepairBudgetExhaustedError({
+          missionType: ctx.missionType,
+          uacName: ctx.input.uacName,
+          remainingBudgetMs: remainingBudget,
+          minRequiredMs: MIN_REPAIR_BUDGET_MS,
+          pendingSessions: batchSessions,
+        });
+      }
+
+      for (const sNum of batchSessions) attemptedRepairs.add(sNum);
+      const batchTargets = batchSessions
+        .map((n) => targetBySession.get(n))
+        .filter((t): t is DeficientTarget => t !== undefined);
+
+      const { system, user } = buildFieldRepairPrompts(ctx, batchTargets, thresholds);
+      const raw = await runScheduled(
+        ctx.input.scheduler,
+        `${label}-reparacion-r${round}[${batchSessions.join('-')}]`,
+        () =>
+          generateWithRotation(system, user, ctx.input.planning.teacherId, false, {
+            jsonMode: true,
+            maxTokens: FIELD_REPAIR_MAX_TOKENS,
+            timeoutMs: FIELD_REPAIR_TIMEOUT_MS,
+            remainingBudgetMs: resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs),
+            signal: ctx.input.signal,
+          })
+      );
+      const patches = extractFieldRepairPatches(raw, new Set(batchSessions));
+      return { batchSessions, patches };
+    })
+  );
+
+  // Primero aplicamos cualquier mejora de lotes que sí completaron antes de relanzar errores transitorios
+  for (const r of settled) {
+    if (r.status !== 'fulfilled') continue;
+    for (const patch of r.value.patches) {
+      const sNum = sessionNumberOf(patch);
+      if (sNum === null) continue;
+      const prev = targetBySession.get(sNum);
+      if (!prev) continue;
+      const currentPlan = sanitizedBySession.get(sNum) ?? prev.plan;
+      const fieldsToRepair = classifyDeficientFields(currentPlan, thresholds);
+      const { plan: mergedPlan, updatedFields } = mergeRepairedSessionFields({
+        prevPlan: currentPlan,
+        rawPatch: patch,
+        fieldsToRepair,
+        thresholds,
+        fallbackContext: ctx.fallbackContext,
+      });
+      if (updatedFields.length > 0) {
+        const after = evaluateSessionPlanDensity(mergedPlan, thresholds);
+        const better =
+          after.ok ||
+          after.deficits.length <= prev.report.deficits.length;
+        if (better) {
+          sanitizedBySession.set(sNum, mergedPlan);
+          repaired.add(sNum);
+        }
+      }
+    }
+  }
+
+  const rejected = settled
+    .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    .map((r) => r.reason);
+  if (ctx.input.signal?.aborted && rejected.length > 0) {
+    throw rejected[0];
+  }
+  const capacityRejection = rejected.find(isTransientCapacityError);
+  if (capacityRejection) {
+    logger.warn(
+      `[SessionShard] Abortando reparaciones por campo de ${ctx.missionType} por agotamiento de cuota/servicio/presupuesto; el job debe reintentar con backoff:`,
+      { error: String(capacityRejection) }
+    );
+    throw capacityRejection;
+  }
+  for (const err of rejected) {
+    logger.warn(
+      `[SessionShard] Falló un lote de reparación r${round} en ${ctx.missionType}; las sesiones residuales fallarán cerradas si persiste el déficit:`,
+      { error: String(err) }
+    );
+  }
+}
+
 export async function generateShardedSessionPlans(
   ctx: SessionShardContext
 ): Promise<{ plans: SessionPlan[]; diagnostics: ShardDiagnostics }> {
@@ -484,6 +920,29 @@ export async function generateShardedSessionPlans(
   const packs = shardSessions(pendingSessions);
   const termShares = distributeTermsAcrossPacks(ctx.requiredTerms ?? [], packs.length);
   const label = `${ctx.missionType}:sessions`;
+
+  const initialRemainingBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
+  if (
+    pendingSessions.length > 0 &&
+    initialRemainingBudget !== undefined &&
+    initialRemainingBudget < MIN_REPAIR_BUDGET_MS
+  ) {
+    throw new RepairBudgetExhaustedError({
+      missionType: ctx.missionType,
+      uacName: ctx.input.uacName,
+      remainingBudgetMs: initialRemainingBudget,
+      minRequiredMs: MIN_REPAIR_BUDGET_MS,
+      pendingSessions,
+    });
+  }
+
+  // Reserva explícita de tiempo para la fase de reparación quirúrgica por campo
+  const initialPackDeadlineMs =
+    ctx.input.budgetDeadlineMs !== undefined &&
+    initialRemainingBudget !== undefined &&
+    initialRemainingBudget > REPAIR_RESERVE_MS + MIN_REPAIR_BUDGET_MS
+      ? ctx.input.budgetDeadlineMs - REPAIR_RESERVE_MS
+      : ctx.input.budgetDeadlineMs;
 
   const notifyPartialCheckpoint = async () => {
     if (!ctx.input.onPartialSessionPlans) return;
@@ -501,7 +960,7 @@ export async function generateShardedSessionPlans(
       const result = await generatePack(
         ctx,
         pack,
-        { packTerms: termShares[i] },
+        { packTerms: termShares[i], budgetDeadlineOverrideMs: initialPackDeadlineMs },
         `${label}[${pack.join('-')}]`
       );
       if (result.length > 0) {
@@ -516,7 +975,7 @@ export async function generateShardedSessionPlans(
   for (const r of settled) {
     if (r.status === 'rejected') rejected.push(r.reason);
   }
-  const capacityRejection = rejected.find(isPoolExhaustedOrServiceError);
+  const capacityRejection = rejected.find(isTransientCapacityError);
   if (ctx.input.signal?.aborted && rejected.length > 0) throw rejected[0];
   if (raw.length === 0 && rejected.length > 0) throw capacityRejection ?? rejected[0];
 
@@ -529,6 +988,16 @@ export async function generateShardedSessionPlans(
 
   let rescueCapacityRejection: unknown = null;
   if (missing.length > 0 && !ctx.input.signal?.aborted) {
+    const rescueBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
+    if (rescueBudget !== undefined && rescueBudget < MIN_REPAIR_BUDGET_MS) {
+      throw new RepairBudgetExhaustedError({
+        missionType: ctx.missionType,
+        uacName: ctx.input.uacName,
+        remainingBudgetMs: rescueBudget,
+        minRequiredMs: MIN_REPAIR_BUDGET_MS,
+        pendingSessions: missing,
+      });
+    }
     const rescue = await Promise.allSettled(
       shardSessions(missing).map(async (pack) => {
         const result = await generatePack(
@@ -536,6 +1005,7 @@ export async function generateShardedSessionPlans(
           pack,
           {
             packTerms: [],
+            budgetDeadlineOverrideMs: initialPackDeadlineMs,
             directive:
               `Estas sesiones no se generaron en el intento anterior: ${pack.join(', ')}. ` +
               'Genera cada una COMPLETA con contenido de 3 párrafos, ejemploResuelto con datos + ecuación/procedimiento + resultado/conclusión, y 2 prácticas con datos + consigna explícita. No repitas el error de dejar solo datos sin tarea.',
@@ -550,7 +1020,7 @@ export async function generateShardedSessionPlans(
       })
     );
     for (const r of rescue) {
-      if (r.status === 'rejected' && !rescueCapacityRejection && isPoolExhaustedOrServiceError(r.reason)) {
+      if (r.status === 'rejected' && !rescueCapacityRejection && isTransientCapacityError(r.reason)) {
         rescueCapacityRejection = r.reason;
       }
     }
@@ -574,75 +1044,66 @@ export async function generateShardedSessionPlans(
     ctx.requireVisualSynthesis ?? true
   );
   let sanitized = sanitizeSessionPlans(raw, ctx.coveredSessions, ctx.fallbackContext) ?? [];
-  const deficient = sanitized
-    .map((plan) => ({ plan, report: evaluateSessionPlanDensity(plan, thresholds) }))
-    .filter((x) => !x.report.ok);
+  const evaluateDeficient = (list: SessionPlan[]): DeficientTarget[] =>
+    list
+      .map((plan) => ({ plan, report: evaluateSessionPlanDensity(plan, thresholds) }))
+      .filter((x) => !x.report.ok);
 
-  const repaired: number[] = [];
-  const attemptedRepairs: number[] = [];
-  // Tope de COSTO (no de calidad): se intentan reparar como máximo ~80% de las sesiones cubiertas
-  // (mínimo 2). Toda sesión que quede sin reparar —por este tope, por presupuesto bajo, por error de
-  // IA o porque la reparación no mejoró— sigue deficiente y provoca `SessionDensityDeficiencyError`
-  // al final: el residual NUNCA produce un retorno exitoso silencioso.
-  const maxRepairs = Math.max(2, Math.min(deficient.length, Math.ceil(ctx.coveredSessions.length * 0.8)));
+  const deficient = evaluateDeficient(sanitized);
+  const repairedSet = new Set<number>();
+  const attemptedSet = new Set<number>();
+
   if (deficient.length > 0 && !ctx.input.signal?.aborted) {
-    const targets = deficient.slice(0, maxRepairs);
-    for (const { plan, report } of targets) {
-      if (ctx.input.signal?.aborted) break;
-      const remainingBudget = resolveRemainingBudgetMs(ctx.input.budgetDeadlineMs);
-      if (remainingBudget !== undefined && remainingBudget < 45_000) {
-        logger.info(
-          `[SessionShard] Omitiendo reparación de densidad de sesión ${plan.sessionNumber}: presupuesto bajo (${Math.round(remainingBudget / 1000)}s). La sesión quedará deficiente y la misión fallará cerrada.`
-        );
-        break;
-      }
-      attemptedRepairs.push(plan.sessionNumber);
-      try {
-        const res = await callPack(
-          ctx,
-          [plan.sessionNumber],
-          {
-            directive:
-              `Tu borrador previo de la sesión ${plan.sessionNumber} fue insuficiente: ${report.deficits.join('; ')}. ` +
-              `No repitas el mismo error. Ejemplo previo (recortado): "${(plan.ejemploResuelto || '').slice(0, 420)}". ` +
-              `Práctica previa (recortada): "${(plan.practica || []).map((p) => p.enunciado).join(' | ').slice(0, 360)}". ` +
-              'Redáctala de nuevo COMPLETA cumpliendo exactamente el Contrato Canónico V2: contenido en 3 párrafos sustanciales separados por doble salto de línea (\\n\\n, 320 a 440 palabras en total), ejemploResuelto de 220 a 300 palabras con Planteamiento y 4 pasos numerados (Paso 1..Paso 4) que cierre con resultado o conclusión verificable, 2 ejercicios con datos concretos y consigna explícita (pregunta o verbo de tarea), pista propia y solución, y el objeto sintesisVisual completo (conceptoBreve, formulaOReglaClave, ejemploBreve y mapaConceptual).',
-          },
-          `${label}-reparacion[${plan.sessionNumber}]`
-        );
-        const candidate = sanitizeSessionPlans(res, [plan.sessionNumber], ctx.fallbackContext)?.[0];
-        if (!candidate) continue;
-        const after = evaluateSessionPlanDensity(candidate, thresholds);
-        const better =
-          after.deficits.length < report.deficits.length ||
-          (after.deficits.length === report.deficits.length && after.words > report.words);
-        if (better) {
-          sanitized = sanitized.map((p) => (p.sessionNumber === candidate.sessionNumber ? candidate : p));
-          repaired.push(candidate.sessionNumber);
+    const sanitizedBySession = new Map(sanitized.map((p) => [p.sessionNumber, p]));
+    const syncSanitizedAndCheckpoint = async () => {
+      sanitized = Array.from(sanitizedBySession.values()).sort(
+        (a, b) => a.sessionNumber - b.sessionNumber
+      );
+      if (repairedSet.size > 0 && ctx.input.onPartialSessionPlans) {
+        try {
+          await ctx.input.onPartialSessionPlans(sanitized);
+        } catch {
+          /* checkpoint incremental best-effort */
         }
-      } catch (repairErr) {
-        if (ctx.input.signal?.aborted) throw repairErr;
-        if (isPoolExhaustedOrServiceError(repairErr)) {
-          logger.warn(
-            `[SessionShard] Deteniendo reparaciones de densidad de ${ctx.missionType} por agotamiento de cuota/servicio:`,
-            { error: String(repairErr) }
-          );
-          break;
-        }
-        logger.warn(
-          `[SessionShard] Falló la reparación de densidad de la sesión ${plan.sessionNumber}; seguirá deficiente (la misión fallará cerrada si persiste):`,
-          { error: String(repairErr) }
-        );
       }
+    };
+
+    try {
+      await repairDeficientFields({
+        ctx,
+        targets: deficient,
+        thresholds,
+        label,
+        round: 1,
+        sanitizedBySession,
+        attemptedRepairs: attemptedSet,
+        repaired: repairedSet,
+      });
+    } finally {
+      await syncSanitizedAndCheckpoint();
     }
-    if (repaired.length > 0 && ctx.input.onPartialSessionPlans) {
+
+    const residual = evaluateDeficient(sanitized);
+    if (residual.length > 0 && !ctx.input.signal?.aborted) {
       try {
-        await ctx.input.onPartialSessionPlans(sanitized);
-      } catch {
-        /* checkpoint incremental best-effort */
+        await repairDeficientFields({
+          ctx,
+          targets: residual,
+          thresholds,
+          label,
+          round: 2,
+          sanitizedBySession,
+          attemptedRepairs: attemptedSet,
+          repaired: repairedSet,
+        });
+      } finally {
+        await syncSanitizedAndCheckpoint();
       }
     }
   }
+
+  const repaired = Array.from(repairedSet);
+  const attemptedRepairs = Array.from(attemptedSet);
 
   // Fail-closed: lanza IncompleteSessionPlansError si falta alguna sesión
   const plans = completeSessionPlans(sanitized, ctx.coveredSessions, ctx.fallbackContext);

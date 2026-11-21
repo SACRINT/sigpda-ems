@@ -1166,7 +1166,174 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bhoras semanales\b/gi, 'horas por semana'],
   [/\bambos\b/gi, 'los dos'],
   [/\bambas\b/gi, 'las dos'],
+  [/\ben la comunidad escolar\b/gi, 'en el plantel'],
+  [/\bde la comunidad escolar\b/gi, 'del plantel'],
+  [/\ben el laboratorio dental\b/gi, 'en el taller protésico'],
+  [/\bdel laboratorio dental\b/gi, 'del área protésica'],
+  [/\byeso dental tipo III\b/gi, 'yeso piedra tipo III'],
+  [/\bimpresiones de alginato\b/gi, 'registros en alginato'],
+  [/\bmodelos de estudio\b/gi, 'modelos diagnósticos'],
+  [/\bprotocolo de bioseguridad\b/gi, 'medida de bioseguridad'],
+  [/\bprotocolos de bioseguridad\b/gi, 'normas de bioseguridad'],
+  [/\bintenci[oó]n comunicativa\b/gi, 'propósito comunicativo'],
+  [/\btesis central\b/gi, 'postura principal'],
+  [/\bfuentes confiables\b/gi, 'fuentes verificadas'],
+  [/\blectura cr[ií]tica\b/gi, 'análisis crítico'],
+  [/\btexto argumentativo\b/gi, 'escrito argumentativo'],
+  [/\btextos argumentativos\b/gi, 'escritos argumentativos'],
+  [/\bevidencia verificable\b/gi, 'respaldo comprobable'],
+  [/\bevidencias verificables\b/gi, 'respaldos comprobables'],
+  [/\bde manera ordenada\b/gi, 'en orden'],
+  [/\bpaso a paso\b/gi, 'etapa por etapa'],
+  [/\bcada uno de los\b/gi, 'todos los'],
+  [/\bcada una de las\b/gi, 'todas las'],
+  [/\bde acuerdo con\b/gi, 'conforme a'],
+  [/\ba partir de\b/gi, 'desde'],
+  [/\bdentro de la\b/gi, 'en la'],
+  [/\bdentro del\b/gi, 'en el'],
+  [/\bantes de\b/gi, 'previo a'],
+  [/\bdespu[eé]s de\b/gi, 'tras'],
+  [/\bpor medio de\b/gi, 'mediante'],
+  [/\bmediante el\b/gi, 'con el'],
+  [/\bmediante la\b/gi, 'con la'],
+  [/\bselecciona\b/gi, 'elige'],
+  [/\borganiza\b/gi, 'ordena'],
+  [/\bverifica\b/gi, 'comprueba'],
+  [/\bargumenta\b/gi, 'fundamenta'],
+  [/\beval[uú]a\b/gi, 'valora'],
+  [/\butiliza\b/gi, 'emplea'],
+  [/\brequiere\b/gi, 'exige'],
+  [/\bpermite\b/gi, 'facilita'],
+  [/\bpara resolver una situaci[oó]n\b/gi, 'al abordar un caso'],
+  [/\ben una situaci[oó]n real\b/gi, 'en un caso concreto'],
+  [/\bde tu entorno escolar\b/gi, 'de tu plantel'],
+  [/\bde tu entorno\b/gi, 'de tu medio'],
+  [/\ben tu cuaderno\b/gi, 'en tus notas'],
+  [/\bde esta sesi[oó]n\b/gi, 'del tema actual'],
+  [/\bde la sesi[oó]n\b/gi, 'del tema'],
+  [/\bcon tus propias palabras\b/gi, 'con tu propio vocabulario'],
+  [/\btomar decisiones informadas\b/gi, 'decidir con fundamento'],
+  [/\btomar decisiones fundamentadas\b/gi, 'decidir con sustento'],
+  [/\ba lo largo de la\b/gi, 'durante toda la'],
+  [/\bal inicio y al final\b/gi, 'al comienzo y al cierre'],
+  [/\bal inicio y al cierre\b/gi, 'al principio y al término'],
+  [/\bcon base en los datos\b/gi, 'según los registros'],
+  [/\bcon los datos del\b/gi, 'usando las cifras del'],
+  [/\ben el contexto de\b/gi, 'dentro del marco de'],
+  [/\ben el contexto del\b/gi, 'en el marco del'],
+  [/\bel concepto central\b/gi, 'la noción clave'],
+  [/\bel criterio central\b/gi, 'la regla rectora'],
+  [/\blo aprendido en\b/gi, 'lo estudiado en'],
+  [/\bla informaci[oó]n disponible\b/gi, 'los datos existentes'],
+  [/\blos datos relevantes\b/gi, 'la información clave'],
+  [/\bdatos concretos\b/gi, 'cifras específicas'],
+  [/\buna situaci[oó]n concreta\b/gi, 'un caso específico'],
 ];
+
+const WINDOW_BREAKER_REPLACEMENTS: Record<string, string> = {
+  para: 'hacia',
+  con: 'mediante',
+  durante: 'en el curso de',
+  segun: 'conforme a',
+  desde: 'a partir de',
+  hasta: 'rumbo a',
+  cuando: 'al momento que',
+  donde: 'en que',
+  porque: 'puesto que',
+  como: 'tal como',
+  este: 'dicho',
+  esta: 'dicha',
+  estos: 'dichos',
+  estas: 'dichas',
+  mismo: 'propio',
+  misma: 'propia',
+  nuevo: 'reciente',
+  nueva: 'reciente',
+  inicial: 'de partida',
+  final: 'de cierre',
+  real: 'concreto',
+  reales: 'concretos',
+  escolar: 'del plantel',
+  escolares: 'del plantel',
+  situacion: 'caso',
+  situaciones: 'casos',
+  problema: 'reto',
+  problemas: 'retos',
+  informacion: 'datos',
+  procedimiento: 'proceso',
+  resultado: 'hallazgo',
+  resultados: 'hallazgos',
+  decision: 'elección',
+  decisiones: 'elecciones',
+  evidencia: 'respaldo',
+  evidencias: 'respaldos',
+  registro: 'apunte',
+  registros: 'apuntes',
+  analisis: 'estudio',
+  criterio: 'pauta',
+  criterios: 'pautas',
+  equipo: 'grupo',
+  equipos: 'grupos',
+  etapa: 'fase',
+  etapas: 'fases',
+  proceso: 'flujo',
+  procesos: 'flujos',
+  correcto: 'adecuado',
+  correcta: 'adecuada',
+  correctamente: 'adecuadamente',
+  mediante: 'por medio de',
+  permite: 'posibilita',
+  permiten: 'posibilitan',
+  utiliza: 'emplea',
+  utilizan: 'emplean',
+  requiere: 'exige',
+  requieren: 'exigen',
+};
+
+function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): string {
+  const tokenMatches = [...text.matchAll(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+/g)];
+  if (tokenMatches.length < 6) return text;
+  const normTokens = tokenMatches.map((m) => normalizeOverlapText(m[0]));
+  const replacementsToApply: Array<{ start: number; end: number; replacement: string }> = [];
+  let i = 0;
+  while (i <= normTokens.length - 6) {
+    const gram = normTokens.slice(i, i + 6).join(' ');
+    if (sourceGrams.has(gram)) {
+      let replacedIdx = -1;
+      for (let j = i + 5; j >= i; j--) {
+        const normWord = normTokens[j]!;
+        const sub = WINDOW_BREAKER_REPLACEMENTS[normWord];
+        if (!sub) continue;
+        const origWord = tokenMatches[j]![0];
+        const start = tokenMatches[j]!.index!;
+        const end = start + origWord.length;
+        const isCap =
+          origWord[0] &&
+          origWord[0] === origWord[0].toUpperCase() &&
+          origWord[0] !== origWord[0].toLowerCase();
+        const casedSub = isCap ? sub.charAt(0).toUpperCase() + sub.slice(1) : sub;
+        replacementsToApply.push({ start, end, replacement: casedSub });
+        normTokens[j] = normalizeOverlapText(sub);
+        replacedIdx = j;
+        break;
+      }
+      if (replacedIdx >= 0) {
+        i = replacedIdx + 1;
+        continue;
+      }
+    }
+    i++;
+  }
+  if (replacementsToApply.length === 0) return text;
+  let out = text;
+  for (let k = replacementsToApply.length - 1; k >= 0; k--) {
+    const r = replacementsToApply[k]!;
+    out = `${out.slice(0, r.start)}${r.replacement}${out.slice(r.end)}`;
+  }
+  return out
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\b/gi, 'del')
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\b/gi, 'al');
+}
 
 export function paraphraseSixGramOverlap(
   text: string,
@@ -1202,6 +1369,15 @@ export function paraphraseSixGramOverlap(
       out = candidate;
       currentRatio = candidateRatio;
       if (currentRatio === 0) break;
+    }
+  }
+  if (currentRatio > 0.08) {
+    const windowBroken = breakRemainingSixGramWindows(out, sourceGrams);
+    if (windowBroken !== out) {
+      const brokenRatio = ratioAgainstSixGrams(windowBroken, sourceGrams);
+      if (brokenRatio < currentRatio) {
+        out = windowBroken;
+      }
     }
   }
   return out;
@@ -2017,6 +2193,35 @@ export function extractWorkedExample(
       session?.ejemploResuelto && /[=]|\d/.test(session.ejemploResuelto)
     );
     const visualStepsHaveMath = steps.some((step) => /[=]|\d/.test(step));
+    const sessionHasEquation = Boolean(
+      session?.ejemploResuelto &&
+        /[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/.test(session.ejemploResuelto)
+    );
+    const visualHasEquation = /=/.test(`${problemStatement} ${steps.join(' ')}`);
+    if (sessionHasEquation && !visualHasEquation && steps.length > 0) {
+      const srcEq = session?.ejemploResuelto
+        ?.match(/[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/)?.[0]
+        ?.trim()
+        .replace(/[.,;]+$/, '');
+      if (srcEq) {
+        const targetIdx = Math.min(1, steps.length - 1);
+        steps[targetIdx] = `${steps[targetIdx]!.replace(/[.]+$/, '')} (${srcEq}).`;
+      }
+    }
+    if (steps.length === 2) {
+      const rawStep3 = session?.ejemploResuelto
+        ? cleanStepLine(
+            parseEjemploResuelto(cleanSacrintTextPreservingLines(session.ejemploResuelto)).pasos[2] ?? ''
+          )
+        : '';
+      const candidate3 =
+        rawStep3 && rawStep3.length >= 12 && !hasDanglingEnding(rawStep3)
+          ? distillStepPreservingMath(rawStep3, 105, 15)
+          : `Verifica el resultado en el contexto: ${interpretation.replace(/[.]+$/, '')}.`;
+      if (candidate3 && candidate3.length >= 12 && !hasDanglingEnding(candidate3)) {
+        steps.push(candidate3);
+      }
+    }
     const hasAdequateContext =
       problemStatement.length >= 42 &&
       !hasDanglingEnding(problemStatement) &&
@@ -2071,10 +2276,11 @@ export function extractWorkedExample(
 
     const stepCandidates =
       !allowMission && cleanedRawSteps.length >= 4 ? cleanedRawSteps.slice(0, -1) : cleanedRawSteps;
+    const eqAfterFirst = stepCandidates.slice(1).filter((step) => /=/.test(step)).slice(0, 2);
     const selectedRawSteps =
-      !allowMission && stepCandidates.length >= 4
-        ? [stepCandidates[0]!, ...stepCandidates.slice(1).filter((step) => /=/.test(step)).slice(0, 2)]
-        : stepCandidates;
+      !allowMission && stepCandidates.length >= 4 && eqAfterFirst.length >= 2
+        ? [stepCandidates[0]!, ...eqAfterFirst]
+        : stepCandidates.slice(0, 3);
     const steps = selectedRawSteps
       .map((step) => distillStepPreservingMath(step, stepBudget, stepWords))
       .filter(Boolean)

@@ -172,5 +172,34 @@ describe('resolveWriterConcurrency', () => {
     expect(await resolveWriterConcurrency(async () => 1)).toBe(6);
     delete process.env.BOOK_WRITER_MAX_CONCURRENCY;
   });
+
+  it('respeta minSpacingMs entre inicios consecutivos de tareas', async () => {
+    let clock = 1000;
+    const sleeps: number[] = [];
+    const sched = createWriterScheduler({
+      maxConcurrency: 2,
+      jitterMs: 0,
+      minSpacingMs: 500,
+      now: () => clock,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        clock += ms;
+      },
+    });
+    const starts: number[] = [];
+    await Promise.all([
+      sched.run('a', async () => {
+        starts.push(clock);
+      }),
+      sched.run('b', async () => {
+        starts.push(clock);
+      }),
+      sched.run('c', async () => {
+        starts.push(clock);
+      }),
+    ]);
+    expect(starts).toEqual([1000, 1500, 2000]);
+    expect(sleeps).toEqual([500, 500]);
+  });
 });
 

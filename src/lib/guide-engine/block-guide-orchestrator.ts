@@ -382,14 +382,20 @@ export async function generateBlockWorkTextbook(
   }
 
   // ── Fase 5: Preparación de Inputs para los 4 Redactores ────────────────
-  const maxConcurrency = await resolveWriterConcurrency(async () =>
+  const resolvedConcurrency = await resolveWriterConcurrency(async () =>
     typeof aiProvider.getActiveKeyPoolSize === 'function'
       ? aiProvider.getActiveKeyPoolSize(false)
       : 2
   );
+  // Sin override explícito, acotar a 2 evita ráfagas si las claves comparten proyecto/RPM.
+  const hasExplicitConcurrency = Number.isFinite(Number(process.env.BOOK_WRITER_MAX_CONCURRENCY));
+  const maxConcurrency = hasExplicitConcurrency
+    ? resolvedConcurrency
+    : Math.min(2, resolvedConcurrency);
   const scheduler = createWriterScheduler({
     maxConcurrency,
     jitterMs: process.env.NODE_ENV === 'test' ? 0 : 400,
+    minSpacingMs: process.env.NODE_ENV === 'test' ? 0 : 450,
     breaker:
       process.env.NODE_ENV === 'test'
         ? undefined

@@ -337,6 +337,86 @@ describe('generateShardedSessionPlans — fail-closed V2.1 (Tarea 1)', () => {
     expect(err.message).toContain('Sesiones afectadas: 1, 2');
   });
 
+  it('repara todas las sesiones deficientes de un paquete de 6 por lotes de 2-3 (sin tope del 80% ni 1-a-1)', async () => {
+    const shortContent = 'Párrafo de desarrollo insuficiente para el mínimo requerido. '.repeat(8).trim();
+    const broken = (n: number) => goodPlan(n, { contenido: shortContent, sintesisVisual: undefined });
+
+    let repairCalls = 0;
+    mockGenerate.mockImplementation(async (_s: string, user: string) => {
+      const asked = requested(user);
+      const isRepair = /REPARACI[ÓO]N DE DENSIDAD/i.test(user);
+      if (isRepair) {
+        repairCalls++;
+        expect(user).not.toContain('Ejemplo previo (recortado)');
+      }
+      return respond(asked.map((n) => (isRepair ? goodPlan(n) : broken(n))));
+    });
+
+    const result = await generateShardedSessionPlans(
+      makeCtx([1, 2, 3, 4, 5, 6], { targetWordsPerPlan: 1120 })
+    );
+
+    expect(repairCalls).toBe(2);
+    expect(mockGenerate).toHaveBeenCalledTimes(4);
+    expect(result.diagnostics.repairedSessions).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(result.diagnostics.stillDeficient).toEqual([]);
+    expect(result.plans).toHaveLength(6);
+  });
+
+  it('revalida el lote tras la ronda 1 y repara en ronda 2 SOLO las sesiones residuales que sigan fallando', async () => {
+    const shortContent = 'Párrafo de desarrollo insuficiente para el mínimo requerido. '.repeat(8).trim();
+    const broken = (n: number) => goodPlan(n, { contenido: shortContent, sintesisVisual: undefined });
+
+    let repairCalls = 0;
+    mockGenerate.mockImplementation(async (_s: string, user: string) => {
+      const asked = requested(user);
+      const isRepair = /REPARACI[ÓO]N DE DENSIDAD/i.test(user);
+      if (!isRepair) {
+        return respond(asked.map((n) => broken(n)));
+      }
+      repairCalls++;
+      // Ronda 1 (lotes [1,2,3] y [4,5]): todas aprueban menos la sesión 4.
+      if (asked.includes(4) && asked.length > 1) {
+        return respond(asked.map((n) => (n === 4 ? broken(n) : goodPlan(n))));
+      }
+      if (!asked.includes(4)) {
+        return respond(asked.map((n) => goodPlan(n)));
+      }
+      // Ronda 2 (solo [4]): sesión 4 aprueba limpia.
+      expect(asked).toEqual([4]);
+      return respond([goodPlan(4)]);
+    });
+
+    const result = await generateShardedSessionPlans(
+      makeCtx([1, 2, 3, 4, 5], { targetWordsPerPlan: 1120 })
+    );
+
+    // 2 lotes en ronda 1 ([1,2,3], [4,5]) + 1 llamada residual en ronda 2 ([4]) = 3 en vez de 5 1-a-1
+    expect(repairCalls).toBe(3);
+    expect(result.diagnostics.stillDeficient).toEqual([]);
+    expect(result.diagnostics.repairedSessions).toEqual(expect.arrayContaining([1, 2, 3, 4, 5]));
+  });
+
+  it('no enmascara un 503 durante la reparación como SessionDensityDeficiencyError', async () => {
+    const shortContent = 'Párrafo de desarrollo insuficiente para el mínimo requerido. '.repeat(8).trim();
+    const broken = goodPlan(1, { contenido: shortContent, sintesisVisual: undefined });
+
+    mockGenerate
+      .mockResolvedValueOnce(JSON.stringify({ sessionPlans: [broken] }))
+      .mockRejectedValue(new Error('HTTP 503: UNAVAILABLE'));
+
+    let caught: unknown;
+    try {
+      await generateShardedSessionPlans(makeCtx([1], { targetWordsPerPlan: 1120 }));
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).name).not.toBe('SessionDensityDeficiencyError');
+    expect((caught as Error).message).toContain('HTTP 503');
+  });
+
   it('plan completo y denso con sintesisVisual pasa sin reparaciones ni stillDeficient', async () => {
     const p1 = goodPlan(1);
     const p2 = goodPlan(2);
@@ -350,5 +430,100 @@ describe('generateShardedSessionPlans — fail-closed V2.1 (Tarea 1)', () => {
     expect(result.diagnostics.repairedSessions).toEqual([]);
     expect(result.diagnostics.stillDeficient).toEqual([]);
     expect(result.plans).toHaveLength(2);
+  });
+
+  it('reparación quirúrgica por campo: fusiona SOLO el campo reparado sin sobrescribir campos válidos y conserva el campo previo si no mejora', async () => {
+    const {
+      classifyDeficientFields,
+      mergeRepairedSessionFields,
+    } = await import('@/lib/guide-engine/writers/session-shard');
+
+    const thresholds = densityThresholdsFor(1120, false, true);
+    const base = goodPlan(1) as unknown as Parameters<typeof evaluateSessionPlanDensity>[0];
+    const shortEjemplo =
+      'Planteamiento: Caso breve.\nPaso 1: Dato inicial.\nPaso 2: Criterio.\nPaso 3: Desarrollo.\nPaso 4: Conclusión: Resultado preliminar corto.';
+    const brokenEjemploPlan = {
+      ...base,
+      ejemploResuelto: shortEjemplo,
+    };
+
+    expect(classifyDeficientFields(brokenEjemploPlan, thresholds)).toEqual(['ejemploResuelto']);
+
+    // 1) Si el parche trae un ejemploResuelto que NO mejora y un contenido corto intruso, conserva ambos del plan previo
+    const worseMerge = mergeRepairedSessionFields({
+      prevPlan: brokenEjemploPlan,
+      rawPatch: {
+        sessionNumber: 1,
+        ejemploResuelto: 'Planteamiento: Peor.',
+        contenido: 'Intruso corto que no debe sobrescribir contenido válido.',
+      },
+      fieldsToRepair: ['ejemploResuelto'],
+      thresholds,
+      fallbackContext: { uacName: 'Asignatura de prueba' },
+    });
+    expect(worseMerge.updatedFields).toEqual([]);
+    expect(worseMerge.plan.ejemploResuelto).toBe(shortEjemplo);
+    expect(worseMerge.plan.contenido).toBe(base.contenido);
+    expect(worseMerge.plan.sintesisVisual).toEqual(base.sintesisVisual);
+    expect(worseMerge.plan.practica).toEqual(base.practica);
+
+    // 2) Si el parche devuelve solo { sessionNumber: 1, ejemploResuelto: <válido> }, fusiona solo ejemploResuelto
+    const goodMerge = mergeRepairedSessionFields({
+      prevPlan: brokenEjemploPlan,
+      rawPatch: {
+        sessionNumber: 1,
+        ejemploResuelto: base.ejemploResuelto,
+        contenido: 'Intruso corto que jamás debe tocar contenido válido.',
+      },
+      fieldsToRepair: ['ejemploResuelto'],
+      thresholds,
+      fallbackContext: { uacName: 'Asignatura de prueba' },
+    });
+    expect(goodMerge.updatedFields).toEqual(['ejemploResuelto']);
+    expect(goodMerge.plan.ejemploResuelto).toBe(base.ejemploResuelto);
+    expect(goodMerge.plan.contenido).toBe(base.contenido);
+    expect(goodMerge.plan.sintesisVisual).toEqual(base.sintesisVisual);
+    expect(goodMerge.plan.practica).toEqual(base.practica);
+    expect(evaluateSessionPlanDensity(goodMerge.plan, thresholds).ok).toBe(true);
+  });
+
+  it('presupuesto insuficiente (< 30 s) con residuo pendiente lanza RepairBudgetExhaustedError transitorio y nunca SessionDensityDeficiencyError', async () => {
+    const {
+      RepairBudgetExhaustedError,
+      SessionDensityDeficiencyError,
+    } = await import('@/lib/guide-engine/writers/session-shard');
+    const { isTransientCapacityError } = await import('@/lib/guide-engine/writer-scheduler');
+
+    const shortEjemplo =
+      'Planteamiento: Caso breve.\nPaso 1: Dato.\nPaso 2: Regla.\nPaso 3: Paso.\nPaso 4: Conclusión: Corto.';
+    const broken = goodPlan(1, { ejemploResuelto: shortEjemplo });
+
+    let fakeNow = 1_000_000;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => fakeNow);
+
+    try {
+      mockGenerate.mockImplementationOnce(async () => {
+        // Al terminar la generación inicial solo quedan 20s (< 30s requeridos para reparar)
+        fakeNow = 1_000_000 + 80_000;
+        return JSON.stringify({ sessionPlans: [broken] });
+      });
+
+      const ctx = makeCtx([1], { targetWordsPerPlan: 1120 });
+      ctx.input.budgetDeadlineMs = 1_000_000 + 100_000; // 20s restantes tras la llamada inicial
+
+      let caught: unknown;
+      try {
+        await generateShardedSessionPlans(ctx);
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(RepairBudgetExhaustedError);
+      expect(caught).not.toBeInstanceOf(SessionDensityDeficiencyError);
+      expect(isTransientCapacityError(caught)).toBe(true);
+      expect((caught as Error).message).toContain('restan 20s');
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });

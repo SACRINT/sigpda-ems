@@ -515,4 +515,169 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     expect(aligned.evaluation.sessionsCount).toBe(3);
     expect(aligned.evaluation.targetWords.min).toBe(3375);
   });
+
+  it('processGenerationJob activa expandOnly ante SessionFinalizationDeficitError inicial y evicta misiones deficientes si expandOnly ya se intentó', async () => {
+    const { SessionFinalizationDeficitError } = await import(
+      '@/lib/guide-engine/session-plan-finalizer'
+    );
+    const writers18: WriterOutput[] = [
+      makeWriterOutput('foundation', [1, 2, 3]),
+      makeWriterOutput('lab', [4, 5, 6, 7, 8, 9]),
+      makeWriterOutput('project', [10, 11, 12, 13, 14, 15]),
+      makeWriterOutput('evaluation', [16, 17, 18]),
+    ];
+
+    // Intento A: expandOnly=false -> conserva 4 redactores y marca expandOnly=true
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 0,
+        status: 'running',
+        result: { writerOutputs: writers18, attempts: 0, updatedAt: new Date().toISOString() },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new SessionFinalizationDeficitError({
+        totalWords: 19400,
+        targetMinWords: 20250,
+        underTargetMissions: ['lab'],
+        sessionsWithoutPractice: [],
+      })
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    const [, firstRequeue] = mockRequeueGenerationJob.mock.calls[0];
+    expect((firstRequeue.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'lab',
+      'project',
+      'evaluation',
+    ]);
+    expect(firstRequeue.expandOnly).toBe(true);
+
+    // Intento B: expandOnly ya era true -> evicta solo 'lab' y apaga expandOnly para regenerarla
+    vi.clearAllMocks();
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 0,
+        status: 'running',
+        result: {
+          writerOutputs: writers18,
+          attempts: 1,
+          expandOnly: true,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new SessionFinalizationDeficitError({
+        totalWords: 19400,
+        targetMinWords: 20250,
+        underTargetMissions: ['lab'],
+        sessionsWithoutPractice: [],
+      })
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    const [, secondRequeue] = mockRequeueGenerationJob.mock.calls[0];
+    expect((secondRequeue.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'project',
+      'evaluation',
+    ]);
+    expect(secondRequeue.expandOnly).toBeUndefined();
+  });
+
+  it('processGenerationJob clasifica 503 y RepairBudgetExhaustedError como transitorios (sin evicción) y evicta selectivamente en SessionDensityDeficiencyError real', async () => {
+    const {
+      RepairBudgetExhaustedError,
+      SessionDensityDeficiencyError,
+    } = await import('@/lib/guide-engine/writers/session-shard');
+
+    const writers18: WriterOutput[] = [
+      makeWriterOutput('foundation', [1, 2, 3]),
+      makeWriterOutput('lab', [4, 5, 6, 7, 8, 9]),
+      makeWriterOutput('project', [10, 11, 12, 13, 14, 15]),
+      makeWriterOutput('evaluation', [16, 17, 18]),
+    ];
+
+    // 1) Presupuesto bajo (20s restantes) => transitorio, conserva los 4 writers y aplica backoff
+    vi.clearAllMocks();
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 0,
+        status: 'running',
+        result: { writerOutputs: writers18, attempts: 0, updatedAt: new Date().toISOString() },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new RepairBudgetExhaustedError({
+        missionType: 'evaluation',
+        uacName: 'Pensamiento Matemático I',
+        remainingBudgetMs: 20_000,
+        minRequiredMs: 30_000,
+        pendingSessions: [18],
+      })
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    expect(mockRequeueGenerationJob).toHaveBeenCalledTimes(1);
+    const [, budgetRequeue] = mockRequeueGenerationJob.mock.calls[0];
+    expect((budgetRequeue.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'lab',
+      'project',
+      'evaluation',
+    ]);
+    expect(budgetRequeue.nextRetryAt).toBeDefined();
+
+    // 2) SessionDensityDeficiencyError real => no transitorio, evicta solo el writer afectado ('evaluation')
+    vi.clearAllMocks();
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 0,
+        status: 'running',
+        result: {
+          writerOutputs: writers18,
+          partialSessionPlans: {
+            evaluation: writers18[3].section.sessionPlans,
+            project: writers18[2].section.sessionPlans,
+          },
+          attempts: 1,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new SessionDensityDeficiencyError({
+        missionType: 'evaluation',
+        uacName: 'Pensamiento Matemático I',
+        deficits: [{ session: 18, deficits: ['contenido tiene 285 palabras (mínimo 320)'] }],
+        repairedSessions: [16, 17],
+        attemptedRepairs: [16, 17, 18],
+      })
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    expect(mockRequeueGenerationJob).toHaveBeenCalledTimes(1);
+    const [, densityRequeue] = mockRequeueGenerationJob.mock.calls[0];
+    expect((densityRequeue.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'lab',
+      'project',
+    ]);
+    expect(densityRequeue.partialSessionPlans?.evaluation).toBeUndefined();
+    expect(densityRequeue.partialSessionPlans?.project).toBeDefined();
+  });
 });

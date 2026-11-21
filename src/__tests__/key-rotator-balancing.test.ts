@@ -505,4 +505,14 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
     );
     expect(errorQueries.length).toBe(0);
   });
+
+  it('14. parseGeminiRetryAfterMs extrae Retry-After numérico y retryDelay de Google', async () => {
+    const { parseGeminiRetryAfterMs } = await import('@/lib/ai-provider/gemini');
+    expect(parseGeminiRetryAfterMs('32', '')).toBe(32_000);
+    expect(parseGeminiRetryAfterMs(null, '{"error":{"details":[{"retryDelay":"18s"}]}}')).toBe(
+      18_000
+    );
+    expect(parseGeminiRetryAfterMs(null, 'Quota exceeded; please retry in 12.5s.')).toBe(12_500);
+    expect(parseGeminiRetryAfterMs(null, 'other error')).toBeUndefined();
+  });
 });

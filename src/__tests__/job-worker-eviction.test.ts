@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   isVolumeOnlyBlockIntegrity,
   resolvePostRedactionEvictionTarget,
+  resolvePostRedactionRecoveryPlan,
 } from '@/lib/job-worker';
+import { SessionPlanExpansionError } from '@/lib/guide-engine/session-plan-expansion';
+import { SessionFinalizationDeficitError } from '@/lib/guide-engine/session-plan-finalizer';
 import type { WriterOutput } from '@/lib/guide-engine/writers/writer-contract';
 
 function writer(
@@ -89,5 +92,67 @@ describe('JobWorker - Descarte selectivo de redactor en errores post-redacción'
       'palabras_ai=34269/27000-30000 (fuera de rango permitido con tolerancia editorial [24300-33000]). ' +
       'No se persiste; reintente el bloque.';
     expect(isVolumeOnlyBlockIntegrity(errorMsg)).toBe(false);
+  });
+
+  it('SessionPlanExpansionError activa expandOnly en el primer fallo puro de presupuesto y evicta misiones deficientes si falla lote o expandOnly previo', () => {
+    const expBudgetErr = new SessionPlanExpansionError({
+      uacName: 'Lenguaje y Comunicación I',
+      blockName: 'Bloque 1',
+      finalWords: 19200,
+      targetMinWords: 20250,
+      failedBatches: 0,
+      skippedDueToBudget: 1,
+      deficientMissions: ['lab', 'evaluation'],
+    });
+    expect(resolvePostRedactionRecoveryPlan(expBudgetErr, expBudgetErr.message, all4, false)).toEqual({
+      mode: 'expand_only',
+      evictedTypes: [],
+    });
+    expect(resolvePostRedactionRecoveryPlan(expBudgetErr, expBudgetErr.message, all4, true)).toEqual({
+      mode: 'evict',
+      evictedTypes: ['lab', 'evaluation'],
+    });
+
+    const expFailedBatchErr = new SessionPlanExpansionError({
+      uacName: 'Lenguaje y Comunicación I',
+      blockName: 'Bloque 1',
+      finalWords: 18500,
+      targetMinWords: 20250,
+      failedBatches: 1,
+      skippedDueToBudget: 0,
+      deficientMissions: ['project'],
+    });
+    expect(resolvePostRedactionRecoveryPlan(expFailedBatchErr, expFailedBatchErr.message, all4, false)).toEqual({
+      mode: 'evict',
+      evictedTypes: ['project'],
+    });
+  });
+
+  it('SessionFinalizationDeficitError activa expandOnly si solo falta volumen en intento normal y evicta misiones si expandOnly ya falló o faltan prácticas', () => {
+    const finVolumeErr = new SessionFinalizationDeficitError({
+      totalWords: 19500,
+      targetMinWords: 20250,
+      underTargetMissions: ['foundation', 'lab'],
+      sessionsWithoutPractice: [],
+    });
+    expect(resolvePostRedactionRecoveryPlan(finVolumeErr, finVolumeErr.message, all4, false)).toEqual({
+      mode: 'expand_only',
+      evictedTypes: [],
+    });
+    expect(resolvePostRedactionRecoveryPlan(finVolumeErr, finVolumeErr.message, all4, true)).toEqual({
+      mode: 'evict',
+      evictedTypes: ['foundation', 'lab'],
+    });
+
+    const finPracticeErr = new SessionFinalizationDeficitError({
+      totalWords: 21000,
+      targetMinWords: 20250,
+      underTargetMissions: [],
+      sessionsWithoutPractice: [8],
+    });
+    expect(resolvePostRedactionRecoveryPlan(finPracticeErr, finPracticeErr.message, all4, false)).toEqual({
+      mode: 'evict',
+      evictedTypes: ['lab'],
+    });
   });
 });

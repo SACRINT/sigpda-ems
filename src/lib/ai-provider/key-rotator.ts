@@ -525,6 +525,7 @@ export async function withKeyRotation<T>(
   const maxAttempts = poolSize * MAX_POOL_ROUNDS;
   let lastError: Error | null = null;
   let consecutive503Count = 0;
+  let consecutive429Count = 0;
   let excludeTeacherKey = false;
   let excludeEnv = false;
   const permanentlyFailedKeyIds = new Set<string>();
@@ -639,11 +640,21 @@ export async function withKeyRotation<T>(
       }
 
       lastError = err instanceof Error ? err : new Error(String(err));
-      const errorObj = err as { status?: number; statusCode?: number; message?: string } | null;
-      if (errorObj?.message) {
-        // Enriquecer errStr si viene en el objeto estructurado
-        // errStr ya contiene err.message
-      }
+      const errorObj = err as {
+        status?: number;
+        statusCode?: number;
+        message?: string;
+        retryAfterMs?: number;
+      } | null;
+      const errRetryAfterMs =
+        typeof errorObj?.retryAfterMs === 'number' && Number.isFinite(errorObj.retryAfterMs)
+          ? errorObj.retryAfterMs
+          : (() => {
+              const m =
+                errStr.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/i) ||
+                errStr.match(/retry\s+in\s+(\d+(?:\.\d+)?)s/i);
+              return m ? Math.round(Number(m[1]) * 1000) : undefined;
+            })();
 
       const is503 =
         errorObj?.status === 503 ||
@@ -697,6 +708,7 @@ export async function withKeyRotation<T>(
 
       // Regla Fast-Fail estricta: 2 errores 503 consecutivos
       if (is503) {
+        consecutive429Count = 0;
         const fastFailThreshold = getFastFail503Threshold();
         consecutive503Count++;
         if (consecutive503Count >= fastFailThreshold) {
@@ -709,10 +721,44 @@ export async function withKeyRotation<T>(
         }
         if (attempt < maxAttempts - 1) {
           const wait503Ms = process.env.NODE_ENV === 'test' ? 100 : 4000;
-          await new Promise((r) => setTimeout(r, wait503Ms));
+          await abortableSleep(wait503Ms, signal);
         }
       } else {
         consecutive503Count = 0;
+      }
+
+      // Respetar Retry-After y aplicar pacing escalonado ante 429 (evita ráfagas si las claves comparten cuota)
+      if (is429) {
+        consecutive429Count++;
+        if (attempt < maxAttempts - 1) {
+          const isTestEnv = process.env.NODE_ENV === 'test';
+          const suggestedWaitMs = isTestEnv
+            ? 0
+            : errRetryAfterMs && errRetryAfterMs > 0
+              ? Math.min(45_000, Math.max(800, errRetryAfterMs))
+              : consecutive429Count >= 2
+                ? Math.min(16_000, 2_000 * Math.pow(2, Math.min(3, consecutive429Count - 2)))
+                : 500 + Math.floor(Math.random() * 400);
+          const budgetLeftAfter =
+            deadline !== null ? deadline - Date.now() : undefined;
+          if (
+            budgetLeftAfter !== undefined &&
+            suggestedWaitMs > Math.max(0, budgetLeftAfter - 15_000)
+          ) {
+            const waitSec = Math.max(5, Math.ceil(suggestedWaitMs / 1000));
+            throw new AiCooldownExhaustedError(
+              `Cuota 429 sostenida en "${provider}" (restan ${waitSec}s según Retry-After/backoff). Cortando para respetar presupuesto.`
+            );
+          }
+          if (suggestedWaitMs > 0) {
+            logger.info(
+              `[key-rotator] Pacing/Retry-After por cuota 429 en "${provider}": esperando ${suggestedWaitMs}ms antes de rotar (racha=${consecutive429Count}).`
+            );
+            await abortableSleep(suggestedWaitMs, signal);
+          }
+        }
+      } else {
+        consecutive429Count = 0;
       }
 
       if (attempt < maxAttempts - 1) {

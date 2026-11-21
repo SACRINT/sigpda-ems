@@ -113,9 +113,9 @@ describe('ai-provider/index.ts — Factory and Generation', () => {
     expect(DEFAULT_PREMIUM_PROVIDER).toBe('gemini');
   });
 
-  it('DEFAULT_STANDARD_MODEL y DEFAULT_PREMIUM_MODEL están definidos', () => {
-    expect(DEFAULT_STANDARD_MODEL).toBeTruthy();
-    expect(DEFAULT_PREMIUM_MODEL).toBeTruthy();
+  it('DEFAULT_STANDARD_MODEL usa 3.1 y DEFAULT_PREMIUM_MODEL conserva 3.5', () => {
+    expect(DEFAULT_STANDARD_MODEL).toBe('gemini-3.1-flash-lite');
+    expect(DEFAULT_PREMIUM_MODEL).toBe('gemini-3.5-flash-lite');
   });
 
   // ── getAIProvider ──────────────────────────────────────────────────────────
@@ -267,6 +267,6 @@ describe('ai-provider/index.ts — generateMultimodalWithMetadata (H-256 / H-257
     expect(failure).toBeInstanceOf(Error);
     expect(failure?.message).toBe('HTTP 503: unavailable');
     expect(failure?.provider).toBe('gemini');
-    expect(failure?.model).toBe('gemini-3.5-flash-lite');
+    expect(failure?.model).toBe('gemini-3.1-flash-lite');
   });
 });
