@@ -814,7 +814,7 @@ export default function PlanningTabDocumento({
                     {semestralReady && semestralThresholdMet
                       ? '¡Todos los bloques del semestre están generados y cumplen la meta macro oficial! Descarga el libro maestro unificado con numeración continua, índice consolidado y portadas oficiales institucionales.'
                       : semestralReady
-                      ? `Todos los bloques han sido generados con un volumen de ${accumulatedWorkbookWords.toLocaleString()} palabras (meta recomendada: ${macroTargetWords.toLocaleString()}). La descarga del compendio unificado está disponible.`
+                      ? `Todos los bloques han sido generados con un volumen de ${accumulatedWorkbookWords.toLocaleString('es-MX')} palabras (meta recomendada: ${macroTargetWords.toLocaleString('es-MX')}). La descarga del compendio unificado está disponible.`
                       : `Genera los libros individuales de cada bloque a continuación (${generatedWorkbookCount}/${totalWorkbookBlocks} listos). Al completar todos los bloques se desbloqueará la descarga del Libro Maestro Semestral.`}
                   </p>
 
@@ -830,7 +830,7 @@ export default function PlanningTabDocumento({
                       borderRadius: '10px',
                       border: semestralThresholdMet ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
                     }}>
-                      Total: {accumulatedWorkbookWords.toLocaleString()} / {macroTargetWords.toLocaleString()} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / (macroTargetWords || 1)) * 100))}%)
+                      Total: {accumulatedWorkbookWords.toLocaleString('es-MX')} / {macroTargetWords.toLocaleString('es-MX')} palabras ({Math.min(100, Math.round((accumulatedWorkbookWords / (macroTargetWords || 1)) * 100))}%)
                     </span>
                   </div>
                 </div>
@@ -849,7 +849,7 @@ export default function PlanningTabDocumento({
                           padding: '2px 8px',
                           borderRadius: '6px',
                         }}>
-                          ⚠️ Volumen parcial (&lt; {macroTargetWords.toLocaleString()} palabras) — Descarga habilitada
+                          ⚠️ Volumen parcial (&lt; {macroTargetWords.toLocaleString('es-MX')} palabras) — Descarga habilitada
                         </span>
                       )}
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>

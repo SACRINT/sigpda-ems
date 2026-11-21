@@ -680,4 +680,52 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     expect(densityRequeue.partialSessionPlans?.evaluation).toBeUndefined();
     expect(densityRequeue.partialSessionPlans?.project).toBeDefined();
   });
+
+  it('GenericContentError con 3 writers completos limpia partialSessionPlans envenenados del writer fallido y conserva los 3 válidos', async () => {
+    const { GenericContentError } = await import('@/lib/guide-engine/quality/no-generic-content');
+    const validThree: WriterOutput[] = [
+      makeWriterOutput('foundation', [19, 20, 21]),
+      makeWriterOutput('project', [28, 29, 30, 31, 32, 33]),
+      makeWriterOutput('evaluation', [34, 35, 36]),
+    ];
+    const poisonedLabPartials = makeWriterOutput('lab', [22, 23, 24, 25, 26, 27]).section.sessionPlans;
+
+    vi.clearAllMocks();
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 1,
+        status: 'running',
+        result: {
+          writerOutputs: validThree,
+          partialSessionPlans: { lab: poisonedLabPartials },
+          attempts: 1,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new GenericContentError('LabWriter · Misión 2: Práctica y Aplicación', [
+        {
+          path: 'root.sessionPlans[2].contenido',
+          signature: 'placeholder',
+          label: 'Marcador de texto incompleto',
+          excerpt: '[completar]',
+        },
+      ])
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    expect(mockRequeueGenerationJob).toHaveBeenCalledTimes(1);
+    const [, nextCheckpoint] = mockRequeueGenerationJob.mock.calls[0];
+    expect((nextCheckpoint.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'project',
+      'evaluation',
+    ]);
+    expect(nextCheckpoint.partialSessionPlans).toBeUndefined();
+  });
 });

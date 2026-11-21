@@ -151,6 +151,13 @@ export function resolveTargetSessionsForWorkbook(
   blockSequence?: SecuenciaBloque | null
 ): number {
   if (Array.isArray(blockSequence?.sessions) && blockSequence.sessions.length >= 6) {
+    const validSeqNums = blockSequence.sessions
+      .map((s) => s?.sessionNum)
+      .filter((n): n is number => Number.isInteger(n) && n >= 1);
+    const uniqueSeqCount = new Set(validSeqNums).size;
+    if (uniqueSeqCount >= 6) {
+      return uniqueSeqCount;
+    }
     return blockSequence.sessions.length;
   }
   if (blockSequence?.hours && blockSequence.hours >= 6) {
@@ -201,9 +208,13 @@ export function resolveBlockSessionRange(
 ): BlockSessionRange {
   const targetSessions = resolveTargetSessionsForWorkbook(workbook, blockSequence);
   const seqNums = Array.isArray(blockSequence?.sessions)
-    ? blockSequence.sessions
-        .map((s) => s?.sessionNum)
-        .filter((n): n is number => Number.isInteger(n) && n >= 1)
+    ? Array.from(
+        new Set(
+          blockSequence.sessions
+            .map((s) => s?.sessionNum)
+            .filter((n): n is number => Number.isInteger(n) && n >= 1)
+        )
+      )
     : [];
 
   const missions = Array.isArray(workbook?.missions) ? workbook.missions : [];

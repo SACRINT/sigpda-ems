@@ -2529,7 +2529,7 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Modelo</label>
                     <select
-                      value={config['active_model'] || 'gemini-3.5-flash-lite'}
+                      value={config['active_model'] || 'gemini-3.1-flash-lite'}
                       onChange={e => setConfig(c => ({ ...c, active_model: e.target.value }))}
                       style={{ background: '#131324', color: '#f0f4ff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', width: '100%' }}
                     >
@@ -2564,7 +2564,7 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>Modelo</label>
                     <select
-                      value={config['admin_model'] || 'gemini-3.5-flash-lite'}
+                      value={config['admin_model'] || 'gemini-3.1-flash-lite'}
                       onChange={e => setConfig(c => ({ ...c, admin_model: e.target.value }))}
                       style={{ background: '#131324', color: '#fde68a', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', width: '100%' }}
                     >
@@ -2592,9 +2592,9 @@ export default function AdminClient({ locale, adminEmail }: { locale: string; ad
                   style={{ height: 38, padding: '0 20px', fontWeight: 700 }}
                   onClick={() => saveConfig({
                     active_provider: config['active_provider'] || 'gemini',
-                    active_model:    config['active_model']    || 'gemini-3.5-flash-lite',
+                    active_model:    config['active_model']    || 'gemini-3.1-flash-lite',
                     admin_provider:  config['admin_provider']  || 'gemini',
-                    admin_model:     config['admin_model']     || 'gemini-3.5-flash-lite',
+                    admin_model:     config['admin_model']     || 'gemini-3.1-flash-lite',
                   })}
                 >
                   {saving ? 'Guardando...' : '💾 Guardar Configuración de Modelos'}

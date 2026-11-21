@@ -93,43 +93,76 @@ function isContiguousGroup(group: DetailedSession[]): boolean {
   return true;
 }
 
+function deduplicateSessions(sessions: DetailedSession[]): DetailedSession[] {
+  const seen = new Set<number>();
+  const unique: DetailedSession[] = [];
+  for (const s of sessions) {
+    if (!s || !Number.isInteger(s.sessionNum) || seen.has(s.sessionNum)) continue;
+    seen.add(s.sessionNum);
+    unique.push(s);
+  }
+  return unique.sort((a, b) => a.sessionNum - b.sessionNum);
+}
+
 /**
  * Agrupa sesiones en las 4 misiones oficiales del enfoque Puebla-Finlandia:
  * 1. Misión 1 (foundation): Apertura e intuición pedagógica
  * 2. Misión 2 (lab): Primera mitad de desarrollo y experimentación técnica
  * 3. Misión 3 (project): Segunda mitad de desarrollo y construcción del artefacto
  * 4. Misión 4 (evaluation): Cierre, demostración integral y evaluación formativa NEM
+ *
+ * Garantiza siempre una partición estrictamente disjunta cuando existen >= 4 sesiones
+ * (sin solapar ni duplicar sessionNumbers entre misiones).
  */
 function clusterSessionsIntoMissions(
   sessions: DetailedSession[],
   planning?: Planning
 ): PlannedMissionBlueprint[] {
-  if (sessions.length === 0) return [];
+  const uniqueSessions = deduplicateSessions(sessions);
+  if (uniqueSessions.length === 0) return [];
 
   // Categorizar por fase didáctica oficial
-  let apertura = sessions.filter((s) => s.phase === 'Apertura');
-  let desarrollo = sessions.filter((s) => s.phase === 'Desarrollo');
-  let cierre = sessions.filter((s) => s.phase === 'Cierre');
+  let apertura = uniqueSessions.filter((s) => s.phase === 'Apertura');
+  let desarrollo = uniqueSessions.filter((s) => s.phase === 'Desarrollo');
+  let cierre = uniqueSessions.filter((s) => s.phase === 'Cierre');
 
   // Si el bloque contiene múltiples actividades con sus propios ciclos (Apertura -> Desarrollo -> Cierre
-  // repetidos por actividad), las sesiones filtradas por fase no serían contiguas.
-  // Para las 4 misiones secuenciales del Libro de Trabajo, garantizamos rangos estrictamente contiguos.
+  // repetidos por actividad) o una fase quedó vacía/insuficiente para 4 misiones disjuntas
+  // (p. ej. todas las sesiones etiquetadas como Apertura o sin Cierre), usar partición contigua
+  // estrictamente disjunta sobre uniqueSessions para nunca duplicar números de sesión.
+  const total = uniqueSessions.length;
   const hasMultipleActivityCycles =
     !isContiguousGroup(apertura) ||
     !isContiguousGroup(desarrollo) ||
     !isContiguousGroup(cierre);
+  const coversAllUniquely = apertura.length + desarrollo.length + cierre.length === total;
+  const canSplitFourDisjoint =
+    total >= 4
+      ? apertura.length >= 1 && desarrollo.length >= 2 && cierre.length >= 1
+      : apertura.length > 0 || desarrollo.length > 0 || cierre.length > 0;
 
   if (
     hasMultipleActivityCycles ||
+    !coversAllUniquely ||
+    (total >= 4 && !canSplitFourDisjoint) ||
     (apertura.length === 0 && desarrollo.length === 0 && cierre.length === 0)
   ) {
-    const total = sessions.length;
-    const apCount = total >= 16 ? 3 : total >= 10 ? 2 : Math.max(1, Math.round(total * 0.2));
-    const ciCount = total >= 16 ? 3 : total >= 10 ? 2 : Math.max(1, Math.round(total * 0.2));
-    apertura = sessions.slice(0, apCount);
-    desarrollo = sessions.slice(apCount, Math.max(apCount, total - ciCount));
-    cierre = sessions.slice(Math.max(apCount, total - ciCount));
-  } else {
+    if (total >= 4) {
+      const rawAp = total >= 16 ? 3 : total >= 10 ? 2 : 1;
+      const rawCi = total >= 16 ? 3 : total >= 10 ? 2 : 1;
+      const apCount = total - rawAp - rawCi >= 2 ? rawAp : 1;
+      const ciCount = total - apCount - rawCi >= 2 ? rawCi : 1;
+      apertura = uniqueSessions.slice(0, apCount);
+      desarrollo = uniqueSessions.slice(apCount, total - ciCount);
+      cierre = uniqueSessions.slice(total - ciCount);
+    } else {
+      const apCount = Math.max(1, Math.round(total * 0.2));
+      const ciCount = Math.max(1, Math.round(total * 0.2));
+      apertura = uniqueSessions.slice(0, apCount);
+      desarrollo = uniqueSessions.slice(apCount, Math.max(apCount, total - ciCount));
+      cierre = uniqueSessions.slice(Math.max(apCount, total - ciCount));
+    }
+  } else if (total < 4) {
     if (apertura.length === 0 && desarrollo.length > 2) {
       apertura = [desarrollo.shift()!];
     }
@@ -143,14 +176,24 @@ function clusterSessionsIntoMissions(
   const labGroup = desarrollo.slice(0, midPoint);
   const projectGroup = desarrollo.slice(midPoint);
 
-  // Asegurar que ningún grupo quede vacío
-  const finalLabGroup = labGroup.length > 0 ? labGroup : (apertura.length > 1 ? [apertura[apertura.length - 1]] : sessions.slice(0, 1));
-  const finalProjectGroup = projectGroup.length > 0 ? projectGroup : (cierre.length > 1 ? [cierre[0]] : sessions.slice(-1));
+  // Asegurar que ningún grupo quede vacío incluso con bloques degenerados (< 4 sesiones)
+  const finalLabGroup =
+    labGroup.length > 0
+      ? labGroup
+      : apertura.length > 1
+        ? [apertura[apertura.length - 1]]
+        : uniqueSessions.slice(0, 1);
+  const finalProjectGroup =
+    projectGroup.length > 0
+      ? projectGroup
+      : cierre.length > 1
+        ? [cierre[0]]
+        : uniqueSessions.slice(-1);
 
-  const mission1 = createMissionBlueprint(1, apertura.length > 0 ? apertura : sessions.slice(0, 1), 'foundation', planning);
+  const mission1 = createMissionBlueprint(1, apertura.length > 0 ? apertura : uniqueSessions.slice(0, 1), 'foundation', planning);
   const mission2 = createMissionBlueprint(2, finalLabGroup, 'lab', planning);
   const mission3 = createMissionBlueprint(3, finalProjectGroup, 'project', planning);
-  const mission4 = createMissionBlueprint(4, cierre.length > 0 ? cierre : sessions.slice(-1), 'evaluation', planning);
+  const mission4 = createMissionBlueprint(4, cierre.length > 0 ? cierre : uniqueSessions.slice(-1), 'evaluation', planning);
 
   return [mission1, mission2, mission3, mission4];
 }
@@ -220,8 +263,10 @@ export function buildBlockBlueprint(params: {
   const currentBlockSeq = sequenceData[blockIndex];
 
   if (currentBlockSeq && Array.isArray(currentBlockSeq.sessions) && currentBlockSeq.sessions.length > 0) {
-    sessions = currentBlockSeq.sessions.map((s: SecuenciaSesion | DetailedSession) =>
-      normalizeToDetailedSession(s, blockIndex, blockName)
+    sessions = deduplicateSessions(
+      currentBlockSeq.sessions.map((s: SecuenciaSesion | DetailedSession) =>
+        normalizeToDetailedSession(s, blockIndex, blockName)
+      )
     );
   } else {
     // Autogeneraci��n silenciosa en 5ms leyendo directamente los bloques curriculares

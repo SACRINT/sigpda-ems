@@ -944,7 +944,7 @@ function PlanningDetailModular({
               hour12: false,
             })})`
           : '';
-      return `Bloque ${roman}: ${words.toLocaleString()} palabras${stamp}`;
+      return `Bloque ${roman}: ${words.toLocaleString('es-MX')} palabras${stamp}`;
     }
     return `Bloque ${roman}: pendiente`;
   });

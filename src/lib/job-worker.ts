@@ -33,6 +33,7 @@ import {
   RepairBudgetExhaustedError,
   SessionDensityDeficiencyError,
 } from './guide-engine/writers/session-shard';
+import { GenericContentError } from './guide-engine/quality/no-generic-content';
 import type { WriterOutput } from './guide-engine/writers/writer-contract';
 import type { SessionPlan } from '@/types/work-textbook';
 import { logger } from '@/lib/logger';
@@ -177,10 +178,31 @@ function pickLowestWordCountWriter(writers: WriterOutput[]): MissionWriterType[]
  * por cada writer (o lista explícita de misiones deficientes). Sin rangos
  * hardcodeados: un bloque de 24 sesiones no asume qué sesiones pertenecen a evaluación.
  */
+function detectFailedWriterFromMessage(errorMsgLower: string): MissionWriterType | null {
+  if (errorMsgLower.includes('foundationwriter') || errorMsgLower.includes('misión 1:') || errorMsgLower.includes('mision 1:')) {
+    return 'foundation';
+  }
+  if (errorMsgLower.includes('labwriter') || errorMsgLower.includes('misión 2:') || errorMsgLower.includes('mision 2:')) {
+    return 'lab';
+  }
+  if (errorMsgLower.includes('projectwriter') || errorMsgLower.includes('misión 3:') || errorMsgLower.includes('mision 3:')) {
+    return 'project';
+  }
+  if (errorMsgLower.includes('evaluationwriter') || errorMsgLower.includes('misión 4:') || errorMsgLower.includes('mision 4:')) {
+    return 'evaluation';
+  }
+  return null;
+}
+
 export function resolvePostRedactionEvictionTarget(
   errorMsgLower: string,
   writers: WriterOutput[]
 ): MissionWriterType | null {
+  const explicitWriter = detectFailedWriterFromMessage(errorMsgLower);
+  if (explicitWriter) {
+    return explicitWriter;
+  }
+
   const affectedSessions = Array.from(
     errorMsgLower.matchAll(/sesi[oó]n(?:es)?(?:\s+afectadas?|\s+sin\s+pr[aá]ctica)?[:\s]+([\d,\sy]+)/gi)
   ).flatMap((match) =>
@@ -531,7 +553,10 @@ export async function processGenerationJob(
         : undefined;
       const shouldResolveRecovery =
         !transientError &&
-        (writersToKeep.length >= 4 || error instanceof SessionDensityDeficiencyError);
+        (writersToKeep.length >= 4 ||
+          error instanceof SessionDensityDeficiencyError ||
+          error instanceof GenericContentError ||
+          hasAnyPartialSessionPlans(nextPartials));
       const recovery = shouldResolveRecovery
         ? resolvePostRedactionRecoveryPlan(
             error,
@@ -555,7 +580,17 @@ export async function processGenerationJob(
             }
           }
           logger.warn(
-            `[job-worker] Error post-redacción detectado en job ${jobId}; descartando redactor(es) '${recovery.evictedTypes.join(', ')}' del checkpoint para forzar regeneración fresca en el reintento.`
+            `[job-worker] Error de validación/contenido detectado en job ${jobId}; descartando redactor(es) '${recovery.evictedTypes.join(', ')}' del checkpoint para forzar regeneración fresca en el reintento.`
+          );
+        } else if (nextPartials && writersToKeep.length < 4) {
+          const completedTypes = new Set(writersToKeep.map((w) => w.type));
+          for (const key of Object.keys(nextPartials) as MissionWriterType[]) {
+            if (!completedTypes.has(key)) {
+              delete nextPartials[key];
+            }
+          }
+          logger.warn(
+            `[job-worker] Error no transitorio durante redacción en job ${jobId}; se limpian sesiones parciales pendientes conservando ${writersToKeep.length} redactor(es) completos.`
           );
         } else {
           logger.warn(

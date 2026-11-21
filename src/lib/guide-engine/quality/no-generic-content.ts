@@ -37,7 +37,7 @@ const GENERIC_SIGNATURES: readonly GenericSignature[] = [
   {
     id: 'placeholder',
     label: 'Marcador de texto incompleto',
-    pattern: /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]|\[\s*\.\.\.\s*\]/i,
+    pattern: /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]/i,
   },
   {
     id: 'fallback-pista',
@@ -221,11 +221,30 @@ function excerpt(text: string, max = 160): string {
   return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized;
 }
 
+const BRACKETED_ELLIPSIS_RE = /\[\s*\.\.\.\s*\]/;
+const TRAILING_ELLIPSIS_STUB_RE = /(?:^|[:\-–—]\s*)\[\s*\.\.\.\s*\]\s*\.?$/;
+const EDITORIAL_ELLIPSIS_CONTEXT_RE =
+  /\b(?:elipsis|puntos\s+suspensivos|corchetes|cita(?:s|textual|s\s+textuales)?|omisi[oó]n|omitir|fragmento(?:s)?|transcripci[oó]n|entrevist(?:a|ado)|cr[oó]nica|reportaje|par[aá]frasis)\b/i;
+
+const PLACEHOLDER_ELLIPSIS_SIGNATURE: GenericSignature = {
+  id: 'placeholder',
+  label: 'Marcador de texto incompleto',
+  pattern: BRACKETED_ELLIPSIS_RE,
+};
+
 /** Devuelve la primera firma genérica encontrada en un texto, si existe. */
 export function findGenericSignature(text: string): GenericSignature | null {
   if (typeof text !== 'string' || text.trim().length === 0) return null;
   for (const signature of GENERIC_SIGNATURES) {
     if (signature.pattern.test(text)) return signature;
+  }
+  const trimmed = text.trim();
+  if (BRACKETED_ELLIPSIS_RE.test(trimmed)) {
+    const isShortOrTrailingStub =
+      trimmed.length < 60 || TRAILING_ELLIPSIS_STUB_RE.test(trimmed);
+    if (isShortOrTrailingStub || !EDITORIAL_ELLIPSIS_CONTEXT_RE.test(trimmed)) {
+      return PLACEHOLDER_ELLIPSIS_SIGNATURE;
+    }
   }
   return null;
 }

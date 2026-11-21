@@ -7,7 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Reglas de IA y Modelos (SIGPDA-EMS)
 
 ## Modelos autorizados
-- **Modelo primario estándar**: `gemini-3.1-flash-lite`; **premium**: `gemini-3.5-flash-lite`. Definidos en `src/lib/ai-provider/index.ts` (`DEFAULT_STANDARD_MODEL`, `DEFAULT_PREMIUM_MODEL`). `platform_config.active_model` también debe apuntar al primario vigente.
+- **Modelo primario estándar y premium**: `gemini-3.1-flash-lite` (proveedor `gemini`). Definidos en `src/lib/ai-provider/index.ts` (`DEFAULT_STANDARD_MODEL`, `DEFAULT_PREMIUM_MODEL`). `platform_config.active_model` y `platform_config.admin_model` también apuntan al primario vigente.
 - **Fallback explícito de Gemini**: `gemini-3.1-flash-lite → gemini-3.5-flash-lite → gemini-2.5-flash` (y la ruta inversa si el primario configurado es 3.5). Solo ante fallos elegibles de indisponibilidad; nunca relajar QA ni rellenar con texto sintético.
 - Los scripts offline (ej. `scripts/seed-*.js`, `scripts/ingest-normateca.js`) usan exclusivamente Gemini (vía `GEMINI_API_KEY` de `.env.local` o la tabla `api_keys` con `provider='gemini'`).
 - **NO agregar** nuevos proveedores, claves externas ni modelos hardcodeados sin aprobación del usuario. La cadena de fallback multi-proveedor de `src/lib/ai-provider/` existe solo como respaldo operativo; no se amplía por iniciativa propia.

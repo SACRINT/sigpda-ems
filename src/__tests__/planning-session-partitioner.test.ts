@@ -567,4 +567,122 @@ describe('Partición Universal de Sesiones por Actividad/Propósito/Progresión 
       expect(aperturaCount + desarrolloCount + cierreCount).toBe(total);
     }
   });
+
+  it('buildBlockBlueprint garantiza 4 misiones estrictamente disjuntas sin duplicar sesiones aunque sequence_json venga con fases incompletas o duplicadas', async () => {
+    const { resolveBlockSessionRange } = await import('@/lib/guide-engine/material-extractor');
+    const { buildBlockSequenceFromWorkbook } = await import('@/lib/planning/workbook-sequence-sync');
+
+    // Simula la corrupción real observada en Bloque 2 de Lenguaje I:
+    // sesiones 19..36 todas etiquetadas como Apertura + duplicados de 36 al final.
+    const corruptedSessions: SecuenciaSesion[] = [
+      ...Array.from({ length: 18 }, (_, i) => ({
+        sessionNum: 19 + i,
+        totalSessions: 21,
+        phase: 'Apertura' as const,
+        title: `Sesión ${19 + i}`,
+        teachingActivity: 'Actividad docente',
+        learningActivity: 'Actividad estudiante',
+        evidence: 'Evidencia',
+        evaluation: 'Rúbrica',
+      })),
+      {
+        sessionNum: 36,
+        totalSessions: 21,
+        phase: 'Cierre' as const,
+        title: 'Sesión 36 duplicada',
+        teachingActivity: 'Docente',
+        learningActivity: 'Estudiante',
+        evidence: 'Evidencia',
+        evaluation: 'Rúbrica',
+      },
+    ];
+
+    const corruptedBlockSeq: SecuenciaBloque = {
+      blockIndex: 1,
+      blockName: 'Bloque 2',
+      hours: 21,
+      sessions: corruptedSessions,
+    };
+
+    const bp = buildBlockBlueprint({
+      blockIndex: 1,
+      blockName: 'Bloque 2',
+      planning: {
+        id: 'p-dedupe',
+        teacherId: 't-1',
+        uacName: 'Lenguaje y Comunicación I',
+        semester: 1,
+        component: 'fundamental',
+        sequenceJson: { 1: corruptedBlockSeq },
+      } as unknown as Planning,
+      curriculum: {
+        subsystem: 'bge',
+        component: 'fundamental',
+        paecConnection: { projectName: 'PAEC Escolar' },
+      } as unknown as Parameters<typeof buildBlockBlueprint>[0]['curriculum'],
+    });
+
+    expect(bp.totalSessions).toBe(18);
+    expect(bp.missions).toHaveLength(4);
+    const allAssigned = bp.missions.flatMap((m) => m.sessionNumbers);
+    expect(allAssigned).toHaveLength(18);
+    expect(new Set(allAssigned).size).toBe(18);
+    expect(allAssigned).toEqual(Array.from({ length: 18 }, (_, i) => 19 + i));
+    for (const m of bp.missions) {
+      expect(m.sessionNumbers.length).toBeGreaterThanOrEqual(1);
+    }
+
+    // Verificar también deduplicación en buildBlockSequenceFromWorkbook y resolveBlockSessionRange
+    const makeFakePlan = (n: number) => ({
+      sessionNumber: n,
+      objetivo: `Objetivo de la sesión ${n}`,
+      motivacion: `Motivación ${n}`,
+      saberesPrevios: `Saberes previos ${n}`,
+      contenido: `Contenido de la sesión ${n}`,
+      ejemploResuelto: `Ejemplo resuelto ${n}`,
+      practica: [{ enunciado: `Actividad práctica ${n}`, pista: `Pista ${n}` }],
+      aplicacion: `Aplicación ${n}`,
+      productoIntegrador: `Producto ${n}`,
+      autoevaluacion: [`Autoevaluación ${n}`],
+    });
+    const fakeWorkbook = {
+      blockIndex: 1,
+      blockName: 'Bloque 2',
+      sessionsPerBlock: 18,
+      missions: [
+        {
+          missionIndex: 1,
+          title: 'M1',
+          coveredSessions: [19, 20, 21],
+          sessionPlans: [19, 20, 21].map(makeFakePlan),
+        },
+        {
+          missionIndex: 2,
+          title: 'M2',
+          coveredSessions: [22, 23, 24, 25, 26, 27],
+          sessionPlans: [22, 23, 24, 25, 26, 27].map(makeFakePlan),
+        },
+        {
+          missionIndex: 3,
+          title: 'M3',
+          coveredSessions: [28, 29, 30, 31, 32, 33],
+          sessionPlans: [28, 29, 30, 31, 32, 33].map(makeFakePlan),
+        },
+        {
+          missionIndex: 4,
+          title: 'M4',
+          coveredSessions: [34, 35, 36, 36],
+          sessionPlans: [34, 35, 36, 36].map(makeFakePlan),
+        },
+      ],
+    } as unknown as Parameters<typeof buildBlockSequenceFromWorkbook>[0];
+
+    const synced = buildBlockSequenceFromWorkbook(fakeWorkbook, 1, 'Bloque 2');
+    expect(synced?.sessions).toHaveLength(18);
+    expect(synced?.hours).toBe(18);
+    expect(new Set(synced?.sessions.map((s) => s.sessionNum)).size).toBe(18);
+
+    const range = resolveBlockSessionRange(fakeWorkbook, corruptedBlockSeq);
+    expect(range).toEqual({ targetSessions: 18, startSession: 19, endSession: 36 });
+  });
 });

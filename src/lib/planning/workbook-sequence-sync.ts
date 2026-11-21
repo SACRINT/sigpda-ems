@@ -153,11 +153,13 @@ export function buildBlockSequenceFromWorkbook(
     extracted.planesDeClase.map((p) => [p.numeroSesion, p])
   );
 
-  // Recolectar todos los sessionPlans ordenados por número de sesión
+  // Recolectar todos los sessionPlans únicos ordenados por número de sesión
   const sessionEntries: Array<{ mission: MissionSection; sp: SessionPlan }> = [];
+  const seenSessionNums = new Set<number>();
   for (const mission of missions) {
     for (const sp of mission.sessionPlans ?? []) {
-      if (sp && typeof sp.sessionNumber === 'number') {
+      if (sp && typeof sp.sessionNumber === 'number' && !seenSessionNums.has(sp.sessionNumber)) {
+        seenSessionNums.add(sp.sessionNumber);
         sessionEntries.push({ mission, sp });
       }
     }

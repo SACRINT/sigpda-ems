@@ -113,9 +113,9 @@ describe('ai-provider/index.ts — Factory and Generation', () => {
     expect(DEFAULT_PREMIUM_PROVIDER).toBe('gemini');
   });
 
-  it('DEFAULT_STANDARD_MODEL usa 3.1 y DEFAULT_PREMIUM_MODEL conserva 3.5', () => {
+  it('DEFAULT_STANDARD_MODEL y DEFAULT_PREMIUM_MODEL usan gemini-3.1-flash-lite', () => {
     expect(DEFAULT_STANDARD_MODEL).toBe('gemini-3.1-flash-lite');
-    expect(DEFAULT_PREMIUM_MODEL).toBe('gemini-3.5-flash-lite');
+    expect(DEFAULT_PREMIUM_MODEL).toBe('gemini-3.1-flash-lite');
   });
 
   // ── getAIProvider ──────────────────────────────────────────────────────────

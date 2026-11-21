@@ -70,4 +70,24 @@ describe('no-generic-content — gate anti-relleno', () => {
       )
     ).not.toThrow();
   });
+
+  it('permite elipsis editorial legítima [...] en prosa de citas/entrevistas pero rechaza stubs cortos o colgantes', () => {
+    expect(
+      isGenericText(
+        'Puedes utilizar elipsis (puntos suspensivos entre corchetes [...]) para omitir partes de una cita que no son esenciales, siempre que no alteres el sentido original.'
+      )
+    ).toBe(false);
+    expect(
+      isGenericText(
+        'Elimina repeticiones innecesarias usando puntos suspensivos entre corchetes [...] y asegúrate de que cada cita mantenga su contexto original.'
+      )
+    ).toBe(false);
+    expect(isGenericText('[...]')).toBe(true);
+    expect(isGenericText('Contenido: [...]')).toBe(true);
+    expect(
+      isGenericText(
+        'En esta sesión se analiza el procedimiento paso a paso para completar la actividad del bloque: [...]'
+      )
+    ).toBe(true);
+  });
 });
