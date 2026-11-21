@@ -33,6 +33,7 @@ import {
 } from './material-extractor';
 import { logger } from '@/lib/logger';
 import { detectFallbackWords } from './writers/writer-contract';
+import { hasIncompletePlaceholder } from './quality/no-generic-content';
 import { validateBlockCrossContamination } from './cross-contamination-guard';
 
 export type MaterialType =
@@ -117,7 +118,6 @@ export interface ReviewBlockMaterialsInput {
 const PLACEHOLDER_PATTERNS: readonly RegExp[] = [
   /\bundefined\b/i,
   /\[completar[^\]]*\]/i,
-  /\[\.\.\.\]/,
   /\$\{[^}]*\}/,
   /modelo\s+por\s+construir/i,
   /por\s+completar\s+en\s+el\s+libro/i,
@@ -188,6 +188,10 @@ function findPlaceholderToken(text: string | null | undefined): string | null {
   for (const pattern of PLACEHOLDER_PATTERNS) {
     const match = text.match(pattern);
     if (match) return match[0];
+  }
+  if (hasIncompletePlaceholder(text)) {
+    const ellipsisMatch = text.match(/\[\s*\.\.\.\s*\]/);
+    return ellipsisMatch ? ellipsisMatch[0] : '[placeholder]';
   }
   return null;
 }

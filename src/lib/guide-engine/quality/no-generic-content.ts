@@ -221,6 +221,8 @@ function excerpt(text: string, max = 160): string {
   return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized;
 }
 
+const EXPLICIT_PLACEHOLDER_RE =
+  /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]/i;
 const BRACKETED_ELLIPSIS_RE = /\[\s*\.\.\.\s*\]/;
 const TRAILING_ELLIPSIS_STUB_RE = /(?:^|[:\-–—]\s*)\[\s*\.\.\.\s*\]\s*\.?$/;
 const EDITORIAL_ELLIPSIS_CONTEXT_RE =
@@ -231,6 +233,37 @@ const PLACEHOLDER_ELLIPSIS_SIGNATURE: GenericSignature = {
   label: 'Marcador de texto incompleto',
   pattern: BRACKETED_ELLIPSIS_RE,
 };
+
+/**
+ * SSoT para detectar marcadores de texto incompleto ([completar], [placeholder], etc.)
+ * y distinguir stubs truncados `[...]` de la elipsis tipográfica editorial legítima
+ * (`puntos suspensivos entre corchetes [...]`) en citas o entrevistas.
+ */
+export function hasIncompletePlaceholder(text: string): boolean {
+  if (typeof text !== 'string' || text.trim().length === 0) return false;
+  if (EXPLICIT_PLACEHOLDER_RE.test(text)) return true;
+  const trimmed = text.trim();
+  if (BRACKETED_ELLIPSIS_RE.test(trimmed)) {
+    const isShortOrTrailingStub =
+      trimmed.length < 60 || TRAILING_ELLIPSIS_STUB_RE.test(trimmed);
+    if (isShortOrTrailingStub || !EDITORIAL_ELLIPSIS_CONTEXT_RE.test(trimmed)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Recorre recursivamente cualquier objeto/arreglo verificando `hasIncompletePlaceholder` por campo hoja. */
+export function hasIncompletePlaceholderInValue(value: unknown): boolean {
+  if (typeof value === 'string') return hasIncompletePlaceholder(value);
+  if (Array.isArray(value)) return value.some((item) => hasIncompletePlaceholderInValue(item));
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((child) =>
+      hasIncompletePlaceholderInValue(child)
+    );
+  }
+  return false;
+}
 
 /** Devuelve la primera firma genérica encontrada en un texto, si existe. */
 export function findGenericSignature(text: string): GenericSignature | null {

@@ -18,7 +18,7 @@ import {
   isUnusableResourceUrl,
   pickCuratedResourceForText,
 } from '@/lib/resources/curated-resources';
-import { hasGenericContent } from '../quality/no-generic-content';
+import { hasGenericContent, hasIncompletePlaceholder } from '../quality/no-generic-content';
 import type {
   CanonicalSeed,
   MissionSection,
@@ -176,8 +176,8 @@ export function evaluateQuality(params: {
     warnings.push(`Extensión deficiente: ${params.wordCount} palabras de ${params.targetWords.min} requeridas`);
   }
 
-  // 2. +25 si no hay placeholders genéricos ni truncados
-  const hasPlaceholders = /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]|\[\s*\.\.\.\s*\]/i.test(params.content);
+  // 2. +25 si no hay placeholders genéricos ni truncados (SSoT en no-generic-content.ts)
+  const hasPlaceholders = hasIncompletePlaceholder(params.content);
   if (!hasPlaceholders) {
     score += 25;
   } else {

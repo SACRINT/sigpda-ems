@@ -123,16 +123,50 @@ export function auditPlanWorkbookCoherence(
       else seen.set(key, n);
     }
 
-    // W1 / W2 — presencia de las actividades del libro en las sesiones de la misión
-    const texts = covered.map((n) => byNum.get(n)).filter((p): p is PlanDeClaseDerivado => Boolean(p)).map(planText);
-    if (texts.length > 0) {
-      const ch = fingerprint(m.youDoSection?.autonomousChallenge);
-      if (ch && !texts.some((t) => t.includes(ch))) {
-        warnings.push(`W1: el reto autónomo de ${label} no aparece en sus sesiones.`);
+    // W1 / W2 — presencia de las actividades del libro en las sesiones de la misión.
+    // En workbooks V2 con sessionPlans completos, cada sesión deriva su práctica 1:1 de
+    // `sessionPlans[n].practica` (no de `youDoSection`/`weDoSection` a nivel misión),
+    // por lo que validamos la presencia de la práctica propia de cada sesión.
+    const missionPlans = Array.isArray(m.sessionPlans) ? m.sessionPlans : [];
+    const hasV2SessionPractice =
+      covered.length > 0 &&
+      covered.every((n) => {
+        const sp = missionPlans.find((item) => item.sessionNumber === n);
+        return Boolean(sp && Array.isArray(sp.practica) && sp.practica.length > 0);
+      });
+
+    if (hasV2SessionPractice) {
+      const missingPracticeSessions: number[] = [];
+      for (const n of covered) {
+        const plan = byNum.get(n);
+        const sp = missionPlans.find((item) => item.sessionNumber === n);
+        if (!plan || !sp?.practica?.[0]?.enunciado) continue;
+        const fp = fingerprint(
+          sp.practica[0].enunciado.replace(/^Ejercicio\s*\d+\s*[:.]\s*/i, '')
+        );
+        if (fp && !planText(plan).includes(fp)) {
+          missingPracticeSessions.push(n);
+        }
       }
-      const gp = fingerprint(m.weDoSection?.guidedPractice);
-      if (gp && !texts.some((t) => t.includes(gp))) {
-        warnings.push(`W2: la práctica guiada de ${label} no aparece en sus sesiones.`);
+      if (missingPracticeSessions.length > 0) {
+        warnings.push(
+          `W1: la práctica del libro de ${label} no aparece en la(s) sesión(es) ${missingPracticeSessions.join(', ')}.`
+        );
+      }
+    } else {
+      const texts = covered
+        .map((n) => byNum.get(n))
+        .filter((p): p is PlanDeClaseDerivado => Boolean(p))
+        .map(planText);
+      if (texts.length > 0) {
+        const ch = fingerprint(m.youDoSection?.autonomousChallenge);
+        if (ch && !texts.some((t) => t.includes(ch))) {
+          warnings.push(`W1: el reto autónomo de ${label} no aparece en sus sesiones.`);
+        }
+        const gp = fingerprint(m.weDoSection?.guidedPractice);
+        if (gp && !texts.some((t) => t.includes(gp))) {
+          warnings.push(`W2: la práctica guiada de ${label} no aparece en sus sesiones.`);
+        }
       }
     }
   }

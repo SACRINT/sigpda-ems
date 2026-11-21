@@ -663,6 +663,14 @@ function PlanningDetailModular({
                 },
               }));
               loadExtras();
+              fetch(`/api/planeaciones/${planning.id}/secuencia`)
+                .then((r) => (r.ok ? r.json() : null))
+                .then((seqRes) => {
+                  if (seqRes?.sequence && typeof seqRes.sequence === 'object') {
+                    setSequenceData(seqRes.sequence);
+                  }
+                })
+                .catch(() => { /* fallback silencioso si falla recarga de secuencia */ });
             }
           } else if (statusData.status === 'failed') {
             isFinished = true;

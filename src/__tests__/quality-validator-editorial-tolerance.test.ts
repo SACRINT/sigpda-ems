@@ -80,5 +80,30 @@ describe('QualityValidator - tolerancia editorial única', () => {
     expect(result.withinEditorialTolerance).toBe(true);
     expect(result.accepted).toBe(false);
     expect(result.retryableWriters).toContain('foundation');
+    expect(result.writersWithPlaceholders).toContain('foundation');
+  });
+
+  it('acepta elipsis tipográfica editorial [...] dentro de citas/entrevistas sin falsos positivos en quality-validator', () => {
+    const result = validateBlockGuideQuality({
+      writerOutputs: [
+        output('foundation', 8500),
+        {
+          ...output('lab', 8500),
+          section: {
+            title: 'Crónica y entrevista',
+            contenido:
+              'Puedes utilizar elipsis (puntos suspensivos entre corchetes [...]) para omitir partes de una cita que no son esenciales sin alterar el sentido original.',
+          } as never,
+        },
+        output('project', 6000),
+        output('evaluation', 4000),
+      ],
+      subsystem: 'bge',
+      targetWords,
+    });
+
+    expect(result.accepted).toBe(true);
+    expect(result.writersWithPlaceholders).toEqual([]);
+    expect(result.warnings).toEqual([]);
   });
 });

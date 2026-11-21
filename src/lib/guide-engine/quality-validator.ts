@@ -8,6 +8,7 @@
  */
 
 import type { WriterOutput } from './writers/writer-contract';
+import { hasIncompletePlaceholderInValue } from './quality/no-generic-content';
 
 export interface QualityValidatorInput {
   writerOutputs: WriterOutput[];
@@ -21,6 +22,7 @@ export interface QualityValidatorOutput {
   qualityWarning: boolean;
   failedWriters: ('foundation' | 'lab' | 'project' | 'evaluation')[];
   retryableWriters: ('foundation' | 'lab' | 'project' | 'evaluation')[];
+  writersWithPlaceholders?: ('foundation' | 'lab' | 'project' | 'evaluation')[];
   totalWordCount: number;
   /** Mínimo formal del bloque (sin tolerancia). */
   minRequiredWords: number;
@@ -37,8 +39,6 @@ export interface QualityValidatorOutput {
  * final del orquestador (que ya aplica esta misma tolerancia).
  */
 export const EDITORIAL_TOLERANCE_RATIO = 0.9;
-
-const PLACEHOLDER_REGEX = /\[completar\]|\[escribe aquí\]|\[placeholder\]|\[aquí escribe\]|\[texto\]|\[insertar\]|\[pendiente\]|\[tbd\]|\[\s*\.\.\.\s*\]/i;
 
 const WEIGHTS: Record<'foundation' | 'lab' | 'project' | 'evaluation', number> = {
   foundation: 0.30,
@@ -75,9 +75,8 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
       warnings.push(`El redactor "${out.type}" obtuvo un puntaje insuficiente (${out.qualityScore}/100)`);
     }
 
-    // Comprobar si hay placeholders residuales en la sección generada
-    const rawContent = JSON.stringify(out.section);
-    if (PLACEHOLDER_REGEX.test(rawContent)) {
+    // Comprobar si hay placeholders residuales en la sección generada (SSoT en no-generic-content.ts)
+    if (hasIncompletePlaceholderInValue(out.section)) {
       writersWithPlaceholders.push(out.type);
       warnings.push(`El redactor "${out.type}" contiene texto incompleto o marcadores [...]`);
     }
@@ -169,6 +168,7 @@ export function validateBlockGuideQuality(input: QualityValidatorInput): Quality
     qualityWarning,
     failedWriters,
     retryableWriters,
+    writersWithPlaceholders,
     totalWordCount,
     minRequiredWords,
     editorialMinWords,

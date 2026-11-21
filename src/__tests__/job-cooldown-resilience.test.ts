@@ -728,4 +728,40 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     ]);
     expect(nextCheckpoint.partialSessionPlans).toBeUndefined();
   });
+
+  it('evicta selectivamente al writer nombrado en [BlockIntegrity] por placeholders (El redactor "lab") en vez de conservar los 4 redactores en bucle', async () => {
+    const writers18: WriterOutput[] = [
+      makeWriterOutput('foundation', [19, 20, 21]),
+      makeWriterOutput('lab', [22, 23, 24, 25, 26, 27]),
+      makeWriterOutput('project', [28, 29, 30, 31, 32, 33]),
+      makeWriterOutput('evaluation', [34, 35, 36]),
+    ];
+
+    vi.clearAllMocks();
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 1,
+        status: 'running',
+        result: { writerOutputs: writers18, attempts: 1, updatedAt: new Date().toISOString() },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new Error(
+        '[BlockIntegrity] El bloque 1 no cumple el gate editorial: qualityScore=93 (no aceptado: El redactor "lab" contiene texto incompleto o marcadores [...]; [lab] Se detectaron placeholders genéricos o puntos suspensivos; Se reintentarán los redactores con placeholders: lab).'
+      )
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    expect(mockRequeueGenerationJob).toHaveBeenCalledTimes(1);
+    const [, nextCheckpoint] = mockRequeueGenerationJob.mock.calls[0];
+    expect((nextCheckpoint.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'project',
+      'evaluation',
+    ]);
+  });
 });

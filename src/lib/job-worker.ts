@@ -179,6 +179,21 @@ function pickLowestWordCountWriter(writers: WriterOutput[]): MissionWriterType[]
  * hardcodeados: un bloque de 24 sesiones no asume qué sesiones pertenecen a evaluación.
  */
 function detectFailedWriterFromMessage(errorMsgLower: string): MissionWriterType | null {
+  const quotedRedactor = errorMsgLower.match(/el\s+redactor\s+["']?(foundation|lab|project|evaluation)["']?/i);
+  if (quotedRedactor) return quotedRedactor[1].toLowerCase() as MissionWriterType;
+
+  const placeholderList = errorMsgLower.match(/redactores\s+con\s+placeholders\s*:\s*([^.)\n]+)/i);
+  if (placeholderList) {
+    for (const m of MISSION_WRITER_TYPES) {
+      if (new RegExp(`\\b${m}\\b`, 'i').test(placeholderList[1])) {
+        return m;
+      }
+    }
+  }
+
+  const bracketedWriter = errorMsgLower.match(/\[(foundation|lab|project|evaluation)\]/i);
+  if (bracketedWriter) return bracketedWriter[1].toLowerCase() as MissionWriterType;
+
   if (errorMsgLower.includes('foundationwriter') || errorMsgLower.includes('misión 1:') || errorMsgLower.includes('mision 1:')) {
     return 'foundation';
   }

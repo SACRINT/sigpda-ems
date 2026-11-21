@@ -45,7 +45,7 @@ import { generateLabMission } from './writers/lab-writer';
 import { generateProjectMission } from './writers/project-writer';
 import { generateEvaluationSection } from './writers/evaluation-writer';
 import { generateTroubleshootingMatrix } from './resilience-agent';
-import { findGenericContent } from './quality/no-generic-content';
+import { findGenericContent, hasIncompletePlaceholderInValue } from './quality/no-generic-content';
 import { validateBlockGuideQuality } from './quality-validator';
 import {
   compactOversizedSessionPlans,
@@ -590,7 +590,10 @@ export async function generateBlockWorkTextbook(
       const current = writerOutputs.find((w) => w.type === writerType);
       const currentWords = current?.wordCount || 0;
       const targetMin = effectiveMissionBudgets[writerType].targetWords.min;
-      if (currentWords >= targetMin) {
+      const hasPlaceholderFailure =
+        Boolean(validation.writersWithPlaceholders?.includes(writerType)) ||
+        Boolean(current && hasIncompletePlaceholderInValue(current.section));
+      if (currentWords >= targetMin && !hasPlaceholderFailure) {
         logger.info(`[orchestrator] Redactor ${writerType} ya cumple con el mínimo (${currentWords} >= ${targetMin}); omitiendo reintento.`);
         continue;
       }
@@ -609,14 +612,16 @@ export async function generateBlockWorkTextbook(
 
         attempts++;
         logger.info(
-          `[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries}, actual: ${currentWords}, meta mínima: ${targetMin})...`
+          `[orchestrator] Reintentando ${writerType} (Intento ${attempts}/${maxRetries}, actual: ${currentWords}, meta mínima: ${targetMin}${hasPlaceholderFailure ? ', motivo: placeholders' : ''})...`
         );
 
         try {
           const deficit = Math.max(0, targetMin - currentWords);
-          const expansionDirective = deficit > 0
-            ? `[REQUISITO CRÍTICO DE EXPANSIÓN EDITORIAL]: El borrador previo tuvo ${currentWords} palabras y fue insuficiente para el presupuesto formal (faltan al menos ${deficit} palabras para el mínimo de ${targetMin}). Conserva la estructura del contrato canónico V2 y expande cada sesión con contenido teórico real, ejemplo resuelto completo, prácticas con solución y síntesis visual. Desarrolla las operaciones, fórmulas y criterios de verificación sin omitir pasos; prohíbe el relleno genérico, la repetición y las frases de transición vacías.`
-            : undefined;
+          const expansionDirective = hasPlaceholderFailure
+            ? `[REQUISITO CRÍTICO ANTI-PLACEHOLDERS]: El borrador previo contenía marcadores incompletos o placeholders ([completar], [placeholder], [...], etc.). Redacta todos los campos íntegros y completos en español sin abreviaturas truncadas ni corchetes vacíos, respetando el Contrato Canónico V2 y al menos ${targetMin} palabras.`
+            : deficit > 0
+              ? `[REQUISITO CRÍTICO DE EXPANSIÓN EDITORIAL]: El borrador previo tuvo ${currentWords} palabras y fue insuficiente para el presupuesto formal (faltan al menos ${deficit} palabras para el mínimo de ${targetMin}). Conserva la estructura del contrato canónico V2 y expande cada sesión con contenido teórico real, ejemplo resuelto completo, prácticas con solución y síntesis visual. Desarrolla las operaciones, fórmulas y criterios de verificación sin omitir pasos; prohíbe el relleno genérico, la repetición y las frases de transición vacías.`
+              : undefined;
 
           const writerSpecificInput: WriterInput = {
             ...baseWriterInput,
@@ -633,12 +638,16 @@ export async function generateBlockWorkTextbook(
           const idx = writerOutputs.findIndex((w) => w.type === writerType);
           if (idx !== -1) {
             const current = writerOutputs[idx];
+            const cleanedPlaceholders =
+              hasPlaceholderFailure &&
+              !hasIncompletePlaceholderInValue(reRunOutput.section) &&
+              reRunOutput.wordCount >= Math.round(targetMin * 0.9);
             const wordsImproved = reRunOutput.wordCount > current.wordCount;
-            if (wordsImproved && reRunOutput.qualityScore >= 70) {
+            if ((wordsImproved || cleanedPlaceholders) && reRunOutput.qualityScore >= 70) {
               writerOutputs[idx] = reRunOutput;
               improved = true;
               await persistCheckpoint();
-              logger.info(`[orchestrator] Reintento de ${writerType} EXITOSO: ${current.wordCount} -> ${reRunOutput.wordCount} palabras.`);
+              logger.info(`[orchestrator] Reintento de ${writerType} EXITOSO: ${current.wordCount} -> ${reRunOutput.wordCount} palabras${cleanedPlaceholders ? ' (placeholders eliminados)' : ''}.`);
             } else {
               logger.info(`[orchestrator] Reintento de ${writerType} descartado: no mejoró el volumen (${reRunOutput.wordCount} <= ${current.wordCount}) o calidad insuficiente (${reRunOutput.qualityScore} < 70).`);
             }
