@@ -88,24 +88,49 @@ const MATH_RULES: Rule[] = FORBIDDEN_MATH_PATTERNS.map((r) => ({
 }));
 
 const CONSTRUCTION_RULES: Rule[] = [
-  { pattern: /instalaci[oó]n(?:es)?\s+(?:hidr[aá]ulica|sanitaria|hidrosanitaria|el[eé]ctrica|de gas)/i, label: 'instalacion hidraulica/sanitaria/electrica/de gas', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /redes?\s+(?:hidr[aá]ulica|sanitaria|de gas|de distribuci[oó]n)/i, label: 'red hidraulica/sanitaria/de gas', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /\btuber[ií]as?\s+(?:de|para)\s+(?:agua|cobre|cpvc|ppr|pvc|gas|desag[uü]e)/i, label: 'tuberia de agua/cobre/cpvc/ppr/pvc/gas/desague', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /prueba(?:s)?\s+de\s+estanqueidad/i, label: 'prueba de estanqueidad', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /instalaci[oó]n(?:es)?\s+(?:hidr[aá]ulica|sanitaria|hidrosanitaria|de gas)/i, label: 'instalacion hidraulica/sanitaria/de gas', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /redes?\s+(?:hidr[aá]ulica|sanitaria|hidrosanitaria|de\s+gas|de\s+distribuci[oó]n\s+(?:hidr[aá]ulica|sanitaria|de\s+gas))/i, label: 'red hidraulica/sanitaria/de gas', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /\btuber[ií]as?\s+(?:de|para)\s+(?:cpvc|ppr|pvc|gas|desag[uü]e)/i, label: 'tuberia de cpvc/ppr/pvc/gas/desague', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /soldadura\s+(?:de\s+)?(?:tuber[ií]a|tubo|cobre)/i, label: 'soldadura de tuberia/tubo/cobre', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /llave\s+de\s+paso/i, label: 'llave de paso', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /c[eé]dula\s*(?:40|80)/i, label: 'cedula 40/80 de tuberia', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /conexi[oó]n(?:es)?\s+(?:de|para)\s+gas/i, label: 'conexion de gas', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /muro(?:es)?\s+de\s+(?:block|tabique|concreto|ladrillo)/i, label: 'muro de block/tabique/concreto/ladrillo', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /colado\s+de\s+(?:losa|firme|castillo)/i, label: 'colado de losa/firme/castillo', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /varilla(?:s)?\s+corrugada/i, label: 'varilla corrugada', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /mezcla\s+de\s+(?:cemento|concreto|mortero)/i, label: 'mezcla de cemento/concreto/mortero', actualDiscipline: 'Construccion e Instalaciones' },
-  { pattern: /impermeabilizaci[oó]n/i, label: 'impermeabilizacion', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /impermeabilizaci[oó]n\s+de\s+(?:losas?|techos?|azoteas?|muros?|cimientos?)/i, label: 'impermeabilizacion de losa/techo/muro', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /bit[aá]cora\s+de\s+obra/i, label: 'bitacora de obra', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /arn[eé]s\s+de\s+seguridad\s+para\s+obra|casco\s+de\s+obra/i, label: 'arnes o casco de obra', actualDiscipline: 'Construccion e Instalaciones' },
   { pattern: /(?:sistema|red)\s+de\s+riego\s+con\s+tuber[ií]as?\s+de\s+pvc/i, label: 'sistema de riego con tuberias pvc', actualDiscipline: 'Construccion e Instalaciones' },
+];
+
+/**
+ * Reglas de fluidos/fontanería que son legítimas en laboratorios de Química y Física
+ * (ej. "llave de paso" de un embudo de decantación o bureta, "prueba de estanqueidad"
+ * en biofiltros o recipientes sellados, "tubería de agua/cobre" en oxidación o fluidos).
+ */
+const FLUID_PLUMBING_RULES: Rule[] = [
+  { pattern: /\btuber[ií]as?\s+(?:de|para)\s+(?:agua|cobre)/i, label: 'tuberia de agua/cobre', actualDiscipline: 'Construccion e Instalaciones' },
+  { pattern: /llave\s+de\s+paso/i, label: 'llave de paso', actualDiscipline: 'Construccion e Instalaciones' },
+];
+
+const SEALING_TEST_RULES: Rule[] = [
+  { pattern: /prueba(?:s)?\s+de\s+estanqueidad/i, label: 'prueba de estanqueidad', actualDiscipline: 'Construccion e Instalaciones' },
+];
+
+const ELECTRICAL_INSTALL_RULES: Rule[] = [
+  { pattern: /instalaci[oó]n(?:es)?\s+el[eé]ctrica/i, label: 'instalacion electrica', actualDiscipline: 'Construccion e Instalaciones' },
+];
+
+const TELECOM_RULES: Rule[] = [
   { pattern: /cable(?:-|\s)?red\s+utp/i, label: 'cable de red UTP', actualDiscipline: 'Telecomunicaciones' },
 ];
+
+const SCIENCE_QUANTITATIVE_EXEMPT_LABELS = new Set([
+  'modelo algebraico',
+  'magnitud variable',
+  'grafica de variacion',
+]);
 
 const SCIENCE_RULES: Rule[] = [
   { pattern: /phet\.colorado\.edu\/es\/simulations?\/(?:under-pressure|build-a-molecule|circuit-construction-kit)/i, label: 'simulacion PhET de ciencias', actualDiscipline: 'Ciencias Naturales' },
@@ -167,6 +192,16 @@ function isNative(
   }
 }
 
+function isAgroOrBiotech(uacName: string, component: string, curriculumName: string): boolean {
+  return /agricult|agroecolog|agropecuari|huerto|biotecnolog|servicios\s+ecosist/i.test(
+    `${uacName} ${component} ${curriculumName}`
+  );
+}
+
+function isExperimentalScienceDomain(id: DisciplinaryDomainId): boolean {
+  return id === 'ciencias_fisica_ingenieria' || id === 'ciencias_quimica_biologia_ambiental';
+}
+
 function buildRules(
   id: DisciplinaryDomainId,
   uacName: string,
@@ -175,11 +210,39 @@ function buildRules(
   adapterRules: Rule[]
 ): Rule[] {
   const culinary = isCulinary(uacName, component, curriculumName);
+  const agroOrBiotech = isAgroOrBiotech(uacName, component, curriculumName);
+  const experimentalScience = isExperimentalScienceDomain(id);
   const rules: Rule[] = [];
 
-  if (!isNative(id, 'math')) rules.push(...MATH_RULES);
-  if (!isNative(id, 'construction')) rules.push(...CONSTRUCTION_RULES);
-  if (!isNative(id, 'science')) rules.push(...SCIENCE_RULES);
+  if (!isNative(id, 'math')) {
+    rules.push(
+      ...(experimentalScience
+        ? MATH_RULES.filter((r) => !SCIENCE_QUANTITATIVE_EXEMPT_LABELS.has(r.label))
+        : MATH_RULES)
+    );
+  }
+  if (!isNative(id, 'construction')) {
+    rules.push(...CONSTRUCTION_RULES);
+    if (!experimentalScience) {
+      rules.push(...FLUID_PLUMBING_RULES);
+    }
+    if (!experimentalScience && id !== 'formacion_laboral_salud_clinica') {
+      rules.push(...SEALING_TEST_RULES);
+    }
+    if (!isNative(id, 'digital') && id !== 'ciencias_fisica_ingenieria') {
+      rules.push(...ELECTRICAL_INSTALL_RULES);
+    }
+    if (!isNative(id, 'digital')) {
+      rules.push(...TELECOM_RULES);
+    }
+  }
+  if (!isNative(id, 'science')) {
+    rules.push(
+      ...(agroOrBiotech
+        ? SCIENCE_RULES.filter((r) => r.label !== 'fotosintesis' && r.label !== 'celula vegetal/animal')
+        : SCIENCE_RULES)
+    );
+  }
   if (!isNative(id, 'digital')) rules.push(...DIGITAL_RULES);
   if (!culinary) rules.push(...KITCHEN_RULES);
 
@@ -300,6 +363,26 @@ function findIssues(
         /construccion|ciencias naturales|telecomunicaciones|gastronomia|cultura digital/i.test(
           rule.actualDiscipline
         )
+      ) {
+        continue;
+      }
+      // En Ciencias Naturales (Química/Biología/Ecología), citar "mezcla de cemento/concreto/mortero"
+      // como ejemplo cotidiano de mezcla heterogénea, hidratación química o uso de mortero de laboratorio
+      // no es contaminación de obra civil.
+      if (
+        rule.label === 'mezcla de cemento/concreto/mortero' &&
+        /qu[ií]mica|biolog[ií]a|ciencias naturales/i.test(expectedDiscipline) &&
+        /heterog[eé]ne|homog[eé]ne|mezcla|sustancia|reacci[oó]n|hidrataci[oó]n|porcelana|triturar|laboratorio|fases?|componentes?/i.test(
+          value
+        )
+      ) {
+        continue;
+      }
+      // En cualquier disciplina, "llave de paso" referido explícitamente a cristalería de laboratorio
+      // (embudo de decantación, bureta) no es plomería residencial.
+      if (
+        rule.label === 'llave de paso' &&
+        /embudo\s+de\s+decantaci[oó]n|bureta|decantaci[oó]n|cristaler[ií]a|laboratorio/i.test(value)
       ) {
         continue;
       }

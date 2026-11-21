@@ -284,7 +284,7 @@ export function ensureCuratedResourceList(
 export function hasExplicitPracticeTask(text: string): boolean {
   return (
     /[?¿]/.test(text) ||
-    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|contrasta|clasifica|distingue|selecciona|ordena|organiza|extrae|resume|formula|prop[oó]n|integra|revisa|corrige|escribe|reescribe|sustenta|fundamenta|localiza|reconoce|transforma|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica)\b/i.test(
+    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|contrasta|clasifica|distingue|selecciona|ordena|organiza|extrae|resume|formula|prop[oó]n|integra|revisa|corrige|escribe|reescribe|sustenta|fundamenta|localiza|reconoce|transforma|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica|completa|traduce|conjuga|subraya|elige|responde|contesta|investiga|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|registra|documenta|ejecuta|prueba|repara|limpia|inspecciona|dibuja|traza|grafica|tabula|debate|valora|concluye|enumera|enlista|ejemplifica|demuestra|convierte|empareja|observa|anota|complete|write|rewrite|fill|match|choose|select|translate|read|answer|identify|describe|explain|analyze|compare|contrast|classify|create|correct|conjugate|underline|circle|practice|order|arrange|calculate|determine|solve|justify|discuss|list|label|convert|change|form)\b/i.test(
       text
     )
   );
@@ -299,7 +299,7 @@ export function hasCompleteWorkedExampleClosure(
     return false;
   }
   const hasClosingMarker =
-    /\b(?:respuesta final|resultado|conclusi[oó]n|por lo tanto|en consecuencia|se obtiene|se concluye|queda|equivale|en s[ií]ntesis)\b/i.test(
+    /\b(?:respuesta final|resultado|conclusi[oó]n|conclusion|final answer|result|therefore|in summary|dictamen|verificaci[oó]n final|en resumen|por lo tanto|en consecuencia|se obtiene|se concluye|queda|equivale|en s[ií]ntesis)\b/i.test(
       clean
     ) || /=\s*-?\d+(?:[.,]\d+)?\s*(?:[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ²³%°]+)?\.?$/i.test(clean);
   if (!hasClosingMarker) return false;
@@ -796,7 +796,11 @@ export const FALLBACK_SIGNATURE_SNIPPET = 'profundizaremos en el análisis siste
  * Detecta y cuantifica de forma determinista cualquier palabra proveniente de fallback o relleno sintético,
  * así como contaminación cruzada matemática en UACs no matemáticas.
  */
-export function detectFallbackWords(sessions: SessionPlan[], uacName?: string): number {
+export function detectFallbackWords(
+  sessions: SessionPlan[],
+  uacName?: string,
+  context?: { component?: string; curriculumName?: string; careerOrProgramName?: string }
+): number {
   let fallbackWords = 0;
   for (const plan of sessions) {
     // La detección es por contenido, no solo por la bandera isFallback: un plan
@@ -810,7 +814,13 @@ export function detectFallbackWords(sessions: SessionPlan[], uacName?: string): 
       continue;
     }
     if (uacName && !isMathUAC(uacName)) {
-      const issues = validateSessionPlanContamination(plan, uacName);
+      const issues = validateSessionPlanContamination(
+        plan,
+        uacName,
+        context?.component || '',
+        context?.curriculumName || '',
+        context?.careerOrProgramName || ''
+      );
       if (issues.length > 0) {
         fallbackWords += countSessionPlanWords(plan);
       }

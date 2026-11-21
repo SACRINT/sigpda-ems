@@ -21,7 +21,10 @@ import {
   buildContextualFallbackPlan,
   completeSessionPlans,
   detectFallbackWords,
+  hasCompleteWorkedExampleClosure,
+  hasExplicitPracticeTask,
 } from '@/lib/guide-engine/writers/writer-contract';
+import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 import type { SessionPlan, MissionSection } from '@/types/work-textbook';
 
 function createMockPlan(overrides: Partial<SessionPlan> = {}): SessionPlan {
@@ -448,6 +451,114 @@ describe('Cross-Contamination Guard (P3.1.2)', () => {
       const cleanReport = validateBlockCrossContamination([contaminatedMission], 'Taller de Pensamiento Variacional I', '', '', '', true);
       expect(cleanReport.clean).toBe(true);
       expect(cleanReport.issues).toHaveLength(0);
+    });
+  });
+
+  describe('7. Regresiones multi-asignatura (CNET I, Redes/Cómputo, Ciencias Sociales, Dibujo Técnico, Inglés)', () => {
+    it('permite terminología legítima de laboratorio en Ciencias Naturales I (llave de paso, prueba de estanqueidad, mezcla de cemento heterogénea, tubería de cobre) y reporta 0 fallbackWords', () => {
+      const cnetUac = 'Ciencias Naturales, Experimentales y Tecnología I. Invitación a la Ciencia. Naturaleza de la materia';
+      const decantationPlan = createMockPlan({
+        sessionNumber: 38,
+        objetivo: 'Separar mezclas heterogéneas líquido-líquido mediante embudo de decantación.',
+        contenido:
+          'Para separar agua y aceite se utiliza un embudo de decantación abriendo lentamente la llave de paso hasta drenar la fase más densa. En contraste, una mezcla de cemento, grava y agua ilustra una mezcla heterogénea sólida-líquida, mientras la oxidación en tuberías de cobre muestra un cambio químico.',
+        practica: [
+          {
+            enunciado: 'Describe el momento exacto en que debes cerrar la llave de paso del embudo de decantación.',
+            pista: 'Observa la interfase entre el agua y el aceite antes de cerrar.',
+            solucion: ['Cerrar la llave de paso justo cuando la interfase llega al estrechamiento.'],
+          },
+        ],
+        autoevaluacion: ['¿Identifico cuándo abrir y cerrar la llave de paso durante una decantación?'],
+      });
+      const biofilterPlan = createMockPlan({
+        sessionNumber: 59,
+        objetivo: 'Validar un biofiltro de agua con carbón activado bajo criterios de calidad hídrica.',
+        contenido:
+          'Antes de verter la muestra problema, se realiza una prueba de estanqueidad en el recipiente del biofiltro para verificar que no existan fugas laterales y se analiza cómo la impermeabilización del suelo urbano reduce la recarga de los acuíferos.',
+      });
+
+      expect(validateSessionPlanContamination(decantationPlan, cnetUac, 'fundamental')).toEqual([]);
+      expect(validateSessionPlanContamination(biofilterPlan, cnetUac, 'fundamental')).toEqual([]);
+      expect(
+        detectFallbackWords([decantationPlan, biofilterPlan], cnetUac, { component: 'fundamental' })
+      ).toBe(0);
+
+      // Contaminación real de obra civil en CNET I sigue siendo rechazada
+      const realContamination = createMockPlan({
+        sessionNumber: 40,
+        contenido: 'Realiza el colado de losa con varilla corrugada y arma el muro de block.',
+      });
+      expect(validateSessionPlanContamination(realContamination, cnetUac, 'fundamental').length).toBeGreaterThan(0);
+    });
+
+    it('clasifica Actualiza equipos de cómputo como cultura_digital_programacion_ti (con o sin curriculumName) y permite cable de red UTP e instalación eléctrica', () => {
+      const uac = 'Actualiza equipos de cómputo de acuerdo con especificaciones del fabricante';
+      expect(getDisciplinaryAdapter(uac).id).toBe('cultura_digital_programacion_ti');
+      expect(getDisciplinaryAdapter(uac, 'laboral', 'Redes y Mantenimiento').id).toBe(
+        'cultura_digital_programacion_ti'
+      );
+
+      const hwPlan = createMockPlan({
+        sessionNumber: 5,
+        objetivo: 'Diagnosticar el hardware y verificar condiciones eléctricas y de conectividad.',
+        contenido:
+          'Antes de reemplazar la fuente de poder o los módulos de memoria RAM, verifica la puesta a tierra de la instalación eléctrica del laboratorio y comprueba la continuidad del cable de red UTP.',
+      });
+
+      expect(validateSessionPlanContamination(hwPlan, uac, 'laboral', 'Redes y Mantenimiento')).toEqual([]);
+      expect(validateSessionPlanContamination(hwPlan, uac)).toEqual([]);
+      expect(
+        detectFallbackWords([hwPlan], uac, { component: 'laboral', curriculumName: 'Redes y Mantenimiento' })
+      ).toBe(0);
+    });
+
+    it('permite "redes de distribución" en Ciencias Sociales I y "alimentos" en contexto arquitectónico de Dibujo Técnico I sin perder guardias reales', () => {
+      const socialesPlan = createMockPlan({
+        sessionNumber: 7,
+        contenido:
+          'El Estado regula la infraestructura pública, incluidas las redes de distribución de bienes básicos y el acceso equitativo al agua en la comunidad.',
+      });
+      expect(
+        validateSessionPlanContamination(
+          socialesPlan,
+          'Ciencias sociales I. Estado, ciudadanía y relaciones de poder',
+          'fundamental'
+        )
+      ).toEqual([]);
+
+      const dibujoPlan = createMockPlan({
+        sessionNumber: 4,
+        contenido:
+          'Traza a escala 1:50 la planta arquitectónica del comedor escolar y el almacén de alimentos del plantel usando escuadras y escalímetro.',
+      });
+      expect(validateSessionPlanContamination(dibujoPlan, 'Dibujo Técnico I', 'ext_optativo')).toEqual([]);
+
+      const dibujoContaminated = createMockPlan({
+        sessionNumber: 5,
+        contenido: 'Prepara los ingredientes sobre una tabla de picar usando un cuchillo de chef.',
+      });
+      expect(
+        validateSessionPlanContamination(dibujoContaminated, 'Dibujo Técnico I', 'ext_optativo').length
+      ).toBeGreaterThan(0);
+    });
+
+    it('acepta verbos imperativos en inglés y técnicos en hasExplicitPracticeTask y cierres bilingües en hasCompleteWorkedExampleClosure', () => {
+      expect(
+        hasExplicitPracticeTask(
+          'Read the dialogue between Ana and Luis. Complete each sentence with the verb to be and rewrite them in negative form.'
+        )
+      ).toBe(true);
+      expect(
+        hasExplicitPracticeTask(
+          'Diagnostica la compatibilidad de la memoria RAM, instala el módulo en la ranura DIMM y documenta el resultado en la bitácora.'
+        )
+      ).toBe(true);
+      expect(
+        hasCompleteWorkedExampleClosure(
+          'Planteamiento: Introducing yourself in English at school.\nPaso 1: Subject + am/is/are.\nPaso 2: I am a student.\nPaso 3: Negative form.\nPaso 4: Conclusion: The verb to be agrees with each pronoun in affirmative and negative statements.'
+        )
+      ).toBe(true);
     });
   });
 });

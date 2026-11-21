@@ -515,4 +515,46 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
     expect(parseGeminiRetryAfterMs(null, 'Quota exceeded; please retry in 12.5s.')).toBe(12_500);
     expect(parseGeminiRetryAfterMs(null, 'other error')).toBeUndefined();
   });
+
+  it('15. Ante 429 con retryDelay largo en Vuelta 1, rota a otras llaves no intentadas en lugar de abortar por budget', async () => {
+    const encKey1 = encryptKey('gemini-key-1');
+    const encKey2 = encryptKey('gemini-key-2');
+    const encKey3 = encryptKey('gemini-key-3');
+
+    let pick = 0;
+    mockSqlFn.mockImplementation(async (strings: TemplateStringsArray) => {
+      const q = strings.join('');
+      if (q.includes('FOR UPDATE SKIP LOCKED')) {
+        const pool = [
+          { id: 'key-1', label: 'Key 1', key_encrypted: encKey1, is_active: true },
+          { id: 'key-2', label: 'Key 2', key_encrypted: encKey2, is_active: true },
+          { id: 'key-3', label: 'Key 3', key_encrypted: encKey3, is_active: true },
+        ];
+        return [pool[pick++ % pool.length]];
+      }
+      if (q.includes('COUNT(*)')) {
+        return [{ cnt: 3 }];
+      }
+      return [];
+    });
+
+    const tried: string[] = [];
+    const fn = vi.fn().mockImplementation(async (key: string) => {
+      tried.push(key);
+      if (key !== 'gemini-key-3') {
+        const err = new Error('429 RESOURCE_EXHAUSTED: please retry in 38s.') as Error & {
+          status?: number;
+          retryAfterMs?: number;
+        };
+        err.status = 429;
+        err.retryAfterMs = 38_000;
+        throw err;
+      }
+      return 'OK en key-3';
+    });
+
+    const result = await withKeyRotation('gemini', fn, { remainingBudgetMs: 25_000 });
+    expect(result).toBe('OK en key-3');
+    expect(tried).toEqual(['gemini-key-1', 'gemini-key-2', 'gemini-key-3']);
+  });
 });

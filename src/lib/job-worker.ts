@@ -43,9 +43,12 @@ const MAX_CHECKPOINT_REQUEUES = 8;
 type MissionWriterType = WriterOutput['type'];
 type PartialSessionPlansMap = Partial<Record<MissionWriterType, SessionPlan[]>>;
 
+type RetryDirectivesMap = Partial<Record<MissionWriterType, string>>;
+
 interface JobCheckpoint {
   writerOutputs: WriterOutput[];
   partialSessionPlans?: PartialSessionPlansMap;
+  retryDirectivesByWriter?: RetryDirectivesMap;
   attempts: number;
   updatedAt: string;
   nextRetryAt?: string;
@@ -63,14 +66,42 @@ function readCheckpoint(result: unknown): JobCheckpoint | null {
     rawPartials && typeof rawPartials === 'object' && !Array.isArray(rawPartials)
       ? (rawPartials as PartialSessionPlansMap)
       : undefined;
+  const rawDirectives = candidate.retryDirectivesByWriter;
+  const retryDirectivesByWriter =
+    rawDirectives && typeof rawDirectives === 'object' && !Array.isArray(rawDirectives)
+      ? (rawDirectives as RetryDirectivesMap)
+      : undefined;
   return {
     writerOutputs: candidate.writerOutputs as WriterOutput[],
     ...(partialSessionPlans ? { partialSessionPlans } : {}),
+    ...(retryDirectivesByWriter ? { retryDirectivesByWriter } : {}),
     attempts: candidate.attempts,
     updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : new Date().toISOString(),
     ...(typeof candidate.nextRetryAt === 'string' ? { nextRetryAt: candidate.nextRetryAt } : {}),
     ...(candidate.expandOnly === true ? { expandOnly: true } : {}),
   };
+}
+
+function buildEvictionRetryDirective(error: unknown, errorMsg: string): string | undefined {
+  if (/\[CrossContamination\]/i.test(errorMsg)) {
+    const fieldsMatch = errorMsg.match(/Campos:\s*(.+)$/i);
+    const offendingDetail = fieldsMatch ? fieldsMatch[1].trim().slice(0, 260) : '';
+    return (
+      `CORRECCIÓN ANTI-CONTAMINACIÓN DISCIPLINAR: El intento anterior fue rechazado por incluir vocabulario de otra disciplina` +
+      `${offendingDetail ? ` (${offendingDetail})` : ''}. ` +
+      'Redacta nuevamente evitando ESTRICTAMENTE esos términos y empleando únicamente conceptos, instrumentos y vocabulario propios de la asignatura.'
+    );
+  }
+  if (
+    error instanceof GenericContentError ||
+    /\[NoGenericContent\]|marcadores\s+\[\.\.\.\]|placeholder/i.test(errorMsg)
+  ) {
+    return (
+      'CORRECCIÓN ANTI-PLACEHOLDERS: El intento anterior fue rechazado por contener texto incompleto, ' +
+      'marcadores ([completar], [placeholder], [...]) o frases genéricas. Redacta todos los campos íntegros y específicos.'
+    );
+  }
+  return undefined;
 }
 
 function hasAnyPartialSessionPlans(partials?: PartialSessionPlansMap): boolean {
@@ -425,15 +456,20 @@ export async function processGenerationJob(
         const nextPartials: PartialSessionPlansMap = {
           ...(checkpointState.partialSessionPlans ?? {}),
         };
+        const nextDirectives: RetryDirectivesMap = {
+          ...(checkpointState.retryDirectivesByWriter ?? {}),
+        };
         for (const w of snapshot) {
           if (w?.type) {
             mergedByType.set(w.type, w);
             delete nextPartials[w.type];
+            delete nextDirectives[w.type];
           }
         }
         checkpointState = {
           writerOutputs: Array.from(mergedByType.values()),
           ...(Object.keys(nextPartials).length > 0 ? { partialSessionPlans: nextPartials } : {}),
+          ...(Object.keys(nextDirectives).length > 0 ? { retryDirectivesByWriter: nextDirectives } : {}),
           attempts: checkpointState.attempts,
           updatedAt: new Date().toISOString(),
           ...(checkpointState.expandOnly ? { expandOnly: true } : {}),
@@ -464,6 +500,9 @@ export async function processGenerationJob(
         checkpointState = {
           writerOutputs: checkpointState.writerOutputs,
           partialSessionPlans: nextPartials,
+          ...(checkpointState.retryDirectivesByWriter
+            ? { retryDirectivesByWriter: checkpointState.retryDirectivesByWriter }
+            : {}),
           attempts: checkpointState.attempts,
           updatedAt: new Date().toISOString(),
           ...(checkpointState.expandOnly ? { expandOnly: true } : {}),
@@ -494,6 +533,7 @@ export async function processGenerationJob(
         expandOnly: checkpointState.expandOnly === true,
         previousWriterOutputs,
         previousPartialSessionPlans: checkpointState.partialSessionPlans,
+        retryDirectivesByWriter: checkpointState.retryDirectivesByWriter,
         onCheckpoint: persistCheckpoint,
         onPartialSessionPlansCheckpoint: persistPartialSessionPlans,
       }
@@ -566,6 +606,9 @@ export async function processGenerationJob(
       const nextPartials = checkpointState.partialSessionPlans
         ? { ...checkpointState.partialSessionPlans }
         : undefined;
+      const nextDirectives: RetryDirectivesMap = {
+        ...(checkpointState.retryDirectivesByWriter ?? {}),
+      };
       const shouldResolveRecovery =
         !transientError &&
         (writersToKeep.length >= 4 ||
@@ -589,9 +632,13 @@ export async function processGenerationJob(
         } else if (recovery.mode === 'evict' && recovery.evictedTypes.length > 0) {
           const evictedSet = new Set(recovery.evictedTypes);
           writersToKeep = writersToKeep.filter((w) => !evictedSet.has(w.type));
-          if (nextPartials) {
-            for (const t of evictedSet) {
+          const retryDirective = buildEvictionRetryDirective(error, errorMsg);
+          for (const t of evictedSet) {
+            if (nextPartials) {
               delete nextPartials[t];
+            }
+            if (retryDirective) {
+              nextDirectives[t] = retryDirective;
             }
           }
           logger.warn(
@@ -629,6 +676,9 @@ export async function processGenerationJob(
         writerOutputs: writersToKeep,
         ...(nextPartials && Object.keys(nextPartials).length > 0
           ? { partialSessionPlans: nextPartials }
+          : {}),
+        ...(Object.keys(nextDirectives).length > 0
+          ? { retryDirectivesByWriter: nextDirectives }
           : {}),
         attempts: checkpointState.attempts + 1,
         updatedAt: new Date().toISOString(),

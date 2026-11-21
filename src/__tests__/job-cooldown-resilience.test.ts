@@ -763,5 +763,44 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
       'project',
       'evaluation',
     ]);
+    expect(nextCheckpoint.retryDirectivesByWriter?.lab).toContain('ANTI-PLACEHOLDERS');
+  });
+
+  it('evicta solo al writer dueño de sesiones contaminadas en [CrossContamination] y guarda retryDirectivesByWriter con los términos infractores', async () => {
+    const writers24: WriterOutput[] = [
+      makeWriterOutput('foundation', [25, 26, 27]),
+      makeWriterOutput('lab', [28, 29, 30, 31, 32, 33, 34, 35, 36]),
+      makeWriterOutput('project', [37, 38, 39, 40, 41, 42, 43, 44, 45]),
+      makeWriterOutput('evaluation', [46, 47, 48]),
+    ];
+
+    vi.clearAllMocks();
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 1,
+        status: 'running',
+        result: { writerOutputs: writers24, attempts: 1, updatedAt: new Date().toISOString() },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new Error(
+        '[CrossContamination] El bloque 1 de "Ciencias Naturales I" contiene contenido de otra disciplina. ALERTA. Contaminacion cruzada detectada en 2 puntos. Sesiones afectadas: 38. Campos: contenido: colado de losa/firme/castillo | practica[0]: varilla corrugada'
+      )
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    expect(mockRequeueGenerationJob).toHaveBeenCalledTimes(1);
+    const [, nextCheckpoint] = mockRequeueGenerationJob.mock.calls[0];
+    expect((nextCheckpoint.writerOutputs as WriterOutput[]).map((w) => w.type)).toEqual([
+      'foundation',
+      'lab',
+      'evaluation',
+    ]);
+    expect(nextCheckpoint.retryDirectivesByWriter?.project).toContain('colado de losa');
+    expect(nextCheckpoint.retryDirectivesByWriter?.project).toContain('varilla corrugada');
   });
 });

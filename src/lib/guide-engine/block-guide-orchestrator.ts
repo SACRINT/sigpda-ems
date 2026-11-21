@@ -136,6 +136,8 @@ export interface OrchestratorOptions {
   previousWriterOutputs?: WriterOutput[];
   /** Planes de sesión parciales guardados por paquete antes de completar un redactor. */
   previousPartialSessionPlans?: Partial<Record<WriterOutput['type'], SessionPlan[]>>;
+  /** Directivas correctivas por redactor tras evicción (p. ej. términos ajenos o placeholders). */
+  retryDirectivesByWriter?: Partial<Record<WriterOutput['type'], string>>;
   /** Persiste el avance tras cada redactor, reintento o expansión. */
   onCheckpoint?: (writerOutputs: WriterOutput[]) => void | Promise<void>;
   /** Persiste el avance incremental por paquete de sesiones dentro de un redactor. */
@@ -447,6 +449,7 @@ export async function generateBlockWorkTextbook(
     ...baseWriterInput,
     targetWords: effectiveMissionBudgets[writerType].targetWords,
     requiredTerms,
+    alignmentDirective: options.retryDirectivesByWriter?.[writerType],
     cachedSessionPlans: options.previousPartialSessionPlans?.[writerType],
     onPartialSessionPlans: options.onPartialSessionPlansCheckpoint
       ? (plans) => options.onPartialSessionPlansCheckpoint!(writerType, plans)
@@ -894,7 +897,10 @@ export async function generateBlockWorkTextbook(
     { missions, projectSection, evaluationSection },
     'block'
   );
-  const fallbackWords = detectFallbackWords(allSessionPlans, planning.uacName);
+  const fallbackWords = detectFallbackWords(allSessionPlans, planning.uacName, {
+    component: planning.component,
+    curriculumName: planning.curriculumName || undefined,
+  });
   const aiWords = Math.max(0, totalWords - fallbackWords);
 
   const coverageReport = validateSessionCoverage({

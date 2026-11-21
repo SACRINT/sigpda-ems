@@ -727,18 +727,26 @@ export async function withKeyRotation<T>(
         consecutive503Count = 0;
       }
 
-      // Respetar Retry-After y aplicar pacing escalonado ante 429 (evita ráfagas si las claves comparten cuota)
+      // Respetar Retry-After y aplicar pacing escalonado ante 429:
+      // - Mientras existan llaves del pool aún no intentadas en la Vuelta 1, rotar rápido
+      //   (cada llave corresponde a un proyecto/cuota independiente; esperar 16-45s por llave
+      //   agota el presupuesto antes de probar las llaves libres).
+      // - Al completar la vuelta al pool (o en pools de 1 llave), aplicar Retry-After / backoff real.
       if (is429) {
         consecutive429Count++;
         if (attempt < maxAttempts - 1) {
           const isTestEnv = process.env.NODE_ENV === 'test';
+          const hasUntriedPoolKeysInRound1 =
+            source === 'pool' && round === 1 && triedKeyIdsInRound.size < poolSize;
           const suggestedWaitMs = isTestEnv
             ? 0
-            : errRetryAfterMs && errRetryAfterMs > 0
-              ? Math.min(45_000, Math.max(800, errRetryAfterMs))
-              : consecutive429Count >= 2
-                ? Math.min(16_000, 2_000 * Math.pow(2, Math.min(3, consecutive429Count - 2)))
-                : 500 + Math.floor(Math.random() * 400);
+            : hasUntriedPoolKeysInRound1
+              ? consecutive429Count <= 2
+                ? 350 + Math.floor(Math.random() * 400)
+                : Math.min(3_000, 1_000 * (consecutive429Count - 1))
+              : errRetryAfterMs && errRetryAfterMs > 0
+                ? Math.min(45_000, Math.max(800, errRetryAfterMs))
+                : Math.min(16_000, 4_000 * Math.pow(2, Math.min(2, Math.max(0, round - 2))));
           const budgetLeftAfter =
             deadline !== null ? deadline - Date.now() : undefined;
           if (
@@ -752,7 +760,7 @@ export async function withKeyRotation<T>(
           }
           if (suggestedWaitMs > 0) {
             logger.info(
-              `[key-rotator] Pacing/Retry-After por cuota 429 en "${provider}": esperando ${suggestedWaitMs}ms antes de rotar (racha=${consecutive429Count}).`
+              `[key-rotator] Pacing/Retry-After por cuota 429 en "${provider}": esperando ${suggestedWaitMs}ms antes de rotar (racha=${consecutive429Count}, vuelta=${round}, intentadas=${triedKeyIdsInRound.size}/${poolSize}).`
             );
             await abortableSleep(suggestedWaitMs, signal);
           }

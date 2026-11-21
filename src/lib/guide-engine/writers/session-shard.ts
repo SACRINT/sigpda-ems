@@ -960,7 +960,11 @@ export async function generateShardedSessionPlans(
       const result = await generatePack(
         ctx,
         pack,
-        { packTerms: termShares[i], budgetDeadlineOverrideMs: initialPackDeadlineMs },
+        {
+          packTerms: termShares[i],
+          directive: ctx.input.alignmentDirective,
+          budgetDeadlineOverrideMs: initialPackDeadlineMs,
+        },
         `${label}[${pack.join('-')}]`
       );
       if (result.length > 0) {
