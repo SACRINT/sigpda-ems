@@ -5,6 +5,7 @@ import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import AppLayout from '@/components/layout/AppLayout';
 import Link from 'next/link';
 import PlanningDeleteButton from '@/app/[locale]/planning-delete-button';
+import { DashboardPackageDownloadButtons } from '@/components/planeacion/BulkDownloadButton';
 import CustomKeyCard from '@/components/dashboard/CustomKeyCard';
 import SubscriptionBanner from '@/components/dashboard/SubscriptionBanner';
 import type { Metadata } from 'next';
@@ -103,16 +104,17 @@ export default async function DashboardPage({
                   year: 'numeric', month: 'short', day: 'numeric'
                 })}
               </p>
-              <div className="planning-card-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div className="planning-card-actions" style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {(p.status === 'generated' || p.status === 'downloaded') && (
                   <Link href={`/${locale}/planeacion/${p.id as string}`} className="btn btn-secondary btn-sm">
                     ✏️ Editar
                   </Link>
                 )}
                 {(p.status === 'generated' || p.status === 'downloaded') && (
-                  <a href={`/api/docx/${p.id as string}`} className="btn btn-primary btn-sm">
-                     ↓ DOCX
-                  </a>
+                  <DashboardPackageDownloadButtons
+                    planningId={p.id as string}
+                    uacName={p.uac_name as string}
+                  />
                 )}
                 <PlanningDeleteButton id={p.id as string} />
               </div>
