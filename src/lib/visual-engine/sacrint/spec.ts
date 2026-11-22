@@ -1414,15 +1414,22 @@ const IMPERATIVE_MODELA_RE = /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i;
 function hasActivityTask(value: string): boolean {
   const withoutDescriptiveThirdPerson = value
     .replace(
-      /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica))\b[^.?!]{0,45}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea)\b/gi,
+      /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
       ''
     )
-    .replace(/\b(?:se|que|donde|cuyo|cuya)\s+(?:modela|describe|presenta|establece|indica|muestra|representa)\b/gi, '')
+    .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide)\b/gi, '')
     .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+muestra\b/gi, '')
     .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha|cada|en|tras|durante)\s+(?:la\s+|una\s+)?prueba\b/gi, '')
     .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+marca\b/gi, '');
   if (ACTIVITY_TASK_RE.test(withoutDescriptiveThirdPerson)) return true;
   return IMPERATIVE_MODELA_RE.test(withoutDescriptiveThirdPerson);
+}
+
+const SPANISH_PREDICATE_VERB_RE =
+  /\b(?:es|son|fue|fueron|est[aá]n?|constituye[ns]?|permite[ns]?|posibilita[ns]?|consiste[ns]?|facilita[ns]?|modela[ns]?|representa[ns]?|transforma[ns]?|integra[ns]?|garantiza[ns]?|asegura[ns]?|utiliza[ns]?|emplea[ns]?|requiere[ns]?|exige[ns]?|describe[ns]?|detalla[ns]?|calcula[ns]?|mide[ns]?|demuestra[ns]?|relaciona[ns]?|vincula[ns]?|organiza[ns]?|ordena[ns]?|resuelve[ns]?|soluciona[ns]?|simplifica[ns]?|elimina[ns]?|despeja[ns]?|contrasta[ns]?|traduce[ns]?|proyecta[ns]?|consolida[ns]?|comunica[ns]?|muestra[ns]?|expone[ns]?|expresa[ns]?|determina[ns]?|establece[ns]?|fija[ns]?|identifica[ns]?|reconoce[ns]?|explica[ns]?|analiza[ns]?|examina[ns]?|eval[úu]a[ns]?|valora[ns]?|valida[ns]?|compara[ns]?|ayuda[ns]?|sirve[ns]?|ofrece[ns]?|presenta[ns]?|aplica[ns]?|estudia[ns]?|define[ns]?|verifica[ns]?|comprueba[ns]?|controla[ns]?|regula[ns]?|previene[ns]?|protege[ns]?|optimiza[ns]?|mejora[ns]?|produce[ns]?|genera[ns]?|opera[ns]?|funciona[ns]?|distribuye[ns]?|conecta[ns]?|soporta[ns]?|sostiene[ns]?|transmite[ns]?|convierte[ns]?|sustituye[ns]?|construye[ns]?|elabora[ns]?|prepara[ns]?|dise[ñn]a[ns]?|logra[ns]?|obtiene[ns]?|sustenta[ns]?|fundamenta[ns]?|se[ñn]ala[ns]?|contiene[ns]?|incluye[ns]?|abarca[ns]?|comprende[ns]?|implica[ns]?|involucra[ns]?|depende[ns]?|var[ií]a[ns]?|cambia[ns]?|aumenta[ns]?|disminuye[ns]?|crece[ns]?|reduce[ns]?|forma[ns]?|crea[ns]?|mantiene[ns]?|evita[ns]?|causa[ns]?|provoca[ns]?|busca[ns]?|tiende[ns]?|corresponde[ns]?|equilibra[ns]?|divide[ns]?|multiplica[ns]?|suma[ns]?|resta[ns]?|deriva[ns]?|re[uú]ne[ns]?|agrupa[ns]?|clasifica[ns]?|registra[ns]?|anota[ns]?|documenta[ns]?|instala[ns]?|configura[ns]?|actualiza[ns]?|repara[ns]?|limpia[ns]?|inspecciona[ns]?|acota[ns]?|traza[ns]?|dibuja[ns]?|interpreta[ns]?|argumenta[ns]?|concluye[ns]?|narra[ns]?|relata[ns]?|refleja[ns]?|promueve[ns]?|fomenta[ns]?|impulsa[ns]?|fortalece[ns]?|contribuye[ns]?|participa[ns]?|ejerce[ns]?|tutela[ns]?|vigila[ns]?|sanciona[ns]?|respeta[ns]?|cumple[ns]?|tiene[ns]?|posee[ns]?|cuenta[ns]?|usa[ns]?|toma[ns]?|hace[ns]?|lleva[ns]?|pasa[ns]?|sigue[ns]?|surge[ns]?|ocurre[ns]?|sucede[ns]?|existe[ns]?|se\s+[a-záéíóúñ]{3,})\b/i;
+
+function hasSpanishPredicateVerb(value: string): boolean {
+  return SPANISH_PREDICATE_VERB_RE.test(value);
 }
 
 function capitalizeProseStart(text: string): string {
@@ -1461,16 +1468,18 @@ function ensureActivityClosure(statement: string): string {
   const incompleteCond = hasIncompleteConditionalEnding(value);
   if (!incompleteCond && hasActivityTask(value) && value.length >= 55 && !hasDanglingEnding(value)) return value;
   const base = value.replace(/[.!?]+$/, '').trim();
+  const basePunct = /\?$/.test(value) ? '?' : '.';
   if (incompleteCond) {
     return `${base}, desarrolla el análisis y justifica tu respuesta.`;
   }
   if (!hasActivityTask(value)) {
-    const withTask = `${base}. Aplica el procedimiento estudiado y fundamenta tu respuesta.`;
+    const withTask = `${base}${basePunct} Aplica el procedimiento estudiado y fundamenta tu respuesta.`;
     return withTask.length >= 55
       ? withTask
-      : `${base}. Aplica el procedimiento estudiado, registra tu desarrollo y fundamenta tu respuesta.`;
+      : `${base}${basePunct} Aplica el procedimiento estudiado, registra tu desarrollo y fundamenta tu respuesta.`;
   }
-  return `${base}. Registra tu procedimiento y comprueba la respuesta.`;
+  if (/Registra tu procedimiento y comprueba la respuesta\.?$/i.test(value)) return value;
+  return `${base}${basePunct} Registra tu procedimiento y comprueba la respuesta.`;
 }
 
 const HEADLESS_ANAPHORIC_START_RE =
@@ -2542,10 +2551,6 @@ function buildLessonGuideSlidesForSession(
       )
     : '';
   const softenedExplanation = softenField(cleanExplanation, 165) ?? cleanExplanation;
-  const hasPredicateVerb = (value: string): boolean =>
-    /\b(?:es|son|fue|fueron|constituye[ns]?|permite[ns]?|posibilita[ns]?|consiste[ns]?|facilita[ns]?|modela[ns]?|representa[ns]?|transforma[ns]?|integra[ns]?|garantiza[ns]?|utiliza[ns]?|emplea[ns]?|requiere[ns]?|exige[ns]?|describe[ns]?|calcula[ns]?|mide[ns]?|demuestra[ns]?|relaciona[ns]?|vincula[ns]?|organiza[ns]?|resuelve[ns]?|simplifica[ns]?|elimina[ns]?|despeja[ns]?|contrasta[ns]?|traduce[ns]?|proyecta[ns]?|consolida[ns]?|comunica[ns]?|muestra[ns]?|expresa[ns]?|determina[ns]?|establece[ns]?|identifica[ns]?|explica[ns]?|analiza[ns]?|eval[úu]a[ns]?|valida[ns]?|compara[ns]?|ayuda[ns]?|sirve[ns]?|ofrece[ns]?|aplica[ns]?|estudia[ns]?|define[ns]?|se\s+[a-záéíóúñ]{3,})\b/i.test(
-      value
-    );
   const explanationCandidate = [
     softenedExplanation,
     rawFirstContentSentence,
@@ -2556,7 +2561,7 @@ function buildLessonGuideSlidesForSession(
     (value) =>
       Boolean(value) &&
       String(value).trim().length >= 55 &&
-      hasPredicateVerb(String(value)) &&
+      hasSpanishPredicateVerb(String(value)) &&
       !isHeadlessAnaphoricStart(String(value)) &&
       !hasDanglingEnding(String(value)) &&
       !isRubricOrBoilerplateLeak(String(value))
@@ -2564,11 +2569,18 @@ function buildLessonGuideSlidesForSession(
   const guardedExplanationBase = explanationCandidate || softenedExplanation;
   const guardedExplanation =
     guardedExplanationBase.trim().length >= 55 &&
-    hasPredicateVerb(guardedExplanationBase) &&
+    hasSpanishPredicateVerb(guardedExplanationBase) &&
     !isHeadlessAnaphoricStart(guardedExplanationBase) &&
     !hasDanglingEnding(guardedExplanationBase)
       ? guardedExplanationBase
-      : `${guardedExplanationBase.replace(/[.!?]+$/, '')} permite interpretar datos del entorno y justificar decisiones con evidencia.`;
+      : rawFirstContentSentence &&
+          rawFirstContentSentence.trim().length >= 45 &&
+          hasSpanishPredicateVerb(rawFirstContentSentence) &&
+          !hasDanglingEnding(rawFirstContentSentence)
+        ? rawFirstContentSentence
+        : hasSpanishPredicateVerb(guardedExplanationBase) && !hasDanglingEnding(guardedExplanationBase)
+          ? guardedExplanationBase
+          : `${guardedExplanationBase.replace(/[.!?]+$/, '')} constituye un concepto central de esta sesión.`;
 
   const guardedExplanationFinal = guardedExplanation.replace(/\bentre dos\.$/i, 'entre dos expresiones.');
 
@@ -3884,17 +3896,31 @@ function enforceInfographicOverlap(
   const deOverlapList = (values: string[] | undefined): string[] =>
     (values ?? []).map((value) => deOverlapField(value));
 
-  const hasClaimPredicateVerb = (value: string): boolean =>
-    /\b(?:es|son|fue|fueron|constituye[ns]?|permite[ns]?|posibilita[ns]?|consiste[ns]?|facilita[ns]?|modela[ns]?|representa[ns]?|transforma[ns]?|integra[ns]?|garantiza[ns]?|utiliza[ns]?|emplea[ns]?|requiere[ns]?|exige[ns]?|describe[ns]?|calcula[ns]?|mide[ns]?|demuestra[ns]?|relaciona[ns]?|vincula[ns]?|organiza[ns]?|resuelve[ns]?|simplifica[ns]?|elimina[ns]?|despeja[ns]?|contrasta[ns]?|traduce[ns]?|proyecta[ns]?|consolida[ns]?|comunica[ns]?|muestra[ns]?|expresa[ns]?|determina[ns]?|establece[ns]?|identifica[ns]?|explica[ns]?|analiza[ns]?|eval[úu]a[ns]?|valida[ns]?|compara[ns]?|ayuda[ns]?|sirve[ns]?|ofrece[ns]?|aplica[ns]?|estudia[ns]?|define[ns]?|se\s+[a-záéíóúñ]{3,})\b/i.test(
-      value
-    );
   const deOverlappedClaim = deOverlapField(spec.claim, spec.applicationSummary || spec.title);
-  spec.claim = hasClaimPredicateVerb(deOverlappedClaim)
+  spec.claim = hasSpanishPredicateVerb(deOverlappedClaim)
     ? deOverlappedClaim
-    : hasClaimPredicateVerb(spec.claim)
+    : hasSpanishPredicateVerb(spec.claim)
       ? spec.claim
-      : `${deOverlappedClaim.replace(/[.!?]+$/, '')} permite interpretar datos del entorno y resolver situaciones con rigor metodológico.`;
+      : `${deOverlappedClaim.replace(/[.!?]+$/, '')} constituye un concepto clave de esta sesión.`;
+  const normalizedClaimForDedup = spec.claim.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim();
   if (spec.conceptManual) {
+    const rawDefinitions = spec.conceptManual.definitions
+      .map((definition) => ({
+        term: deOverlapField(definition.term),
+        definition: deOverlapField(
+          definition.definition,
+          spec.applicationSummary || spec.claim || definition.term
+        ),
+      }))
+      .filter((definition) => Boolean(definition.definition.trim()));
+    const dedupedDefinitions = rawDefinitions.filter((definition, idx) => {
+      const defNorm = definition.definition.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim();
+      if (!defNorm) return false;
+      if (rawDefinitions.length > 1 && defNorm === normalizedClaimForDedup) return false;
+      return !rawDefinitions
+        .slice(0, idx)
+        .some((prev) => prev.definition.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim() === defNorm);
+    });
     spec.conceptManual = {
       ...spec.conceptManual,
       centralConcept: deOverlapField(spec.conceptManual.centralConcept),
@@ -3913,15 +3939,7 @@ function enforceInfographicOverlap(
           ),
         }))
         .filter((node) => Boolean(node.detail.trim())),
-      definitions: spec.conceptManual.definitions
-        .map((definition) => ({
-          term: deOverlapField(definition.term),
-          definition: deOverlapField(
-            definition.definition,
-            spec.applicationSummary || spec.claim || definition.term
-          ),
-        }))
-        .filter((definition) => Boolean(definition.definition.trim())),
+      definitions: dedupedDefinitions.length > 0 ? dedupedDefinitions : rawDefinitions.slice(0, 1),
       usageGuidance: deOverlapList(spec.conceptManual.usageGuidance),
       masteryChecklist: deOverlapList(spec.conceptManual.masteryChecklist),
     };
@@ -4111,12 +4129,8 @@ export function buildSacrintInfographic(
     visualMisconceptionError = misconceptionFix.error;
     visualMisconceptionCorrection = misconceptionFix.correction;
   }
-  const hasClaimPredicate = (value: string): boolean =>
-    /\b(?:es|son|fue|fueron|constituye[ns]?|permite[ns]?|posibilita[ns]?|consiste[ns]?|facilita[ns]?|modela[ns]?|representa[ns]?|transforma[ns]?|integra[ns]?|garantiza[ns]?|utiliza[ns]?|emplea[ns]?|requiere[ns]?|exige[ns]?|describe[ns]?|calcula[ns]?|mide[ns]?|demuestra[ns]?|relaciona[ns]?|vincula[ns]?|organiza[ns]?|resuelve[ns]?|simplifica[ns]?|elimina[ns]?|despeja[ns]?|contrasta[ns]?|traduce[ns]?|proyecta[ns]?|consolida[ns]?|comunica[ns]?|muestra[ns]?|expresa[ns]?|determina[ns]?|establece[ns]?|identifica[ns]?|explica[ns]?|analiza[ns]?|eval[úu]a[ns]?|valida[ns]?|compara[ns]?|ayuda[ns]?|sirve[ns]?|ofrece[ns]?|aplica[ns]?|estudia[ns]?|define[ns]?|se\s+[a-záéíóúñ]{3,})\b/i.test(
-      value
-    );
   const rawVisualClaim = sanitizePedagogicalMetaPhrases(cleanSacrintText(visualSynthesis?.conceptoBreve));
-  const visualClaim = rawVisualClaim && hasClaimPredicate(rawVisualClaim) ? rawVisualClaim : '';
+  const visualClaim = rawVisualClaim && hasSpanishPredicateVerb(rawVisualClaim) ? rawVisualClaim : '';
   const rawClaimBase = deOverlap(
     visualClaim ||
       cleanMissionTopicLine(
@@ -4124,9 +4138,11 @@ export function buildSacrintInfographic(
         conceptHighlights.definition || meta.missionTitle
       )
   );
-  const rawClaimCandidate = hasClaimPredicate(rawClaimBase)
+  const rawClaimCandidate = hasSpanishPredicateVerb(rawClaimBase)
     ? rawClaimBase
-    : `${rawClaimBase.replace(/[.!?]+$/, '')} permite interpretar datos del entorno y resolver situaciones con rigor metodológico.`;
+    : bundle?.concepts.definition && hasSpanishPredicateVerb(bundle.concepts.definition)
+      ? deOverlap(bundle.concepts.definition)
+      : `${rawClaimBase.replace(/[.!?]+$/, '')} constituye un concepto clave de esta sesión.`;
   const cleanClaim = finalizeVisibleText(
     rawClaimCandidate.length <= 220
       ? rawClaimCandidate
@@ -4160,7 +4176,9 @@ export function buildSacrintInfographic(
       : buildSacrintDiagram(mission, pack, {
           ...options,
           session: selectedSession,
+          allowMissionFallback: false,
           preferredExampleText: infoPreferredExampleText.length >= 16 ? infoPreferredExampleText : undefined,
+          theorySources: infographicSources,
         });
   const isQuantitativeOrReaction =
     candidateDiagram.kind === 'linear' ||

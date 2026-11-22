@@ -120,9 +120,18 @@ export function hasDanglingEnding(raw: string): boolean {
   if (TRAILING_OPERATOR_RE.test(clean)) return true;
 
   // Delimitadores abiertos sin cerrar (o cierre huérfano antes de apertura, excluyendo viñetas "1) ... 2)").
-  const openDelimiters = (clean.match(/[([{]/g) || []).length;
-  const closeDelimiters = (clean.match(/[)\]}]/g) || []).length;
+  const openDelimiters = (clean.match(/[([{«¿¡]/g) || []).length;
+  const closeDelimiters = (clean.match(/[)\]}»?!]/g) || []).length;
   if (openDelimiters > closeDelimiters) return true;
+  if (clean.includes('¿') && !clean.includes('?')) return true;
+  // Comillas tipográficas o simples sin cerrar (ignorando apóstrofes/contracciones como don't, L'Hôpital y derivadas f'(x), y')
+  const doubleQuoteCount = (clean.match(/"/g) || []).length;
+  if (doubleQuoteCount % 2 === 1) return true;
+  const withoutContractions = clean
+    .replace(/(?<=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])'(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ(])/g, '')
+    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ'])[A-Za-z]'(?=\s|[=.,;:)]|$)/g, '');
+  const singleQuoteCount = (withoutContractions.match(/'/g) || []).length;
+  if (singleQuoteCount % 2 === 1) return true;
   const withoutListMarkers = clean.replace(/(?:^|[\s:;])\d{1,2}\)(?=\s|$|\.)/g, ' ');
   if (/^[^(\[{]*[)\]}]/.test(withoutListMarkers)) return true;
   // Lista numerada truncada antes del ítem ("... 3) Cálculo..., y 4).")
@@ -154,9 +163,50 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
-  // Verbos transitivos o infinitivos colgados al cierre sin objeto directo ("y considera.", "y asegura.", "para diseñar.")
+  // Cuantificador numérico sin unidad ("cada 2.5.")
+  if (/\bcada\s+\d+(?:[.,]\d+)?\.?$/i.test(clean)) {
+    return true;
+  }
+
+  // Participios de finalidad/relación truncados sin complemento ("componentes diseñados.", "proyecto, diseñada.")
   if (
-    /\b(?:y|e|o|para|sin|al)\s+(?:considera|asegura|garantiza|permite|incluye|contiene|requiere|utiliza|emplea|aplica|presenta|muestra|indica|describe|identifica|reconoce|analiza|examina|define|expresa|representa|dise[ñn]ar|construir|elaborar|calcular|determinar|identificar|analizar|explicar|resolver|aplicar|obtener|verificar|registrar|evaluar|comparar|representar|medir|trazar|acotar)\.?$/i.test(
+    /\b(?:dise[ñn]ad[oa]s?|destinad[oa]s?|orientad[oa]s?|enfocad[oa]s?|dirigid[oa]s?|basad[oa]s?|encargad[oa]s?|dedicad[oa]s?|relacionad[oa]s?|vinculad[oa]s?)\.?$/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // Verbos que exigen complemento directo/preposicional al cierre ("cumplan.", "cumplen.", "dice.", "esté.", "has preguntado.")
+  if (
+    /\b(?:cumplan|cumplen|cumple|cuyo\s+texto\s+dice|texto\s+dice|est[eé]n?|est[aá]n|has\s+preguntado)\.?$/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // Modificadores prenominales o adverbios cuantificadores colgados al cierre ("colores poco.", "requiere mayor.")
+  if (
+    /\b(?:poco|poca|pocos|pocas|mayor|menor|mayores|menores|alg[uú]n|alguna|ning[uú]n|ninguna|cualquier|demasiado|bastante|sumamente|altamente|completamente)\.?$/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // Cláusula subordinada con sujeto nominal sin verbo al cierre ("asegurar que las acotaciones.", "que el municipio.")
+  if (
+    /\b(?:asegurar|verificar|garantizar|comprobar|mostrar|indicar|confirmar|explicar|analizar|identificar|servicios\s+p[uú]blicos|normas|reglas)\s+que\s+(?:el|la|los|las|un|una|su|sus|tu|tus|este|esta)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]{3,}\.?$/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // Verbos transitivos o infinitivos colgados al cierre sin objeto directo ("y considera.", "y asegura.", "para diseñar.", "permite representar.")
+  if (
+    /\b(?:y|e|o|para|sin|al|permite|permiten|posibilita|posibilitan|debe|deben|puede|pueden|busca|buscan|necesita|requiere|logra)\s+(?:considera|asegura|garantiza|permite|incluye|contiene|requiere|utiliza|emplea|aplica|presenta|muestra|indica|describe|identifica|reconoce|analiza|examina|define|expresa|representa|dise[ñn]ar|construir|elaborar|calcular|determinar|identificar|analizar|explicar|resolver|aplicar|obtener|verificar|registrar|evaluar|comparar|representar|medir|trazar|acotar|cuantificar|realizar|efectuar|ejecutar|generar|producir|garantizar|asegurar|optimizar|mantener|proteger|controlar|estimar)\.?$/i.test(
       clean
     )
   ) {
@@ -518,6 +568,7 @@ export function repairDanglingEnding(raw: string, ensurePeriod = true): string {
 
 function ensureTerminalPunctuation(text: string, ensurePeriod: boolean): string {
   const clean = text
+    .replace(/\?(['"»”’)\]]+)\?/g, '?$1')
     .replace(/\.,/g, ',')
     .replace(/,\./g, '.')
     .replace(/;\./g, '.')
@@ -526,7 +577,7 @@ function ensureTerminalPunctuation(text: string, ensurePeriod: boolean): string 
     .trim();
   if (!clean) return '';
   if (!ensurePeriod) return clean;
-  if (/[.?!)]$/.test(clean)) return clean;
+  if (/[.?!]['"»”’)\]]*$/.test(clean)) return clean;
   return `${clean}.`;
 }
 
@@ -1133,7 +1184,10 @@ export function fitPedagogicalText(
       normalized.length <= expandedChars &&
       (!expandedWords || normalized.split(/\s+/).filter(Boolean).length <= expandedWords)
     ) {
-      return /[?]$/.test(normalized) ? normalized : `${normalized.replace(/[.!]+$/, '')}?`;
+      if (/\?['"»”’)\]]*[.!]?$/.test(normalized) || (!/^\s*¿/.test(normalized) && /\?['"»”’]/.test(normalized))) {
+        return ensureTerminalPunctuation(normalized, ensurePeriod);
+      }
+      return `${normalized.replace(/[.!]+$/, '')}?`;
     }
   }
 
@@ -1388,7 +1442,7 @@ export function fitPedagogicalText(
       if (candidate !== compressed && candidate.split(/\s+/).length >= 4) {
         const isQuestion = /^\s*¿/.test(compressed);
         compressed =
-          isQuestion && !/\?\s*$/.test(candidate)
+          isQuestion && !/\?['"»”’)]*\s*$/.test(candidate)
             ? `${candidate.replace(/[.?!…]+$/, '').trim()}?`
             : candidate;
       }
@@ -1427,7 +1481,11 @@ export function fitPedagogicalText(
                     const cleanedBase = repairDanglingEnding(prefix, false)
                       .replace(/[.?!…]+$/, '')
                       .trim();
-                    return cleanedBase ? `${cleanedBase}?` : '';
+                    return cleanedBase
+                      ? /\?['"»”’)]*$/.test(cleanedBase)
+                        ? cleanedBase
+                        : `${cleanedBase}?`
+                      : '';
                   })()
                 : repairDanglingEnding(prefix, ensurePeriod);
               if (
@@ -1502,7 +1560,11 @@ export function fitPedagogicalText(
   // Si era pregunta y la compresión perdió el cierre, se recupera la oración
   // interrogativa completa del original; nunca se pega "?" a un fragmento mutilado.
   const repaired = repairDanglingEnding(compressed, ensurePeriod);
-  if (hasQuestion && !/\?$/.test(repaired)) {
+  if (
+    hasQuestion &&
+    !/\?['"»”’)\]]*[.]?$/.test(repaired) &&
+    !(!/^\s*¿/.test(repaired) && /\?['"»”’]/.test(repaired))
+  ) {
     const completeQuestion = splitSpanishSentences(normalized).find((sentence) => sentence.includes('?'));
     if (completeQuestion && completeQuestion.length <= maxChars + 80) {
       return completeQuestion.trim();
@@ -1559,11 +1621,12 @@ export function finalizeVisibleText(
     });
   } else if (hasDanglingEnding(text)) {
     text = repairDanglingEnding(text, ensurePeriod);
-  } else if (ensurePeriod && !/[.?!…]$/.test(text)) {
+  } else if (ensurePeriod && !/[.?!…]['"»”’)\]]*$/.test(text)) {
     text = `${text}.`;
   }
 
   text = normalizeEditorialText(text)
+    .replace(/\?(['"»”’)\]]+)\?/g, '?$1')
     .replace(/\s+y\s+activar[aá]s\s+tus(?=\s*(?:$|["'”».,;:!?()[\]—–-]))/gi, '')
     .trim();
 

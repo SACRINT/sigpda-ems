@@ -725,6 +725,80 @@ describe('Auditoría Integral PM3_NVO — Regresiones Estructurales', () => {
     expect(hasDanglingEnding('Observa la dispersión de luz en la muestra y considera.')).toBe(true);
     expect(hasDanglingEnding('Aplica dichas construcciones geométricas para diseñar.')).toBe(true);
     expect(hasDanglingEnding('Si ocurre un contacto accidental con la piel, el protocolo.')).toBe(true);
+    expect(hasDanglingEnding('Son componentes diseñados.')).toBe(true);
+    expect(hasDanglingEnding('Verifica que los materiales cumplan.')).toBe(true);
+    expect(hasDanglingEnding('Servicios públicos que el municipio.')).toBe(true);
+    expect(hasDanglingEnding('Coloca marcas cada 2.5.')).toBe(true);
+    expect(hasDanglingEnding('Requiere mayor.')).toBe(true);
+    expect(hasDanglingEnding("Incorpora una sección de 'Protocolo.")).toBe(true);
+    expect(hasDanglingEnding("Don't forget to check the grammar rule.")).toBe(false);
+    expect(fitPedagogicalText("Decimos 'Are you from...?'", { maxChars: 60, maxWords: 12 })).not.toContain("?'?");
+  });
+
+  it('extractWorkedExample no mezcla ecuaciones ni paso 3 de ejemploResuelto cuando sintesisVisual usa otro problema numérico', () => {
+    const s: SessionPlan = {
+      sessionNumber: 7,
+      objetivo: 'Modelar presupuestos con ecuaciones lineales.',
+      motivacion: 'Presupuesto comunitario.',
+      saberesPrevios: 'Despeje lineal.',
+      contenido: 'Una ecuación lineal equilibra costos fijos y variables.',
+      ejemploResuelto:
+        'Planteamiento: Presupuesto de 15,000 pesos con 3,000 fijos y bancas de 1,200 cada una. Paso 1: 3,000 + 1,200x = 15,000. Paso 2: 1,200x = 12,000. Paso 3: x = 10 bancas en total (555 unidades).',
+      practica: [{ enunciado: 'Calcula el número de bancas con $18,000.', pista: 'Resta el costo fijo.' }],
+      aplicacion: 'Planeación presupuestal.',
+      autoevaluacion: ['Planteo y despejo ecuaciones lineales.'],
+      recursos: [],
+      productoIntegrador: 'Presupuesto comunitario.',
+      sintesisVisual: {
+        conceptoBreve: 'El equilibrio presupuestal asegura la estabilidad financiera del proyecto.',
+        formulaOReglaClave: '600x + 7200 = 12000',
+        ejemploBreve: {
+          planteamiento: 'Presupuesto de 12,000 pesos con 7,200 comprometidos y luminarias de 600 pesos.',
+          pasos: [
+            'Resta los 7,200 comprometidos al presupuesto de 12,000 pesos.',
+            'Divide el saldo de 4,800 entre 600 pesos por luminaria.',
+          ],
+          conclusion: 'Se obtienen 8 luminarias dentro del presupuesto de 12,000 pesos.',
+        },
+        mapaConceptual: {
+          definicionClave: 'Ecuación lineal presupuestal.',
+          criterioDesarrollo: 'Separar costos fijos y variables.',
+          errorComun: 'Sumar costos fijos al total en lugar de restarlos.',
+          correccionBreve: 'Restar el monto comprometido antes de dividir.',
+        },
+      },
+    };
+    const missionStub = {
+      missionIndex: 2,
+      title: 'Ecuaciones lineales',
+      coveredSessions: [7],
+      sessionTopic: 'Ecuaciones lineales',
+      sessionFocus: 'Despeje presupuestal',
+      phenomenonHook: { story: '', detonatingQuestion: '' },
+      conceptZero: { physicalAnalogy: '', coreExplanation: '' },
+      iDoSection: { stepByStepDemo: '' },
+      weDoSection: { guidedPractice: '', workbookElements: [] },
+      youDoSection: { autonomousChallenge: '', workbookElements: [] },
+      troubleshooting: [],
+      formativeCheckpoint: { question: '', criteriaChecklist: [], reflectionPrompts: [] },
+      wordCount: 200,
+      sessionPlans: [s],
+    } as unknown as MissionSection;
+    const ex = extractWorkedExample(missionStub, s, { allowMissionFallback: false });
+    const joined = `${ex.problemStatement} ${ex.steps.join(' ')} ${ex.interpretation}`;
+    expect(joined).toContain('12,000');
+    expect(joined).not.toContain('15,000');
+    expect(joined).not.toContain('555');
+  });
+
+  it('paraphraseSixGramOverlap preserva concordancia de género en "una herramienta" y "la longitud total"', () => {
+    const text =
+      'Usa una herramienta digital preferida y anota la longitud total junto con la altura total del muro.';
+    const out = paraphraseSixGramOverlap(text, [text]);
+    expect(out).not.toMatch(/\buna\s+instrumento\b/i);
+    expect(out).not.toMatch(/\binstrumento\s+digital\s+preferida\b/i);
+    expect(out).not.toMatch(/\bla\s+largo\s+total\b/i);
+    expect(out).not.toMatch(/\bla\s+alto\s+total\b/i);
   });
 
   it('paraphraseSixGramOverlap preserva homógrafos y tildes ("en la muestra", "está funcionando", "desde") sin corrupción', () => {
@@ -788,5 +862,83 @@ describe('Auditoría Integral PM3_NVO — Regresiones Estructurales', () => {
     const joined = ex.steps.join(' ');
     expect(joined).not.toContain('(Dimensi)');
     expect(joined).not.toMatch(/\([A-Za-z]+\s*=\s*\([A-Za-z]+\)\./);
+  });
+
+  it('fitPedagogicalText y finalizeVisibleText nunca duplican "?" tras citas interrogativas en inglés ("?\'?")', () => {
+    const samples = [
+      "Saludo formal a un visitante: 'Good morning, Mr. Smith. How are you?'",
+      "Preguntar: 'Is there a library?' y 'Are there any sports courts?'.",
+      "Las preguntas son: 'Can I take pictures?' y 'Where can I buy souvenirs?'.",
+    ];
+    for (const s of samples) {
+      const fitted = fitPedagogicalText(s, { maxChars: 140, role: 'step', ensurePeriod: true });
+      const fittedTwice = fitPedagogicalText(fitted, { maxChars: 140, role: 'step', ensurePeriod: true });
+      expect(fitted).not.toMatch(/\?['"»”’]\?/);
+      expect(fittedTwice).not.toMatch(/\?['"»”’]\?/);
+    }
+  });
+
+  it('distillExerciseStatement nunca elimina la primera oración si abre una cita textual o contiene consigna en inglés', () => {
+    const missionStub = {
+      missionIndex: 1,
+      title: 'Textos descriptivos',
+      coveredSessions: [1],
+      sessionTopic: 'Textos descriptivos',
+      sessionFocus: 'Concordancia',
+      phenomenonHook: { story: '', detonatingQuestion: '' },
+      conceptZero: { physicalAnalogy: '', coreExplanation: '' },
+      iDoSection: { stepByStepDemo: '' },
+      weDoSection: { guidedPractice: '', workbookElements: [] },
+      youDoSection: { autonomousChallenge: '', workbookElements: [] },
+      troubleshooting: [],
+      formativeCheckpoint: { question: '', criteriaChecklist: [], reflectionPrompts: [] },
+      wordCount: 200,
+      sessionPlans: [],
+    } as unknown as MissionSection;
+    const session: SessionPlan = {
+      sessionNumber: 1,
+      objetivo: 'Corregir errores de concordancia en inglés.',
+      motivacion: 'Folleto turístico.',
+      saberesPrevios: 'Adjetivos.',
+      contenido: 'Uso correcto de adjetivos y concordancia.',
+      ejemploResuelto: '',
+      practica: [
+        {
+          enunciado:
+            "Corrige el siguiente texto: 'Tourists eats the mole. It is a spicy food. Artisans makes the pots. You buys it in the market.' Identifica los errores de concordancia en la tercera persona y reescribe el texto correctamente para tu folleto.",
+          pista: 'Revisa los verbos en plural y tercera persona.',
+        },
+        {
+          enunciado:
+            "Identifica los errores en: 'The church is big ancient. It has a colors wall.' Reescribe las oraciones correctamente usando los adjetivos de forma adecuada en inglés.",
+          pista: 'Los adjetivos en inglés no llevan plural.',
+        },
+      ],
+      aplicacion: 'Se usa en folletos turísticos bilingües.',
+      autoevaluacion: ['Identifico errores de concordancia en textos turísticos.'],
+      recursos: [],
+      productoIntegrador: 'Folleto turístico bilingüe.',
+    };
+    const acts = extractPracticeActivities(missionStub, session, { allowMissionFallback: false });
+    expect(acts).toHaveLength(2);
+    for (const act of acts) {
+      expect(hasDanglingEnding(act.statement)).toBe(false);
+      expect(act.statement).toContain("'");
+    }
+    expect(acts[0]!.statement).toContain('Corrige el siguiente texto:');
+    expect(acts[1]!.statement).toContain('Identifica los errores en:');
+  });
+
+  it("hasDanglingEnding no confunde cierres de comilla simple tras tildes o ñ ('año', 'Metodología') con derivadas", () => {
+    expect(
+      hasDanglingEnding(
+        "Lee el siguiente fragmento: 'La biblioteca atraerá a miles de jóvenes lectores este año'. Clasifica cada oración."
+      )
+    ).toBe(false);
+    expect(
+      hasDanglingEnding(
+        "Redacta el apartado de 'Metodología' para tu memoria técnica y documenta los pasos seguidos."
+      )
+    ).toBe(false);
   });
 });

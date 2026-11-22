@@ -120,7 +120,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['meta_conclusion_instruction', /(?:Conclusi[oó]n\s*:\s*|^[ \t]*)Redacta\s+la\s+conclusi[oó]n\s+t[ée]cnica\s*\./im],
     ['exercise_dot_colon', /\bEjercicio\s+\d+\.\s*:/],
     ['generic_ej6_report', /Reporte\s+t[ée]cnico\s+justificando\s+que\s+el\s+terreno\s+propuesto\s+es\s+geom[ée]tricamente\s+imposible/i],
-    ['orphan_paso_number', /(?:^|\n)[ \t]*[1-9]\.\s*\n+[ \t]*Paso\s+\d+\s*:/i],
+    ['orphan_paso_number', /(?<![=+\-*/:]\s?)(?:^|\n)[ \t]*[1-9]\.\s*\n+[ \t]*Paso\s+\d+\s*:/i],
     ['truncated_quadratic_formula', /(?:MODELO Y F[ÓO]RMULA CENTRAL|F[ÓO]RMULA CENTRAL)\s*\n?\s*c\s*=\s*0\b/i],
     ['truncated_angles_formula', /(?:^|[:•])\s*\(2x\s*\+\s*20\)\s*=\s*180/i],
     ['latex_monomial_leak', /\$[+-]?\d+(?:[.,]\d+)?[a-zA-Zα-ωΑ-Ω²³₀-₉]+(?:\^[a-zA-Z0-9]+)?\$/],
@@ -128,7 +128,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['raw_subscript_formula', /\bM_\((?:simple|compuesto)\)/i],
     [
       'dangling_question',
-      /¿[^?]{0,90}(?<![\p{L}\p{N}_])(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|o|sus?|(?<!\b(?:variable|eje|valor\s+de|inc[oó]gnita|respecto\s+a|con)\s+)y)\s*\?/iu,
+      /¿[^?]{0,90}(?<![\p{L}\p{N}_])(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|o|sus?|(?<!\b(?:variable|eje|valor\s+de|t[eé]rminos\s+de|funci[oó]n\s+de|inc[oó]gnita|respecto\s+a|con)\s+)y)\s*\?/iu,
     ],
     [
       'incomplete_concept_ending',
@@ -143,6 +143,11 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['linguistic_truncated_a_partir', /\ba\s+partir\.(?=\s|$)/i],
     ['linguistic_truncated_y_considera', /\by\s+considera\.(?=\s|$)/i],
     ['linguistic_broken_paren_eq', /\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\s*=\s*\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\)\./],
+    ['linguistic_genero_instrumento', /\b(?:una|la|esta|esa|dicha)\s+instrumento\b|\binstrumento\s+(?:digital|t[eé]cnico)?\s*preferida\b/i],
+    ['linguistic_genero_largo_alto', /\b(?:una|la)\s+(?:largo|alto)\s+total\b|\buna\s+largo\b/i],
+    ['linguistic_doble_interrogacion', /\?['"»”’]\?/],
+    ['boilerplate_resuelve_situacion', /Resuelve la situaci[oó]n planteada con los datos anteriores/i],
+    ['boilerplate_rigor_metodologico', /permite interpretar datos del entorno y resolver situaciones con rigor metodol[oó]gico/i],
   ];
 
   for (const [key, re] of rules) {

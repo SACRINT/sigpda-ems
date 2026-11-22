@@ -193,6 +193,11 @@ const LINGUISTIC_CORRUPTION_PATTERNS: Array<{ label: string; regex: RegExp }> = 
   { label: 'a_partir_truncado', regex: /\ba\s+partir\.(?=["'\s,}\]]|$)/i },
   { label: 'y_considera_truncado', regex: /\by\s+considera\.(?=["'\s,}\]]|$)/i },
   { label: 'paren_ecuacion_trunca', regex: /\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\s*=\s*\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\)\./ },
+  { label: 'genero_instrumento', regex: /\b(?:una|la|esta|esa|dicha)\s+instrumento\b|\binstrumento\s+(?:digital|t[eé]cnico)?\s*preferida\b/i },
+  { label: 'genero_largo_alto', regex: /\b(?:una|la)\s+(?:largo|alto)\s+total\b|\buna\s+largo\b/i },
+  { label: 'doble_interrogacion', regex: /\?['"»”’]\?/ },
+  { label: 'boilerplate_situacion', regex: /Resuelve la situaci[oó]n planteada con los datos anteriores/i },
+  { label: 'boilerplate_rigor', regex: /permite interpretar datos del entorno y resolver situaciones con rigor metodol[oó]gico/i },
 ];
 
 export function findLinguisticCorruption(text: string | null | undefined): string | null {

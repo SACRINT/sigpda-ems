@@ -85,7 +85,10 @@ export function cleanSacrintText(value: string | null | undefined): string {
     .replace(/\$(\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?)\$/g, '$1')
     .replace(/\$(\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km))\$/gi, '$1');
   text = normalizeMathNotation(text);
-  text = text.replace(/\bpara\s+dentro\s+de\s+/gi, 'en ').replace(/\bdentro\s+de\s+/gi, 'en ');
+  text = text
+    .replace(/\bpara\s+dentro\s+de\s+/gi, 'en ')
+    .replace(/\bdentro\s+de\s+/gi, 'en ')
+    .replace(/\?(['"»”’])\?/g, '?$1');
   return text.replace(/\s+/g, ' ').trim();
 }
 
@@ -104,7 +107,10 @@ function cleanSacrintTextPreservingLines(value: string | null | undefined): stri
     .replace(/\$(\d+(?:[.,]\d+)?\s*:\s*\d+(?:[.,]\d+)?)\$/g, '$1')
     .replace(/\$(\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|m|mm|km))\$/gi, '$1');
   text = normalizeMathNotation(text);
-  text = text.replace(/\bpara\s+dentro\s+de\s+/gi, 'en ').replace(/\bdentro\s+de\s+/gi, 'en ');
+  text = text
+    .replace(/\bpara\s+dentro\s+de\s+/gi, 'en ')
+    .replace(/\bdentro\s+de\s+/gi, 'en ')
+    .replace(/\?(['"»”’])\?/g, '?$1');
   return text
     .split(/\r?\n/)
     .map((line) => line.replace(/\s+/g, ' ').trim())
@@ -1238,11 +1244,13 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bla informaci[oó]n\b/gi, 'los datos'],
   [/\bplano t[eé]cnico definitivo\b/gi, 'lámina técnica final'],
   [/\ben tu plano t[eé]cnico\b/gi, 'en tu lámina técnica'],
+  [/\bplano definitivo\b/gi, 'plano final'],
+  [/\bmedida real\b/gi, 'dimensión real'],
+  [/\bmedidas reales\b/gi, 'dimensiones reales'],
+  [/\bescala de reducci[oó]n\b/gi, 'escala reductora'],
   [/\bcu[aá]les son las medidas\b/gi, 'qué medidas corresponden'],
   [/\bcu[aá]l ser[aá] la medida\b/gi, 'qué medida tendrá'],
   [/\bqu[eé] procedimiento seguir[aá]s\b/gi, 'qué pasos seguirás'],
-  [/\baltura total\b/gi, 'alto total'],
-  [/\blongitud total\b/gi, 'largo total'],
 ];
 
 /**
@@ -1270,8 +1278,6 @@ const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string,
   ['objetivos', 'propósitos'],
   ['característica', 'cualidad'],
   ['características', 'cualidades'],
-  ['herramienta', 'instrumento'],
-  ['herramientas', 'instrumentos'],
   ['precisión', 'exactitud'],
   ['correcto', 'adecuado'],
   ['correcta', 'adecuada'],
@@ -2276,11 +2282,19 @@ export function extractWorkedExample(
     );
     const visualStepsHaveMath = steps.some((step) => /[=]|\d/.test(step));
     const visualHasEquation = /=/.test(`${problemStatement} ${steps.join(' ')}`);
+    const extractSigNums = (text: string): string[] =>
+      [...new Set((text.match(/\d[\d.,]*/g) ?? []).map((n) => n.replace(/,/g, '')).filter((n) => n !== '1' && n !== '2' && n !== '3'))];
+    const visualNums = extractSigNums(`${problemStatement} ${steps.join(' ')} ${interpretation}`);
+    const sessionNums = new Set(extractSigNums(exampleWithoutStepLabels));
+    const sharedNumericCount = visualNums.filter((n) => sessionNums.has(n)).length;
+    const visualSharesSameProblemNumbers =
+      visualNums.length === 0 ||
+      sharedNumericCount >= Math.min(2, visualNums.length);
     const extractedSrcEq = exampleWithoutStepLabels
       ? extractCompleteEquations(exampleWithoutStepLabels)[0]?.trim()
       : undefined;
     const sessionHasEquation = Boolean(extractedSrcEq);
-    if (!visualHasEquation && steps.length > 0 && extractedSrcEq) {
+    if (!visualHasEquation && visualSharesSameProblemNumbers && steps.length > 0 && extractedSrcEq) {
       const openCount = (extractedSrcEq.match(/\(/g) || []).length;
       const closeCount = (extractedSrcEq.match(/\)/g) || []).length;
       if (
@@ -2294,11 +2308,12 @@ export function extractWorkedExample(
       }
     }
     if (steps.length === 2) {
-      const rawStep3 = session?.ejemploResuelto
-        ? cleanStepLine(
-            parseEjemploResuelto(cleanSacrintTextPreservingLines(session.ejemploResuelto)).pasos[2] ?? ''
-          )
-        : '';
+      const rawStep3 =
+        visualSharesSameProblemNumbers && session?.ejemploResuelto
+          ? cleanStepLine(
+              parseEjemploResuelto(cleanSacrintTextPreservingLines(session.ejemploResuelto)).pasos[2] ?? ''
+            )
+          : '';
       const candidate3 =
         rawStep3 && rawStep3.length >= 12 && !hasDanglingEnding(rawStep3)
           ? distillStepPreservingMath(rawStep3, 105, 15)
@@ -2649,15 +2664,15 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
   // NOTA: "modela" en 3.ª persona descriptiva ("se modela mediante...", "club modela el costo...")
   // NO es una consigna para el estudiante; solo cuenta en modo imperativo ("Modela...", "y modela...").
   const taskRe =
-    /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|identifica|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|argumenta|explica|analiza|relaciona|interpreta|distingue|localiza|señala|construye|elabora|integra|crea|redacta|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera|emplea|describe|representa|completa|ordena|usa|enfócate|asegúrate|tabula|dise[ñn]a)\b/i;
+    /\?|\b(?:calcula|determina|encuentra|halla|resuelve|soluciona|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|sustenta|fundamenta|identifica|reconoce|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|contrasta|argumenta|explica|detalla|analiza|relaciona|vincula|interpreta|distingue|localiza|señala|construye|arma|elabora|integra|incorpora|crea|redacta|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera|emplea|describe|representa|completa|ordena|usa|enfócate|asegúrate|tabula|dise[ñn]a|instala|configura|actualiza|conecta|mide|documenta|ejecuta|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|consulta|modifica|implementa|monitorea|diagnostica|acota|efect[uú]a|fija|a[ií]sla)\b/i;
   const imperativeModelaRe = /(?:^|[.?!;:]\s+|\by\s+)modela\b/i;
   const hasExplicitStudentTask = (text: string): boolean => {
     const withoutDescriptiveThirdPerson = text
       .replace(
-        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica))\b[^.?!]{0,45}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea)\b/gi,
+        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
         ''
       )
-      .replace(/\b(?:se|que|donde|cuyo|cuya)\s+(?:modela|describe|presenta|establece|indica|muestra|representa)\b/gi, '');
+      .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide)\b/gi, '');
     if (taskRe.test(withoutDescriptiveThirdPerson)) return true;
     return imperativeModelaRe.test(withoutDescriptiveThirdPerson);
   };
@@ -2699,8 +2714,8 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
       result = combined.length <= maxChars + 120 ? combined : originalTask;
     }
 
-    if (!hasExplicitStudentTask(result) && !originalTask) {
-      result = `${result.replace(/[.!?]+$/, '')}. Resuelve la situación planteada con los datos anteriores y justifica el resultado.`;
+    if (!hasExplicitStudentTask(result) && !originalTask && clean.length <= maxChars + 80) {
+      result = clean;
     }
 
     // Si perdió la ecuación o el contexto numérico del enunciado original, se recupera la oración de datos.
@@ -2741,15 +2756,31 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
     return result;
   };
 
-  // Quitar primera oración si es puramente introductoria sin datos numéricos ni consigna
+  // Quitar primera oración solo si es puramente introductoria sin datos numéricos,
+  // sin consigna explícita y sin abrir una cita textual que cierre en oraciones posteriores.
   let sentences = clean
     .split(/(?<=[.?!])\s+(?=[A-ZÁÉÍÓÚÑ¿])/)
     .map((s) => s.trim())
     .filter(Boolean);
+  const firstSentence = sentences[0] ?? '';
+  const firstSingleQuotes = (
+    firstSentence
+      .replace(/(?<=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])'(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ(])/g, '')
+      .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ'])[A-Za-z]'(?=\s|[=.,;:)]|$)/g, '')
+      .match(/'/g) || []
+  ).length;
+  const firstOpensQuote =
+    firstSingleQuotes % 2 === 1 ||
+    (firstSentence.match(/"/g) || []).length % 2 === 1 ||
+    (firstSentence.match(/«/g) || []).length !== (firstSentence.match(/»/g) || []).length ||
+    (firstSentence.match(/“/g) || []).length !== (firstSentence.match(/”/g) || []).length ||
+    /:\s*['"«“‘]/.test(firstSentence);
   if (
     sentences.length >= 2 &&
-    !/\d|=|\?|calcula|resuelve|determina|halla|plantea|verifica|encuentra|revisa|explica|traza|dibuja|grafica|analiza|convierte|transforma/i.test(
-      sentences[0]!
+    !firstOpensQuote &&
+    !hasExplicitStudentTask(firstSentence) &&
+    !/\d|=|\?|calcula|resuelve|determina|halla|plantea|verifica|encuentra|revisa|explica|traza|dibuja|grafica|analiza|convierte|transforma|lee|corrige|identifica|reescribe|completa|subraya|traduce|ordena|elige|redacta|escribe/i.test(
+      firstSentence
     )
   ) {
     const rest = sentences.slice(1).join(' ');

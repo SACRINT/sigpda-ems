@@ -1027,6 +1027,15 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
 }
 
 function tryBuildGeometryDiagram(source: string): GeometryDiagramSpec | null {
+  // Nunca asignar un triángulo rectángulo estático (Pitágoras) a sesiones de cálculo diferencial,
+  // derivadas implícitas, regla de L'Hôpital o límites que mencionen sen(x)/cos(x)/tan(x).
+  if (
+    /\b(?:derivad[ao]s?|l['’]?h[oô]pital|l[ií]mites?|c[aá]lculo\s+diferencial|raz[oó]n\s+de\s+cambio|m[aá]ximos\s+y\s+m[ií]nimos|tasa\s+de\s+cambio\s+instant[aá]nea|integral(?:es)?)\b/i.test(
+      source
+    )
+  ) {
+    return null;
+  }
   const isAngle =
     /tipos?\s+de\s+[aá]ngulos|clasificaci[oó]n\s+de\s+[aá]ngulos|[aá]ngulos?\s+(?:agudo|recto|obtuso|llano|complementarios|suplementarios|opuestos\s+por\s+el\s+v[eé]rtice|alternos|correspondientes)|transportador|paralelas.*transversal/i.test(
       source
@@ -1804,7 +1813,13 @@ function compactDiagramDetail(
   if (!cleanedBase) return '';
 
   // Evitar volcar preguntas o párrafos narrativos completos de 25–40 palabras dentro de un nodo de diagrama.
-  let cleaned = cleanedBase;
+  let cleaned = cleanedBase
+    .replace(/^(?:¿?\s*Alguna\s+vez\s+te\s+has\s+preguntado\s+(?:c[oó]mo|por\s+qu[eé]|qu[eé])?\s*|Adem[aá]s,\s*comprueba\s+que\s+)/i, '')
+    .trim();
+  if (!cleaned) cleaned = cleanedBase;
+  if (/^[a-záéíóúñ]/.test(cleaned)) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
   if (cleaned.length > maxChars + 12) {
     const strippedLead = cleaned
       .replace(/^(?:Imagina\s+que\s+[^,]{3,60},\s*|En\s+el\s+(?:laboratorio|taller|aula),?\s*(?:a\s+menudo\s+)?|Al\s+[a-záéíóúñ]+(?:lo|la|los|las)?,\s*notas\s+que\s+)/i, '')
@@ -1829,6 +1844,17 @@ function compactDiagramDetail(
       ? paraphraseSixGramOverlap(cleaned, theorySources)
       : cleaned;
 
+  const sanitizeNodeResult = (candidate: string): string => {
+    let out = candidate.replace(/[,;:]+$/, '').trim();
+    if (out.includes('¿') && !out.includes('?')) {
+      const afterOpen = out.replace(/^¿\s*(?:Qu[eé]|C[oó]mo|Cu[aá]l(?:es)?|Por\s+qu[eé]|D[oó]nde|Cu[aá]ndo)\s+/i, '').trim();
+      out = afterOpen.length >= 10
+        ? afterOpen.charAt(0).toUpperCase() + afterOpen.slice(1)
+        : out.replace(/¿/g, '').trim();
+    }
+    return out;
+  };
+
   const fitted = fitPedagogicalText(paraphrased, {
     maxChars,
     maxWords,
@@ -1837,7 +1863,7 @@ function compactDiagramDetail(
   });
 
   if (fitted && fitted.split(/\s+/).filter(Boolean).length <= maxWords + 3 && !hasDanglingEnding(fitted)) {
-    return fitted;
+    return sanitizeNodeResult(fitted);
   }
 
   // Fallback compacto determinista: conservar la cláusula nominal/verbal sin colgar preposiciones ni verbos.
@@ -1849,13 +1875,13 @@ function compactDiagramDetail(
     ensurePeriod: false,
   });
   if (retry && retry.split(/\s+/).filter(Boolean).length <= maxWords + 3 && !hasDanglingEnding(retry)) {
-    return retry;
+    return sanitizeNodeResult(retry);
   }
-  const tokens = firstClause.split(/\s+/).filter(Boolean).slice(0, maxWords + 1);
+  const tokens = sanitizeNodeResult(firstClause).split(/\s+/).filter(Boolean).slice(0, maxWords + 1);
   while (tokens.length > 2 && hasDanglingEnding(tokens.join(' '))) {
     tokens.pop();
   }
-  return tokens.join(' ').replace(/[,;:]+$/, '').trim() || fitted || paraphrased;
+  return sanitizeNodeResult(tokens.join(' ')) || sanitizeNodeResult(fitted || paraphrased);
 }
 
 function compactNode(node: SacrintDiagramNode, theorySources?: string[]): SacrintDiagramNode {
