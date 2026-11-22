@@ -43,9 +43,13 @@ import {
 import {
   finalizeVisibleText,
   fitPedagogicalText,
+  GENERIC_FILLER_RE,
   hasDanglingEnding,
   isPublishablePedagogicalText,
+  isTruncatedAgainstSource,
+  NODE_TRUNCATION_RE,
   repairDanglingEnding,
+  splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import {
   isValidRenderableFormula,
@@ -1080,6 +1084,7 @@ export function collectWorkbookTheorySources(workbook: ActiveWorkTextbook): stri
   if (cached) return cached;
 
   const sources: string[] = [];
+  if (workbook.coverData?.paecProjectName) sources.push(workbook.coverData.paecProjectName);
   for (const m of workbook.missions ?? []) {
     if (m.conceptZero) pushTheoryStrings(sources, m.conceptZero);
     if (m.phenomenonHook?.story) sources.push(m.phenomenonHook.story);
@@ -1415,7 +1420,7 @@ const IMPERATIVE_MODELA_RE = /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i;
 function hasActivityTask(value: string): boolean {
   const withoutDescriptiveThirdPerson = value
     .replace(
-      /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
+      /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|investigador[a]?|operari[oa]|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa|medidor|term[oó]metro|man[oó]metro|instrumento)|el\s+(?:compa[ñn]er[oa]|estudiante|investigador|operario|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro|instrumento)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
       ''
     )
     .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide)\b/gi, '')
@@ -1453,7 +1458,7 @@ function hasIncompleteConditionalEnding(value: string): boolean {
   return !hasActivityTask(last);
 }
 
-function ensureActivityClosure(statement: string): string {
+export function ensureActivityClosure(statement: string): string {
   const cleaned = capitalizeProseStart(
     String(statement || '')
       .replace(/^[:;.\-–—\s]+/, '')
@@ -1464,23 +1469,8 @@ function ensureActivityClosure(statement: string): string {
       .replace(/(?<=[.?!]\s+)([a-záéíóúñ])/g, (_, ch: string) => ch.toUpperCase())
       .trim()
   );
-  if (!cleaned) return cleaned;
-  const value = /[.?!]$/.test(cleaned) ? cleaned : `${cleaned}.`;
-  const incompleteCond = hasIncompleteConditionalEnding(value);
-  if (!incompleteCond && hasActivityTask(value) && value.length >= 55 && !hasDanglingEnding(value)) return value;
-  const base = value.replace(/[.!?]+$/, '').trim();
-  const basePunct = /\?$/.test(value) ? '?' : '.';
-  if (incompleteCond) {
-    return `${base}, desarrolla el análisis y justifica tu respuesta.`;
-  }
-  if (!hasActivityTask(value)) {
-    const withTask = `${base}${basePunct} Aplica el procedimiento estudiado y fundamenta tu respuesta.`;
-    return withTask.length >= 55
-      ? withTask
-      : `${base}${basePunct} Aplica el procedimiento estudiado, registra tu desarrollo y fundamenta tu respuesta.`;
-  }
-  if (/Registra tu procedimiento y comprueba la respuesta\.?$/i.test(value)) return value;
-  return `${base}${basePunct} Registra tu procedimiento y comprueba la respuesta.`;
+  if (!cleaned) return '';
+  return /[.?!]$/.test(cleaned) ? cleaned : `${cleaned}.`;
 }
 
 const HEADLESS_ANAPHORIC_START_RE =
@@ -1503,10 +1493,12 @@ function compactActivityPreservingTaskAndData(
   rawStatement: string,
   maxChars: number,
   maxWords: number,
-  allowPartialNumbers = false
+  allowPartialNumbers = false,
+  sourceStatement = rawStatement
 ): string {
+  const originalSource = ensureActivityClosure(sourceStatement);
   const base = ensureActivityClosure(compactActivityStatement(rawStatement));
-  if (!base) return base;
+  if (!base) return originalSource;
   const mathTokens = (text: string): string[] =>
     (text.match(/\d+(?:[.,]\d+)?|=/g) ?? []).map((t) => t.replace(/,/g, ''));
   const isValidActivity = (candidate: string, reference: string): boolean => {
@@ -1515,7 +1507,8 @@ function compactActivityPreservingTaskAndData(
     if (c.length < minLen) return false;
     if (/^[a-záéíóúñ]/.test(c)) return false;
     if (!hasActivityTask(c) || hasIncompleteConditionalEnding(c) || hasDanglingEnding(c)) return false;
-    if (!isPublishablePedagogicalText(c, 'activity', reference)) return false;
+    if (!isPublishablePedagogicalText(c, 'activity', originalSource)) return false;
+    if (isTruncatedAgainstSource(c, originalSource)) return false;
     if (/\.,|,\.|;\.|\.\s*\./.test(c) || /,\s*[a-zA-ZÁÉÍÓÚáéíóúñÑ]\.$/.test(c)) return false;
     if (/=/.test(reference) && !/=/.test(c)) return false;
     const uniqueRef = new Set(mathTokens(reference));
@@ -1548,11 +1541,29 @@ function compactActivityPreservingTaskAndData(
     return directFit;
   }
 
-  const sentences = base
-    .split(/(?<=[.?!])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const sentences = splitSpanishSentences(base);
   if (sentences.length > 1) {
+    // Descartar oraciones administrativas finales ("Registra en tu bitácora...", "Muestra tus pasos...")
+    // solo si las oraciones previas conservan TODOS los datos numéricos/ecuaciones y una consigna válida.
+    const ADMIN_TAIL_RE =
+      /^(?:Registra|Anota|Documenta|Muestra|Comparte|Presenta|Aseg[uú]rate|Verifica|Comprueba|Justifica|Reflexiona|Integra|Incorpora)\b[^?]{0,140}(?:bit[aá]cora|cuaderno|libreta|portafolio|pasos|claridad|profesional|tu\s+elecci[oó]n|procedimientos?|desarrollo|grupo|equipo|conclusi[oó]n|t[eé]cnica)\.?$/i;
+    const withoutAdminTails = [...sentences];
+    while (
+      withoutAdminTails.length > 1 &&
+      ADMIN_TAIL_RE.test(withoutAdminTails[withoutAdminTails.length - 1]!) &&
+      mathTokens(withoutAdminTails[withoutAdminTails.length - 1]!).length === 0
+    ) {
+      withoutAdminTails.pop();
+    }
+    if (withoutAdminTails.length < sentences.length) {
+      const cleanedNoAdmin = withoutAdminTails.join(' ').trim();
+      if (isValidActivity(cleanedNoAdmin, base)) {
+        if (cleanedNoAdmin.length <= maxChars && wordCount(cleanedNoAdmin) <= maxWords) {
+          return cleanedNoAdmin;
+        }
+      }
+    }
+
     let taskIdx = -1;
     for (let i = sentences.length - 1; i >= 0; i--) {
       if (hasActivityTask(sentences[i]!)) {
@@ -1819,7 +1830,7 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
       practiceText: fitShort(ps.practiceText, 116, 18, 'application', 44),
       objectiveBullets: (ps.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitShort(item, 68, 11, 'concept', 20))
+        .map((item) => extractDisciplinaryConceptPhrase(item) || item)
         .filter((item): item is string => Boolean(item)),
       evaluationCriteria:
         validCriteria.length > 0
@@ -2040,12 +2051,8 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
     const compactProblemFallback = (raw: string, maxChars: number, maxWordsValue: number): string => {
       const pre = compactProblemPreamble(raw);
       const fitted = fitPreserving(pre, maxChars, maxWordsValue, 'problem', 42);
-      if (fitted && fitted !== pre && fitted.length <= maxChars + 18) return fitted;
-      const viaActivity = compactActivityPreservingTaskAndData(pre, maxChars + 18, maxWordsValue + 4, false);
-      if (viaActivity && !hasDanglingEnding(viaActivity) && viaActivity.length <= maxChars + 26) {
-        return viaActivity;
-      }
-      return fitted || pre;
+      if (fitted && !isTruncatedAgainstSource(fitted, raw) && !hasDanglingEnding(fitted)) return fitted;
+      return pre;
     };
 
     const fourth = {
@@ -2187,7 +2194,282 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : sixthConcept.workedExample,
     } as SacrintConceptSlide;
-    return seventhConcept;
+    if (countSlideWords(seventhConcept) <= 130) return seventhConcept;
+
+    // Etapa 8 arquitectónica (solo 08): reducir densidad por BLOQUES/ORACIONES COMPLETAS,
+    // jamás amputando una oración a la mitad ni vaciando la conclusión del ejemplo resuelto.
+    const trimGerundTail = (text: string | undefined, minChars = 30, preserveMath = false): string | undefined => {
+      if (!text) return text;
+      const m = text.match(/^(.{26,}?),\s+(?:permitiendo|posibilitando|garantizando|asegurando|facilitando|logrando|evitando|optimizando|incluyendo|incorporando|validando|confirmando|promoviendo|fomentando|contribuyendo|consolidando|fortaleciendo|destacando|demostrando|documentando|identificando|analizando|sistematizando|calculando|verificando|comprendiendo|retir[aá]ndol[oa]s?|anotando|limpiando|revisando|comprobando|observando|midiendo|registrando|evaluando|comparando|aplicando|integrando|determinando|empleando|utilizando|provocando|causando|generando|manifest[aá]ndose|cumpliendo|ajustando|colocando|siguiendo|posiblemente|el\s+cual|la\s+cual|los\s+cuales|las\s+cuales|lo\s+cual|por\s+lo\s+cual|en\s+tanto\s+que|mientras\s+que|mediante\s+el\s+uso\s+de|para\s+(?:asegurar|garantizar|validar|corroborar))\b/i);
+      if (m && m[1]) {
+        const candidate = `${m[1].replace(/[.,;:\s]+$/, '').trim()}.`;
+        if (preserveMath && (/[=\d]/.test(text.slice(m[1].length)) && !/[=\d]/.test(candidate))) {
+          return text;
+        }
+        if (candidate.length >= minChars && !hasDanglingEnding(candidate)) return candidate;
+      }
+      return text;
+    };
+
+    const firstCompleteSentence = (text: string | undefined, minChars = 22): string | undefined => {
+      if (!text) return text;
+      const sents = splitSpanishSentences(text);
+      const first = sents[0]?.trim();
+      if (first && first.length >= minChars && !hasDanglingEnding(first)) return first;
+      return text;
+    };
+
+    const compactDetailSafe = (text: string | undefined, minChars = 20): string => {
+      if (!text) return '';
+      const s1 = firstCompleteSentence(text, minChars) || text;
+      return trimGerundTail(s1, minChars) || s1;
+    };
+
+    const compactCenterDetail = (detail: string | undefined, fallbackTitle: string): string => {
+      if (!detail) return fallbackTitle;
+      let clean = extractDisciplinaryConceptPhrase(detail) || detail;
+      clean = clean
+        .replace(
+          /,\s*(?:comprendiendo|identificando|analizando|sistematizando|calculando|empleando|utilizando|evaluando|validando|comprobando|verificando|organizando|permitiendo|garantizando|asegurando|aplicando|construyendo|estableciendo|determinando|reconociendo|desarrollando|promoviendo|fomentando|integrando|documentando|registrando|comparando|aprendes\s+a|comprendes|identificas|aplicas|analizas|calculas|cuantificas)\b.*$/i,
+          ''
+        )
+        .replace(/[.,;:\s]+$/, '')
+        .trim();
+      const wc = clean.split(/\s+/).filter(Boolean).length;
+      if (wc > 12 || clean.length < 10 || hasDanglingEnding(clean)) {
+        return fallbackTitle;
+      }
+      return clean;
+    };
+
+    const tokenOverlapRatio = (a: string | undefined, b: string | undefined): number => {
+      if (!a || !b) return 0;
+      const ta = new Set(a.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2));
+      const tb = new Set(b.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2));
+      if (ta.size < 4 || tb.size < 4) return 0;
+      let shared = 0;
+      for (const w of ta) if (tb.has(w)) shared++;
+      return shared / Math.min(ta.size, tb.size);
+    };
+
+    const compactStepSentence = (step: string): string => {
+      let clean = step
+        .replace(
+          /^(?:Algoritmo,\s*f[oó]rmula\s+de\s+hoja\s+de\s+c[aá]lculo\s+o\s+estructura\s+l[oó]gica|Definici[oó]n\s+de\s+entradas,\s*variables\s+y\s+tipos|Pruebas?\s+de\s+escritorio\s+y\s+validaci[oó]n|Interpretaci[oó]n\s+y\s+comunicaci[oó]n\s+de\s+resultados|Ejecuci[oó]n\s+con\s+orden\s+y\s+registro\s+de\s+mediciones\/controles|Seguridad\s*\(EPP\/higiene\),\s*insumos\s+y\s+par[aá]metros\s+de\s+entrada|Planteamiento\s+del\s+problema|Desarrollo\s+del\s+procedimiento)\s*[:.]?\s+(?=.{20,})/i,
+          ''
+        )
+        .trim();
+      if (/^[a-záéíóúñ]/.test(clean)) clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+      const sents = splitSpanishSentences(clean);
+      if (sents.length >= 2 && clean.split(/\s+/).length > 16) {
+        const key = sents.find((s) => /=/.test(s)) || sents.find((s) => /\d/.test(s)) || sents[0]!;
+        if (key.length >= 20 && !hasDanglingEnding(key)) clean = key;
+      }
+      const trimmed = trimGerundTail(clean, 22, true) || clean;
+      return trimmed.length >= 16 && !hasDanglingEnding(trimmed) ? trimmed : step;
+    };
+
+    const pruneConceptualDiagram = (
+      diagram: SacrintDiagramSpec,
+      maxNodes: number,
+      slideTitle: string,
+      problemRef?: string,
+      explanationRef?: string,
+      stepsRef?: string[]
+    ): SacrintDiagramSpec => {
+      if (!diagram.available) return diagram;
+      const isRedundant = (detail: string | undefined): boolean =>
+        tokenOverlapRatio(detail, problemRef) >= 0.5 ||
+        tokenOverlapRatio(detail, explanationRef) >= 0.68 ||
+        (stepsRef ?? []).some((st) => tokenOverlapRatio(detail, st) >= 0.6);
+      switch (diagram.kind) {
+        case 'concept': {
+          const filtered = diagram.nodes
+            .filter((n) => !isRedundant(n.detail))
+            .slice(0, maxNodes)
+            .map((n) => ({ ...n, detail: compactDetailSafe(n.detail, 18) }));
+          return {
+            ...diagram,
+            center: { ...diagram.center, detail: compactCenterDetail(diagram.center.detail, slideTitle) },
+            nodes:
+              filtered.length > 0
+                ? filtered
+                : diagram.nodes.slice(0, 1).map((n) => ({ ...n, detail: '' })),
+          };
+        }
+        case 'system-map': {
+          const filtered = diagram.components
+            .filter((c) => !isRedundant(c.detail))
+            .slice(0, maxNodes)
+            .map((c) => ({ ...c, detail: compactDetailSafe(c.detail, 18) }));
+          return {
+            ...diagram,
+            center: { ...diagram.center, detail: compactCenterDetail(diagram.center.detail, slideTitle) },
+            components:
+              filtered.length > 0
+                ? filtered
+                : diagram.components.slice(0, 1).map((c) => ({ ...c, detail: '' })),
+            environment:
+              maxNodes <= 3
+                ? { ...diagram.environment, detail: '' }
+                : { ...diagram.environment, detail: compactDetailSafe(diagram.environment.detail, 18) },
+          };
+        }
+        case 'block-diagram': {
+          const inpDet = isRedundant(diagram.input.detail) ? '' : compactDetailSafe(diagram.input.detail, 18);
+          const procDet = isRedundant(diagram.process.detail) ? '' : compactDetailSafe(diagram.process.detail, 18);
+          const outDet =
+            maxNodes <= 2 || isRedundant(diagram.output.detail) ? '' : compactDetailSafe(diagram.output.detail, 18);
+          const fbDet = maxNodes <= 3 ? '' : compactDetailSafe(diagram.feedback.detail, 18);
+          return {
+            ...diagram,
+            input: { ...diagram.input, detail: maxNodes <= 1 ? '' : inpDet },
+            process: { ...diagram.process, detail: procDet },
+            output: { ...diagram.output, detail: outDet },
+            feedback: { ...diagram.feedback, detail: fbDet },
+          };
+        }
+        case 'timeline':
+          return {
+            ...diagram,
+            events: diagram.events
+              .filter((e) => !isRedundant(e.detail))
+              .slice(0, maxNodes)
+              .map((e) => ({ ...e, detail: compactDetailSafe(e.detail, 18) })),
+          };
+        case 'language':
+          return {
+            ...diagram,
+            input: {
+              ...diagram.input,
+              detail: maxNodes <= 1 || isRedundant(diagram.input.detail) ? '' : compactDetailSafe(diagram.input.detail, 18),
+            },
+            rule: { ...diagram.rule, detail: compactDetailSafe(diagram.rule.detail, 18) },
+            output: {
+              ...diagram.output,
+              detail: maxNodes <= 2 || isRedundant(diagram.output.detail) ? '' : compactDetailSafe(diagram.output.detail, 18),
+            },
+            context: { ...diagram.context, detail: maxNodes <= 3 ? '' : compactDetailSafe(diagram.context.detail, 18) },
+          };
+        case 'argument':
+          return {
+            ...diagram,
+            thesis: { ...diagram.thesis, detail: compactCenterDetail(diagram.thesis.detail, slideTitle) },
+            premises: diagram.premises
+              .filter((pr) => !isRedundant(pr.detail))
+              .slice(0, Math.max(1, maxNodes - 1))
+              .map((pr) => ({ ...pr, detail: compactDetailSafe(pr.detail, 18) })),
+            objection: { ...diagram.objection, detail: maxNodes <= 3 ? '' : compactDetailSafe(diagram.objection.detail, 18) },
+            conclusion: {
+              ...diagram.conclusion,
+              detail: maxNodes <= 2 || isRedundant(diagram.conclusion.detail) ? '' : compactDetailSafe(diagram.conclusion.detail, 18),
+            },
+          };
+        case 'sop-flow':
+          return {
+            ...diagram,
+            steps: diagram.steps
+              .filter((st) => !isRedundant(st.detail))
+              .slice(0, maxNodes)
+              .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18) })),
+            standard: maxNodes <= 3 ? '' : diagram.standard,
+          };
+        default:
+          return diagram;
+      }
+    };
+
+    const problemRef = seventhConcept.workedExample?.problemStatement;
+    const stepsRef = seventhConcept.workedExample?.steps ?? [];
+    const explanationRef =
+      trimGerundTail(firstCompleteSentence(seventhConcept.explanation, 40), 40) ||
+      firstCompleteSentence(seventhConcept.explanation, 40) ||
+      seventhConcept.explanation;
+    let eighthConcept: SacrintConceptSlide = {
+      ...seventhConcept,
+      activationNote: undefined,
+      keyTakeaways: [],
+      explanation: explanationRef,
+      diagram: pruneConceptualDiagram(seventhConcept.diagram, 3, seventhConcept.title, problemRef, explanationRef, stepsRef),
+      workedExample: seventhConcept.workedExample
+        ? {
+            ...seventhConcept.workedExample,
+            steps: seventhConcept.workedExample.steps.map(compactStepSentence),
+            interpretation:
+              trimGerundTail(firstCompleteSentence(seventhConcept.workedExample.interpretation, 16), 16) ||
+              firstCompleteSentence(seventhConcept.workedExample.interpretation, 16) ||
+              seventhConcept.workedExample.interpretation,
+          }
+        : seventhConcept.workedExample,
+    };
+    if (countSlideWords(eighthConcept) <= 184) return eighthConcept;
+
+    eighthConcept = {
+      ...eighthConcept,
+      diagram: pruneConceptualDiagram(eighthConcept.diagram, 2, eighthConcept.title, problemRef, explanationRef, stepsRef),
+      workedExample: eighthConcept.workedExample
+        ? {
+            ...eighthConcept.workedExample,
+            problemStatement:
+              trimGerundTail(firstCompleteSentence(eighthConcept.workedExample.problemStatement, 30), 30) ||
+              firstCompleteSentence(eighthConcept.workedExample.problemStatement, 30) ||
+              eighthConcept.workedExample.problemStatement,
+            steps: eighthConcept.workedExample.steps.slice(0, 2).map(compactStepSentence),
+          }
+        : eighthConcept.workedExample,
+    };
+    if (countSlideWords(eighthConcept) <= 186) return eighthConcept;
+
+    const trimmedExp =
+      eighthConcept.explanation.split(/\s+/).length > 20
+        ? (() => {
+            const m = eighthConcept.explanation.match(
+              /^(.{40,}?)\s+(?:para\s+(?:verificar|comprobar|determinar|identificar|analizar|evaluar|garantizar|asegurar|corroborar)|por\s+medio\s+de\s+la\s+aplicaci[oó]n)\b/i
+            );
+            if (m && m[1]) {
+              const cand = `${m[1].replace(/[.,;:\s]+$/, '').trim()}.`;
+              if (cand.length >= 44 && !hasDanglingEnding(cand)) return cand;
+            }
+            return eighthConcept.explanation;
+          })()
+        : eighthConcept.explanation;
+
+    const trimSubordinateStep = (step: string): string => {
+      if (step.split(/\s+/).length <= 16) return step;
+      const m = step.match(/^(.{24,}?)\s+que\s+(?:desv[ií]a|impide|afecta|limita|altera|provoca|genera|permite)\b/i);
+      if (m && m[1]) {
+        const cand = `${m[1].replace(/[.,;:\s]+$/, '').trim()}.`;
+        if (cand.length >= 24 && !hasDanglingEnding(cand)) return cand;
+      }
+      return step;
+    };
+
+    const trimmedMisconception = (() => {
+      const base =
+        trimGerundTail(firstCompleteSentence(eighthConcept.misconception, 24), 24) ||
+        eighthConcept.misconception;
+      if (!base) return base;
+      const stripped = base.replace(/^El\s+error\s+m[aá]s\s+(?:frecuente|com[uú]n)\s+es\s+/i, '').trim();
+      return stripped.length >= 24
+        ? `${stripped.charAt(0).toUpperCase()}${stripped.slice(1)}`
+        : base;
+    })();
+
+    return {
+      ...eighthConcept,
+      explanation: trimmedExp,
+      diagram: pruneConceptualDiagram(eighthConcept.diagram, 1, eighthConcept.title, problemRef, trimmedExp, stepsRef),
+      misconception: trimmedMisconception,
+      workedExample: eighthConcept.workedExample
+        ? {
+            ...eighthConcept.workedExample,
+            steps: eighthConcept.workedExample.steps.map(trimSubordinateStep),
+            interpretation:
+              trimGerundTail(firstCompleteSentence(eighthConcept.workedExample.interpretation, 16), 16) ||
+              eighthConcept.workedExample.interpretation,
+          }
+        : eighthConcept.workedExample,
+    };
   }
 
   if (slide.kind === 'practice') {
@@ -2229,7 +2511,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       practiceText: '',
       objectiveBullets: (first.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitPreserving(item, 72, 11, 'concept', 22) || item)
+        .map((item) => extractDisciplinaryConceptPhrase(item) || item)
         .filter((item): item is string => Boolean(item)),
       evaluationCriteria: sanitizeCriteriaList(first.evaluationCriteria, 106, 17, 2),
       artifactStep:
@@ -2239,16 +2521,16 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
 
     const third = {
       ...second,
-      activities: (second.activities ?? []).slice(0, 2).map((activity) => ({
+      activities: (second.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: compactActivityPreservingTaskAndData(activity.statement, 185, 30, false),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 185, 30, false, (first.activities ?? [])[idx]?.statement ?? activity.statement),
         hint: fitPreserving(activity.hint, 88, 14, 'hint', 22) || activity.hint,
       })),
       applicationText:
         fitPreserving(second.applicationText, 96, 15, 'application', 44) || second.applicationText,
       objectiveBullets: (second.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitPreserving(item, 64, 10, 'concept', 22) || item)
+        .map((item) => extractDisciplinaryConceptPhrase(item) || item)
         .filter((item): item is string => Boolean(item)),
       evaluationCriteria: sanitizeCriteriaList(second.evaluationCriteria, 104, 17, 1),
       artifactStep:
@@ -2258,50 +2540,50 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
 
     const fourth = {
       ...third,
-      activities: (third.activities ?? []).slice(0, 2).map((activity) => ({
+      activities: (third.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: compactActivityPreservingTaskAndData(activity.statement, 165, 27, false),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 165, 27, false, (first.activities ?? [])[idx]?.statement ?? activity.statement),
         hint: fitPreserving(activity.hint, 78, 13, 'hint', 22) || activity.hint,
       })),
       applicationText:
         fitPreserving(third.applicationText, 84, 14, 'application', 44) || third.applicationText,
       objectiveBullets: (third.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitPreserving(item, 54, 9, 'concept', 20) || item)
+        .map((item) => extractDisciplinaryConceptPhrase(item) || item)
         .filter((item): item is string => Boolean(item)),
       evaluationCriteria: sanitizeCriteriaList(third.evaluationCriteria, 100, 16, 1),
       artifactStep:
         fitPreserving(third.artifactStep, 80, 12, 'application', 32) || third.artifactStep,
     } as SacrintPracticeSlide;
-    if (countSlideWords(fourth) <= 172) return fourth;
+    if (countSlideWords(fourth) <= 136) return fourth;
 
     const fifth = {
       ...fourth,
-      activities: (fourth.activities ?? []).slice(0, 2).map((activity) => ({
+      activities: (fourth.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: compactActivityPreservingTaskAndData(activity.statement, 155, 26, false),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 155, 26, false, (first.activities ?? [])[idx]?.statement ?? activity.statement),
         hint: fitPreserving(activity.hint, 68, 11, 'hint', 20) || activity.hint,
       })),
       applicationText:
         fitPreserving(fourth.applicationText, 72, 12, 'application', 44) || fourth.applicationText,
       objectiveBullets: (fourth.objectiveBullets ?? [])
         .slice(0, 1)
-        .map((item) => fitPreserving(item, 48, 7, 'concept', 20) || item)
+        .map((item) => extractDisciplinaryConceptPhrase(item) || item)
         .filter((item): item is string => Boolean(item)),
       evaluationCriteria: sanitizeCriteriaList(fourth.evaluationCriteria, 96, 16, 1),
       artifactStep:
         fitPreserving(fourth.artifactStep, 70, 11, 'application', 30) || fourth.artifactStep,
     } as SacrintPracticeSlide;
-    if (countSlideWords(fifth) <= 176) return fifth;
+    if (countSlideWords(fifth) <= 138) return fifth;
 
-    // Etapa 6 segura: si aún excede 176 palabras (p. ej. 2 actividades muy extensas de 70+ palabras),
+    // Etapa 6 segura: si aún excede 138 palabras de cuerpo (~174 en PPTX),
     // compactar frases narrativas secundarias en actividades (permitiendo condensación de enumeraciones largas)
     // y acortar pistas largas sin tocar nunca ecuaciones, datos clave ni la pregunta central.
     const sixth = {
       ...fifth,
-      activities: (fifth.activities ?? []).slice(0, 2).map((activity) => ({
+      activities: (fifth.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: compactActivityPreservingTaskAndData(activity.statement, 145, 24, true),
+        statement: compactActivityPreservingTaskAndData(activity.statement, 145, 24, true, (first.activities ?? [])[idx]?.statement ?? activity.statement),
         hint: fitPreserving(activity.hint, 62, 10, 'hint', 20) || activity.hint,
       })),
       applicationText:
@@ -2309,7 +2591,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       artifactStep:
         fitPreserving(fifth.artifactStep, 64, 10, 'application', 30) || fifth.artifactStep,
     } as SacrintPracticeSlide;
-    if (countSlideWords(sixth) <= 178) return sixth;
+    if (countSlideWords(sixth) <= 140) return sixth;
 
     // Respaldo final determinista: si las 2 actividades juntas todavía superan 186w,
     // condensar cláusulas explicativas largas dentro de cada enunciado sin borrar datos ni consigna.
@@ -2337,20 +2619,212 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
     };
     const seventh = {
       ...sixth,
-      activities: (sixth.activities ?? []).slice(0, 2).map((activity) => ({
+      activities: (sixth.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: compactActivityPreservingTaskAndData(condenseNarrativeClauses(activity.statement), 145, 24, true),
+        statement: compactActivityPreservingTaskAndData(
+          condenseNarrativeClauses(activity.statement),
+          145,
+          24,
+          true,
+          (first.activities ?? [])[idx]?.statement ?? activity.statement
+        ),
       })),
     } as SacrintPracticeSlide;
-    if (countSlideWords(seventh) <= 170) return seventh;
-    return {
+    if (countSlideWords(seventh) <= 130) return seventh;
+
+    // Etapa 8 arquitectónica (práctica): compactar por ORACIÓN COMPLETA / CLÁUSULA SUBORDINADA AUTÓNOMA / BLOQUE OPCIONAL,
+    // sin amputar nunca una consigna ni sus datos numéricos.
+    const compactObjectiveBullet = (bullet: string, fallbackTitle: string): string => {
+      let clean = extractDisciplinaryConceptPhrase(bullet) || bullet;
+      clean = clean
+        .replace(
+          /,\s*(?:identificando|analizando|sistematizando|calculando|empleando|utilizando|evaluando|validando|comprobando|verificando|organizando|permitiendo|garantizando|asegurando|aplicando|construyendo|estableciendo|determinando|reconociendo|comprendiendo|desarrollando|promoviendo|fomentando|integrando|documentando|registrando|comparando|dise[ñn]ando|formulando|seleccionando|configurando|ejecutando|aplicas|comprendes|identificas|utilizas|dise[ñn]as|analizas|calculas|elaboras|eval[uú]as|construyes|sistematizas)\b.*$/i,
+          ''
+        )
+        .replace(/[.,;:\s]+$/, '')
+        .trim();
+      if (clean.split(/\s+/).length > 13) {
+        const paraCut = clean.match(
+          /^(.{20,}?)\s+(?:para\s+(?:fortalecer|garantizar|asegurar|corroborar|validar|promover|fomentar|determinar|encontrar|identificar|mejorar|optimizar|evaluar|lograr|permitir|solucionar|resolver|obtener|mostrar|visualizar)|por\s+medio\s+de\s+la\s+aplicaci[oó]n)\b/i
+        );
+        if (paraCut && paraCut[1] && !hasDanglingEnding(paraCut[1])) {
+          clean = paraCut[1].replace(/[.,;:\s]+$/, '').trim();
+        }
+      }
+      const words = clean.split(/\s+/).filter(Boolean).length;
+      if (
+        words > 14 ||
+        clean.length < 14 ||
+        hasDanglingEnding(clean) ||
+        /\bprepar\b/i.test(clean)
+      ) {
+        return fallbackTitle;
+      }
+      return clean;
+    };
+
+    const firstSentenceSafe = (text: string | undefined, minChars: number, trimRelative = false): string | undefined => {
+      if (!text) return text;
+      const sents = splitSpanishSentences(text);
+      const firstSent = sents[0]?.trim();
+      let base = firstSent && firstSent.length >= minChars && !hasDanglingEnding(firstSent) ? firstSent : text;
+      const gerundCut = base.match(
+        /^(.{24,}?),\s+(?:incluyendo|incorporando|validando|garantizando|asegurando|permitiendo|posibilitando|facilitando|mostrando|detallando|explicando|considerando|evaluando|demostrando|documentando|registrando|analizando|identificando|sistematizando|calculando|verificando|comparando|aplicando|integrando|que\s+(?:incorpora|incluye|contiene|detalla)|con\s+el\s+fin\s+de|para\s+(?:su\s+posterior|construir\s+un|asegurar|garantizar|validar|corroborar))\b/i
+      );
+      if (gerundCut && gerundCut[1]) {
+        const cleanBase = `${gerundCut[1].replace(/[.,;:\s]+$/, '').trim()}.`;
+        if (cleanBase.length >= minChars && !hasDanglingEnding(cleanBase)) base = cleanBase;
+      }
+      if (trimRelative && base.split(/\s+/).length > 15) {
+        const relCut = base.match(
+          /^(.{28,}?)(?:,\s+(?:con\s+las\s+firmas|el\s+c[aá]lculo|la\s+tabla|los\s+c[aá]lculos|como\s+(?:el|la|los|las|un|una)|empleando|resaltando|discutiendo|seleccionando)\b|\s+(?:que\s+(?:incluya|contenga|detalle|incorpore|explique|muestre|integre|presente|permita)|donde\s+(?:compares|registres|expliques|identifiques|documentes|incluyas|detalles|analices|integres|se[ñn]ales|muestres|resumas)|completad[oa]\s+con\b|requerid[oa]s?\s+para\s+un\b|necesari[oa]s?\s+para\s+un\b|con\s+los\s+valores\b|antes\s+y\s+tras\b|y\s+la\s+resoluci[oó]n\b|y\s+el\s+c[aá]lculo\b|con\s+la\s+identificaci[oó]n\s+clara\s+de|(?:analizando|documentando|realizando|demostrando|identificando|registrando|verificando|evaluando|comparando|aplicando|integrando|sistematizando|seleccionando|discutiendo|organizando|al\s+diagnosticar)\s+(?:c[oó]mo|el|la|los|las|un|una|cada|en)|para\s+(?:ofrecer|modelar|determinar|encontrar|validar|garantizar|asegurar|corroborar|evaluar|analizar|estimar|revisar|definir|ajustar|comparar|discutir))\b)/i
+        );
+        if (relCut && relCut[1]) {
+          const cleanRel = `${relCut[1].replace(/[.,;:\s]+$/, '').trim()}.`;
+          if (cleanRel.length >= minChars && !hasDanglingEnding(cleanRel)) base = cleanRel;
+        }
+        if (base.split(/\s+/).length > 18) {
+          const tailCut = base.match(/^(.{36,}?)(?:\s+(?:requerid[oa]s?|necesari[oa]s?)\s+para\s+un\b|,\s+como\s+(?:un|una|el|la)\b)/i);
+          if (tailCut && tailCut[1]) {
+            const cleanTail = `${tailCut[1].replace(/[.,;:\s]+$/, '').trim()}.`;
+            if (cleanTail.length >= minChars && !hasDanglingEnding(cleanTail)) base = cleanTail;
+          }
+        }
+      }
+      return base;
+    };
+
+    const trimActivityByCompleteSentences = (statement: string, original: string): string => {
+      const sents = splitSpanishSentences(statement);
+      if (sents.length <= 1) return statement;
+      const mathToks = (t: string) => t.match(/\d+(?:[.,]\d+)?|=/g) ?? [];
+      const hasAnaphora = (t: string) =>
+        /\b(?:este\s+t[eé]rmino|est[ea]s?\s+[a-záéíóúñ]+|dich[oa]s?|lo\s+anterior|amb[oa]s)\b/i.test(t);
+      const isScenarioLead = (t: string) => /^(?:Simula|Imagina|Sup[oó]n)\b/i.test(t.trim());
+
+      // Conservar siempre oraciones con datos numéricos/ecuaciones/citas + la oración principal de consigna
+      const dataIdxs = new Set<number>();
+      sents.forEach((s, i) => {
+        if (mathToks(s).length > 0 || /['"«][^'"»]{6,}['"»]/.test(s)) dataIdxs.add(i);
+      });
+      // Encontrar primera oración con consigna (o última pregunta)
+      const qIdx = sents.findIndex((s) => /\?/.test(s));
+      const firstTaskIdx = sents.findIndex((s) => hasActivityTask(s));
+      const keepIdxs = new Set<number>(dataIdxs);
+      if (qIdx >= 0) keepIdxs.add(qIdx);
+      if (firstTaskIdx >= 0 && [...keepIdxs].every((i) => !hasActivityTask(sents[i]!))) {
+        keepIdxs.add(firstTaskIdx);
+      }
+      if (keepIdxs.size === 0) keepIdxs.add(0);
+      const sorted = [...keepIdxs].sort((a, b) => a - b);
+      if (sorted[0]! > 0 && (hasAnaphora(sents[sorted[0]!]!) || sorted.map((i) => sents[i]!).join(' ').length < 60)) {
+        sorted.unshift(0);
+      }
+      if (sorted.length === 1 && sorted[0] === 0 && sents.length >= 2 && isScenarioLead(sents[0]!)) {
+        sorted.push(1);
+      }
+      const joined = sorted.map((i) => sents[i]!).join(' ').trim();
+      if (
+        joined.length < statement.length &&
+        joined.length >= 55 &&
+        hasActivityTask(joined) &&
+        !hasDanglingEnding(joined) &&
+        isPublishablePedagogicalText(joined, 'activity', original) &&
+        !isTruncatedAgainstSource(joined, original)
+      ) {
+        return joined;
+      }
+      // Fallback: descartar solo la última oración si no aporta números/ecuaciones y lo previo ya tiene tarea completa
+      const withoutLast = sents.slice(0, -1).join(' ').trim();
+      if (
+        sents.length >= 2 &&
+        !(sents.length === 2 && isScenarioLead(sents[0]!)) &&
+        mathToks(sents[sents.length - 1]!).length === 0 &&
+        withoutLast.length >= 55 &&
+        hasActivityTask(withoutLast) &&
+        !hasDanglingEnding(withoutLast) &&
+        isPublishablePedagogicalText(withoutLast, 'activity', original) &&
+        !isTruncatedAgainstSource(withoutLast, original)
+      ) {
+        return withoutLast;
+      }
+      return statement;
+    };
+
+    const practiceOverlap = (a: string | undefined, b: string | undefined): number => {
+      if (!a || !b) return 0;
+      const ta = new Set(a.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2));
+      const tb = new Set(b.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2));
+      if (ta.size < 4 || tb.size < 4) return 0;
+      let shared = 0;
+      for (const w of ta) if (tb.has(w)) shared++;
+      return shared / Math.min(ta.size, tb.size);
+    };
+
+    const cleanArtName = (seventh.artifactName || '').trim().replace(/\.+$/, '');
+    const compactedApp = firstSentenceSafe(seventh.applicationText, 36, true) || seventh.applicationText;
+    const rawCompactedArtifact = firstSentenceSafe(seventh.artifactStep, 24, true) || seventh.artifactStep;
+    const compactedArtifact =
+      practiceOverlap(compactedApp, rawCompactedArtifact) >= 0.72
+        ? 'Registra este avance en tu evidencia.'
+        : rawCompactedArtifact;
+
+    let eighth: SacrintPracticeSlide = {
       ...seventh,
+      objectiveBullets: (seventh.objectiveBullets ?? [])
+        .slice(0, 1)
+        .map((item) => compactObjectiveBullet(item, seventh.title)),
+      applicationText: compactedApp,
+      artifactStep: compactedArtifact,
+      evaluationCriteria: (seventh.evaluationCriteria ?? []).slice(0, 1),
       activities: (seventh.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: compactActivityPreservingTaskAndData(condenseNarrativeClauses(activity.statement), 130, 21, true),
-        hint: idx === 1 && countSlideWords(seventh) > 170 ? undefined : activity.hint,
+        hint: idx === 1 ? '' : firstSentenceSafe(activity.hint, 18) || '',
       })),
-    } as SacrintPracticeSlide;
+    };
+    if (countSlideWords(eighth) <= 186) return eighth;
+
+    // Si aún supera 186 palabras (visible + 64 chrome ≈ 156 palabras en PPTX),
+    // omitir pista opcional en Act 1, evitar repetir el nombre largo del producto integrador en artifactStep,
+    // y compactar actividades por oración completa sin amputar datos ni consignas.
+    const tightArtifactStep =
+      (eighth.artifactStep || '').split(/\s+/).length > 14
+        ? 'Registra este avance en tu evidencia.'
+        : eighth.artifactStep;
+    eighth = {
+      ...eighth,
+      artifactStep: tightArtifactStep,
+      activities: (eighth.activities ?? []).slice(0, 2).map((activity, idx) => ({
+        ...activity,
+        statement: trimActivityByCompleteSentences(
+          activity.statement,
+          (first.activities ?? [])[idx]?.statement ?? activity.statement
+        ),
+        hint: '',
+      })),
+    };
+    if (countSlideWords(eighth) <= 188) return eighth;
+
+    const trimRedundantBlockTail = (text: string | undefined, minChars: number): string | undefined => {
+      if (!text) return text;
+      const trimmed = text
+        .replace(/\s+(?:de\s+tu\s+proyecto\s+del\s+bloque|en\s+este\s+bloque|para\s+revisar\s+los\s+avances\s+del\s+proyecto)\s*([.?]?)$/i, '$1')
+        .trim();
+      return trimmed.length >= minChars && !hasDanglingEnding(trimmed) ? trimmed : text;
+    };
+
+    return {
+      ...eighth,
+      objectiveBullets: [eighth.title],
+      applicationText: trimRedundantBlockTail(eighth.applicationText, 36) || eighth.applicationText,
+      evaluationCriteria: (eighth.evaluationCriteria ?? []).map(
+        (c) => trimRedundantBlockTail(c, 22) || c
+      ),
+      artifactStep: 'Registra este avance en tu evidencia.',
+      artifactName: (extractDisciplinaryConceptPhrase(cleanArtName) || cleanArtName)
+        .replace(/\s*\([A-Z]{3,8}\)\s*$/, '')
+        .replace(/\.+$/, ''),
+    };
   }
 
   return slide;
@@ -2685,6 +3159,68 @@ function buildLessonGuideSlidesForSession(
       }
     : bundle.example;
 
+  const paraphraseNodeDetail = (value: string): string => {
+    if (!value || value.trim().length < 24) return value;
+    const p = paraphraseSixGramOverlap(value, workbookTheorySources);
+    const origNums = (value.match(/\d+(?:[.,]\d+)?/g) ?? []).join('|');
+    const newNums = (p.match(/\d+(?:[.,]\d+)?/g) ?? []).join('|');
+    return origNums === newNums && !hasDanglingEnding(p) ? p : value;
+  };
+  const paraphrasedDiagram: SacrintDiagramSpec | undefined = (() => {
+    if (!diagram || !diagram.available || workbookTheorySources.length === 0) return diagram;
+    switch (diagram.kind) {
+      case 'concept':
+        return {
+          ...diagram,
+          center: { ...diagram.center, detail: paraphraseNodeDetail(diagram.center.detail) },
+          nodes: diagram.nodes.map((n) => ({ ...n, detail: paraphraseNodeDetail(n.detail) })),
+        };
+      case 'system-map':
+        return {
+          ...diagram,
+          center: { ...diagram.center, detail: paraphraseNodeDetail(diagram.center.detail) },
+          components: diagram.components.map((c) => ({ ...c, detail: paraphraseNodeDetail(c.detail) })),
+          environment: { ...diagram.environment, detail: paraphraseNodeDetail(diagram.environment.detail) },
+        };
+      case 'block-diagram':
+        return {
+          ...diagram,
+          input: { ...diagram.input, detail: paraphraseNodeDetail(diagram.input.detail) },
+          process: { ...diagram.process, detail: paraphraseNodeDetail(diagram.process.detail) },
+          output: { ...diagram.output, detail: paraphraseNodeDetail(diagram.output.detail) },
+          feedback: { ...diagram.feedback, detail: paraphraseNodeDetail(diagram.feedback.detail) },
+        };
+      case 'timeline':
+        return {
+          ...diagram,
+          events: diagram.events.map((e) => ({ ...e, detail: paraphraseNodeDetail(e.detail) })),
+        };
+      case 'language':
+        return {
+          ...diagram,
+          input: { ...diagram.input, detail: paraphraseNodeDetail(diagram.input.detail) },
+          rule: { ...diagram.rule, detail: paraphraseNodeDetail(diagram.rule.detail) },
+          output: { ...diagram.output, detail: paraphraseNodeDetail(diagram.output.detail) },
+          context: { ...diagram.context, detail: paraphraseNodeDetail(diagram.context.detail) },
+        };
+      case 'argument':
+        return {
+          ...diagram,
+          thesis: { ...diagram.thesis, detail: paraphraseNodeDetail(diagram.thesis.detail) },
+          premises: diagram.premises.map((pr) => ({ ...pr, detail: paraphraseNodeDetail(pr.detail) })),
+          objection: { ...diagram.objection, detail: paraphraseNodeDetail(diagram.objection.detail) },
+          conclusion: { ...diagram.conclusion, detail: paraphraseNodeDetail(diagram.conclusion.detail) },
+        };
+      case 'sop-flow':
+        return {
+          ...diagram,
+          steps: diagram.steps.map((st) => ({ ...st, detail: paraphraseNodeDetail(st.detail) })),
+        };
+      default:
+        return diagram;
+    }
+  })();
+
   const conceptSlide: SacrintConceptSlide = {
     kind: 'concept',
     eyebrow: `SESIÓN ${sesLabel} · PIZARRÓN 1/2 · CONOCIMIENTO NUEVO`,
@@ -2702,14 +3238,14 @@ function buildLessonGuideSlidesForSession(
     misconception: finalMisconception,
     formula: primaryFormula,
     variables,
-    diagram,
+    diagram: paraphrasedDiagram,
     facts,
   };
 
   const normalizedCleanObjective = paraphraseSixGramOverlap(
     cleanObjective
       .replace(/\blos\s+habilidades\b/gi, 'las habilidades')
-      .replace(/\by\s+([a-záéíóúñ]{2,}[aei])r[aá]s\b/gi, (_m, stem: string) => `y ${stem}r`),
+      .replace(/\by\s+([a-záéíóúñ]{2,}[aei])r[á]s\b/gi, (_m, stem: string) => `y ${stem}r`),
     workbookTheorySources
   );
   const primaryObjective = fitPedagogicalText(normalizedCleanObjective, {
@@ -2786,7 +3322,7 @@ function buildLessonGuideSlidesForSession(
             maxWords: 17,
             role: 'application',
           }) || rawArtifactStepCandidate
-        : `Integra los resultados validados de esta sesión en ${artifactName}.`;
+        : `Integra los resultados validados de esta sesión en ${artifactName.replace(/\.+$/, '')}.`;
 
   const slideActivities = bundle.activities.slice(0, 2).map((item) => {
     const rawStmt = item.statement || '';
@@ -2831,14 +3367,14 @@ function buildLessonGuideSlidesForSession(
     facts,
   };
 
-  const rawBudgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide), 146) as SacrintConceptSlide;
+  const rawBudgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide), 130) as SacrintConceptSlide;
   const budgetedConcept: SacrintConceptSlide =
     rawBudgetedConcept.explanation &&
     rawBudgetedConcept.explanation.trim().length >= 55 &&
     !isHeadlessAnaphoricStart(rawBudgetedConcept.explanation)
       ? rawBudgetedConcept
       : { ...rawBudgetedConcept, explanation: conceptSlide.explanation };
-  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 168);
+  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 136);
   return [budgetedConcept, budgetedPractice];
 }
 
@@ -2887,21 +3423,23 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     .slice(0, 6);
 
   const facts = baseFacts(meta, mission);
+  const compactPaecCoverLabel = (raw: string): string => {
+    let clean = paraphraseSixGramOverlap(
+      preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(raw), workbookTheorySources),
+      workbookTheorySources
+    );
+    const clauseCut = clean.match(
+      /^(.{20,85}?)(?:,\s*(?:derivad[oa]\s+de|orientad[oa]\s+a|enfocad[oa]\s+en|vinculad[oa]\s+a|causad[oa]\s+por|originad[oa]\s+por|con\s+el\s+(?:fin|prop[oó]sito)\s+de|mediante|lo\s+cual|que\s+(?:afecta|impacta|limita|genera))\b)/i
+    );
+    if (clauseCut && clauseCut[1] && !hasDanglingEnding(clauseCut[1])) {
+      clean = clauseCut[1].replace(/[.,;:\s]+$/, '').trim();
+    }
+    return clean;
+  };
   const rawCoverFooter = meta.paecProjectName
     ? `PAEC: ${
         mode === 'lesson-guide'
-          ? fitPedagogicalText(
-              preventSixGramTheoryOverlap(
-                sanitizePedagogicalMetaPhrases(meta.paecProjectName),
-                workbookTheorySources
-              ),
-              {
-                maxChars: 54,
-                maxWords: 8,
-                role: 'general',
-                ensurePeriod: false,
-              }
-            )
+          ? compactPaecCoverLabel(meta.paecProjectName)
           : meta.paecProjectName
       }`
     : meta.schoolName;
@@ -3945,8 +4483,7 @@ function enforceInfographicOverlap(
     );
     if (sixGramOverlapRatio(rewritten, sources) <= maxRatio) return rewritten;
 
-    const keptSentences = rewritten
-      .split(/(?<=[.!?])\s+/)
+    const keptSentences = splitSpanishSentences(rewritten)
       .map((sentence) => sentence.trim())
       .filter(
         (sentence) =>
@@ -4540,4 +5077,121 @@ export function buildSacrintInfographic(
   };
   if (titleConceptFamily === 'angles') neutralizeAngleCongruenceTerms(spec);
   return enforceInfographicOverlap(spec, infographicSources, 0.15);
+}
+
+const OBJECTIVE_CENTER_VERB_RE =
+  /^(?:Comprendes|Analizas|Dise[ñn]as|Eval[uú]as|Elaboras|Identificas|Aplicas|Construyes|Utilizas|Sistematizas|Dominas|Implementas|Integras|Exploras|Formulas|Calculas|Resuelves|Modelas|Reconoces|Interpretas|Verificas|Comparas|Clasificas|Determinas|Aprendes\s+a)\b/i;
+
+function collectDiagramIntegrityIssues(
+  diagram: SacrintDiagramSpec | undefined,
+  prefix: string,
+  issues: string[]
+): void {
+  if (!diagram || !diagram.available) return;
+  const checkNode = (label: string, detail: string | undefined, isCenter = false) => {
+    const clean = (detail || '').trim();
+    if (!clean) return;
+    if (GENERIC_FILLER_RE.test(clean)) {
+      issues.push(`${prefix}.${label}: contiene cierre genérico prohibido`);
+    }
+    if (NODE_TRUNCATION_RE.test(clean)) {
+      issues.push(`${prefix}.${label}: nodo truncado ("${clean.slice(0, 80)}")`);
+    }
+    if (isCenter && OBJECTIVE_CENTER_VERB_RE.test(clean)) {
+      issues.push(`${prefix}.${label}: objetivo en 2ª persona usado como concepto central ("${clean.slice(0, 80)}")`);
+    }
+  };
+  switch (diagram.kind) {
+    case 'concept':
+      checkNode('center', diagram.center.detail, true);
+      diagram.nodes.forEach((n, i) => checkNode(`node[${i}]`, n.detail));
+      break;
+    case 'system-map':
+      checkNode('center', diagram.center.detail, true);
+      diagram.components.forEach((c, i) => checkNode(`component[${i}]`, c.detail));
+      checkNode('environment', diagram.environment.detail);
+      break;
+    case 'block-diagram':
+      checkNode('input', diagram.input.detail);
+      checkNode('process', diagram.process.detail);
+      checkNode('output', diagram.output.detail);
+      checkNode('feedback', diagram.feedback.detail);
+      break;
+    case 'timeline':
+      diagram.events.forEach((e, i) => checkNode(`event[${i}]`, e.detail));
+      break;
+    case 'language':
+      checkNode('input', diagram.input.detail);
+      checkNode('rule', diagram.rule.detail);
+      checkNode('output', diagram.output.detail);
+      checkNode('context', diagram.context.detail);
+      break;
+    case 'argument':
+      checkNode('thesis', diagram.thesis.detail, true);
+      diagram.premises.forEach((p, i) => checkNode(`premise[${i}]`, p.detail));
+      checkNode('objection', diagram.objection.detail);
+      checkNode('conclusion', diagram.conclusion.detail);
+      break;
+    case 'sop-flow':
+      diagram.steps.forEach((s, i) => checkNode(`step[${i}]`, s.detail));
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * Audita la integridad de contenido editorial de una presentación (08) o infografía (09) SACRINT
+ * antes de emitirla: bloquea rellenos genéricos, nodos truncados y etiquetas-objetivo en centros conceptuales.
+ */
+export function validateSacrintContentIntegrity(
+  spec: SacrintDeckSpec | SacrintInfographicSpec
+): string[] {
+  const issues: string[] = [];
+  const checkText = (field: string, value: string | undefined) => {
+    const clean = (value || '').trim();
+    if (!clean) return;
+    if (GENERIC_FILLER_RE.test(clean)) {
+      issues.push(`${field}: contiene relleno genérico prohibido`);
+    }
+    if (NODE_TRUNCATION_RE.test(clean)) {
+      issues.push(`${field}: texto truncado ("${clean.slice(0, 80)}")`);
+    }
+  };
+
+  if ('slides' in spec && Array.isArray(spec.slides)) {
+    spec.slides.forEach((slide, idx) => {
+      const p = `slide[${idx + 1}]`;
+      if (slide.kind === 'concept') {
+        checkText(`${p}.explanation`, slide.explanation);
+        checkText(`${p}.misconception`, slide.misconception);
+        if (slide.workedExample) {
+          checkText(`${p}.workedExample.problemStatement`, slide.workedExample.problemStatement);
+          slide.workedExample.steps.forEach((st, sIdx) =>
+            checkText(`${p}.workedExample.steps[${sIdx}]`, st)
+          );
+          checkText(`${p}.workedExample.interpretation`, slide.workedExample.interpretation);
+        }
+        collectDiagramIntegrityIssues(slide.diagram, `${p}.diagram`, issues);
+      } else if (slide.kind === 'practice') {
+        (slide.activities ?? []).forEach((act, aIdx) => {
+          checkText(`${p}.activities[${aIdx}].statement`, act.statement);
+          checkText(`${p}.activities[${aIdx}].hint`, act.hint);
+        });
+        checkText(`${p}.applicationText`, slide.applicationText);
+        checkText(`${p}.artifactStep`, slide.artifactStep);
+      }
+    });
+  } else {
+    const info = spec as SacrintInfographicSpec;
+    checkText('infographic.claim', info.claim);
+    checkText('infographic.applicationSummary', info.applicationSummary);
+    checkText('infographic.quickExample.problemStatement', info.quickExample?.problemStatement);
+    checkText('infographic.quickExample.interpretation', info.quickExample?.interpretation);
+    (info.quickExample?.steps ?? []).forEach((st, i) => checkText(`infographic.quickExample.steps[${i}]`, st));
+    (info.steps ?? []).forEach((st, i) => checkText(`infographic.steps[${i}]`, st.body));
+    (info.conceptManual?.conceptMap ?? []).forEach((n, i) => checkText(`infographic.conceptMap[${i}]`, n.detail));
+    collectDiagramIntegrityIssues(info.diagram, 'infographic.diagram', issues);
+  }
+  return issues;
 }

@@ -102,12 +102,14 @@ describe('Editorial Remediation & Multi-Subject Architectural Guarantees', () =>
     expect(extracted.every((f) => !f.endsWith('('))).toBe(true);
   });
 
-  it('splits period-hyphen clauses and trims long single-clause steps within maxWords', () => {
+  it('splits period-hyphen clauses and preserves complete clause without mid-sentence slicing', () => {
     const slide28Step =
       'Interpreta el valor obtenido en el contexto del problema. - Significado: este parámetro resume las variaciones conjuntas de oferta, demanda, presupuesto disponible y margen operativo a lo largo de todo el semestre escolar para que el equipo decida con certeza técnica sin exceder los límites del taller.';
     const fitted = fitPedagogicalText(slide28Step, { maxChars: 76, maxWords: 10, role: 'step' });
     expect(fitted.length).toBeGreaterThan(10);
-    expect(fitted.split(/\s+/).length).toBeLessThanOrEqual(10);
+    // Invariante arquitectónico anti-truncamiento: selecciona la cláusula sustantiva completa
+    // sin amputar palabras a mitad de oración ni dejar finales colgados.
+    expect(fitted).not.toMatch(/^Interpreta el valor obtenido/i);
     expect(hasDanglingEnding(fitted)).toBe(false);
     expect(fitted.toLowerCase()).toContain('parámetro');
   });
@@ -659,7 +661,8 @@ describe('Editorial Remediation & Multi-Subject Architectural Guarantees', () =>
       'Para ello se definen con absoluta precisión seis vértices distintos en el plano cartesiano local unidos mediante segmentos rectos de perímetro constante.',
       { maxChars: 62, maxWords: 9, role: 'step' }
     );
-    expect(noCommaStep.split(/\s+/).length).toBeLessThanOrEqual(11);
+    // Sin recorte destructivo intra-oración: conserva la oración completa sin amputar "perímetro constante."
+    expect(noCommaStep).toContain('perímetro constante');
     expect(hasDanglingEnding(noCommaStep)).toBe(false);
   });
 

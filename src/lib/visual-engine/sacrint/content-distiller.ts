@@ -19,6 +19,7 @@ import {
   fitPedagogicalText,
   hasDanglingEnding,
   isPublishablePedagogicalText,
+  isTruncatedAgainstSource,
   splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
@@ -1321,6 +1322,12 @@ const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string,
   ['necesaria', 'requerida'],
   ['necesarios', 'requeridos'],
   ['necesarias', 'requeridas'],
+  ['adecuado', 'apropiado'],
+  ['adecuada', 'apropiada'],
+  ['principal', 'central'],
+  ['principales', 'centrales'],
+  ['precisión', 'exactitud'],
+  ['exactitud', 'precisión'],
   ['posible', 'viable'],
   ['posibles', 'viables'],
   ['frecuente', 'habitual'],
@@ -1382,6 +1389,35 @@ const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string,
   ['desarrollar', 'ejecutar'],
   ['también', 'además'],
   ['además', 'asimismo'],
+  ['aumentar', 'incrementar'],
+  ['disminuir', 'reducir'],
+  ['mantener', 'conservar'],
+  ['manteniendo', 'conservando'],
+  ['considerando', 'contemplando'],
+  ['recomendada', 'sugerida'],
+  ['recomendado', 'sugerido'],
+  ['intervalo', 'rango'],
+  ['dibujar', 'trazar'],
+  ['representa', 'ilustra'],
+  ['representan', 'ilustran'],
+  ['utilizas', 'empleas'],
+  ['calculas', 'hallas'],
+  ['determinas', 'defines'],
+  ['finalmente', 'por último'],
+  ['inicialmente', 'al principio'],
+  ['directamente', 'de modo directo'],
+  ['completamente', 'por completo'],
+  ['aproximadamente', 'cerca de'],
+  ['consecutivo', 'sucesivo'],
+  ['futuros', 'venideros'],
+  ['clasifican', 'agrupan'],
+  ['abertura', 'amplitud'],
+  ['tipos', 'clases'],
+  ['igual', 'equivalente'],
+  ['dibuja', 'traza'],
+  ['dibujan', 'trazan'],
+  ['coloca', 'ubica'],
+  ['colocan', 'ubican'],
 ]);
 
 function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): string {
@@ -2640,6 +2676,11 @@ export function extractWorkedExample(
  * Sintetiza el enunciado de un ejercicio preservando los datos numéricos, ecuaciones y la pregunta/consigna.
  */
 export function distillExerciseStatement(rawEnunciado: string | null | undefined, maxChars = 220, maxWords?: number): string {
+  const rawSourceClean = sanitizePedagogicalMetaPhrases(
+    cleanSacrintText(rawEnunciado)
+      .replace(/^(?:planteamiento|problema|enunciado|situaci[oó]n|ejercicio|actividad)\s*\d*\s*[:.\-–]\s*/i, '')
+      .trim()
+  );
   const impMap: Record<string, string> = {
     determinar: 'Determina',
     calcular: 'Calcula',
@@ -2703,7 +2744,7 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
   const hasExplicitStudentTask = (text: string): boolean => {
     const withoutDescriptiveThirdPerson = text
       .replace(
-        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|investigador[a]?|operari[oa]|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa)|el\s+(?:compa[ñn]er[oa]|estudiante|investigador|operario|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
+        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|investigador[a]?|operari[oa]|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa|medidor|term[oó]metro|man[oó]metro|instrumento)|el\s+(?:compa[ñn]er[oa]|estudiante|investigador|operario|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro|instrumento)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
         ''
       )
       .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide|observa)\b/gi, '');
@@ -2767,11 +2808,7 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
             /\d|\$|pesos|m\b|cm\b/i.test(sentence)
         );
       if (originalData) {
-        const compactData =
-          originalData.length <= 165
-            ? originalData
-            : fitPedagogicalText(originalData, { maxChars: 165, maxWords: 26, role: 'problem' }) ||
-              originalData;
+        const compactData = originalData;
         const dataLead = compactData.toLowerCase().slice(0, Math.min(28, compactData.length));
         const alreadyIncluded = Boolean(dataLead && result.toLowerCase().includes(dataLead));
         if (!alreadyIncluded) {
@@ -2786,6 +2823,14 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
           result = `Con ${eq}: ${result.charAt(0).toLowerCase()}${result.slice(1)}`;
         }
       }
+    }
+    if (
+      rawSourceClean &&
+      (!isPublishablePedagogicalText(result, 'activity', rawSourceClean) ||
+        isTruncatedAgainstSource(result, rawSourceClean))
+    ) {
+      if (isPublishablePedagogicalText(clean, 'activity', clean)) return clean;
+      if (isPublishablePedagogicalText(rawSourceClean, 'activity', rawSourceClean)) return rawSourceClean;
     }
     return result;
   };
@@ -2809,11 +2854,16 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
     (firstSentence.match(/«/g) || []).length !== (firstSentence.match(/»/g) || []).length ||
     (firstSentence.match(/“/g) || []).length !== (firstSentence.match(/”/g) || []).length ||
     /:\s*['"«“‘]/.test(firstSentence);
+  const secondSentence = sentences[1] ?? '';
+  const secondDependsOnFirst = /\b(?:este\s+t[eé]rmino|est[ea]s?\s+[a-záéíóúñ]+|dich[oa]s?|lo\s+anterior|amb[oa]s|su\s+[a-záéíóúñ]+)\b/i.test(
+    secondSentence
+  );
   if (
     sentences.length >= 2 &&
     !firstOpensQuote &&
+    !secondDependsOnFirst &&
     !hasExplicitStudentTask(firstSentence) &&
-    !/\d|=|\?|calcula|resuelve|determina|halla|plantea|verifica|encuentra|revisa|explica|traza|dibuja|grafica|analiza|convierte|transforma|lee|corrige|identifica|reescribe|completa|subraya|traduce|ordena|elige|redacta|escribe/i.test(
+    !/\d|=|\?|calcula|resuelve|determina|halla|plantea|verifica|encuentra|revisa|explica|traza|dibuja|grafica|analiza|convierte|transforma|lee|corrige|identifica|reescribe|completa|subraya|traduce|ordena|elige|redacta|escribe|busca|investiga|consulta|define/i.test(
       firstSentence
     )
   ) {
@@ -2844,7 +2894,12 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
       .replace(/\s+/g, ' ')
       .trim()
       .replace(/[.!?]+$/, '');
-    const fullCombined = numericContext ? `${numericContext}. ${compactTask}` : compactTask;
+    const contextPrefix =
+      numericContext ||
+      (compactTask.length < 60 && sentences[0] && sentences[0] !== questionSentence
+        ? sentences[0].replace(/[.!?]+$/, '').trim()
+        : '');
+    const fullCombined = contextPrefix ? `${contextPrefix}. ${compactTask}` : compactTask;
     if (fullCombined.length <= maxChars + 90) {
       return ensureActivityTask(fullCombined);
     }

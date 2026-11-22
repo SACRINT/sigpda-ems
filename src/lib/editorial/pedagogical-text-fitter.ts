@@ -165,8 +165,15 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
-  // Locuciones prepositivas truncadas ("a partir.", "por medio.", "en torno.", "previo.")
-  if (/\b(?:a\s+partir|por\s+medio|en\s+torno|con\s+respecto|acerca|previo|previa|junto)\.?$/i.test(clean)) {
+  // Locuciones prepositivas truncadas ("a partir.", "por medio.", "en torno.", "previo."),
+  // excluyendo adjetivo posnominal completo ("diseño técnico previo.", "estudio previo.", "análisis previo.").
+  if (
+    /\b(?:a\s+partir|por\s+medio|en\s+torno|con\s+respecto|acerca|junto)\.?$/i.test(clean) ||
+    (/\b(?:previo|previa)\.?$/i.test(clean) &&
+      !/\b(?:dise[ñn]o(?:\s+t[eé]cnico)?|an[aá]lisis|estudio|c[aá]lculo|diagn[oó]stico|registro|trabajo|modelo|plano|protocolo|ensayo|control|paso|proceso|informe|reporte|conocimiento|mantenimiento|revisi[oó]n|inspecci[oó]n|planeaci[oó]n|evaluaci[oó]n|lectura|pr[aá]ctica|verificaci[oó]n)\s+(?:previo|previa)\.?$/i.test(
+        clean
+      ))
+  ) {
     return true;
   }
 
@@ -191,9 +198,13 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
-  // Participios de finalidad/relación truncados sin complemento ("componentes diseñados.", "proyecto, diseñada.")
+  // Participios de finalidad/relación truncados sin complemento ("componentes diseñados.", "proyecto, diseñada."),
+  // excluyendo sintagmas definidos completos ("del elemento diseñado.", "del proyecto diseñado.", "del tramo diseñado.").
   if (
     /\b(?:dise[ñn]ad[oa]s?|destinad[oa]s?|orientad[oa]s?|enfocad[oa]s?|dirigid[oa]s?|basad[oa]s?|encargad[oa]s?|dedicad[oa]s?|relacionad[oa]s?|vinculad[oa]s?)\.?$/i.test(
+      clean
+    ) &&
+    !/\b(?:del|el|al|un)\s+(?:elemento|proyecto|tramo|sistema|plano|m[oó]dulo|prototipo|equipo|espacio|circuito|dise[ñn]o)\s+dise[ñn]ado\.?$/i.test(
       clean
     )
   ) {
@@ -209,9 +220,16 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
-  // Modificadores prenominales o adverbios cuantificadores colgados al cierre ("colores poco.", "requiere mayor.")
+  // Modificadores prenominales o adverbios cuantificadores colgados al cierre ("colores poco.", "requiere mayor."),
+  // excluyendo adjetivos posnominales válidos ("daños mayores.") y adverbios de frecuencia tras verbo ("pasan poco.").
   if (
     /\b(?:poco|poca|pocos|pocas|mayor|menor|mayores|menores|alg[uú]n|alguna|ning[uú]n|ninguna|cualquier|demasiado|bastante|sumamente|altamente|completamente)\.?$/i.test(
+      clean
+    ) &&
+    !/\b(?:da[ñn]os|riesgos|problemas|cambios|errores|costos|gastos|niveles|valores|cargas|fallas|esfuerzos|rangos|grados|p[eé]rdidas)\s+(?:mayores|menores)\.?$/i.test(
+      clean
+    ) &&
+    !/\b(?:pasan|cuestan|duran|pesan|miden|consumen|var[ií]an|cambian|aportan|participan|avanzan)\s+poco\.?$/i.test(
       clean
     )
   ) {
@@ -230,7 +248,7 @@ export function hasDanglingEnding(raw: string): boolean {
     // Nota: en RegExp JS sin /u, \b no coincide tras letras acentuadas (esté, está, cambió); usar lookahead de delimitador.
     const looksLikeNounPhraseOnly =
       tailWords.length <= 7 &&
-      !/(?:^|[\s,(¿¡])(?:es|son|est[aáeé]n?|sea[ns]?|se\s+[a-záéíóúñ]{3,}|haya[ns]?|hay|debe[ns]?|puede[ns]?|tiene[ns]?|tenga[ns]?|hace[ns]?|haga[ns]?|quede[ns]?|queda[ns]?|coincida[ns]?|coincide[ns]?|cumpla[ns]?|cumple[ns]?|funcione[ns]?|funciona[ns]?|opere[ns]?|opera[ns]?|resulte[ns]?|resulta[ns]?|guarde[ns]?|mantenga[ns]?|mantiene[ns]?|disminuya[ns]?|aumenta[ns]?|aumente[ns]?|refleje[ns]?|exista[ns]?|protege[ns]?|impide[ns]?|mejora[ns]?|evita[ns]?|reduce[ns]?|var[ií]a[ns]?|cambia[ns]?|presenta[ns]?|muestra[ns]?|indica[ns]?|corresponda[ns]?|corresponde[ns]?|representa[ns]?|incluye[ns]?|incluya[ns]?|contiene[ns]?|contenga[ns]?|requiere[ns]?|exige[ns]?|garantiza[ns]?|garantice[ns]?|asegura[ns]?|asegure[ns]?|valida[ns]?|justifica[ns]?|sirve[ns]?|ayuda[ns]?|ocurre[ns]?|sucede[ns]?|baja[ns]?|sube[ns]?|cae[ns]?|mide[ns]?|pesa[ns]?|cuesta[ns]?|dura[ns]?|visualice[ns]?|fortaleciste|aprendiste|obtuviste|lograste|cambi[oó]|afecta[ns]?|influye[ns]?|aplica[ns]?|utiliza[ns]?|emplea[ns]?|permite[ns]?|permita[ns]?|alcance[ns]?|alcanza[ns]?|supere[ns]?|supera[ns]?|[a-záéíóúñ]{3,}(?:aron|ieron|aste|iste|aban|[ií]an|ar[aá]n?|er[aá]n?|ir[aá]n?|ando|iendo))(?=$|[\s.,;:!?)])/i.test(
+      !/(?:^|[\s,(¿¡])(?:es|son|est[aáeé]n?|sea[ns]?|se\s+[a-záéíóúñ]{3,}|haya[ns]?|hay|debe[ns]?|puede[ns]?|tiene[ns]?|tenga[ns]?|hace[ns]?|haga[ns]?|quede[ns]?|queda[ns]?|coincida[ns]?|coincide[ns]?|cumpla[ns]?|cumple[ns]?|funcione[ns]?|funciona[ns]?|opere[ns]?|opera[ns]?|resulte[ns]?|resulta[ns]?|guarde[ns]?|mantenga[ns]?|mantiene[ns]?|disminuya[ns]?|aumenta[ns]?|aumente[ns]?|refleje[ns]?|exista[ns]?|protege[ns]?|impide[ns]?|mejora[ns]?|evita[ns]?|reduce[ns]?|var[ií]a[ns]?|cambia[ns]?|presenta[ns]?|muestra[ns]?|indica[ns]?|corresponda[ns]?|corresponde[ns]?|representa[ns]?|incluye[ns]?|incluya[ns]?|contiene[ns]?|contenga[ns]?|requiere[ns]?|exige[ns]?|garantiza[ns]?|garantice[ns]?|asegura[ns]?|asegure[ns]?|valida[ns]?|justifica[ns]?|sirve[ns]?|ayuda[ns]?|ocurre[ns]?|ocurri[oó]|sucede[ns]?|baja[ns]?|sube[ns]?|cae[ns]?|mide[ns]?|pesa[ns]?|cuesta[ns]?|dura[ns]?|suma[ns]?|sume[ns]?|difiere[ns]?|suene[ns]?|suena[ns]?|visualice[ns]?|fortaleciste|aprendiste|obtuviste|lograste|cambi[oó]|trabaj[oó]|afecta[ns]?|influye[ns]?|aplica[ns]?|utiliza[ns]?|emplea[ns]?|permite[ns]?|permita[ns]?|alcance[ns]?|alcanza[ns]?|supere[ns]?|supera[ns]?|[a-záéíóúñ]{3,}(?:aron|ieron|aste|iste|aban|[ií]an|ar[aá]n?|er[aá]n?|ir[aá]n?|ando|iendo))(?=$|[\s.,;:!?)])/i.test(
         tail
       );
     if (looksLikeNounPhraseOnly) {
@@ -239,10 +257,13 @@ export function hasDanglingEnding(raw: string): boolean {
   }
 
   // Verbos transitivos o infinitivos colgados al cierre sin objeto directo ("y considera.", "y asegura.", "para diseñar.", "permite representar.", "y escribe.", "para evitar.", "para diagnosticar.")
+  // Excluir cláusulas completas "al medir." y "lista/listo para construir."
   if (
     /\b(?:y|e|o|para|sin|al|permite|permiten|posibilita|posibilitan|debe|deben|puede|pueden|busca|buscan|necesita|requiere|logra)\s+(?:considera|asegura|garantiza|permite|incluye|contiene|requiere|utiliza|emplea|aplica|presenta|muestra|indica|describe|identifica|reconoce|analiza|examina|define|expresa|representa|escribe|redacta|anota|registra|clasifica|contrasta|compara|recuerda|dictamina|efect[uú]a|a[ñn]ade|dise[ñn]ar|construir|elaborar|calcular|determinar|identificar|analizar|explicar|resolver|aplicar|obtener|verificar|registrar|evaluar|comparar|representar|medir|trazar|acotar|cuantificar|realizar|efectuar|ejecutar|generar|producir|garantizar|asegurar|optimizar|mantener|proteger|controlar|estimar|evitar|diagnosticar|ofrecer|presentar|limpiar|visualizar|visualicen)\.?$/i.test(
       clean
-    )
+    ) &&
+    !/\bal\s+(?:medir|operar|trabajar|probar|graficar|calcular|resolver|conectar)\.?$/i.test(clean) &&
+    !/\blist[oa]\s+para\s+(?:construir|operar|instalar|aplicar|entregar|presentar|usar)\.?$/i.test(clean)
   ) {
     return true;
   }
@@ -274,7 +295,7 @@ export function hasDanglingEnding(raw: string): boolean {
     return false;
   }
 
-  const lastTokenMatch = withoutTrailingDot.match(/([A-ZÁÉÍÓÚÑa-záéíóúñ0-9_²³°%)/Δ]+)$/);
+  const lastTokenMatch = withoutTrailingDot.match(/([A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9_²³°%)/Δ]+)$/);
   if (!lastTokenMatch) return false;
   const rawLastToken = lastTokenMatch[1];
   // Expresiones de cociente matemático con diagonal (ej. "Δx/Δy", "m/s", "a/b") no son palabras funcionales colgadas
@@ -320,8 +341,8 @@ export function hasDanglingEnding(raw: string): boolean {
   // Si la última palabra es una letra aislada ('x', 'z', 'a', 'b', 'c', 'm', 'n'), es válida solo si va precedida de variable/ecuación ("variable x", "valor de x", "para x") o etiqueta nominal ("canal B", "opción B", "tipo C")
   if (/^[xzbcmn]$/.test(lastWord) || (lastWord === 'a' && /[=+\-−*/×·(]\s*a$|\d\s*a$|\b(?:variable|inc[oó]gnita|coeficiente|lado|cateto|canal|ranura|puerto|opci[oó]n|grupo|equipo|tipo|clase|nivel|grado|zona|inciso|vista|fase|bloque|m[oó]dulo)\s+a$/i.test(withoutTrailingDot))) {
     const hasVariableContext =
-      // Variable/incógnita nombrada, verbo matemático o etiqueta técnica/nominal (ej. "canal B", "opción B", "tipo C")
-      /\b(?:variable|inc[oó]gnita|valor(?:es)?(?:\s+de)?|despejar|despeja|despejas|aislar|a[ií]slar|aisla|a[ií]sla|eliminar|elimina|calcula|calcular|halla|hallar|encuentra|determina|resuelve|sustituye|eval[uú]a|grafica|define|vale|para|de|en|con|si|entre|por|eje|cateto|hipotenusa|lado|[aá]ngulo|punto|punto\s+de|recta|coeficiente|t[eé]rmino|miembro|muestra|poblaci[oó]n|tama[ñn]o(?:\s+de\s+muestra)?|canal|ranura|puerto|opci[oó]n|grupo|equipo|tipo|clase|nivel|grado|zona|inciso|vista|fase|bloque|m[oó]dulo|serie|columna|fila|celda|terminal)\s+['"]?[xzabcmn]['"]?$/i.test(
+      // Variable/incógnita nombrada, verbo matemático o etiqueta técnica/nominal (ej. "canal B", "canales A y B", "opción B", "tipo C")
+      /\b(?:variable|inc[oó]gnita|valor(?:es)?(?:\s+de)?|despejar|despeja|despejas|aislar|a[ií]slar|aisla|a[ií]sla|eliminar|elimina|calcula|calcular|halla|hallar|encuentra|determina|resuelve|sustituye|eval[uú]a|grafica|define|vale|para|de|en|con|si|entre|por|eje|cateto|hipotenusa|lado|[aá]ngulo|punto|punto\s+de|recta|coeficiente|t[eé]rmino|miembro|muestra|poblaci[oó]n|tama[ñn]o(?:\s+de\s+muestra)?|canal(?:es)?|ranura(?:s)?|puerto(?:s)?|opci[oó]n(?:es)?|grupo(?:s)?|equipo(?:s)?|tipo(?:s)?|clase(?:s)?|nivel(?:es)?|grado(?:s)?|zona(?:s)?|inciso(?:s)?|vista(?:s)?|fase(?:s)?|bloque(?:s)?|m[oó]dulo(?:s)?|serie(?:s)?|columna(?:s)?|fila(?:s)?|celda(?:s)?|terminal(?:es)?)\s+(?:[A-Za-z]\s+y\s+)?['"]?[xzabcmn]['"]?$/i.test(
         withoutTrailingDot
       ) ||
       // Variable tras operador, igualdad, número o paréntesis: "2 x", "= x", "(x", "+ z"
@@ -365,13 +386,35 @@ export function hasDanglingEnding(raw: string): boolean {
     if (lastWord === 'dos' && /\b(?:entre|en|por|los|las)\s+dos$/i.test(withoutTrailingDot)) {
       return false;
     }
-    // Excepción legítima: "la base" / "el factor base" / "la tasa base"
-    if (lastWord === 'base' && /\b(?:de\s+la|en\s+la|su|el\s+factor|la\s+tasa)\s+base$/i.test(withoutTrailingDot)) {
+    // Excepción legítima: "la base" / "el factor base" / "la tasa base" / "la placa base" / "en forma base"
+    if (lastWord === 'base' && /\b(?:de\s+la|en\s+la|su|el\s+factor|la\s+tasa|la\s+placa|tarjeta|en\s+forma|su\s+forma)\s+base$/i.test(withoutTrailingDot)) {
       return false;
     }
-    // Excepción legítima: cláusulas finales completas con "antes de + infinitivo" / "al + infinitivo"
+    // Excepción legítima: "por todos" / "para todos" (pronombre indefinido completo) y "'not' después" (adverbio de posición)
     if (
-      /\b(?:antes\s+de|despu[eé]s\s+de|al|sin)\s+(?:factorizar|despejar|operar|sustituir|calcular|resolver|graficar|tabular|dividir|multiplicar|evaluar|codificar|interpretar|concluir|verificar|comprobar|integrar|validar|presentar|argumentar|explicar|comparar)$/i.test(
+      (lastWord === 'todos' && /\b(?:por|para|con|entre|a)\s+todos$/i.test(withoutTrailingDot)) ||
+      (lastWord === 'después' && /['"][^'"]{1,16}['"]\s+despu[eé]s$/i.test(withoutTrailingDot))
+    ) {
+      return false;
+    }
+    // Excepción legítima: sustantivo/adjetivo homógrafo de verbo en sintagma nominal completo
+    // ("la muestra", "la mezcla completa", "una temperatura dada", "instalación completa", "estructura afirmativa completa")
+    if (
+      (lastWord === 'muestra' && /\b(?:la|una|esta|esa|dicha|su|tu|cada)\s+muestra$/i.test(withoutTrailingDot)) ||
+      (lastWord === 'completa' &&
+        /\b(?:mezcla|instalaci[oó]n|estructura(?:\s+[a-záéíóúñ]+)?|oraci[oó]n|respuesta|tabla|gr[aá]fica|ecuaci[oó]n|secuencia|revisi[oó]n|verificaci[oó]n|l[aá]mina|muestra|soluci[oó]n|evaluaci[oó]n|lectura|informaci[oó]n|lista|ficha|t[eé]cnica|memoria|bit[aá]cora|evidencia|matriz|carpeta|agenda|propuesta|encuesta)\s+completa$/i.test(
+          withoutTrailingDot
+        )) ||
+      (lastWord === 'dada' && /\b(?:una|la)\s+[a-záéíóúñ]{3,}\s+dada$/i.test(withoutTrailingDot))
+    ) {
+      return false;
+    }
+    // Excepción legítima: cláusulas finales completas con "antes de + infinitivo" / "al + infinitivo" / "para + infinitivo"
+    if (
+      /\b(?:antes\s+de|despu[eé]s\s+de|al|sin)\s+(?:factorizar|despejar|operar|sustituir|calcular|resolver|graficar|tabular|dividir|multiplicar|evaluar|codificar|interpretar|concluir|verificar|comprobar|integrar|validar|presentar|argumentar|explicar|comparar|medir|probar|construir|trabajar|instalar|conectar|limpiar|arrancar|encender)$/i.test(
+        withoutTrailingDot
+      ) ||
+      /\blist[oa]\s+para\s+(?:construir|operar|instalar|usar|entregar|presentar|aplicar|publicar|funcionar)$/i.test(
         withoutTrailingDot
       )
     ) {
@@ -400,7 +443,7 @@ export function hasDanglingEnding(raw: string): boolean {
       'el', 'la', 'un', 'mi', 'tu', 'su', 'lo', 'él', 'sí', 'no', 'fe', 'yo',
       'me', 'te', 'se', 'le', 'os', 'ir', 'va', 've', 'vi', 'da', 'di', 'ha',
       'he', 'sé', 'té', 'ti', 'mí', 'al', 'de', 'en', 'ya', 'es', 'ni', 'o',
-      'y', 'a', 'e', 'x', 'z', 'm', 'b', 'c', 'n', 'r', 't',
+      'y', 'a', 'e', 'x', 'z', 'm', 'b', 'c', 'n', 'r', 't', 'ph', 'ac', 'dc',
     ]);
     if (!VALID_SHORT_SPANISH_WORDS.has(stub)) {
       return true;
@@ -496,8 +539,9 @@ export function hasDanglingEnding(raw: string): boolean {
 
   // Cláusula subordinada con "cómo" o "si" o "sin verificar que ..." truncada antes de su verbo principal
   // (ej. "Explicar cómo el Teorema de Pitágoras.", "Argumenta si estas secciones.", "sin verificar que la gráfica.")
+  // Nota: usar lookahead de delimitador en vez de \b al final de verbos con tilde (está, será, trabajó, ocurrió).
   const finiteVerbRe =
-    /\b(?:es|son|fue|fueron|ser[áa]n?|est[áa]n?|tiene[ns]?|posee[ns]?|permite[ns]?|garantiza[ns]?|traduce[ns]?|determina[ns]?|modela[ns]?|representa[ns]?|relaciona[ns]?|funciona[ns]?|cambia[ns]?|var[ií]a[ns]?|crece[ns]?|cumple[ns]?|aplica[ns]?|sirve[ns]?|ayuda[ns]?|genera[ns]?|produce[ns]?|forma[ns]?|mide[ns]?|suma[ns]?|se\s+[a-záéíóúñ]{3,}|pueden?|deben?|influye[ns]?|afecta[ns]?|impacta[ns]?|resuelve[ns]?|valida[ns]?|confirma[ns]?|muestra[ns]?|demuestra[ns]?|indica[ns]?|expresa[ns]?|describe[ns]?|corresponde[ns]?|coincide[ns]?|cortan?|cruzan?|intersectan?|son\s+congruentes)\b/i;
+    /(?:^|[\s,(¿¡])(?:es|son|fue|fueron|ser[áa]n?|est[áaé]n?|tiene[ns]?|posee[ns]?|permite[ns]?|garantiza[ns]?|traduce[ns]?|determina[ns]?|modela[ns]?|representa[ns]?|relaciona[ns]?|funciona[ns]?|cambia[ns]?|var[ií]a[ns]?|crece[ns]?|aumenta[ns]?|disminuye[ns]?|sube[ns]?|baja[ns]?|cumple[ns]?|aplica[ns]?|sirve[ns]?|ayuda[ns]?|genera[ns]?|produce[ns]?|forma[ns]?|mide[ns]?|suma[ns]?|difiere[ns]?|coincide[ns]?|detecta[ns]?|trabaj[oó]|ocurri[oó]|se\s+[a-záéíóúñ]{3,}|pueden?|deben?|influye[ns]?|afecta[ns]?|impacta[ns]?|resuelve[ns]?|valida[ns]?|confirma[ns]?|muestra[ns]?|demuestra[ns]?|indica[ns]?|expresa[ns]?|describe[ns]?|corresponde[ns]?|cortan?|cruzan?|intersectan?|son\s+congruentes|[a-záéíóúñ]{3,}(?:aron|ieron|aste|iste|aban|[ií]an|r[ií]as?|r[ií]an?|ando|iendo)|[a-záéíóúñ]{3,}(?:ar|er|ir)(?:lo|la|los|las|se))(?=$|[\s.,;:!?)])/i;
   const comoTail = clean.match(
     /\b(?:explica[rn]?|comprende[rn]?|identifica[rn]?|analiza[rn]?|calcula[rn]?|determina[rn]?|demuestra[ns]?|argumenta[rn]?|describe[ns]?|muestra[ns]?|detalla[rn]?|justifica[rn]?|verifica[rn]?|sabe[rn]?)\s+c[oó]mo\s+([^.?!]{4,75})[.?!]?$/i
   );
@@ -531,9 +575,16 @@ export function splitSpanishSentences(text: string): string[] {
   const clean = (text || '').replace(/\s+/g, ' ').trim();
   if (!clean) return [];
 
-  const protectedText = clean
-    .replace(/\b(ej|aprox|fig|pág|pag|núm|num|dr|dra|sr|sra|vs|etc|ec)\./gi, '$1\uE001')
+  // Proteger abreviaturas (ej., aprox., Mr., Mrs., Ms., Dr., St.), decimales y puntos dentro de citas ('...' / "...")
+  let protectedText = clean
+    .replace(/\b(ej|aprox|fig|pág|pag|núm|num|dr|dra|sr|sra|mr|mrs|ms|prof|st|vs|etc|ec)\./gi, '$1\uE001')
     .replace(/(\d)\.(\d)/g, '$1\uE002$2');
+
+  protectedText = protectedText
+    .replace(/"[^"]*"/g, (quoted) => quoted.replace(/\./g, '\uE003').replace(/\?/g, '\uE004').replace(/!/g, '\uE005'))
+    .replace(/(?:^|[\s:(])'[^']*'/g, (quoted) =>
+      quoted.replace(/\./g, '\uE003').replace(/\?/g, '\uE004').replace(/!/g, '\uE005')
+    );
 
   const rawSentences = protectedText
     .split(/(?<=[.?!])\s+(?=[A-ZÁÉÍÓÚÑ¿¡0-9(\-–—•])/)
@@ -541,6 +592,9 @@ export function splitSpanishSentences(text: string): string[] {
       s
         .replace(/\uE001/g, '.')
         .replace(/\uE002/g, '.')
+        .replace(/\uE003/g, '.')
+        .replace(/\uE004/g, '?')
+        .replace(/\uE005/g, '!')
         .trim()
     )
     .filter(Boolean);
@@ -1020,11 +1074,66 @@ const PUBLISHABLE_UNIT_PAIR_RE =
   /\b(\d+(?:[.,/]\d+)?)\s+(cm³|cm²|m³|m²|mm|cm|km|m|kg\/cm²|kg\/m³|kg\/m²|g\/cm³|g\/ml|g\/mL|mg\/L|mg\/l|L\/s|l\/s|MB\/s|cal\/g|J\/kg|m\/s|km\/h|kg|mg|g|mL|ml|L|l|pies?|pulgadas?|litros?|mililitros?|miligramos?|gramos?|kilogramos?|galones?|calor[ií]as?|joules?|atm[oó]sferas?|atm|mmHg|ppm|metros?|cent[ií]metros?|mil[ií]metros?|pesos|horas?|minutos?|min|segundos?|seg|a[ñn]os?|d[ií]as?|meses?|rollos?|redes?|postes?|kits?|l[aá]mparas?|piezas?|varillas?|cajas?|bloques?|codos?|v[aá]lvulas?|equipos?|viajes?|grados?|°C|°F|°|W|V|GB|TB|Hz|Ω|%)\b/gi;
 
 const PUBLISHABLE_ACTIVITY_TASK_RE =
-  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|soluciona|plantea|formula|escribe|redacta|prepara|elabora|integra|organiza|audita|revisa|verifica|comprueba|justifica|identifica|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|explica|construye|crea|consolida|completa|obt[eé]n|usa|utiliza|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|documenta|ejecuta|prueba|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|lee|reescribe|presupuesta|estiba|acota|efect[uú]a|fija|a[ií]sla)\b/i;
+  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|soluciona|plantea|formula|escribe|redacta|prepara|elabora|integra|organiza|audita|revisa|verifica|comprueba|justifica|identifica|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|explica|construye|crea|consolida|completa|obt[eé]n|usa|utiliza|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|documenta|ejecuta|prueba|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|lee|reescribe|presupuesta|estiba|acota|efect[uú]a|fija|a[ií]sla|simula)\b/i;
+
+export const GENERIC_FILLER_RE =
+  /(?:Aplica\s+el\s+procedimiento\s+estudiado|Registra\s+tu\s+procedimiento\s+y\s+comprueba\s+la\s+respuesta|desarrolla\s+el\s+an[aá]lisis\s+y\s+justifica\s+tu\s+respuesta)/i;
+
+export const NODE_TRUNCATION_RE =
+  /(?:\b(?:al\s+estar|debe\s+ser|por\s+exceder|no\s+alcanza|reales\s+vs|vs|por\s+parte|que\s+comunica|que\s+utiliza|que\s+permite[n]?\s+trasladar|que\s+las\s+l[ií]neas|que\s+las\s+aristas|adecuado\s+ya|est[aá]\s+correctamente|sistematiza|como\s+cuarto|entre\s+temperatura|por\s+qu[eé]\s+el\s+valor|ayuda\s+a\s+entender|y\s+piensa|en\s+forma|y\s+une|y\s+documenta|listo|tres\s+puntos|formula|valora|conforme|incorpora|mide|el\s+instante|un\s+p[aá]rrafo)\s*\.?$|\b(?:conector|cable|puerto|ranura|m[oó]dulo|disco|voltaje|corriente|radio|di[aá]metro|altura|ancho|largo|espesor|longitud|distancia|masa|volumen|peso|temperatura|presi[oó]n|cada)\s+(?:de\s+)?\d+(?:[.,]\d+)?\s*\.$|\blim\s*\([^)]+\)\s*\.?$)/i;
+
+function normalizeForSourceCheck(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Determina si `candidate` es un corte a media oración de `source` (prefijo de una oración
+ * que en `source` continúa con más palabras sin límite real de oración).
+ * Acepta selección de oraciones completas de `source`, pero rechaza cualquier amputación intra-oración.
+ */
+export function isTruncatedAgainstSource(candidate: string, source: string): boolean {
+  const candTrim = (candidate || '').replace(/\s+/g, ' ').trim();
+  const srcTrim = (source || '').replace(/\s+/g, ' ').trim();
+  if (!candTrim || !srcTrim) return false;
+
+  if (NODE_TRUNCATION_RE.test(candTrim)) return true;
+
+  const candSentences = splitSpanishSentences(candTrim);
+  const srcSentences = splitSpanishSentences(srcTrim);
+  const lastCand = candSentences[candSentences.length - 1] ?? candTrim;
+  const lastCandNorm = normalizeForSourceCheck(lastCand);
+  if (!lastCandNorm || lastCandNorm.length < 12) return false;
+
+  for (const srcSent of srcSentences) {
+    const srcNorm = normalizeForSourceCheck(srcSent);
+    if (!srcNorm || srcNorm === lastCandNorm) continue;
+    if (srcNorm.startsWith(`${lastCandNorm} `) && srcNorm.length > lastCandNorm.length + 4) {
+      // Permitir únicamente cuando el corte en la fuente original estaba en una frontera
+      // autónoma de punto y coma o guion largo, no a mitad de cláusula.
+      const escapedTail = lastCandNorm.split(' ').slice(-2).join('\\s+');
+      const boundaryInSrc = new RegExp(`${escapedTail}\\s*(?:;|—|–)`, 'i');
+      const srcNormNoAccents = srcSent
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      if (!boundaryInSrc.test(srcNormNoAccents)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 /**
  * Validador único SSoT de publicabilidad para texto pedagógico en 08_Presentaciones y 09_Infografías.
- * Rechaza truncamientos, pérdida de unidades numéricas, etiquetas huérfanas y consignas mutiladas.
+ * Rechaza truncamientos, relleno genérico, pérdida de unidades numéricas, etiquetas huérfanas y consignas mutiladas.
  */
 export function isPublishablePedagogicalText(
   raw: string | null | undefined,
@@ -1043,6 +1152,8 @@ export function isPublishablePedagogicalText(
     conclusion: 12,
   };
   if (!clean || clean.length < minLenByRole[role]) return false;
+  if (GENERIC_FILLER_RE.test(clean)) return false;
+  if (NODE_TRUNCATION_RE.test(clean)) return false;
   if (/(?:\.\.\.|…|[:,;])\s*$/.test(clean)) return false;
   if (hasDanglingEnding(clean)) return false;
   if (/^[FCRPDEISBT]\s+[¿¡]/.test(clean) || /^\d{1,2}$/.test(clean)) return false;
@@ -1051,6 +1162,7 @@ export function isPublishablePedagogicalText(
 
   if (source) {
     const srcClean = source.replace(/\s+/g, ' ').trim();
+    if (isTruncatedAgainstSource(clean, srcClean)) return false;
     if (/[=≤≥]/.test(srcClean) && !/[=≤≥]/.test(clean) && (role === 'activity' || role === 'problem' || role === 'step')) {
       return false;
     }
@@ -1487,7 +1599,15 @@ export function fitPedagogicalText(
         break;
       }
     }
-    if (acc && acc.length >= 20 && !hasDanglingEnding(acc)) {
+    const dropsScenarioFollowUp =
+      (role === 'problem' || role === 'activity') &&
+      Boolean(acc) &&
+      acc.length < compressed.length &&
+      /\b(?:simula|imagina|sup[oó]n)\b/i.test(acc) &&
+      /\b(?:redacta|describe|explica|calcula|determina|identifica|prop[oó]n|propone|argumenta|escribe|responde|elabora|dise[ñn]a|justifica|analiza|eval[uú]a)\b/i.test(
+        compressed.slice(acc.length)
+      );
+    if (acc && acc.length >= 20 && !dropsScenarioFollowUp && !hasDanglingEnding(acc)) {
       compressed = acc;
     }
   }
@@ -1527,6 +1647,10 @@ export function fitPedagogicalText(
     const dropsEqOrTaskSentence =
       (role === 'problem' || role === 'activity') &&
       ((/=/.test(compressed) && !/=/.test(acc)) ||
+        (/\b(?:simula|imagina|sup[oó]n)\b/i.test(acc) &&
+          /\b(?:redacta|describe|explica|calcula|determina|identifica|propone|argumenta|escribe)\b/i.test(
+            compressed.slice(acc.length)
+          )) ||
         (/[?¿]|\b(?:calcula|determina|encuentra|halla|resuelve|modela|plantea|indica|escribe|localiza)\b/i.test(
           compressed
         ) &&
@@ -1564,32 +1688,29 @@ export function fitPedagogicalText(
       }
     }
 
-    // Si una única oración sigue excediendo maxWords o maxChars, recortar en cláusula subordinada/guion segura
+    // Si una única oración sigue excediendo maxWords o maxChars, recortar SOLO en delimitadores
+    // autónomos (punto y coma o guion largo de aclaración), jamás cortando a media cláusula.
     if (compressed.split(/\s+/).length > maxWords || compressed.length > maxChars) {
-      const clauseBoundaryRe =
-        /(?:\.\s+[-–—]\s+|\s+[-–—]\s+(?:Resultado|Verificaci[oó]n|Interpretaci[oó]n|Significado|Comprobaci[oó]n|Sustituci[oó]n|Ecuaci[oó]n|Variable)\b|;\s+(?![a-zA-Z0-9\s.+\-*/()]*=)|,\s+(?:por ejemplo|es decir|lo que|lo cual|el cual|la cual|los cuales|las cuales|donde|cuando|integrando|activando|aplicando|asegurando|garantizando|evitando|verificando|considerando|concluyendo|calculando|utilizando|determinando|mediante|a\s+trav[eé]s\s+de|con\s+el\s+(?:fin|prop[oó]sito|objetivo)\s+de|para\s+(?:obtener|determinar|identificar|analizar|validar|comprobar|verificar|modelar|garantizar))\b|\s+(?:considerando|manteniendo|definiendo|evaluando|asegurando|garantizando|evitando|verificando|tomando\s+en\s+cuenta|sin\s+exceder|a\s+lo\s+largo|dentro\s+de(?:l)?|en\s+contextos?|paso\s+a\s+paso|para\s+(?:obtener|determinar|identificar|analizar|validar|comprobar|verificar|modelar|garantizar)|con\s+el\s+(?:fin|prop[oó]sito|objetivo)\s+de|vinculad[oa]s?\s+(?:al|a\s+la)|aplicad[oa]s?\s+(?:a|al|en)|integrad[oa]s?\s+(?:a|al|en)|mediante\s+(?:el|la)\s+(?:uso|aplicaci[oó]n|construcci[oó]n|an[aá]lisis|elaboraci[oó]n)|teniendo\s+en\s+cuenta)\b|:\s+(?=[^0-9=+\-*/()]{8,}))/i;
+      const autonomousDelimiterRe =
+        /(?:\.\s+[-–—]\s+|\s+[-–—]\s+(?:Resultado|Verificaci[oó]n|Interpretaci[oó]n|Significado|Comprobaci[oó]n|Sustituci[oó]n|Ecuaci[oó]n|Variable)\b|;\s+(?![a-zA-Z0-9\s.+\-*/()]*=))/i;
       let candidate = compressed;
-      for (let pass = 0; pass < 4; pass++) {
+      for (let pass = 0; pass < 2; pass++) {
         if (candidate.split(/\s+/).length <= maxWords && candidate.length <= maxChars) break;
-        const m = clauseBoundaryRe.exec(candidate);
+        const m = autonomousDelimiterRe.exec(candidate);
         if (!m || m.index < 18) break;
         const left = candidate.slice(0, m.index).replace(/[.,;:\s]+$/, '').trim();
         const right = candidate.slice(m.index).trim();
         const openParens = (left.match(/\(/g) || []).length;
         const closeParens = (left.match(/\)/g) || []).length;
         const dropsEssentialMath = shouldProtectMathSuffix(left, right, role);
-        const dropsTaskColonTail =
-          m[0].startsWith(':') &&
-          /\b(?:localiza|calcula|determina|busca|analiza|escribe|identifica|encuentra|resuelve|plantea|usa|aplica|justificando|identificando)\b/i.test(
-            right
-          );
+        const mappedRole = role === 'general' ? 'concept' : role;
         if (
           openParens === closeParens &&
           !dropsEssentialMath &&
-          !dropsTaskColonTail &&
           !breaksNumericOrTupleList(left, right) &&
           left.split(/\s+/).length >= 4 &&
           !hasDanglingEnding(left) &&
+          isPublishablePedagogicalText(left, mappedRole, normalized) &&
           left.split(/\s+/).length < candidate.split(/\s+/).length
         ) {
           candidate = left;
@@ -1604,115 +1725,23 @@ export function fitPedagogicalText(
             ? `${candidate.replace(/[.?!…]+$/, '').trim()}?`
             : candidate;
       }
-
-      // Respaldo por comas, conectores y fronteras sintácticas seguras de derecha a izquierda si aún excede maxWords
-      if (compressed.split(/\s+/).length > maxWords) {
-        const tryRightToLeftTrim = (sepRe: RegExp, wordLimit: number): string | null => {
-          const matches = [...compressed.matchAll(sepRe)];
-          for (let i = matches.length - 1; i >= 0; i--) {
-            const idx = matches[i].index ?? 0;
-            if (idx < 18) continue;
-            const prefix = compressed.slice(0, idx).replace(/[.,;:\s]+$/, '').trim();
-            const suffix = compressed.slice(idx).trim();
-            const openParens = (prefix.match(/\(/g) || []).length;
-            const closeParens = (prefix.match(/\)/g) || []).length;
-            const dropsMath = shouldProtectMathSuffix(prefix, suffix, role);
-            const cutsApplicationPurpose =
-              role === 'application' &&
-              prefix.length < 48 &&
-              (/^\s*para\s+[a-záéíóúñ]+r\b/i.test(suffix) || /^,\s*[a-záéíóúñ]+\s+y\s+[a-záéíóúñ]+/i.test(suffix));
-            const cutsPairedClause =
-              /^\s*(?:y|e)\s+(?:el\s+eje\b|al\s+sumar|sumad[oa]s?\b|x\d?\s*=|y\d?\s*=)/i.test(suffix);
-            if (
-              openParens === closeParens &&
-              !dropsMath &&
-              !cutsApplicationPurpose &&
-              !cutsPairedClause &&
-              !/^Para\s+[a-záéíóúñ]{3,}r\b[^,]*$/i.test(prefix) &&
-              !breaksNumericOrTupleList(prefix, suffix) &&
-              prefix.split(/\s+/).length <= wordLimit &&
-              prefix.split(/\s+/).length >= 4
-            ) {
-              const isQuestion = /^\s*¿/.test(compressed);
-              const cleaned = isQuestion
-                ? (() => {
-                    const cleanedBase = repairDanglingEnding(prefix, false)
-                      .replace(/[.?!…]+$/, '')
-                      .trim();
-                    return cleanedBase
-                      ? /\?['"»”’)]*$/.test(cleanedBase)
-                        ? cleanedBase
-                        : `${cleanedBase}?`
-                      : '';
-                  })()
-                : repairDanglingEnding(prefix, ensurePeriod);
-              if (
-                cleaned &&
-                !hasDanglingEnding(cleaned) &&
-                isPublishablePedagogicalText(cleaned, role === 'general' ? 'concept' : role, compressed) &&
-                cleaned.split(/\s+/).length <= wordLimit &&
-                cleaned.split(/\s+/).length >= 4
-              ) {
-                return cleaned;
-              }
-            }
-          }
-          return null;
-        };
-
-        const tier1SepRe =
-          role === 'step'
-            ? /[,;:]\s+|\s+(?:para|mediante|donde)\s+|\s+(?=De\s+la\s+Ecuaci[oó]n\s+\d|=>)/gi
-            : /[,;:]\s+|\s+(?:para|mediante|donde)\s+/gi;
-        const tier2SepRe =
-          role === 'problem' || role === 'activity'
-            ? /\s+(?:que\s+[a-záéíóúñ]{3,}|con\s+(?:el|la|los|las|un|una|su|sus|respaldo|[aá]ngulos|base)|sobre\s+(?:el|la|los|las)|desde\s+(?:el|la)|hacia\s+(?:cada|el|la)|entre\s+(?:el|la|los|las|sus)|sin\s+[a-záéíóúñ]{3,}|destinad[oa]\s+a|usando\s+la|antes\s+de\s+aplicar|para\s+quitar|en\s+(?:el\s+plano|papel|tu|la\s+toma)|y\s+(?:que|el|la|los|las|su|sus|para))\s+/gi
-            : role === 'hint'
-              ? /(?:,\s*luego|\s+(?:que\s+[a-záéíóúñ]{3,}|multiplicando|elevando|igualando|seg[uú]n|dejando|por\s+lo\s+que|para\s+quitar|en\s+un\s+solo|y\s+los\s+t[eé]rminos|antes\s+de|sin\s+cometer|y\s+(?:suma|compara|despeja|luego|asigna|grafica|la\s+segunda|el\s+monto)|por\s+(?:cada|el)|con\s+(?:el|la|los|las)|sobre\s+(?:el|la)|para\s+|donde\s+|al\s+pasar))\s+/gi
-              : /\s+(?:que\s+[a-záéíóúñ]{3,}|con\s+(?:el|la|los|las|un|una|su|sus|respaldo|[aá]ngulos|base)|sobre\s+(?:el|la|los|las)|desde\s+(?:el|la)|hacia\s+(?:cada|el|la)|entre\s+(?:el|la|los|las|sus)|sin\s+[a-záéíóúñ]{3,}|durante\s+cada|a\s+fin\s+de|en\s+(?:el\s+plano|papel|pliego|tu|la\s+toma|mi\s+proyecto|tu\s+proyecto|el\s+contexto)|(?:usando|utilizando|empleando|aplicando|analizando|verificando|comprobando|considerando|evaluando|calculando|identificando|recordando|donde|mientras)|(?:aplicad[oa]s?|integrad[oa]s?)\s+(?:a|al|en)|relacion[aá]ndol[oa]s?|de\s+cada\s+una\s+de|como\s+cualquiera\s+de|para\s+(?:organizar|validar|conservar|resolver)|al\s+(?:resolver|aplicar)|y\s+(?:a\s+)?(?:que|el|la|los|las|su|sus|tu|tus|para|trazar|validar|verificar|elaborar|defender|representa|modela|justifica))\s+/gi;
-
-        const wordTotal = compressed.split(/\s+/).length;
-        const allowWideTrim = role !== 'problem' && role !== 'activity' && role !== 'step';
-        const extraWideLimit = wordTotal > maxWords * 2 ? Math.min(maxWords + 8, Math.floor(wordTotal * 0.72)) : maxWords + 4;
-        const trimmed =
-          tryRightToLeftTrim(tier1SepRe, maxWords) ??
-          tryRightToLeftTrim(tier1SepRe, maxWords + 2) ??
-          tryRightToLeftTrim(tier2SepRe, maxWords) ??
-          tryRightToLeftTrim(tier2SepRe, maxWords + 2) ??
-          (allowWideTrim
-            ? tryRightToLeftTrim(tier1SepRe, maxWords + 4) ??
-              tryRightToLeftTrim(tier2SepRe, maxWords + 4) ??
-              tryRightToLeftTrim(tier1SepRe, extraWideLimit) ??
-              tryRightToLeftTrim(tier2SepRe, extraWideLimit)
-            : (role === 'step' || role === 'problem' || role === 'activity') && wordTotal > maxWords * 1.6
-              ? tryRightToLeftTrim(tier1SepRe, maxWords + 6) ?? tryRightToLeftTrim(tier2SepRe, maxWords + 6)
-              : null);
-        if (trimmed) {
-          compressed = trimmed;
-        }
-      }
     }
   }
 
-  // Paso 5: Límite duro de presupuesto incluso si una sola oración no tiene cláusulas seguras
+  // Paso 5: Prohibido amputar una oración por límite duro de tokens (hardTrimToBudget) en texto pedagógico.
+  // Solo se aplica en el caso excepcional de un texto sin estructura oracional larga de más de 2.4x el presupuesto
+  // y únicamente si la subcadena resultante sigue siendo publicable y NO trunca la fuente.
   if (
-    compressed.length > maxChars ||
-    (maxWords !== undefined && compressed.split(/\s+/).length > maxWords)
+    (compressed.length > Math.round(maxChars * 2.4) ||
+      (maxWords !== undefined && compressed.split(/\s+/).length > Math.round(maxWords * 2.4))) &&
+    role === 'general'
   ) {
     const trimmed = hardTrimToBudget(compressed, maxChars, maxWords, ensurePeriod, role);
-    const losesEquation =
-      (role === 'problem' || role === 'activity' || role === 'step' || role === 'hint' || role === 'conclusion') &&
-      ((/=/.test(compressed) && !/=/.test(trimmed)) ||
-        ((compressed.match(/=/g)?.length ?? 0) >= 2 && (trimmed.match(/=/g)?.length ?? 0) < 2) ||
-        (/=[^.;]*\/\s*[\d(a-zA-Z]/.test(compressed) && !/=[^.;]*\/\s*[\d(a-zA-Z]/.test(trimmed)));
-    const losesCriticalMathData =
-      (role === 'problem' || role === 'activity') &&
-      (compressed.match(/\d+(?:[.,]\d+)?/g)?.length ?? 0) >= 2 &&
-      (trimmed.match(/\d+(?:[.,]\d+)?/g)?.length ?? 0) < 2;
-    const shortensApplicationTooMuch = role === 'application' && compressed.length >= 48 && trimmed.length < 44;
-    const mappedPublishRole = role === 'general' ? 'concept' : role;
-    const isPublishableTrim = isPublishablePedagogicalText(trimmed, mappedPublishRole, compressed);
-    if (trimmed && !losesEquation && !losesCriticalMathData && !shortensApplicationTooMuch && !hasDanglingEnding(trimmed) && isPublishableTrim) {
+    if (
+      trimmed &&
+      !hasDanglingEnding(trimmed) &&
+      isPublishablePedagogicalText(trimmed, 'concept', normalized)
+    ) {
       compressed = trimmed;
     }
   }

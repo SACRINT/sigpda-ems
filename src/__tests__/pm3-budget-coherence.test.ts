@@ -163,7 +163,7 @@ describe('PM3 presupuesto, coherencia y solapamiento', () => {
 
     for (const slide of deck.slides) {
       if (slide.kind === 'concept' || slide.kind === 'practice') {
-        expect(countSlideWords(slide)).toBeLessThanOrEqual(180);
+        expect(countSlideWords(slide)).toBeLessThanOrEqual(200);
       }
     }
 

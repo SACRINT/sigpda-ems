@@ -2,7 +2,6 @@ import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SacrintPack } from './discipline-packs';
 import {
   cleanSacrintText,
-  distillConciseText,
   paraphraseSixGramOverlap,
   sanitizePedagogicalMetaPhrases,
 } from './content-distiller';
@@ -11,7 +10,10 @@ import {
   fitPedagogicalText,
   hasDanglingEnding,
   isPublishablePedagogicalText,
+  isTruncatedAgainstSource,
+  splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
+import { extractDisciplinaryConceptPhrase } from '@/lib/editorial/topic-title-resolver';
 import { classifyTopic, detectExponentialContext } from '@/lib/visual-engine/topic-classifier';
 
 /**
@@ -245,29 +247,84 @@ function clean(value: string | null | undefined): string {
   return cleanSacrintText(value);
 }
 
+export function completeDetail(
+  value: string | null | undefined,
+  max = 220,
+  fallback = ''
+): string {
+  const text = clean(value);
+  if (!text) return fallback;
+
+  const sentences = splitSpanishSentences(text);
+  const first = sentences[0] || text;
+
+  const fitted = fitPedagogicalText(first, {
+    maxChars: max,
+    maxWords: Math.max(8, Math.floor(max / 5.5)),
+    role: 'concept',
+    ensurePeriod: false,
+  });
+
+  if (
+    fitted &&
+    isPublishablePedagogicalText(fitted, 'infographic', text) &&
+    !isTruncatedAgainstSource(fitted, text)
+  ) {
+    return fitted;
+  }
+
+  if (
+    first.length <= Math.round(max * 1.8) &&
+    isPublishablePedagogicalText(first, 'infographic', text) &&
+    !isTruncatedAgainstSource(first, text)
+  ) {
+    return first;
+  }
+
+  throw new Error(`[SACRINT_NODE_TRUNCATED] Nodo incompleto: ${first}`);
+}
+
+function safeCompleteDetail(
+  value: string | null | undefined,
+  max = 220,
+  fallback = ''
+): string {
+  const text = clean(value);
+  if (!text) return fallback;
+  const sentences = splitSpanishSentences(text);
+  const first = sentences[0] || text;
+  const fitted = fitPedagogicalText(first, {
+    maxChars: max,
+    maxWords: Math.max(8, Math.floor(max / 5.5)),
+    role: 'concept',
+    ensurePeriod: false,
+  });
+  if (
+    fitted &&
+    isPublishablePedagogicalText(fitted, 'infographic', text) &&
+    !isTruncatedAgainstSource(fitted, text)
+  ) {
+    return fitted;
+  }
+  if (isPublishablePedagogicalText(first, 'infographic', text)) {
+    return first;
+  }
+  return first || fallback;
+}
+
 function clip(value: string, max: number): string {
   const cleaned = clean(value);
   if (!cleaned) return '';
-  if (cleaned.length <= max) return cleaned;
-  const maxWords = Math.max(5, Math.floor(max / 5.5));
-  return (
-    fitPedagogicalText(cleaned, {
-      maxChars: max,
-      maxWords,
-      role: 'concept',
-      ensurePeriod: false,
-    }) ||
-    distillConciseText(cleaned, max) ||
-    cleaned
-  );
+  if (cleaned.length <= max && !hasDanglingEnding(cleaned)) return cleaned;
+  return safeCompleteDetail(cleaned, max, cleaned);
 }
 
 function firstSentence(value: string | null | undefined, max = 220): string {
-  return distillConciseText(value, max);
+  return safeCompleteDetail(value, max, '');
 }
 
 function detail(value: string | null | undefined, max = 220, fallback = 'Sin registro.'): string {
-  const text = firstSentence(value, max);
+  const text = safeCompleteDetail(value, max, '');
   return text || fallback;
 }
 
@@ -1267,7 +1324,8 @@ function buildReactionDiagram(mission: MissionSection): ReactionDiagramSpec {
 function buildArgumentDiagram(mission: MissionSection): ArgumentDiagramSpec {
   const contrastList = mission.conceptZero?.contrastTable ?? [];
   const contrast = contrastList.find((c) => Boolean(c?.commonMisconception?.trim())) ?? contrastList[0];
-  const thesisDetail = detail(mission.sessionFocus || mission.conceptZero?.coreExplanation || mission.sessionTopic, 160);
+  const rawThesis = mission.sessionFocus || mission.conceptZero?.coreExplanation || mission.sessionTopic;
+  const thesisDetail = detail(extractDisciplinaryConceptPhrase(rawThesis) || rawThesis, 160);
   const solvedPremises = (mission.conceptZero?.solvedExample?.solutionSteps ?? [])
     .map(clean)
     .filter(Boolean)
@@ -1323,19 +1381,23 @@ function buildLanguageDiagram(mission: MissionSection): LanguageDiagramSpec {
 
 function buildConceptDiagram(mission: MissionSection): ConceptDiagramSpec {
   const nodes: SacrintDiagramNode[] = [
-    { label: 'FENÓMENO', detail: detail(mission.phenomenonHook?.story, 120, '') },
-    { label: 'CONCEPTO', detail: detail(mission.conceptZero?.coreExplanation, 120, '') },
-    { label: 'PRÁCTICA', detail: detail(mission.weDoSection?.guidedPractice, 120, '') },
-    { label: 'PROYECTO', detail: detail(mission.youDoSection?.autonomousChallenge, 120, '') },
+    { label: 'FENÓMENO', detail: detail(mission.phenomenonHook?.story, 140, '') },
+    { label: 'CONCEPTO', detail: detail(mission.conceptZero?.coreExplanation, 140, '') },
+    { label: 'PRÁCTICA', detail: detail(mission.weDoSection?.guidedPractice, 140, '') },
+    { label: 'PROYECTO', detail: detail(mission.youDoSection?.autonomousChallenge, 140, '') },
   ];
 
   const filledCount = nodes.filter((node) => Boolean(node.detail)).length;
+  const centerTopic =
+    extractDisciplinaryConceptPhrase(mission.sessionTopic || mission.title) ||
+    mission.sessionTopic ||
+    mission.title;
   return {
     kind: 'concept',
     available: filledCount >= 2,
     center: {
       label: 'CONCEPTO CENTRAL',
-      detail: detail(mission.sessionTopic || mission.title, 90, ''),
+      detail: detail(centerTopic, 96, ''),
     },
     nodes,
   };
@@ -1346,46 +1408,54 @@ const TIMELINE_LABELS = ['ORIGEN', 'PROCESO', 'CONSECUENCIA', 'BALANCE'];
 function buildTimelineDiagram(mission: MissionSection): TimelineDiagramSpec {
   const solved = (mission.conceptZero?.solvedExample?.solutionSteps ?? []).map(clean).filter(Boolean);
   const narrative = [
-    firstSentence(mission.phenomenonHook?.story, 120),
-    detail(mission.conceptZero?.coreExplanation, 120),
-    detail(mission.iDoSection?.stepByStepDemo, 120),
-    detail(mission.youDoSection?.autonomousChallenge, 120),
+    firstSentence(mission.phenomenonHook?.story, 140),
+    detail(mission.conceptZero?.coreExplanation, 140),
+    detail(mission.iDoSection?.stepByStepDemo, 140),
+    detail(mission.youDoSection?.autonomousChallenge, 140),
   ].filter(Boolean);
   const source = solved.length >= 3 ? solved.slice(0, 4) : narrative.slice(0, 4);
   const events = source.map((text, index) => ({
     label: TIMELINE_LABELS[index] ?? `HITO ${index + 1}`,
-    detail: detail(text, 120),
+    detail: detail(text, 140),
   }));
 
+  const spanTopic =
+    extractDisciplinaryConceptPhrase(mission.sessionTopic || mission.title) ||
+    mission.sessionTopic ||
+    mission.title;
   return {
     kind: 'timeline',
     available: events.length >= 3 && events.some((event) => event.detail !== 'Sin registro.'),
     events,
-    span: clip(mission.sessionTopic || mission.title, 60),
+    span: detail(spanTopic, 80, ''),
   };
 }
 
 function buildSystemMapDiagram(mission: MissionSection): SystemMapDiagramSpec {
   const components: SacrintDiagramNode[] = [
-    { label: 'ESTÍMULO', detail: detail(mission.phenomenonHook?.story, 110, '') },
-    { label: 'MECANISMO', detail: detail(mission.conceptZero?.coreExplanation, 110, '') },
-    { label: 'RESPUESTA', detail: detail(mission.weDoSection?.guidedPractice, 110, '') },
-    { label: 'ADAPTACIÓN', detail: detail(mission.youDoSection?.autonomousChallenge, 110, '') },
+    { label: 'ESTÍMULO', detail: detail(mission.phenomenonHook?.story, 140, '') },
+    { label: 'MECANISMO', detail: detail(mission.conceptZero?.coreExplanation, 140, '') },
+    { label: 'RESPUESTA', detail: detail(mission.weDoSection?.guidedPractice, 140, '') },
+    { label: 'ADAPTACIÓN', detail: detail(mission.youDoSection?.autonomousChallenge, 140, '') },
   ];
 
+  const centerTopic =
+    extractDisciplinaryConceptPhrase(mission.sessionTopic || mission.title) ||
+    mission.sessionTopic ||
+    mission.title;
   return {
     kind: 'system-map',
     available: components.filter((node) => Boolean(node.detail)).length >= 2,
     center: {
       label: 'SISTEMA',
-      detail: detail(mission.sessionTopic || mission.title, 80, ''),
+      detail: detail(centerTopic, 96, ''),
     },
     components,
     environment: {
       label: 'ENTORNO',
       detail: detail(
         mission.formativeCheckpoint?.question || mission.phenomenonHook?.detonatingQuestion,
-        130,
+        140,
         ''
       ),
     },
@@ -1772,11 +1842,17 @@ function toSessionScopedMission(
     const nonQuestionMotivacion = /^¿/i.test(cleanField(session.motivacion))
       ? ''
       : cleanField(session.motivacion);
+    const conceptTopic =
+      extractDisciplinaryConceptPhrase(cleanObjetivo) ||
+      extractDisciplinaryConceptPhrase(vDef || vConcept) ||
+      vDef ||
+      vConcept ||
+      cleanObjetivo;
     return {
       ...mission,
       title: cleanObjetivo || `Sesión ${session.sessionNumber}`,
-      sessionTopic: cleanObjetivo,
-      sessionFocus: vDef || cleanObjetivo || vPlantea,
+      sessionTopic: conceptTopic,
+      sessionFocus: vPlantea || conceptTopic || vDef,
       phenomenonHook: {
         story: vPlantea || vDef || nonQuestionMotivacion || cleanSaberes,
         detonatingQuestion: '',
@@ -1813,9 +1889,13 @@ function toSessionScopedMission(
     };
   }
 
+  const fallbackTopic =
+    extractDisciplinaryConceptPhrase(session.objetivo || mission.sessionTopic || '') ||
+    mission.sessionTopic ||
+    session.objetivo;
   return {
     ...mission,
-    sessionTopic: session.objetivo || mission.sessionTopic,
+    sessionTopic: fallbackTopic,
     sessionFocus: session.objetivo || mission.sessionFocus,
     phenomenonHook: {
       story: session.motivacion || session.saberesPrevios || mission.phenomenonHook?.story || '',
@@ -1939,60 +2019,36 @@ function compactDiagramDetail(
   const isPublishableNode = (candidate: string): boolean =>
     Boolean(candidate) &&
     hasBalancedQuotes(candidate) &&
-    isPublishablePedagogicalText(candidate, 'infographic');
+    isPublishablePedagogicalText(candidate, 'infographic', paraphrased) &&
+    !isTruncatedAgainstSource(candidate, paraphrased);
+
+  // Conservar siempre la primera oración completa íntegra (jamás amputar a media cláusula por límite de caracteres).
+  const sentences = splitSpanishSentences(paraphrased);
+  const firstSent = sanitizeNodeResult(sentences[0] || paraphrased);
+  if (firstSent && isPublishableNode(firstSent)) {
+    return firstSent;
+  }
+
+  const cleanFull = sanitizeNodeResult(paraphrased);
+  if (cleanFull && isPublishableNode(cleanFull)) {
+    return cleanFull;
+  }
 
   const fitted = fitPedagogicalText(paraphrased, {
-    maxChars,
-    maxWords,
+    maxChars: Math.max(maxChars, 110),
+    maxWords: Math.max(maxWords, 18),
     role: 'concept',
     ensurePeriod: false,
   });
-
-  if (
-    fitted &&
-    fitted.split(/\s+/).filter(Boolean).length <= maxWords + 4 &&
-    isPublishableNode(fitted)
-  ) {
+  if (fitted && isPublishableNode(fitted)) {
     return sanitizeNodeResult(fitted);
   }
 
-  // Fallback compacto determinista: preferir la primera oración/cláusula completa y publicable sin romper citas.
-  const firstClauseRaw = paraphrased.split(/[.;!?]/)[0]?.trim() || paraphrased;
-  const firstClause = hasBalancedQuotes(firstClauseRaw) ? firstClauseRaw : paraphrased;
-  const retry = fitPedagogicalText(firstClause, {
-    maxChars: maxChars + 24,
-    maxWords: maxWords + 4,
-    role: 'concept',
-    ensurePeriod: false,
-  });
-  if (retry && isPublishableNode(retry)) {
-    return sanitizeNodeResult(retry);
-  }
-  const cleanFirst = sanitizeNodeResult(firstClause);
-  if (cleanFirst && isPublishableNode(cleanFirst) && cleanFirst.length <= maxChars + 64) {
-    return cleanFirst;
-  }
-  const repaired = finalizeVisibleText(cleanFirst || paraphrased, {
-    maxChars: maxChars + 32,
-    ensurePeriod: false,
-    role: 'concept',
-  });
-  if (repaired && isPublishableNode(repaired) && repaired.length >= 14) {
-    return sanitizeNodeResult(repaired);
-  }
-  const intact = sanitizeNodeResult(
-    hasBalancedQuotes(paraphrased.split(/[.!?]/)[0]?.trim() || '')
-      ? paraphrased.split(/[.!?]/)[0]?.trim() || cleanedBase
-      : paraphrased
-  );
-  if (intact && isPublishableNode(intact)) {
-    return intact;
-  }
-  return sanitizeNodeResult(paraphrased || intact || repaired || fitted);
+  return sanitizeNodeResult(firstSent || cleanFull || fitted || cleanedBase);
 }
 
 function compactNode(node: SacrintDiagramNode, theorySources?: string[]): SacrintDiagramNode {
-  return { ...node, detail: compactDiagramDetail(node.detail, 48, 7, theorySources) };
+  return { ...node, detail: compactDiagramDetail(node.detail, 110, 18, theorySources) };
 }
 
 function compactNonQuantitativeDiagram(

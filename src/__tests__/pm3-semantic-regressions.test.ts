@@ -364,12 +364,13 @@ describe('PM3 Regresiones Semánticas, Editoriales y Diagramáticas (01_ a 09_)'
     expect(app.application.length).toBeGreaterThanOrEqual(36);
   });
 
-  it('respeta el presupuesto del fitter y repara moneda mal formada', () => {
+  it('preserva oraciones completas en el fitter sin amputar y repara moneda mal formada', () => {
     const fitted = fitPedagogicalText(
       'El estudio de los sistemas de igualdades lineales 2x2 permite modelar situaciones del entorno y resolver problemas con datos reales.',
       { maxChars: 48, maxWords: 7, role: 'concept', ensurePeriod: false }
     );
-    expect(fitted.length).toBeLessThanOrEqual(48);
+    expect(fitted.length).toBeGreaterThan(20);
+    expect(fitted).toContain('datos reales');
     expect(hasDanglingEnding(fitted)).toBe(false);
 
     const currency = normalizeEditorialText('La escuela cuenta con un presupuesto de $1,$200 para equipamiento.');

@@ -20,7 +20,11 @@
 
 import type { ActiveWorkTextbook, SessionPlan } from '@/types/work-textbook';
 import type { SecuenciaBloque } from '@/types/planning';
-import type { SacrintDeckSpec, SacrintInfographicSpec } from '@/lib/visual-engine/sacrint/spec';
+import {
+  validateSacrintContentIntegrity,
+  type SacrintDeckSpec,
+  type SacrintInfographicSpec,
+} from '@/lib/visual-engine/sacrint/spec';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import { hasDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
@@ -852,6 +856,15 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
         message: `La presentación contiene corrupción lingüística o truncamiento mecánico (${deckCorruption}).`,
       });
     }
+    const deckIntegrityIssues = validateSacrintContentIntegrity(deck);
+    if (deckIntegrityIssues.length > 0) {
+      pushIssue({
+        code: 'S6_CONTENT_INTEGRITY_VIOLATION',
+        material: 'deck',
+        severity: 'error',
+        message: `La presentación viola integridad de contenido SACRINT: ${deckIntegrityIssues.slice(0, 3).join('; ')}.`,
+      });
+    }
     for (let sIdx = 0; sIdx < slides.length; sIdx++) {
       const slide = slides[sIdx];
       const title = (slide?.title ?? '').trim();
@@ -915,6 +928,15 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
         material: 'infographic',
         severity: 'error',
         message: `La infografía contiene corrupción lingüística o truncamiento mecánico (${infoCorruption}).`,
+      });
+    }
+    const infoIntegrityIssues = validateSacrintContentIntegrity(infographic);
+    if (infoIntegrityIssues.length > 0) {
+      pushIssue({
+        code: 'S6_CONTENT_INTEGRITY_VIOLATION',
+        material: 'infographic',
+        severity: 'error',
+        message: `La infografía viola integridad de contenido SACRINT: ${infoIntegrityIssues.slice(0, 3).join('; ')}.`,
       });
     }
     const hasRequiredInfoFields = Boolean(

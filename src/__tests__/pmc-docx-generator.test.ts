@@ -319,7 +319,11 @@ describe('pmc-docx-generator — Generador de Plan de Mejora Continua e Informes
     expect(text).toContain('100.0%');
     expect(text).toContain('150 estudiantes');
     // H-232: Garantizar que no se filtren valores de matrícula por defecto (280)
-    expect(text).not.toContain('280');
+    // (excluir el folio autogenerado FOLIO-PMC-XXXXXX cuya marca temporal puede contener "280")
+    const textWithoutFolio = text.replace(/FOLIO-PMC-\d+/g, '');
+    expect(textWithoutFolio).not.toContain('280');
+    expect(text).not.toContain('280 estudiantes');
+    expect(text).not.toContain('280 alumnos');
   });
 
   // ── TEST 11: Sección IV con datos completos en informe ──────────────────────

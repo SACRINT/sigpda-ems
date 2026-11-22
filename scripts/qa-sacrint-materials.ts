@@ -678,7 +678,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           .trim();
         const hasTaskOrQuestion =
           /\?/.test(txt) ||
-          /\b(?:calcula|determina|resuelve|soluciona|plantea|encuentra|halla|obten|obtén|verifica|comprueba|construye|arma|crea|grafica|tabula|compara|justifica|sustenta|fundamenta|explica|detalla|interpreta|redacta|escribe|elabora|prepara|analiza|examina|evalua|evalúa|valora|identifica|reconoce|clasifica|ordena|organiza|registra|anota|sustituye|reemplaza|despeja|a[ií]sla|simplifica|factoriza|demuestra|argumenta|describe|selecciona|elige|propón|propon|diseña|disena|corrige|revisa|audita|integra|incorpora|a[ñn]ade|consolida|presenta|defiende|expón|expon|estima|proyecta|convierte|contrasta|relaciona|vincula|formula|aplica|traza|usa|utiliza|emplea|efect[uú]a|fija|completa|responde|asegúrate|asegurate|dibuja|representa|marca|señala|instala|configura|actualiza|conecta|mide|documenta|ejecuta|repara|limpia|inspecciona|traduce|conjuga|subraya|contesta|investiga|debate|concluye|enumera|enlista|ejemplifica|empareja|observa|consulta|modifica|implementa|monitorea|diagnostica)\b/i.test(
+          /\b(?:calcula|determina|resuelve|soluciona|plantea|encuentra|halla|obten|obtén|verifica|comprueba|construye|arma|crea|grafica|tabula|compara|justifica|sustenta|fundamenta|explica|detalla|interpreta|redacta|escribe|elabora|prepara|analiza|examina|evalua|evalúa|valora|identifica|reconoce|clasifica|ordena|organiza|registra|anota|sustituye|reemplaza|despeja|a[ií]sla|simplifica|factoriza|demuestra|argumenta|describe|selecciona|elige|propón|propon|diseña|disena|corrige|revisa|audita|integra|incorpora|a[ñn]ade|consolida|presenta|defiende|expón|expon|estima|proyecta|convierte|contrasta|relaciona|vincula|formula|aplica|traza|usa|utiliza|emplea|efect[uú]a|fija|completa|responde|asegúrate|asegurate|dibuja|representa|marca|señala|instala|configura|actualiza|conecta|mide|documenta|ejecuta|repara|limpia|inspecciona|traduce|conjuga|subraya|contesta|investiga|debate|concluye|enumera|enlista|ejemplifica|empareja|observa|consulta|modifica|implementa|monitorea|diagnostica|simula)\b/i.test(
             txt
           ) ||
           /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i.test(
@@ -719,9 +719,10 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           hasDuplicateSentence ||
           hasDanglingEnding(txt) ||
           txt.endsWith('...') ||
-          /(?:,|(?<![\p{L}\p{N}_])(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si|debes|puedes|tienes|necesitas|forma)\.?)\s*$/iu.test(
+          (/(?:,|(?<![\p{L}\p{N}_])(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si|debes|puedes|tienes|necesitas|forma)\.?)\s*$/iu.test(
             txt
-          );
+          ) &&
+            !/\bcada\s+(?:uno|una)\.?\s*$/i.test(txt));
         if (isTruncated) {
           pushSlideFinding('weak_or_truncated_activity', `Act ${aIdx + 1} (${txt.length}c): "${txt.slice(0, 90)}"`);
         }
