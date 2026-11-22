@@ -61,7 +61,8 @@ export function resolveLightAccent(hex: string): string {
     '#F472B6': '#BE185D',
     '#A78BFA': '#6D28D9',
   };
-  return map[hex.toUpperCase()] ?? hex;
+  const key = typeof hex === 'string' ? hex.toUpperCase() : '';
+  return Object.hasOwn(map, key) ? map[key] : hex;
 }
 
 export const SACRINT_FONT = {

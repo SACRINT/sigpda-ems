@@ -38,8 +38,8 @@ export async function GET(
 
     const db = sql();
     const planRows = await db`
-      SELECT id, teacher_id, uac_name,
-             content_json->'sectionI'->>'component' AS component
+      SELECT id, teacher_id, uac_name, curriculum_name,
+             COALESCE(component, content_json->'sectionI'->>'component') AS component
       FROM plannings
       WHERE id = ${planningId}::uuid
       LIMIT 1

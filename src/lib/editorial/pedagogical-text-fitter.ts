@@ -144,6 +144,11 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
+  // Cláusula relativa posesiva truncada sin verbo al final (", cuya identificación.", ", cuyo objetivo.")
+  if (/,\s*cuy[oa]s?\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){0,2}\.?$/i.test(clean)) {
+    return true;
+  }
+
   // Detectar cola tipo "). El." o ". Si al." (oración final de 1–2 palabras funcionales tras punto)
   const stubAfterDot = clean.match(/\.\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+)?)\.?$/);
   if (stubAfterDot) {

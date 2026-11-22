@@ -326,6 +326,8 @@ export async function buildAulaPackageZip(
               extracted,
               deck,
               uacName: planning.uac_name,
+              component: planning.component || content.sectionI?.component || '',
+              curriculumName: planning.curriculum_name || '',
               checkFullBlockPersistence: false,
             });
             const deckIssues = review.byMaterial.deck.issues;

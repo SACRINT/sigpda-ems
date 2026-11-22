@@ -961,6 +961,7 @@ export function distillProblemOrExerciseText(
  * consecutivas idéntica a la teoría del libro (`Nuevos conceptos`).
  */
 function normalizeOverlapText(value: string): string {
+  if (typeof value !== 'string') return '';
   return value
     .toLowerCase()
     .normalize('NFD')
@@ -1227,63 +1228,97 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\blos datos relevantes\b/gi, 'la información clave'],
   [/\bdatos concretos\b/gi, 'cifras específicas'],
   [/\buna situaci[oó]n concreta\b/gi, 'un caso específico'],
+  [/\bla situaci[oó]n\b/gi, 'el caso'],
+  [/\buna situaci[oó]n\b/gi, 'un caso'],
+  [/\blas situaciones\b/gi, 'los casos'],
+  [/\bsituaciones reales\b/gi, 'casos concretos'],
+  [/\bla vida real\b/gi, 'la vida cotidiana'],
+  [/\bla evidencia\b/gi, 'el respaldo'],
+  [/\blas evidencias\b/gi, 'los respaldos'],
+  [/\bel criterio\b/gi, 'la pauta'],
+  [/\blos criterios\b/gi, 'las pautas'],
+  [/\bla informaci[oó]n\b/gi, 'los datos'],
 ];
 
-const WINDOW_BREAKER_REPLACEMENTS: Record<string, string> = {
-  para: 'hacia',
-  con: 'mediante',
-  durante: 'en el curso de',
-  segun: 'conforme a',
-  desde: 'a partir de',
-  hasta: 'rumbo a',
-  cuando: 'al momento que',
-  donde: 'en que',
-  porque: 'puesto que',
-  como: 'tal como',
-  este: 'dicho',
-  esta: 'dicha',
-  estos: 'dichos',
-  estas: 'dichas',
-  mismo: 'propio',
-  misma: 'propia',
-  nuevo: 'reciente',
-  nueva: 'reciente',
-  inicial: 'de partida',
-  final: 'de cierre',
-  real: 'concreto',
-  reales: 'concretos',
-  escolar: 'del plantel',
-  escolares: 'del plantel',
-  situacion: 'caso',
-  situaciones: 'casos',
-  problema: 'reto',
-  problemas: 'retos',
-  informacion: 'datos',
-  procedimiento: 'proceso',
-  resultado: 'hallazgo',
-  resultados: 'hallazgos',
-  decision: 'elección',
-  decisiones: 'elecciones',
-  evidencia: 'respaldo',
-  evidencias: 'respaldos',
-  registro: 'apunte',
-  registros: 'apuntes',
-  analisis: 'estudio',
-  criterio: 'pauta',
-  criterios: 'pautas',
-  etapa: 'fase',
-  etapas: 'fases',
-  correcto: 'adecuado',
-  correcta: 'adecuada',
-  correctamente: 'adecuadamente',
-  mediante: 'por medio de',
-  permite: 'posibilita',
-  permiten: 'posibilitan',
-  utiliza: 'emplea',
-  utilizan: 'emplean',
-  requiere: 'exige',
-  requieren: 'exigen',
-};
+/**
+ * Mapa de sustituciones seguras (sin colisión de prototipo Object.prototype como "constructor",
+ * "toString" o "valueOf") para romper ventanas residuales de 6-gramas preservando gramática,
+ * concordancia de género/número y régimen preposicional en español.
+ */
+const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string, string>([
+  ['segun', 'conforme a'],
+  ['desde', 'a partir de'],
+  ['porque', 'puesto que'],
+  ['mediante', 'por medio de'],
+  ['este', 'dicho'],
+  ['esta', 'dicha'],
+  ['estos', 'dichos'],
+  ['estas', 'dichas'],
+  ['mismo', 'propio'],
+  ['misma', 'propia'],
+  ['nuevo', 'reciente'],
+  ['nueva', 'reciente'],
+  ['escolar', 'del plantel'],
+  ['escolares', 'del plantel'],
+  ['problema', 'reto'],
+  ['problemas', 'retos'],
+  ['procedimiento', 'método'],
+  ['procedimientos', 'métodos'],
+  ['decision', 'elección'],
+  ['decisiones', 'elecciones'],
+  ['registro', 'apunte'],
+  ['registros', 'apuntes'],
+  ['analisis', 'estudio'],
+  ['etapa', 'fase'],
+  ['etapas', 'fases'],
+  ['correcto', 'adecuado'],
+  ['correcta', 'adecuada'],
+  ['correctos', 'adecuados'],
+  ['correctas', 'adecuadas'],
+  ['correctamente', 'adecuadamente'],
+  ['importante', 'relevante'],
+  ['importantes', 'relevantes'],
+  ['principal', 'central'],
+  ['principales', 'centrales'],
+  ['fundamental', 'esencial'],
+  ['fundamentales', 'esenciales'],
+  ['necesario', 'requerido'],
+  ['necesaria', 'requerida'],
+  ['necesarios', 'requeridos'],
+  ['necesarias', 'requeridas'],
+  ['posible', 'viable'],
+  ['posibles', 'viables'],
+  ['frecuente', 'habitual'],
+  ['frecuentes', 'habituales'],
+  ['permite', 'posibilita'],
+  ['permiten', 'posibilitan'],
+  ['utiliza', 'emplea'],
+  ['utilizan', 'emplean'],
+  ['requiere', 'exige'],
+  ['requieren', 'exigen'],
+  ['muestra', 'expone'],
+  ['muestran', 'exponen'],
+  ['indica', 'señala'],
+  ['indican', 'señalan'],
+  ['genera', 'produce'],
+  ['generan', 'producen'],
+  ['presenta', 'ofrece'],
+  ['presentan', 'ofrecen'],
+  ['obtiene', 'logra'],
+  ['obtienen', 'logran'],
+  ['analiza', 'examina'],
+  ['analizan', 'examinan'],
+  ['describe', 'detalla'],
+  ['describen', 'detallan'],
+  ['identifica', 'reconoce'],
+  ['identifican', 'reconocen'],
+  ['evalua', 'valora'],
+  ['evaluan', 'valoran'],
+  ['verifica', 'comprueba'],
+  ['verifican', 'comprueban'],
+  ['tambien', 'además'],
+  ['ademas', 'asimismo'],
+]);
 
 function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): string {
   const tokenMatches = [...text.matchAll(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+/g)];
@@ -1297,7 +1332,7 @@ function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): s
       let replacedIdx = -1;
       for (let j = i + 5; j >= i; j--) {
         const normWord = normTokens[j]!;
-        const sub = WINDOW_BREAKER_REPLACEMENTS[normWord];
+        const sub = WINDOW_BREAKER_REPLACEMENTS.get(normWord);
         if (!sub) continue;
         const origWord = tokenMatches[j]![0];
         const start = tokenMatches[j]!.index!;
@@ -2539,7 +2574,10 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
       .replace(/\by\s+especifica\s+los\s+valores\s+de\s+a,\s*b\s+y\s+c\b/gi, 'e indica a, b y c')
       .replace(/\bTransforma\s+la\s+siguiente\s+ecuaci[oó]n\s+algebraica\s+polin[oó]mica\s+a\s+su\s+forma\s+(?:general|completa)\s+([^:]+):/gi, 'Transforma a forma general $1:')
       .replace(/\bTransforma\s+esta\s+ecuaci[oó]n\s+a\s+ax²/gi, 'Convierte a ax²')
-      .replace(/\b(?:plantea\s+y\s+resuelve|construye)\s+una\s+ecuaci[oó]n\s+(?:de\s+primer\s+grado|lineal|cuadr[aá]tica)\s+para\s+(determinar|calcular|hallar|averiguar|encontrar)\b/gi, (_m, v: string) => (impMap[v.toLowerCase()] ?? v).toLowerCase())
+      .replace(/\b(?:plantea\s+y\s+resuelve|construye)\s+una\s+ecuaci[oó]n\s+(?:de\s+primer\s+grado|lineal|cuadr[aá]tica)\s+para\s+(determinar|calcular|hallar|averiguar|encontrar)\b/gi, (_m, v: string) => {
+        const key = v.toLowerCase();
+        return (Object.hasOwn(impMap, key) ? impMap[key] : v).toLowerCase();
+      })
       .replace(/\b(?:Utiliza|Aplica)\s+el\s+m[eé]todo\s+de\s+([a-záéíóúñ]+)\s+para\s+(?:determinar|calcular)\s+el\s+costo\s+(?:unitario\s+exacto\s+)?de\s+cada\s+([^.\n]+?)\s+y\s+de\s+cada\s+([^.\n?]+)\.?/gi, 'Por $1, calcula costo de $2 y $3.')
       .replace(/\bSi\s+el\s+presupuesto\s+destinado\s+para\s+el\s+evento\s+es\s+de\s+/gi, 'Con presupuesto de ')
       .replace(/\bSi\s+se\s+sabe\s+que\s+el\s+largo(?:\s+del\s+jard[ií]n)?\s+debe\s+ser\s+(\d+)\s*m\s+mayor\s+que\s+su\s+ancho\b/gi, 'Si el largo supera en $1 m al ancho')

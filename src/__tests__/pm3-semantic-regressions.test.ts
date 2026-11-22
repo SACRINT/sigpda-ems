@@ -692,4 +692,34 @@ describe('Auditoría Integral PM3_NVO — Regresiones Estructurales', () => {
     expect(stepsBlob).not.toMatch(/m[eé]todo de igualaci[oó]n/i);
     expect(info.claim).not.toBe('La estructuración, depuración y validación de un modelo matemático.');
   });
+
+  it('paraphraseSixGramOverlap no falla con palabras reservadas de Object.prototype (constructor, toString, valueOf) ni produce español agramatical', () => {
+    const constructionText =
+      'El constructor verifica el croquis para trazar la tubería cuando el plano indica la pendiente correcta como referencia para instalar cada ramal.';
+    expect(() => paraphraseSixGramOverlap(constructionText, [constructionText])).not.toThrow();
+
+    const out = paraphraseSixGramOverlap(constructionText, [constructionText]);
+    expect(out).not.toMatch(/function\s+Object/i);
+    expect(out).not.toMatch(/\bhacia\s+(?:trazar|instalar|comprar|crear)\b/i);
+    expect(out).not.toMatch(/\bal momento que\b/i);
+    expect(out).not.toMatch(/\btal como referencia\b/i);
+
+    const protoWords =
+      'El constructor analiza toString valueOf hasOwnProperty __proto__ para validar planos de vivienda cuando existen cambios.';
+    expect(() => paraphraseSixGramOverlap(protoWords, [protoWords])).not.toThrow();
+    expect(paraphraseSixGramOverlap(protoWords, [protoWords])).not.toMatch(/native code/i);
+  });
+
+  it('hasDanglingEnding detecta cláusulas relativas posesivas truncadas sin verbo (", cuya identificación.")', () => {
+    expect(
+      hasDanglingEnding(
+        'Los elementos constructivos son componentes físicos que integran una vivienda, cuya identificación.'
+      )
+    ).toBe(true);
+    expect(
+      hasDanglingEnding(
+        'Los elementos constructivos son componentes físicos que integran una vivienda.'
+      )
+    ).toBe(false);
+  });
 });
