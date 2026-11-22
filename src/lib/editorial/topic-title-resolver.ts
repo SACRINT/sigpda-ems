@@ -31,7 +31,7 @@ export interface TopicTitleInput {
 }
 
 const INVALID_TITLE_START_RE =
-  /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|vamos\s+a\b|aprender[aá]s\b|evaluar[aá]s\b|integrar[aá]s\b|optimizar[aá]s\b|representar[aá]s\b|gr[aá]ficamente\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b|manera\s+(?:formativa|rigurosa|sistem[aá]tica|cr[ií]tica)\b|forma\s+(?:formativa|rigurosa|sistem[aá]tica|cr[ií]tica)\b|sintetizar\s+y\s+realizar\b|realizar\s+una\s+reflexi[oó]n\b)/i;
+  /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|vamos\s+a\b|aprender[aá]s\b|evaluar[aá]s\b|integrar[aá]s\b|optimizar[aá]s\b|representar[aá]s\b|gr[aá]ficamente\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b|manera\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|forma\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|todos\s+los\s+conocimientos\b|sintetizar\s+y\s+realizar\b|realizar\s+una\s+reflexi[oó]n\b)/i;
 
 const BARE_ADJECTIVE_TITLE_RE =
   /^(?:anal[ií]tic[oa]s?|matem[aá]tic[oa]s?|gr[aá]fic[oa]s?|algebraic[oa]s?|cuantitativ[oa]s?|cualitativ[oa]s?|estad[ií]stic[oa]s?|geom[eé]tric[oa]s?|t[eé]cnic[oa]s?|te[oó]ric[oa]s?|pr[aá]ctic[oa]s?|formativ[oa]s?|generales?|espec[ií]fic[oa]s?|b[aá]sic[oa]s?|fundamentales?|cr[ií]tic[oa]s?|hist[oó]ric[oa]s?|digitales?|comunicativ[oa]s?|cient[ií]fic[oa]s?|colaborativ[oa]s?|aut[oó]nom[oa]s?|riguros[oa]s?|sistem[aá]tic[oa]s?)$/i;
@@ -148,7 +148,11 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
         ''
       )
       .replace(
-        /^(?:aprendes\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|tabular))?|comprendes(?:\s+y\s+aplicas)?|realizas|consolidas|socializas(?:\s+(?:los|tus)\s+hallazgos(?:\s+de)?)?|integras(?:,\s*depuras)?(?:\s+y\s+(?:validas|eval[uú]as|consolidas))?|validas(?:\s+y\s+depuras)?|depuras(?:\s+y\s+validas)?|aplicas(?:\s+con\s+precisi[oó]n)?|calculas|construyes|modelas(?:\s+matem[aá]ticamente|\s+algebraicamente)?|determinas|identificas(?:\s+y\s+aplicas)?|resuelves(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|analizas(?:\s+y\s+modelas)?|dise[ñn]as|utilizas|empleas|eval[uú]as(?:\s+de\s+(?:forma|manera)\s+formativa)?|clasificas(?:\s+y\s+mides)?|comparas|interpretas|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas(?:\s+y\s+consolidas)?)\s+/i,
+        /^(?:aprendes\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|tabular))?|comprendes(?:\s+y\s+aplicas)?|realizas|consolidas|socializas(?:\s+(?:los|tus)\s+hallazgos(?:\s+de)?)?|integras(?:,\s*depuras)?(?:\s+y\s+(?:validas|eval[uú]as|consolidas))?|validas(?:\s+y\s+depuras)?|depuras(?:\s+y\s+validas)?|aplicas(?:\s+con\s+precisi[oó]n)?|calculas|construyes|modelas(?:\s+matem[aá]ticamente|\s+algebraicamente)?|determinas|identificas(?:\s+y\s+aplicas)?|resuelves(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|analizas(?:\s+y\s+modelas)?|dise[ñn]as|utilizas|empleas|eval[uú]as(?:\s+de\s+(?:forma|manera)\s+(?:formativa|integral|cr[ií]tica|sistem[aá]tica))?|clasificas(?:\s+y\s+mides)?|comparas|interpretas|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas(?:\s+y\s+consolidas)?)\s+/i,
+        ''
+      )
+      .replace(
+        /^(?:integrar(?:[aá]s)?\s+todos\s+los\s+conocimientos\s+de\s+|todos\s+los\s+conocimientos\s+de\s+)/i,
         ''
       )
       .replace(

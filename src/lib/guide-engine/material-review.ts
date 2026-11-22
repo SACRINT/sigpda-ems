@@ -23,6 +23,7 @@ import type { SecuenciaBloque } from '@/types/planning';
 import type { SacrintDeckSpec, SacrintInfographicSpec } from '@/lib/visual-engine/sacrint/spec';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { normalizeUnicode } from '@/lib/utils/normalize';
+import { hasDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
 import {
   extractMaterialsFromWorkbook,
   MissingWorkbookMissionsError,
@@ -198,6 +199,9 @@ const LINGUISTIC_CORRUPTION_PATTERNS: Array<{ label: string; regex: RegExp }> = 
   { label: 'doble_interrogacion', regex: /\?['"»”’]\?/ },
   { label: 'boilerplate_situacion', regex: /Resuelve la situaci[oó]n planteada con los datos anteriores/i },
   { label: 'boilerplate_rigor', regex: /permite interpretar datos del entorno y resolver situaciones con rigor metodol[oó]gico/i },
+  { label: 'estimar_objetos', regex: /\bestimar\s+objetos\b/i },
+  { label: 'stub_alguna_vez', regex: /(?:^|["\n])\s*¿?\s*Alguna\s+vez\s*(?:["\n]|$)/i },
+  { label: 'stub_pregunta_incompleta', regex: /(?:^|["\n])\s*¿(?:Logr[eé]\s+mantener|Puedo\s+detallar|Puedo\s+distinguir|He\s+integrado)\s*(?:["\n]|$)/i },
 ];
 
 export function findLinguisticCorruption(text: string | null | undefined): string | null {
@@ -205,6 +209,56 @@ export function findLinguisticCorruption(text: string | null | undefined): strin
   for (const { label, regex } of LINGUISTIC_CORRUPTION_PATTERNS) {
     const match = text.match(regex);
     if (match) return `${label}: "${match[0]}"`;
+  }
+  return null;
+}
+
+/**
+ * Audita bloque por bloque los nodos conceptuales, tarjetas de variables, pasos y textos
+ * visibles de una infografía SACRINT para bloquear stubs ("F ¿Alguna vez", "R ¿Logré mantener",
+ * "E 04", frases con ¿ sin ?) antes de renderizar.
+ */
+export function findIncompleteInfographicBlock(spec: SacrintInfographicSpec | null | undefined): string | null {
+  if (!spec) return null;
+  const checkField = (label: string, val: string | null | undefined): string | null => {
+    const clean = (val ?? '').replace(/\s+/g, ' ').trim();
+    if (!clean) return null;
+    if (clean.includes('¿') && !clean.includes('?')) {
+      return `${label}_pregunta_sin_cerrar: "${clean.slice(0, 60)}"`;
+    }
+    if (/^¿(?:Alguna\s+vez|Logr[eé]\s+mantener|Puedo\s+detallar|Puedo\s+distinguir|He\s+integrado)\b/i.test(clean) && clean.split(/\s+/).length <= 4) {
+      return `${label}_stub_pregunta: "${clean}"`;
+    }
+    if (/^\d{2}$/.test(clean)) {
+      return `${label}_stub_numerico: "${clean}"`;
+    }
+    if (hasDanglingEnding(clean)) {
+      return `${label}_truncado: "${clean.slice(0, 60)}"`;
+    }
+    return null;
+  };
+
+  for (const v of spec.variables ?? []) {
+    const hit = checkField(`var_${v.symbol}`, v.meaning);
+    if (hit) return hit;
+  }
+  for (const s of spec.steps ?? []) {
+    const hit = checkField(`step_${s.number}`, s.body);
+    if (hit) return hit;
+  }
+  const d = spec.diagram;
+  if (d && d.available) {
+    const nodes: Array<{ label: string; detail: string }> = [];
+    if (d.kind === 'concept') nodes.push(d.center, ...d.nodes);
+    else if (d.kind === 'system-map') nodes.push(d.center, ...d.components, d.environment);
+    else if (d.kind === 'block-diagram') nodes.push(d.input, d.process, d.output, d.feedback);
+    else if (d.kind === 'language') nodes.push(d.input, d.rule, d.output, d.context);
+    else if (d.kind === 'timeline') nodes.push(...d.events);
+    else if (d.kind === 'argument') nodes.push(d.thesis, ...d.premises, d.objection, d.conclusion);
+    for (const node of nodes) {
+      const hit = checkField(`diagram_${node.label}`, node.detail);
+      if (hit) return hit;
+    }
   }
   return null;
 }
@@ -854,7 +908,7 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
         message: `La infografía contiene un marcador inválido o no interpolado (${infoPlaceholder}).`,
       });
     }
-    const infoCorruption = findLinguisticCorruption(serializedInfo);
+    const infoCorruption = findLinguisticCorruption(serializedInfo) || findIncompleteInfographicBlock(infographic);
     if (infoCorruption) {
       pushIssue({
         code: 'S6_LINGUISTIC_CORRUPTION',

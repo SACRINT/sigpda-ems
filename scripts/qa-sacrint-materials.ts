@@ -148,6 +148,8 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['linguistic_doble_interrogacion', /\?['"»”’]\?/],
     ['boilerplate_resuelve_situacion', /Resuelve la situaci[oó]n planteada con los datos anteriores/i],
     ['boilerplate_rigor_metodologico', /permite interpretar datos del entorno y resolver situaciones con rigor metodol[oó]gico/i],
+    ['linguistic_estimar_objetos', /\bestimar\s+objetos\b/i],
+    ['infographic_stub_question', /\b[FCRPDE]\s+¿(?:Alguna\s+vez|Logr[eé]\s+mantener|Puedo\s+detallar|Puedo\s+distinguir)\b/i],
   ];
 
   for (const [key, re] of rules) {

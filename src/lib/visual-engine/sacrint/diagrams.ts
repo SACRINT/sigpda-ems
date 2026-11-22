@@ -6,7 +6,12 @@ import {
   paraphraseSixGramOverlap,
   sanitizePedagogicalMetaPhrases,
 } from './content-distiller';
-import { fitPedagogicalText, hasDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
+import {
+  finalizeVisibleText,
+  fitPedagogicalText,
+  hasDanglingEnding,
+  isPublishablePedagogicalText,
+} from '@/lib/editorial/pedagogical-text-fitter';
 import { classifyTopic, detectExponentialContext } from '@/lib/visual-engine/topic-classifier';
 
 /**
@@ -473,22 +478,34 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     }
   }
 
-  // 4. Ecuación lineal con dos incógnitas aislada: Ax ± By = C (cuando no es un sistema 2x2 de dos ecuaciones)
+  // 4. Ecuación lineal con dos incógnitas aislada: Ax ± By = C (deduplicando repeticiones exactas de la misma ecuación)
   const twoVarSingleMatches = [
     ...normalized.matchAll(/(-?\d+(?:\.\d+)?)\s*x\s*([+-])\s*(\d+(?:\.\d+)?)\s*y\s*=\s*(-?\d+(?:\.\d+)?)/gi),
   ];
-  if (twoVarSingleMatches.length === 1) {
-    const m = twoVarSingleMatches[0];
+  const uniqueTwoVarMatches = twoVarSingleMatches.filter((m, idx, arr) => {
+    const key = `${Number(m[1])}|${m[2]}|${Number(m[3])}|${Number(m[4])}`;
+    return (
+      arr.findIndex((other) => `${Number(other[1])}|${other[2]}|${Number(other[3])}|${Number(other[4])}` === key) ===
+      idx
+    );
+  });
+  if (uniqueTwoVarMatches.length === 1) {
+    const m = uniqueTwoVarMatches[0];
     const aCoef = Number(m[1]);
     const bSign = m[2] === '-' ? -1 : 1;
     const bMag = Number(m[3]);
     const bCoef = bSign * bMag;
     const cCoef = Number(m[4]);
     if (Number.isFinite(aCoef) && Number.isFinite(bCoef) && bCoef !== 0 && Number.isFinite(cCoef) && aCoef !== 0) {
-      const slope = Number((-aCoef / bCoef).toFixed(2));
-      const intercept = Number((cCoef / bCoef).toFixed(2));
+      const slope = Number((-aCoef / bCoef).toFixed(6));
+      const intercept = Number((cCoef / bCoef).toFixed(4));
       const xInt = cCoef / aCoef;
-      const boundedDom = Math.min(10000, Math.max(8, xInt > 0 ? Math.ceil((xInt * 1.2) / 2) * 2 : 12));
+      // Para modelos de restricción/presupuesto con pendiente negativa en el primer cuadrante (Ax + By = C, A,B,C > 0),
+      // el dominio debe cerrar exactamente en la intersección X (y = 0) para no graficar cantidades negativas.
+      const boundedDom =
+        slope < 0 && intercept > 0 && xInt > 0
+          ? Math.min(10000, Number(xInt.toFixed(2)))
+          : Math.min(10000, Math.max(8, xInt > 0 ? Math.ceil((xInt * 1.2) / 2) * 2 : 12));
       return {
         slope,
         intercept,
@@ -907,12 +924,12 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
   const isPopulation = expContext === 'population';
   const capitalMatch =
     source.match(
-      /(?:capital(?:\s+inicial)?|monto\s+inicial|inversi[oó]n(?:\s+inicial)?|pr[eé]stamo|ahorro|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=|M\s*=)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})/i
+      /(?:capital(?:\s+inicial)?|monto\s+inicial|inversi[oó]n(?:\s+inicial)?|pr[eé]stamo|ahorro|P\([^)]*\)\s*=|P[₀0]\s*=|C[₀0]\s*=|M\s*=)\s*(?:de\s*)?\$?\s*(\d{1,3}(?:,\d{3})+|\d{2,6})/i
     ) ||
-    source.match(/\$\s*(\d[\d,]{1,6})(?!\s*%)/) ||
-    source.match(/\b(\d{3,6})\s*(?:habitantes|personas|j[oó]venes|pesos|individuos)\b/i) ||
+    source.match(/\$\s*(\d{1,3}(?:,\d{3})+|\d{2,6})(?!\s*%)/) ||
+    source.match(/\b(\d{1,3}(?:,\d{3})+|\d{3,6})\s*(?:habitantes|personas|j[oó]venes|pesos|individuos)\b/i) ||
     source.match(
-      /(?:poblaci[oó]n(?:\s+inicial|\s+actual|\s+juvenil|\s+total|\s+de)?|P\(t\)\s*=|P[₀0]\s*=|C[₀0]\s*=)\s*(?:de\s*)?\$?\s*(\d[\d,]{2,6})(?!\s*(?:a|-|–)\s*\d+\s*a[ñn]os|\s*a[ñn]os\b)/i
+      /(?:poblaci[oó]n(?:\s+inicial|\s+actual|\s+juvenil|\s+total|\s+de)?|proyecci[oó]n\s+de|P\([^)]*\)\s*=|P[₀0]\s*=|C[₀0]\s*=)\s*(?:de\s*)?\$?\s*(\d{1,3}(?:,\d{3})+|\d{2,6})(?!\s*(?:a|-|–)\s*\d+\s*a[ñn]os|\s*a[ñn]os\b)/i
     );
   const contextualRateMatch =
     source.match(/(?:tasa(?:\s+de)?(?:\s+inter[eé]s|\s+crecimiento|\s+anual)?|inter[eé]s(?:\s+anual|\s+simple|\s+compuesto)?|capitalizable[^.]{0,30}|rendimiento(?:\s+anual)?|\br\s*=)\s*(?:es\s*)?(?:de(?:l)?\s*)?(\d+(?:\.\d+)?)\s*%/i) ||
@@ -1002,9 +1019,15 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
   const simpleSeries: Array<{ t: number; value: number }> = [];
   const compoundSeries: Array<{ t: number; value: number }> = [];
 
+  const usesContinuousExp = /(?:·|\*|\s)e\s*(?:\^|[⁰¹²³⁴⁵⁶⁷⁸⁹])|P₀\s*·\s*e|e\^\s*\(/i.test(source);
   for (let t = 0; t <= periods; t++) {
     simpleSeries.push({ t, value: Math.round(principal * (1 + rate * t)) });
-    compoundSeries.push({ t, value: Math.round(principal * Math.pow(1 + rate, t)) });
+    compoundSeries.push({
+      t,
+      value: Math.round(
+        usesContinuousExp ? principal * Math.exp(rate * t) : principal * Math.pow(1 + rate, t)
+      ),
+    });
   }
   const maxVal = Math.max(...compoundSeries.map((p) => p.value));
   const rateSuffix = rateIsAnnual ? `%/${periodUnit.slice(0, 3).toLowerCase()}` : '%';
@@ -1012,8 +1035,10 @@ function tryBuildExponentialDiagram(source: string): ExponentialDiagramSpec | nu
     kind: 'exponential',
     available: true,
     equation: isPopulation
-      ? `P(t) = P₀(1 + r)ᵗ  (P₀=${principal}, r=${ratePct}${rateSuffix}, n=${periods})`
-      : `M = C₀(1 + r)ⁿ  (C₀=${principal}, r=${ratePct}${rateSuffix}, n=${periods})`,
+      ? usesContinuousExp
+        ? `P(t) = P₀·e^(rt)  (P₀=${principal.toLocaleString('en-US')}, r=${ratePct}${rateSuffix}, t=${periods})`
+        : `P(t) = P₀(1 + r)ᵗ  (P₀=${principal.toLocaleString('en-US')}, r=${ratePct}${rateSuffix}, n=${periods})`
+      : `M = C₀(1 + r)ⁿ  (C₀=${principal.toLocaleString('en-US')}, r=${ratePct}${rateSuffix}, n=${periods})`,
     principal,
     rate,
     periods,
@@ -1542,8 +1567,22 @@ function buildLinearDiagramSpec(linearDirect: ParsedLinearModel, options: Diagra
   const rangeMax = domainMax <= 10 && rawMax <= 12
     ? Math.max(4, Math.ceil(rawMax / 2) * 2)
     : Math.ceil(rawMax / step) * step;
-  const sampleXs = domainMax <= 10 ? [0, 4, 8] : [0, Math.round(domainMax / 2), domainMax];
-  const points = sampleXs.filter((x) => x <= domainMax).map((x) => ({ x, y: Number((slope * x + intercept).toFixed(2)) }));
+  const exactSolX =
+    targetY !== undefined && slope > 0
+      ? Number(((targetY - intercept) / slope).toFixed(2))
+      : undefined;
+  const sampleXs =
+    exactSolX !== undefined && exactSolX > 0 && exactSolX <= domainMax
+      ? [0, Number((exactSolX / 2).toFixed(2)), exactSolX]
+      : domainMax <= 10
+        ? [0, 4, 8]
+        : [0, Math.round(domainMax / 2), domainMax];
+  const points = sampleXs
+    .filter((x) => x <= domainMax)
+    .map((x) => {
+      const y = Number((slope * x + intercept).toFixed(2));
+      return { x: x || 0, y: Object.is(y, -0) ? 0 : y };
+    });
 
   return {
     kind: 'linear',
@@ -1720,40 +1759,54 @@ function toSessionScopedMission(
     const cleanObjetivo = cleanField(session.objetivo);
     const cleanEjemplo = cleanField(session.ejemploResuelto);
     const cleanAplicacion = cleanField(session.aplicacion);
+    const vMap = session.sintesisVisual?.mapaConceptual;
+    const vEx = session.sintesisVisual?.ejemploBreve;
+    const vConcept = cleanField(session.sintesisVisual?.conceptoBreve);
+    const vDef = cleanField(vMap?.definicionClave);
+    const vCrit = cleanField(vMap?.criterioDesarrollo);
+    const vCorr = cleanField(vMap?.correccionBreve);
+    const vPlantea = cleanField(vEx?.planteamiento);
+    const vSteps = (vEx?.pasos ?? []).map(cleanField).filter(Boolean);
+    const vStep1 = vSteps[0] || '';
+    const vConcl = cleanField(vEx?.conclusion);
+    const nonQuestionMotivacion = /^¿/i.test(cleanField(session.motivacion))
+      ? ''
+      : cleanField(session.motivacion);
     return {
       ...mission,
       title: cleanObjetivo || `Sesión ${session.sessionNumber}`,
       sessionTopic: cleanObjetivo,
-      sessionFocus: cleanObjetivo,
+      sessionFocus: vDef || cleanObjetivo || vPlantea,
       phenomenonHook: {
-        story: cleanField(session.motivacion) || cleanSaberes,
+        story: vPlantea || vDef || nonQuestionMotivacion || cleanSaberes,
         detonatingQuestion: '',
       },
       conceptZero: {
-        physicalAnalogy: cleanSaberes,
-        coreExplanation: cleanContenido,
+        physicalAnalogy: vDef || cleanSaberes,
+        coreExplanation: vDef || vConcept || cleanContenido,
         contrastTable: [],
         solvedExample: {
           problemStatement: cleanEjemplo,
-          solutionSteps: sessionSteps,
-          interpretation: cleanAplicacion,
+          solutionSteps: vSteps.length >= 2 ? vSteps : sessionSteps,
+          interpretation: vConcl || cleanAplicacion,
         },
       },
       iDoSection: {
-        stepByStepDemo: cleanEjemplo,
+        stepByStepDemo: vStep1 || cleanEjemplo,
         visualOrDiagram: '',
       },
       weDoSection: {
-        guidedPractice: practiceText,
+        guidedPractice: vCrit || vStep1 || practiceText,
         workbookElements: [],
       },
       youDoSection: {
-        autonomousChallenge: cleanAplicacion || cleanField(session.productoIntegrador),
+        autonomousChallenge: vConcl || vCorr || cleanAplicacion || cleanField(session.productoIntegrador),
         workbookElements: [],
       },
       troubleshooting: [],
       formativeCheckpoint: {
-        question: session.autoevaluacion?.[0] || '',
+        // Priorizar criterio/corrección conceptual en lugar de preguntas de autoevaluación ("¿Logré mantener...?", "¿Puedo detallar...?")
+        question: vCorr || vCrit || vConcl || cleanAplicacion || '',
         criteriaChecklist: session.autoevaluacion ?? [],
         reflectionPrompts: [],
       },
@@ -1812,11 +1865,16 @@ function compactDiagramDetail(
   const cleanedBase = sanitizePedagogicalMetaPhrases(stripSessionLead(raw));
   if (!cleanedBase) return '';
 
-  // Evitar volcar preguntas o párrafos narrativos completos de 25–40 palabras dentro de un nodo de diagrama.
+  // Evitar volcar preguntas retóricas, autoevaluaciones cortadas o párrafos narrativos dentro de un nodo de diagrama.
   let cleaned = cleanedBase
-    .replace(/^(?:¿?\s*Alguna\s+vez\s+te\s+has\s+preguntado\s+(?:c[oó]mo|por\s+qu[eé]|qu[eé])?\s*|Adem[aá]s,\s*comprueba\s+que\s+)/i, '')
+    .replace(
+      /^(?:¿?\s*Alguna\s+vez\s+te\s+has\s+preguntado\s+(?:c[oó]mo|por\s+qu[eé]|qu[eé])?\s*|¿?\s*(?:Por\s+qu[eé]\s+)?ocurre\s+esto\s+y\s+c[oó]mo\s+|Adem[aá]s,\s*comprueba\s+que\s+|¿\s*(?:Logr[eé]|Puedo|He\s+integrado|S[eé])\s+(?:mantener|detallar|distinguir|explicar|aplicar|identificar|trazar|evaluar|integrar|comprender|ordenar|emplear)\s+)/i,
+      ''
+    )
+    .replace(/^¿\s*(?:Qu[eé]|C[oó]mo|Cu[aá]l(?:es)?|Por\s+qu[eé]|D[oó]nde|Cu[aá]ndo)\s+/i, '')
+    .replace(/\?$/, '')
     .trim();
-  if (!cleaned) cleaned = cleanedBase;
+  if (!cleaned) cleaned = cleanedBase.replace(/[¿?]/g, '').trim();
   if (/^[a-záéíóúñ]/.test(cleaned)) {
     cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   }
@@ -1833,8 +1891,14 @@ function compactDiagramDetail(
         cleaned = qMatch[0].trim();
       } else {
         const beforeQ = cleaned.split('¿')[0]?.replace(/[,;:\s]+$/, '').trim() || '';
-        const firstClause = beforeQ.split(/[,;.]/)[0]?.trim() || '';
-        if (firstClause.length >= 14) cleaned = firstClause;
+        const firstClause = beforeQ.replace(/[.?!]+$/, '').trim();
+        if (
+          firstClause.length >= 14 &&
+          !/^Si\s+/i.test(firstClause) &&
+          isPublishablePedagogicalText(firstClause, 'infographic')
+        ) {
+          cleaned = firstClause;
+        }
       }
     }
   }
@@ -1847,13 +1911,35 @@ function compactDiagramDetail(
   const sanitizeNodeResult = (candidate: string): string => {
     let out = candidate.replace(/[,;:]+$/, '').trim();
     if (out.includes('¿') && !out.includes('?')) {
-      const afterOpen = out.replace(/^¿\s*(?:Qu[eé]|C[oó]mo|Cu[aá]l(?:es)?|Por\s+qu[eé]|D[oó]nde|Cu[aá]ndo)\s+/i, '').trim();
+      const idxQ = out.indexOf('¿');
+      if (idxQ > 0) {
+        const before = out.slice(0, idxQ).replace(/[,;:\s]+$/, '').trim();
+        if (before.length >= 14 && isPublishablePedagogicalText(before, 'infographic')) {
+          return before;
+        }
+      }
+      const afterOpen = out
+        .replace(/^¿\s*(?:Qu[eé]|C[oó]mo|Cu[aá]l(?:es)?|Por\s+qu[eé]|D[oó]nde|Cu[aá]ndo|Alguna\s+vez|Logr[eé]|Puedo|He\s+integrado)\s+/i, '')
+        .trim();
       out = afterOpen.length >= 10
         ? afterOpen.charAt(0).toUpperCase() + afterOpen.slice(1)
         : out.replace(/¿/g, '').trim();
     }
     return out;
   };
+
+  const hasBalancedQuotes = (text: string): boolean => {
+    const doubleCount = (text.match(/"/g) || []).length;
+    if (doubleCount % 2 !== 0) return false;
+    // Ignorar apóstrofos internos de palabras ("don't", "L'Hôpital") al contar comillas simples de cita.
+    const quoteMarks = text.match(/(?:^|[\s:(])'|'(?:[\s.,;:!?)]|$)/g) || [];
+    return quoteMarks.length % 2 === 0;
+  };
+
+  const isPublishableNode = (candidate: string): boolean =>
+    Boolean(candidate) &&
+    hasBalancedQuotes(candidate) &&
+    isPublishablePedagogicalText(candidate, 'infographic');
 
   const fitted = fitPedagogicalText(paraphrased, {
     maxChars,
@@ -1862,30 +1948,51 @@ function compactDiagramDetail(
     ensurePeriod: false,
   });
 
-  if (fitted && fitted.split(/\s+/).filter(Boolean).length <= maxWords + 3 && !hasDanglingEnding(fitted)) {
+  if (
+    fitted &&
+    fitted.split(/\s+/).filter(Boolean).length <= maxWords + 4 &&
+    isPublishableNode(fitted)
+  ) {
     return sanitizeNodeResult(fitted);
   }
 
-  // Fallback compacto determinista: conservar la cláusula nominal/verbal sin colgar preposiciones ni verbos.
-  const firstClause = paraphrased.split(/[.;!?]/)[0]?.trim() || paraphrased;
+  // Fallback compacto determinista: preferir la primera oración/cláusula completa y publicable sin romper citas.
+  const firstClauseRaw = paraphrased.split(/[.;!?]/)[0]?.trim() || paraphrased;
+  const firstClause = hasBalancedQuotes(firstClauseRaw) ? firstClauseRaw : paraphrased;
   const retry = fitPedagogicalText(firstClause, {
-    maxChars: maxChars + 14,
-    maxWords: maxWords + 2,
+    maxChars: maxChars + 24,
+    maxWords: maxWords + 4,
     role: 'concept',
     ensurePeriod: false,
   });
-  if (retry && retry.split(/\s+/).filter(Boolean).length <= maxWords + 3 && !hasDanglingEnding(retry)) {
+  if (retry && isPublishableNode(retry)) {
     return sanitizeNodeResult(retry);
   }
-  const tokens = sanitizeNodeResult(firstClause).split(/\s+/).filter(Boolean).slice(0, maxWords + 1);
-  while (tokens.length > 2 && hasDanglingEnding(tokens.join(' '))) {
-    tokens.pop();
+  const cleanFirst = sanitizeNodeResult(firstClause);
+  if (cleanFirst && isPublishableNode(cleanFirst) && cleanFirst.length <= maxChars + 64) {
+    return cleanFirst;
   }
-  return sanitizeNodeResult(tokens.join(' ')) || sanitizeNodeResult(fitted || paraphrased);
+  const repaired = finalizeVisibleText(cleanFirst || paraphrased, {
+    maxChars: maxChars + 32,
+    ensurePeriod: false,
+    role: 'concept',
+  });
+  if (repaired && isPublishableNode(repaired) && repaired.length >= 14) {
+    return sanitizeNodeResult(repaired);
+  }
+  const intact = sanitizeNodeResult(
+    hasBalancedQuotes(paraphrased.split(/[.!?]/)[0]?.trim() || '')
+      ? paraphrased.split(/[.!?]/)[0]?.trim() || cleanedBase
+      : paraphrased
+  );
+  if (intact && isPublishableNode(intact)) {
+    return intact;
+  }
+  return sanitizeNodeResult(paraphrased || intact || repaired || fitted);
 }
 
 function compactNode(node: SacrintDiagramNode, theorySources?: string[]): SacrintDiagramNode {
-  return { ...node, detail: compactDiagramDetail(node.detail, 40, 6, theorySources) };
+  return { ...node, detail: compactDiagramDetail(node.detail, 48, 7, theorySources) };
 }
 
 function compactNonQuantitativeDiagram(
@@ -2030,6 +2137,16 @@ export function buildSacrintDiagram(
 
 export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVariable[] {
   if (!diagram.available) return [];
+  const safeVar = (raw: string | undefined, maxChars = 76): string => {
+    const clean = (raw ?? '').replace(/\s+/g, ' ').trim();
+    if (!clean) return '';
+    if (clean.length <= maxChars && !hasDanglingEnding(clean)) return clean;
+    const fitted = fitPedagogicalText(clean, { maxChars, role: 'concept', ensurePeriod: false });
+    if (fitted && !hasDanglingEnding(fitted) && fitted.length >= 10) return fitted;
+    const finalized = finalizeVisibleText(clean, { maxChars: maxChars + 24, ensurePeriod: false });
+    if (finalized && !hasDanglingEnding(finalized)) return finalized;
+    return clean;
+  };
   switch (diagram.kind) {
     case 'linear': {
       const isDefaultX = /^(?:eje\s+x|variable\s+independiente)/i.test(diagram.xLabel);
@@ -2176,82 +2293,90 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
       ];
     case 'argument':
       return [
-        { symbol: 'T', label: 'Tesis', meaning: clip(diagram.thesis.detail, 72) },
-        { symbol: 'P', label: 'Premisas', meaning: clip(diagram.premises.map((node) => node.detail).join(' '), 72) },
+        { symbol: 'T', label: 'Tesis', meaning: safeVar(diagram.thesis.detail, 76) },
+        { symbol: 'P', label: 'Premisas', meaning: safeVar(diagram.premises.map((node) => node.detail).join(' '), 76) },
         ...(diagram.objection.detail.trim()
-          ? [{ symbol: 'O', label: 'Objeción', meaning: clip(diagram.objection.detail, 72) }]
+          ? [{ symbol: 'O', label: 'Objeción', meaning: safeVar(diagram.objection.detail, 76) }]
           : []),
-        { symbol: 'C', label: 'Conclusión', meaning: clip(diagram.conclusion.detail, 72) },
+        { symbol: 'C', label: 'Conclusión', meaning: safeVar(diagram.conclusion.detail, 76) },
       ];
     case 'language':
       return [
-        { symbol: 'E', label: 'Entrada', meaning: clip(diagram.input.detail, 72) },
-        { symbol: 'F', label: 'Forma', meaning: clip(diagram.rule.detail, 72) },
-        { symbol: 'S', label: 'Salida', meaning: clip(diagram.output.detail, 72) },
-        { symbol: 'C', label: 'Contexto', meaning: clip(diagram.context.detail, 72) },
+        { symbol: 'E', label: 'Entrada', meaning: safeVar(diagram.input.detail, 76) },
+        { symbol: 'F', label: 'Forma', meaning: safeVar(diagram.rule.detail, 76) },
+        { symbol: 'S', label: 'Salida', meaning: safeVar(diagram.output.detail, 76) },
+        { symbol: 'C', label: 'Contexto', meaning: safeVar(diagram.context.detail, 76) },
       ];
     case 'concept':
       return [
-        { symbol: 'F', label: 'Fenómeno', meaning: clip(diagram.nodes[0]?.detail ?? '', 72) },
-        { symbol: 'C', label: 'Concepto', meaning: clip(diagram.nodes[1]?.detail ?? '', 72) },
-        { symbol: 'P', label: 'Práctica', meaning: clip(diagram.nodes[2]?.detail ?? '', 72) },
-        { symbol: 'D', label: 'Decisión', meaning: clip(diagram.nodes[3]?.detail ?? '', 72) },
+        { symbol: 'F', label: 'Fenómeno', meaning: safeVar(diagram.nodes[0]?.detail, 76) },
+        { symbol: 'C', label: 'Concepto', meaning: safeVar(diagram.nodes[1]?.detail, 76) },
+        { symbol: 'P', label: 'Práctica', meaning: safeVar(diagram.nodes[2]?.detail, 76) },
+        { symbol: 'D', label: 'Decisión', meaning: safeVar(diagram.nodes[3]?.detail, 76) },
       ];
     case 'timeline':
       return [
-        { symbol: 'T', label: 'Trayectoria', meaning: clip(diagram.span, 72) },
-        { symbol: 'E', label: 'Eventos', meaning: String(diagram.events.length).padStart(2, '0') },
-        { symbol: 'C', label: 'Causalidad', meaning: clip(diagram.events[0]?.detail ?? '', 72) },
-        { symbol: 'B', label: 'Balance', meaning: clip(diagram.events[diagram.events.length - 1]?.detail ?? '', 72) },
+        { symbol: 'T', label: 'Trayectoria', meaning: safeVar(diagram.span, 76) },
+        {
+          symbol: 'P',
+          label: 'Proceso',
+          meaning: safeVar(diagram.events[1]?.detail ?? diagram.events[0]?.detail ?? diagram.span, 76),
+        },
+        { symbol: 'C', label: 'Causalidad', meaning: safeVar(diagram.events[0]?.detail, 76) },
+        {
+          symbol: 'B',
+          label: 'Balance',
+          meaning: safeVar(diagram.events[diagram.events.length - 1]?.detail, 76),
+        },
       ];
     case 'system-map':
       return [
-        { symbol: 'S', label: 'Sistema', meaning: clip(diagram.center.detail, 72) },
-        { symbol: 'C', label: 'Componentes', meaning: clip(diagram.components.map((node) => node.label).join(' · '), 72) },
-        { symbol: 'E', label: 'Entorno', meaning: clip(diagram.environment.detail, 72) },
-        { symbol: 'R', label: 'Respuesta', meaning: clip(diagram.components[2]?.detail ?? '', 72) },
+        { symbol: 'S', label: 'Sistema', meaning: safeVar(diagram.center.detail, 76) },
+        { symbol: 'C', label: 'Componentes', meaning: safeVar(diagram.components.map((node) => node.label).join(' · '), 76) },
+        { symbol: 'E', label: 'Entorno', meaning: safeVar(diagram.environment.detail, 76) },
+        { symbol: 'R', label: 'Respuesta', meaning: safeVar(diagram.components[2]?.detail, 76) },
       ];
     case 'clinical-flow':
       return [
-        { symbol: 'S', label: 'Síntoma', meaning: clip(diagram.stages[0]?.detail ?? '', 72) },
-        { symbol: 'E', label: 'Evaluación', meaning: clip(diagram.stages[1]?.detail ?? '', 72) },
-        { symbol: 'D', label: 'Diagnóstico', meaning: clip(diagram.stages[2]?.detail ?? '', 72) },
-        { symbol: 'C', label: 'Cuidado', meaning: clip(diagram.stages[3]?.detail ?? '', 72) },
+        { symbol: 'S', label: 'Síntoma', meaning: safeVar(diagram.stages[0]?.detail, 76) },
+        { symbol: 'E', label: 'Evaluación', meaning: safeVar(diagram.stages[1]?.detail, 76) },
+        { symbol: 'D', label: 'Diagnóstico', meaning: safeVar(diagram.stages[2]?.detail, 76) },
+        { symbol: 'C', label: 'Cuidado', meaning: safeVar(diagram.stages[3]?.detail, 76) },
       ];
     case 'block-diagram':
       return [
-        { symbol: 'I', label: 'Entrada', meaning: clip(diagram.input.detail, 72) },
-        { symbol: 'P', label: 'Proceso', meaning: clip(diagram.process.detail, 72) },
-        { symbol: 'S', label: 'Salida', meaning: clip(diagram.output.detail, 72) },
-        { symbol: 'R', label: 'Retroalimentación', meaning: clip(diagram.feedback.detail, 72) },
+        { symbol: 'I', label: 'Entrada', meaning: safeVar(diagram.input.detail, 76) },
+        { symbol: 'P', label: 'Proceso', meaning: safeVar(diagram.process.detail, 76) },
+        { symbol: 'S', label: 'Salida', meaning: safeVar(diagram.output.detail, 76) },
+        { symbol: 'R', label: 'Retroalimentación', meaning: safeVar(diagram.feedback.detail, 76) },
       ];
     case 'sop-flow':
       return [
-        { symbol: 'P', label: 'Preparación', meaning: clip(diagram.steps[0]?.detail ?? '', 72) },
-        { symbol: 'E', label: 'Ejecución', meaning: clip(diagram.steps[1]?.detail ?? '', 72) },
-        { symbol: 'V', label: 'Verificación', meaning: clip(diagram.steps[2]?.detail ?? '', 72) },
-        { symbol: 'N', label: 'Norma', meaning: clip(diagram.standard, 72) },
+        { symbol: 'P', label: 'Preparación', meaning: safeVar(diagram.steps[0]?.detail, 76) },
+        { symbol: 'E', label: 'Ejecución', meaning: safeVar(diagram.steps[1]?.detail, 76) },
+        { symbol: 'V', label: 'Verificación', meaning: safeVar(diagram.steps[2]?.detail, 76) },
+        { symbol: 'N', label: 'Norma', meaning: safeVar(diagram.standard, 76) },
       ];
     case 'creative-cycle':
       return [
-        { symbol: 'D', label: 'Detonante', meaning: clip(diagram.phases[0]?.detail ?? '', 72) },
-        { symbol: 'X', label: 'Exploración', meaning: clip(diagram.phases[1]?.detail ?? '', 72) },
-        { symbol: 'O', label: 'Obra', meaning: clip(diagram.phases[2]?.detail ?? '', 72) },
-        { symbol: 'P', label: 'Difusión', meaning: clip(diagram.phases[3]?.detail ?? '', 72) },
+        { symbol: 'D', label: 'Detonante', meaning: safeVar(diagram.phases[0]?.detail, 76) },
+        { symbol: 'X', label: 'Exploración', meaning: safeVar(diagram.phases[1]?.detail, 76) },
+        { symbol: 'O', label: 'Obra', meaning: safeVar(diagram.phases[2]?.detail, 76) },
+        { symbol: 'P', label: 'Difusión', meaning: safeVar(diagram.phases[3]?.detail, 76) },
       ];
     case 'training-cycle':
       return [
-        { symbol: 'C', label: 'Calentamiento', meaning: clip(diagram.phases[0]?.detail ?? '', 72) },
-        { symbol: 'A', label: 'Activación', meaning: clip(diagram.phases[1]?.detail ?? '', 72) },
-        { symbol: 'E', label: 'Esfuerzo', meaning: clip(diagram.phases[2]?.detail ?? '', 72) },
-        { symbol: 'R', label: 'Recuperación', meaning: clip(diagram.phases[3]?.detail ?? '', 72) },
+        { symbol: 'C', label: 'Calentamiento', meaning: safeVar(diagram.phases[0]?.detail, 76) },
+        { symbol: 'A', label: 'Activación', meaning: safeVar(diagram.phases[1]?.detail, 76) },
+        { symbol: 'E', label: 'Esfuerzo', meaning: safeVar(diagram.phases[2]?.detail, 76) },
+        { symbol: 'R', label: 'Recuperación', meaning: safeVar(diagram.phases[3]?.detail, 76) },
       ];
     case 'regulation-flow':
       return [
-        { symbol: 'E', label: 'Emoción', meaning: clip(diagram.stages[0]?.detail ?? '', 72) },
-        { symbol: 'I', label: 'Interpretación', meaning: clip(diagram.stages[1]?.detail ?? '', 72) },
-        { symbol: 'R', label: 'Respuesta', meaning: clip(diagram.stages[2]?.detail ?? '', 72) },
-        { symbol: 'A', label: 'Regulación', meaning: clip(diagram.anchor, 72) },
+        { symbol: 'E', label: 'Emoción', meaning: safeVar(diagram.stages[0]?.detail, 76) },
+        { symbol: 'I', label: 'Interpretación', meaning: safeVar(diagram.stages[1]?.detail, 76) },
+        { symbol: 'R', label: 'Respuesta', meaning: safeVar(diagram.stages[2]?.detail, 76) },
+        { symbol: 'A', label: 'Regulación', meaning: safeVar(diagram.anchor, 76) },
       ];
   }
 }

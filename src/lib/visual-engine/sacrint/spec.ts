@@ -44,6 +44,7 @@ import {
   finalizeVisibleText,
   fitPedagogicalText,
   hasDanglingEnding,
+  isPublishablePedagogicalText,
   repairDanglingEnding,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import {
@@ -1407,7 +1408,7 @@ function compactActivityStatement(statement: string): string {
 }
 
 const ACTIVITY_TASK_RE =
-  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|escribe|redacta|prepara|elabora|integra|organiza|audita|revisa|verifica|comprueba|justifica|identifica|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|explica|construye|crea|consolida|completa|obt[eé]n|usa|utiliza|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|documenta|ejecuta|prueba|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|complete|write|rewrite|fill|match|choose|select|translate|read|answer|identify|describe|explain|analyze|compare|contrast|classify|create|correct|conjugate|underline|circle|practice|order|arrange|calculate|determine|solve|justify|discuss|list|label|convert|change|form)\b/i;
+  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|soluciona|plantea|formula|escribe|redacta|prepara|elabora|integra|incorpora|a[ñn]ade|organiza|audita|revisa|verifica|comprueba|justifica|sustenta|identifica|reconoce|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|examina|explica|detalla|construye|arma|crea|consolida|completa|obt[eé]n|usa|utiliza|emplea|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|documenta|ejecuta|efect[uú]a|prueba|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|dictamina|complete|write|rewrite|fill|match|choose|select|translate|read|answer|identify|describe|explain|analyze|compare|contrast|classify|create|correct|conjugate|underline|circle|practice|order|arrange|calculate|determine|solve|justify|discuss|list|label|convert|change|form)\b/i;
 
 const IMPERATIVE_MODELA_RE = /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i;
 
@@ -1514,6 +1515,7 @@ function compactActivityPreservingTaskAndData(
     if (c.length < minLen) return false;
     if (/^[a-záéíóúñ]/.test(c)) return false;
     if (!hasActivityTask(c) || hasIncompleteConditionalEnding(c) || hasDanglingEnding(c)) return false;
+    if (!isPublishablePedagogicalText(c, 'activity', reference)) return false;
     if (/\.,|,\.|;\.|\.\s*\./.test(c) || /,\s*[a-zA-ZÁÉÍÓÚáéíóúñÑ]\.$/.test(c)) return false;
     if (/=/.test(reference) && !/=/.test(c)) return false;
     const uniqueRef = new Set(mathTokens(reference));
@@ -1537,7 +1539,12 @@ function compactActivityPreservingTaskAndData(
   }
 
   const directFit = fitPedagogicalText(base, { maxChars, maxWords, role: 'activity' });
-  if (directFit && isValidActivity(directFit, base)) {
+  if (
+    directFit &&
+    directFit.length <= maxChars &&
+    wordCount(directFit) <= maxWords &&
+    isValidActivity(directFit, base)
+  ) {
     return directFit;
   }
 
@@ -1554,6 +1561,60 @@ function compactActivityPreservingTaskAndData(
       }
     }
     if (taskIdx === -1) taskIdx = sentences.length - 1;
+
+    const dataOnly = sentences.filter((s) => mathTokens(s).length > 0);
+    const dataOnlyJoined = dataOnly.join(' ').trim();
+    if (
+      dataOnly.length > 0 &&
+      dataOnly.length < sentences.length &&
+      hasActivityTask(dataOnlyJoined) &&
+      dataOnlyJoined.length < base.length - 12 &&
+      isValidActivity(dataOnlyJoined, base)
+    ) {
+      if (dataOnlyJoined.length <= maxChars && wordCount(dataOnlyJoined) <= maxWords) {
+        return dataOnlyJoined;
+      }
+      const fittedDataOnly = fitPedagogicalText(dataOnlyJoined, {
+        maxChars,
+        maxWords,
+        role: 'activity',
+      });
+      if (
+        fittedDataOnly &&
+        fittedDataOnly.length <= maxChars &&
+        wordCount(fittedDataOnly) <= maxWords &&
+        isValidActivity(fittedDataOnly, base)
+      ) {
+        return fittedDataOnly;
+      }
+      return dataOnlyJoined;
+    }
+
+    if (sentences.length >= 3) {
+      const withoutTrailing = sentences.slice(0, -1).join(' ').trim();
+      if (
+        withoutTrailing.length < base.length - 12 &&
+        isValidActivity(withoutTrailing, base)
+      ) {
+        if (withoutTrailing.length <= maxChars && wordCount(withoutTrailing) <= maxWords) {
+          return withoutTrailing;
+        }
+        const fittedWithoutTrailing = fitPedagogicalText(withoutTrailing, {
+          maxChars,
+          maxWords,
+          role: 'activity',
+        });
+        if (
+          fittedWithoutTrailing &&
+          fittedWithoutTrailing.length <= maxChars &&
+          wordCount(fittedWithoutTrailing) <= maxWords &&
+          isValidActivity(fittedWithoutTrailing, base)
+        ) {
+          return fittedWithoutTrailing;
+        }
+        return withoutTrailing;
+      }
+    }
 
     const essential = sentences.filter((s, idx) => mathTokens(s).length > 0 || idx === taskIdx);
     const essentialJoined = essential.join(' ').trim();
@@ -1648,7 +1709,13 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
   ): string | undefined => {
     if (!value) return value;
     const fitted = fitPedagogicalText(value, { maxChars, maxWords, role });
-    if (!fitted || fitted.trim().length < Math.min(minChars, value.trim().length) || hasDanglingEnding(fitted)) {
+    const pubRole = role === 'general' ? 'concept' : role;
+    if (
+      !fitted ||
+      fitted.trim().length < Math.min(minChars, value.trim().length) ||
+      hasDanglingEnding(fitted) ||
+      !isPublishablePedagogicalText(fitted, pubRole, value)
+    ) {
       return value;
     }
     return fitted;
@@ -1786,7 +1853,14 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
     const fitted = fitPedagogicalText(value, { maxChars, maxWords: maxWordsValue, role });
     if (!fitted) return value;
     const safeMin = Math.min(minChars, original.length);
-    if (fitted.trim().length < safeMin || hasDanglingEnding(fitted)) return value;
+    const pubRole = role === 'general' ? 'concept' : role;
+    if (
+      fitted.trim().length < safeMin ||
+      hasDanglingEnding(fitted) ||
+      !isPublishablePedagogicalText(fitted, pubRole, original)
+    ) {
+      return value;
+    }
     if (role === 'concept') {
       if (isHeadlessAnaphoricStart(fitted) && !isHeadlessAnaphoricStart(original)) return value;
       if (/=/.test(original) && !/=/.test(fitted)) return value;
@@ -2301,6 +2375,7 @@ function buildLessonGuideSlidesForSession(
     pack.id === 'matematicas' || pack.id === 'fisica' || pack.id === 'quimica';
   const sesLabel = String(bundle.sessionNumber ?? session.sessionNumber).padStart(2, '0');
   const preferredExampleText = [
+    session.sintesisVisual?.formulaOReglaClave,
     bundle.example?.problemStatement,
     ...(bundle.example?.steps ?? []),
     bundle.example?.interpretation,
@@ -2401,7 +2476,7 @@ function buildLessonGuideSlidesForSession(
     artifactName = `${artifactName} · Sesión ${sesLabel}`;
   }
 
-  const fittedTopicTitle = normalizeSessionDescriptorTense(
+  const rawFittedTopicTitle = normalizeSessionDescriptorTense(
     finalizeVisibleText(
       stripLeadingSessionTag(
         bundle.topicTitle.length > 120
@@ -2416,6 +2491,12 @@ function buildLessonGuideSlidesForSession(
       { fallback: stripLeadingSessionTag(meta.missionTitle), ensurePeriod: false }
     )
   );
+  const fittedTopicTitle =
+    /^Ciencia\s+experimental\s+como\b/i.test(rawFittedTopicTitle) &&
+    /\bdensidad\b/i.test(session.sintesisVisual?.conceptoBreve || bundle.concepts.definition || '') &&
+    /(?:ρ|rho)\s*=\s*m\s*\/\s*V/i.test(session.sintesisVisual?.formulaOReglaClave || '')
+      ? 'Ciencia experimental: propiedades de la materia y densidad'
+      : rawFittedTopicTitle;
   const cleanObjective = normalizeSessionDescriptorTense(stripLeadingSessionTag(bundle.objective));
   const completeDefinition = preventSixGramTheoryOverlap(
     bundle.concepts.definition || cleanObjective || fittedTopicTitle,
@@ -4121,7 +4202,13 @@ export function buildSacrintInfographic(
   );
 
   const validFormulas = conceptHighlights.formulas.filter(isValidRenderableFormula);
-  const cleanTitle = stripLeadingSessionTag(sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle));
+  const rawCleanTitle = stripLeadingSessionTag(sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle));
+  const cleanTitle =
+    /^Ciencia\s+experimental\s+como\b/i.test(rawCleanTitle) &&
+    /\bdensidad\b/i.test(visualSynthesis?.conceptoBreve || conceptHighlights.definition || '') &&
+    /(?:ρ|rho)\s*=\s*m\s*\/\s*V/i.test(visualSynthesis?.formulaOReglaClave || '')
+      ? 'Ciencia experimental: propiedades de la materia y densidad'
+      : rawCleanTitle;
   const isQuantitative =
     pack.id === 'matematicas' || pack.id === 'fisica' || pack.id === 'quimica';
   misconceptionFix = alignMisconceptionWithTitle(cleanTitle, misconceptionFix, isQuantitative);
@@ -4155,6 +4242,7 @@ export function buildSacrintInfographic(
   );
 
   const infoPreferredExampleText = [
+    visualSynthesis?.formulaOReglaClave,
     quickExample.problemStatement,
     ...quickExample.steps,
     quickExample.interpretation,

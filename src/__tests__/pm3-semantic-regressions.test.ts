@@ -13,8 +13,12 @@ import {
 import {
   fitPedagogicalText,
   hasDanglingEnding,
+  isPublishablePedagogicalText,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
+import { buildSacrintDiagram } from '@/lib/visual-engine/sacrint/diagrams';
+import { resolveSacrintPack } from '@/lib/visual-engine/sacrint/discipline-packs';
+import { findIncompleteInfographicBlock } from '@/lib/guide-engine/material-review';
 import { mergeCompiledExtrasPdf } from '@/lib/pdf-extra-renderer';
 import { stripMarkdown } from '@/lib/visual-engine/content-extractor';
 import {
@@ -940,5 +944,205 @@ describe('Auditoría Integral PM3_NVO — Regresiones Estructurales', () => {
         "Redacta el apartado de 'Metodología' para tu memoria técnica y documenta los pasos seguidos."
       )
     ).toBe(false);
+  });
+
+  it('isPublishablePedagogicalText preserva unidades físicas/técnicas y rechaza truncamientos residuales de 08', () => {
+    const unitCases: Array<[string, string]> = [
+      [
+        'Un estudiante mide una muestra de suelo húmedo con una masa de 120 g y un volumen ocupado de 80 cm³. Calcula la densidad y anota tus resultados.',
+        '80 cm³',
+      ],
+      [
+        'La longitud de una franja de suelo contaminado es de 12 pies. Empleando 1 pie = 30.48 cm, determina la longitud total.',
+        '12 pies',
+      ],
+      [
+        'Diseña el boceto técnico de un firme de concreto de 4 m por 4 m. Especifica concreto con una resistencia de 150 kg/cm².',
+        '150 kg/cm²',
+      ],
+      [
+        'Calcula la cantidad de semillas de moringa para tratar 5 litros de agua turbia, considerando una dosis experimental de 200 miligramos por litro.',
+        '200 miligramos por litro',
+      ],
+      [
+        'Identifica una regadera de 0.12 L/s y un inodoro de 0.08 L/s. Calcula el caudal total y determina si una tubería de 1/2 pulgada es suficiente si el límite es 0.25 L/s.',
+        '0.08 L/s',
+      ],
+      [
+        'Determina el costo total de 15 m lineales de malla ciclónica si el metro lineal cuesta $120 y los postes, colocados cada 2.5 metros, cuestan $350 cada uno.',
+        '350',
+      ],
+    ];
+    for (const [src, requiredToken] of unitCases) {
+      const fitted = fitPedagogicalText(src, { maxChars: 165, maxWords: 26, role: 'activity' });
+      expect(isPublishablePedagogicalText(fitted, 'activity', src)).toBe(true);
+      expect(fitted).toContain(requiredToken);
+    }
+
+    // Rechazar truncamientos explícitos detectados en auditoría
+    expect(isPublishablePedagogicalText('Un estudiante mide un volumen ocupado de 80.', 'activity')).toBe(false);
+    expect(isPublishablePedagogicalText('Especifica el uso de concreto con una resistencia de 150.', 'activity')).toBe(false);
+    expect(isPublishablePedagogicalText('Halla el porcentaje de mejora y escribe.', 'activity')).toBe(false);
+    expect(isPublishablePedagogicalText('Escribe una nota de retroalimentación para un estudiante cuyo texto.', 'activity')).toBe(false);
+    expect(isPublishablePedagogicalText('La perspectiva isométrica posibilita que tus pares visualicen.', 'application')).toBe(false);
+    expect(isPublishablePedagogicalText('Valora la pertinencia comunitaria de esta.', 'activity')).toBe(false);
+    expect(isPublishablePedagogicalText('F ¿Alguna vez', 'infographic')).toBe(false);
+    expect(isPublishablePedagogicalText('04', 'infographic')).toBe(false);
+  });
+
+  it('garantiza paridad numérica ecuación ↔ gráfica ↔ ejemplo en PM3 S15, S42, S108, CECBV S64 y DT1 S95', () => {
+    const mathPack = resolveSacrintPack('Pensamiento Matemático III', 'fundamental');
+    const dummyMission = {
+      missionIndex: 1,
+      title: 'Modelación matemática',
+      coveredSessions: [1],
+      sessionTopic: 'Modelación',
+      sessionFocus: 'Modelación',
+      phenomenonHook: { story: '', detonatingQuestion: '' },
+      conceptZero: { physicalAnalogy: '', coreExplanation: '' },
+      iDoSection: { stepByStepDemo: '' },
+      weDoSection: { guidedPractice: '', workbookElements: [] },
+      youDoSection: { autonomousChallenge: '', workbookElements: [] },
+      troubleshooting: [],
+      formativeCheckpoint: { question: '', criteriaChecklist: [], reflectionPrompts: [] },
+      wordCount: 200,
+      sessionPlans: [],
+    } as unknown as MissionSection;
+
+    // PM3 S15: 7,200 + 600x = 12,000 → x = 8, y = 12,000
+    const d15 = buildSacrintDiagram(dummyMission, mathPack, {
+      allowMissionFallback: false,
+      preferredExampleText: '7,200 + 600x = 12,000 Presupuesto de $12,000 con 7,200 comprometidos y luminarias de $600.',
+    });
+    expect(d15.kind).toBe('linear');
+    if (d15.kind === 'linear') {
+      expect(d15.available).toBe(true);
+      expect(d15.points.some((p) => p.x === 8 && p.y === 12000)).toBe(true);
+      expect(d15.points.some((p) => p.y === 19800)).toBe(false);
+    }
+
+    // PM3 S42: 2X + 3Y = 1500 → primer cuadrante exacto (0,500), (375,250), (750,0), sin Y negativa
+    const d42 = buildSacrintDiagram(dummyMission, mathPack, {
+      allowMissionFallback: false,
+      preferredExampleText: '2X + 3Y = 1500 Consolidar reporte con presupuesto de $1500 y modelo 2X + 3Y = 1500.',
+    });
+    expect(d42.kind).toBe('linear');
+    if (d42.kind === 'linear') {
+      expect(d42.available).toBe(true);
+      expect(d42.points.every((p) => p.y >= 0)).toBe(true);
+      expect(d42.points).toEqual([
+        { x: 0, y: 500 },
+        { x: 375, y: 250 },
+        { x: 750, y: 0 },
+      ]);
+    }
+
+    // PM3 S108: P(5) = 1,200 · e^(0.03·5) → 1,394 (no 232)
+    const d108 = buildSacrintDiagram(dummyMission, mathPack, {
+      allowMissionFallback: false,
+      preferredExampleText:
+        'P(t) = P₀·e^(rt) Proyección de 1,200 jóvenes a una tasa del 3% anual durante 5 años. Aplica P(5) = 1,200·e^(0.03·5).',
+    });
+    expect(d108.kind).toBe('exponential');
+    if (d108.kind === 'exponential') {
+      expect(d108.available).toBe(true);
+      expect(d108.principal).toBe(1200);
+      expect(d108.compoundSeries[5]?.value).toBe(1394);
+    }
+
+    // CECBV S64: no inyectar ((12+14+13+18+20)/5 = 15.4) en un ejemplo con 10, 12, 11, 15, 17 → 13
+    const cecbvSession: SessionPlan = {
+      sessionNumber: 11,
+      objetivo: 'Sistematizas los datos de estiba y analizas tendencias numéricas.',
+      motivacion: 'Datos de obra.',
+      saberesPrevios: 'Promedio.',
+      contenido: 'Cálculo de promedio.',
+      ejemploResuelto: 'Planteamiento: Tiempos de 12, 14, 13, 18 y 20 minutos. Paso 1: (12+14+13+18+20) / 5 = 15.4.',
+      practica: [],
+      aplicacion: 'Estiba.',
+      autoevaluacion: [],
+      recursos: [],
+      productoIntegrador: 'Tabla estadística.',
+      sintesisVisual: {
+        conceptoBreve: 'La sistematización estadística de datos de carga permite visualizar tendencias.',
+        formulaOReglaClave: 'Promedio = Suma de valores / Número de registros',
+        ejemploBreve: {
+          planteamiento: 'Tiempos de estiba de 10, 12, 11, 15 y 17 minutos para 100 kg de material.',
+          pasos: ['Cálculo: Promedio de 13 minutos.', 'Análisis: Tendencia creciente que indica fatiga.'],
+          conclusion: 'Se requiere revisar la técnica de estiba y los tiempos de descanso.',
+        },
+        mapaConceptual: {
+          definicionClave: 'Conversión de registros de carga en información visual.',
+          criterioDesarrollo: 'Recopilar datos y calcular promedios.',
+          errorComun: 'Confundir correlación con causalidad.',
+          correccionBreve: 'Contrastar siempre con observaciones de obra.',
+        },
+      },
+    };
+    const ex64 = extractWorkedExample(dummyMission, cecbvSession, { allowMissionFallback: false });
+    expect(ex64.steps.join(' ')).toContain('13 minutos');
+    expect(ex64.steps.join(' ')).not.toContain('15.4');
+
+    // DT1 S95: no inyectar asignación trivial (A = 0.5m) y conservar "proyectar" sin mutar a "estimar"
+    const dt1Session: SessionPlan = {
+      sessionNumber: 7,
+      objetivo: 'Construyes modelos isométricos a partir de vistas ortogonales.',
+      motivacion: 'Proyección isométrica.',
+      saberesPrevios: 'Escalas.',
+      contenido: 'La perspectiva isométrica utiliza ejes a 30 grados para proyectar objetos tridimensionales.',
+      ejemploResuelto: 'Planteamiento: Módulo de 2.0 m de largo y ancho A = 0.5m en escala 1:20. Paso 1: A = 0.5m.',
+      practica: [],
+      aplicacion: 'Lámina PAEC.',
+      autoevaluacion: [],
+      recursos: [],
+      productoIntegrador: 'Lámina isométrica.',
+      sintesisVisual: {
+        conceptoBreve: 'La perspectiva isométrica utiliza ejes a 30 grados para proyectar objetos.',
+        formulaOReglaClave: 'L_iso = L_real × Escala',
+        ejemploBreve: {
+          planteamiento: 'Representar un módulo de 2m x 0.5m x 0.4m a escala 1:20.',
+          pasos: ['Trazar ejes a 30 grados y aplicar la escala 1:20.', 'Unir los puntos para formar el prisma isométrico final.'],
+          conclusion: 'El modelo isométrico permite visualizar el volumen con precisión.',
+        },
+        mapaConceptual: {
+          definicionClave: 'Sistema de proyección sobre tres ejes a 120 grados.',
+          criterioDesarrollo: 'Mantener fidelidad dimensional en los tres ejes.',
+          errorComun: 'Aplicar escalas distintas en los ejes.',
+          correccionBreve: 'Verificar paralelismo y escala en cada eje.',
+        },
+      },
+    };
+    const ex95 = extractWorkedExample(dummyMission, dt1Session, { allowMissionFallback: false });
+    expect(ex95.steps.join(' ')).not.toContain('A = 0.5m');
+    expect(
+      paraphraseSixGramOverlap(
+        'Aprenderás a proyectar objetos tridimensionales en el sistema diédrico mediante vistas ortogonales.',
+        ['Aprenderás a proyectar objetos tridimensionales en el sistema diédrico mediante vistas ortogonales.']
+      )
+    ).not.toMatch(/\bestimar\s+objetos\b/i);
+
+    // Títulos limpios en CNET1 S153 y DT1 S19
+    expect(
+      resolveChalkboardTopicTitle({
+        sessionObjective: 'Evalúas de manera integral tu producto integrador mediante una rúbrica analítica.',
+      })
+    ).not.toMatch(/^Manera\s+integral\b/i);
+    expect(
+      resolveChalkboardTopicTitle({
+        sessionObjective: 'Integrarás todos los conocimientos de dibujo técnico, escalas, acotación y proyección.',
+      })
+    ).not.toMatch(/^Todos\s+los\s+conocimientos\b/i);
+
+    // Gate findIncompleteInfographicBlock rechaza stubs F ¿Alguna vez / E 04
+    expect(
+      findIncompleteInfographicBlock({
+        variables: [{ symbol: 'F', label: 'Fenómeno', meaning: '¿Alguna vez' }],
+      } as unknown as Parameters<typeof findIncompleteInfographicBlock>[0])
+    ).toBeTruthy();
+    expect(
+      findIncompleteInfographicBlock({
+        variables: [{ symbol: 'E', label: 'Eventos', meaning: '04' }],
+      } as unknown as Parameters<typeof findIncompleteInfographicBlock>[0])
+    ).toBeTruthy();
   });
 });

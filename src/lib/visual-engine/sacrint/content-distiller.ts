@@ -15,7 +15,12 @@ import { getMaterial } from '@/lib/materials/materials-catalog';
 import { stripInlineMarkdownEmphasis } from '@/lib/utils/inline-markdown';
 import { stripMarkdownTables } from '@/lib/editorial/markdown-table-sanitizer';
 import { parseContenidoToBloques, parseEjemploResuelto } from '@/lib/editorial/student-content-model';
-import { fitPedagogicalText, hasDanglingEnding, splitSpanishSentences } from '@/lib/editorial/pedagogical-text-fitter';
+import {
+  fitPedagogicalText,
+  hasDanglingEnding,
+  isPublishablePedagogicalText,
+  splitSpanishSentences,
+} from '@/lib/editorial/pedagogical-text-fitter';
 import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
 import { isValidRenderableFormula, normalizeSessionDescriptorTense } from '@/lib/editorial/text-normalization';
 import { normalizeMathNotation } from './math-text';
@@ -88,7 +93,8 @@ export function cleanSacrintText(value: string | null | undefined): string {
   text = text
     .replace(/\bpara\s+dentro\s+de\s+/gi, 'en ')
     .replace(/\bdentro\s+de\s+/gi, 'en ')
-    .replace(/\?(['"»”’])\?/g, '?$1');
+    .replace(/\?(['"»”’])\?/g, '?$1')
+    .replace(/(['"][^'"]+?)\.{2,}(?=\s|[A-Za-z'"])/g, '$1 ___');
   return text.replace(/\s+/g, ' ').trim();
 }
 
@@ -493,9 +499,21 @@ export function extractFormulasFromText(text: string, limit = 3): string[] {
 }
 
 function stripRubricTail(rawText: string): string {
-  return rawText
-    .replace(/\s*\b(?:R[uú]brica(?:\s+anal[ií]tica)?|Criterios?\s+de\s+evaluaci[oó]n|Lista\s+de\s+cotejo)\s*:[\s\S]*$/i, '')
-    .trim();
+  const match = rawText.match(
+    /\s*\b(?:R[uú]brica(?:\s+anal[ií]tica)?|Criterios?\s+de\s+evaluaci[oó]n|Lista\s+de\s+cotejo)\s*:[\s\S]*$/i
+  );
+  if (!match || match.index === undefined) return rawText.trim();
+  const prefix = rawText.slice(0, match.index).trim();
+  const tail = match[0];
+  const tailLooksLikeRubricMetadata =
+    /ponderaci[oó]n|excelente|bueno|suficiente|insuficiente|requiere\s+apoyo|\b\d+\s*(?:pts?|puntos?|%)/i.test(
+      tail
+    );
+  // No amputar un paso legítimo cuya acción es aplicar una rúbrica ("Aplicar rúbrica: verificar entrada, cuerpo y cierre.").
+  if (!tailLooksLikeRubricMetadata && prefix.split(/\s+/).filter(Boolean).length < 4) {
+    return rawText.trim();
+  }
+  return prefix;
 }
 
 function cleanStepLine(rawStep: string): string {
@@ -984,7 +1002,6 @@ const GENERIC_SIX_GRAM_PARAPHRASES: Array<[RegExp, string]> = [
   [/\bpapel milim[eé]trico\b/gi, 'hoja cuadriculada'],
   [/\bsuma total\b/gi, 'suma'],
   [/\bmultiplica repetidamente\b/gi, 'aplica de forma sucesiva'],
-  [/\bpara proyectar\b/gi, 'para estimar'],
   [/\bse clasifican por\b/gi, 'se distinguen según'],
   [/\bintegra a tu portafolio\b/gi, 'incorpora a tu carpeta'],
   [/\bintegra a tu dossier\b/gi, 'añade a tu expediente'],
@@ -1104,7 +1121,6 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\belaborar\b/gi, 'preparar'],
   [/\bconstruir\b/gi, 'armar'],
   [/\bregistrar\b/gi, 'anotar'],
-  [/\bproyectar\b/gi, 'estimar'],
   [/\bpara calcular\b/gi, 'para hallar'],
   [/\bpara determinar\b/gi, 'para encontrar'],
   [/\bpara resolver\b/gi, 'para solucionar'],
@@ -1241,7 +1257,6 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\blas evidencias\b/gi, 'los respaldos'],
   [/\bel criterio\b/gi, 'la pauta'],
   [/\blos criterios\b/gi, 'las pautas'],
-  [/\bla informaci[oó]n\b/gi, 'los datos'],
   [/\bplano t[eé]cnico definitivo\b/gi, 'lámina técnica final'],
   [/\ben tu plano t[eé]cnico\b/gi, 'en tu lámina técnica'],
   [/\bplano definitivo\b/gi, 'plano final'],
@@ -2274,13 +2289,15 @@ export function extractWorkedExample(
       /\b(?:paso|sesi[oó]n|nivel|etapa|fase|criterio|bloque|corte|p[aá]rrafo|art[ií]culo)\s*\d+\b/gi,
       ''
     );
+    // Distinguir cálculos matemáticos/ecuaciones reales de menciones incidentales de hardware o tiempo
+    // ("16GB", "5 minutos", "0.5 gramos"), para no descartar sintesisVisual.ejemploBreve en sesiones técnicas.
     const hasSessionQuantitativeExample = Boolean(
       exampleWithoutStepLabels &&
-        /[=±≈√]|(?:\d+(?:[.,]\d+)?\s*(?:%|°|m²|m³|cm|mm|km|kg|mg|g|ml|l|hz|gb|mb|v|a|w|ω|mol|pesos|\$|horas|minutos|segundos|a[ñn]os|unidades))|\$\s*\d/i.test(
-          exampleWithoutStepLabels
-        )
+        /(?:[=±≈]\s*-?\d)|(?:\d+(?:[.,]\d+)?\s*[=±≈×÷*/+-]\s*\d)|√/.test(exampleWithoutStepLabels)
     );
-    const visualStepsHaveMath = steps.some((step) => /[=]|\d/.test(step));
+    const visualStepsHaveMath =
+      steps.some((step) => /[=≤≥]|\d/.test(step)) ||
+      /[=≤≥]|\d/.test(`${problemStatement} ${interpretation} ${session?.sintesisVisual?.formulaOReglaClave ?? ''}`);
     const visualHasEquation = /=/.test(`${problemStatement} ${steps.join(' ')}`);
     const extractSigNums = (text: string): string[] =>
       [...new Set((text.match(/\d[\d.,]*/g) ?? []).map((n) => n.replace(/,/g, '')).filter((n) => n !== '1' && n !== '2' && n !== '3'))];
@@ -2293,8 +2310,25 @@ export function extractWorkedExample(
     const extractedSrcEq = exampleWithoutStepLabels
       ? extractCompleteEquations(exampleWithoutStepLabels)[0]?.trim()
       : undefined;
-    const sessionHasEquation = Boolean(extractedSrcEq);
-    if (!visualHasEquation && visualSharesSameProblemNumbers && steps.length > 0 && extractedSrcEq) {
+    const isTrivialSingleVarAssignment = Boolean(
+      extractedSrcEq &&
+        /^[A-Za-zÁÉÍÓÚÑáéíóúñ]{1,4}\s*=\s*-?\d+(?:[.,]\d+)?\s*(?:mm|cm|m|km|g|kg|mg|ml|l|s|min|h|°|%)?$/i.test(
+          extractedSrcEq
+        )
+    );
+    const eqSigNums = extractedSrcEq ? extractSigNums(extractedSrcEq) : [];
+    const eqNumbersMatchVisual =
+      eqSigNums.length === 0 ||
+      (visualNums.length > 0 && eqSigNums.every((n) => visualNums.includes(n)));
+    const sessionHasEquation = Boolean(extractedSrcEq && !isTrivialSingleVarAssignment && eqNumbersMatchVisual);
+    if (
+      !visualHasEquation &&
+      visualSharesSameProblemNumbers &&
+      !isTrivialSingleVarAssignment &&
+      eqNumbersMatchVisual &&
+      steps.length > 0 &&
+      extractedSrcEq
+    ) {
       const openCount = (extractedSrcEq.match(/\(/g) || []).length;
       const closeCount = (extractedSrcEq.match(/\)/g) || []).length;
       if (
@@ -2669,10 +2703,10 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
   const hasExplicitStudentTask = (text: string): boolean => {
     const withoutDescriptiveThirdPerson = text
       .replace(
-        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa)|el\s+(?:compa[ñn]er[oa]|estudiante|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
+        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|investigador[a]?|operari[oa]|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa)|el\s+(?:compa[ñn]er[oa]|estudiante|investigador|operario|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
         ''
       )
-      .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide)\b/gi, '');
+      .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide|observa)\b/gi, '');
     if (taskRe.test(withoutDescriptiveThirdPerson)) return true;
     return imperativeModelaRe.test(withoutDescriptiveThirdPerson);
   };
@@ -2852,17 +2886,19 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
     if (compactTask.length <= maxChars + 40) {
       return ensureActivityTask(compactTask);
     }
+    const fittedFinal = fitPedagogicalText(compactTask, { maxChars: maxChars + 40, maxWords, role: 'activity' });
     return ensureActivityTask(
-      fitPedagogicalText(compactTask, { maxChars: maxChars + 40, maxWords, role: 'activity' })
+      isPublishablePedagogicalText(fittedFinal, 'activity', compactTask) ? fittedFinal : compactTask
     );
   }
 
+  const fittedClean = fitPedagogicalText(clean, {
+    maxChars,
+    maxWords,
+    role: 'activity',
+  });
   return ensureActivityTask(
-    fitPedagogicalText(clean, {
-      maxChars,
-      maxWords,
-      role: 'activity',
-    })
+    isPublishablePedagogicalText(fittedClean, 'activity', clean) ? fittedClean : clean
   );
 }
 
