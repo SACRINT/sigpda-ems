@@ -1027,7 +1027,6 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\belementos\b/gi, 'componentes'],
   [/\belemento\b/gi, 'componente'],
   [/\bimportancia\b/gi, 'relevancia'],
-  [/\bmanera\b/gi, 'forma'],
   [/\bobjetivo\b/gi, 'propósito'],
   [/\ben tu cuaderno\b/gi, 'en tu libreta'],
   [/\btu portafolio\b/gi, 'tu carpeta'],
@@ -1191,7 +1190,6 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\ba partir de\b/gi, 'desde'],
   [/\bdentro de la\b/gi, 'en la'],
   [/\bdentro del\b/gi, 'en el'],
-  [/\bantes de\b/gi, 'previo a'],
   [/\bdespu[eé]s de\b/gi, 'tras'],
   [/\bpor medio de\b/gi, 'mediante'],
   [/\bmediante el\b/gi, 'con el'],
@@ -1238,50 +1236,66 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bel criterio\b/gi, 'la pauta'],
   [/\blos criterios\b/gi, 'las pautas'],
   [/\bla informaci[oó]n\b/gi, 'los datos'],
+  [/\bplano t[eé]cnico definitivo\b/gi, 'lámina técnica final'],
+  [/\ben tu plano t[eé]cnico\b/gi, 'en tu lámina técnica'],
+  [/\bcu[aá]les son las medidas\b/gi, 'qué medidas corresponden'],
+  [/\bcu[aá]l ser[aá] la medida\b/gi, 'qué medida tendrá'],
+  [/\bqu[eé] procedimiento seguir[aá]s\b/gi, 'qué pasos seguirás'],
+  [/\baltura total\b/gi, 'alto total'],
+  [/\blongitud total\b/gi, 'largo total'],
 ];
 
 /**
  * Mapa de sustituciones seguras (sin colisión de prototipo Object.prototype como "constructor",
- * "toString" o "valueOf") para romper ventanas residuales de 6-gramas preservando gramática,
- * concordancia de género/número y régimen preposicional en español.
+ * "toString" o "valueOf", sin homógrafos sustantivo/verbo como "muestra" o "registro", y sin
+ * colisión de tildes como "esta"/"está") para romper ventanas residuales de 6-gramas preservando
+ * gramática, concordancia de género/número y régimen preposicional en español.
+ * Se consulta usando la palabra original en minúsculas (con tilde preservada).
  */
 const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string, string>([
-  ['segun', 'conforme a'],
-  ['desde', 'a partir de'],
+  ['según', 'conforme a'],
   ['porque', 'puesto que'],
-  ['mediante', 'por medio de'],
-  ['este', 'dicho'],
-  ['esta', 'dicha'],
-  ['estos', 'dichos'],
-  ['estas', 'dichas'],
-  ['mismo', 'propio'],
-  ['misma', 'propia'],
-  ['nuevo', 'reciente'],
-  ['nueva', 'reciente'],
-  ['escolar', 'del plantel'],
-  ['escolares', 'del plantel'],
   ['problema', 'reto'],
   ['problemas', 'retos'],
   ['procedimiento', 'método'],
   ['procedimientos', 'métodos'],
-  ['decision', 'elección'],
+  ['decisión', 'elección'],
   ['decisiones', 'elecciones'],
-  ['registro', 'apunte'],
-  ['registros', 'apuntes'],
-  ['analisis', 'estudio'],
+  ['análisis', 'estudio'],
   ['etapa', 'fase'],
   ['etapas', 'fases'],
+  ['elemento', 'componente'],
+  ['elementos', 'componentes'],
+  ['objetivo', 'propósito'],
+  ['objetivos', 'propósitos'],
+  ['característica', 'cualidad'],
+  ['características', 'cualidades'],
+  ['herramienta', 'instrumento'],
+  ['herramientas', 'instrumentos'],
+  ['precisión', 'exactitud'],
   ['correcto', 'adecuado'],
   ['correcta', 'adecuada'],
   ['correctos', 'adecuados'],
   ['correctas', 'adecuadas'],
   ['correctamente', 'adecuadamente'],
+  ['adecuado', 'apropiado'],
+  ['adecuada', 'apropiada'],
+  ['adecuados', 'apropiados'],
+  ['adecuadas', 'apropiadas'],
   ['importante', 'relevante'],
   ['importantes', 'relevantes'],
   ['principal', 'central'],
   ['principales', 'centrales'],
   ['fundamental', 'esencial'],
   ['fundamentales', 'esenciales'],
+  ['básico', 'elemental'],
+  ['básica', 'elemental'],
+  ['básicos', 'elementales'],
+  ['básicas', 'elementales'],
+  ['específico', 'concreto'],
+  ['específica', 'concreta'],
+  ['específicos', 'concretos'],
+  ['específicas', 'concretas'],
   ['necesario', 'requerido'],
   ['necesaria', 'requerida'],
   ['necesarios', 'requeridos'],
@@ -1296,8 +1310,6 @@ const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string,
   ['utilizan', 'emplean'],
   ['requiere', 'exige'],
   ['requieren', 'exigen'],
-  ['muestra', 'expone'],
-  ['muestran', 'exponen'],
   ['indica', 'señala'],
   ['indican', 'señalan'],
   ['genera', 'produce'],
@@ -1312,12 +1324,43 @@ const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string,
   ['describen', 'detallan'],
   ['identifica', 'reconoce'],
   ['identifican', 'reconocen'],
-  ['evalua', 'valora'],
-  ['evaluan', 'valoran'],
+  ['evalúa', 'valora'],
+  ['evalúan', 'valoran'],
   ['verifica', 'comprueba'],
   ['verifican', 'comprueban'],
-  ['tambien', 'además'],
-  ['ademas', 'asimismo'],
+  ['comprender', 'entender'],
+  ['determinar', 'definir'],
+  ['calcular', 'hallar'],
+  ['resolver', 'solucionar'],
+  ['observar', 'examinar'],
+  ['registrar', 'anotar'],
+  ['evaluar', 'valorar'],
+  ['seleccionar', 'elegir'],
+  ['organizar', 'ordenar'],
+  ['integrar', 'incorporar'],
+  ['relacionar', 'vincular'],
+  ['interpretar', 'explicar'],
+  ['establecer', 'fijar'],
+  ['dimensión', 'medida'],
+  ['dimensiones', 'medidas'],
+  ['representar', 'trazar'],
+  ['utilizar', 'emplear'],
+  ['verificar', 'comprobar'],
+  ['identificar', 'reconocer'],
+  ['analizar', 'examinar'],
+  ['explicar', 'detallar'],
+  ['garantizar', 'asegurar'],
+  ['permitir', 'posibilitar'],
+  ['obtener', 'lograr'],
+  ['aplicar', 'emplear'],
+  ['comparar', 'contrastar'],
+  ['justificar', 'sustentar'],
+  ['elaborar', 'preparar'],
+  ['presentar', 'ofrecer'],
+  ['describir', 'detallar'],
+  ['desarrollar', 'ejecutar'],
+  ['también', 'además'],
+  ['además', 'asimismo'],
 ]);
 
 function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): string {
@@ -1331,10 +1374,9 @@ function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): s
     if (sourceGrams.has(gram)) {
       let replacedIdx = -1;
       for (let j = i + 5; j >= i; j--) {
-        const normWord = normTokens[j]!;
-        const sub = WINDOW_BREAKER_REPLACEMENTS.get(normWord);
-        if (!sub) continue;
         const origWord = tokenMatches[j]![0];
+        const sub = WINDOW_BREAKER_REPLACEMENTS.get(origWord.toLowerCase());
+        if (!sub) continue;
         const start = tokenMatches[j]!.index!;
         const end = start + origWord.length;
         const isCap =
@@ -1401,7 +1443,7 @@ export function paraphraseSixGramOverlap(
       if (currentRatio === 0) break;
     }
   }
-  if (currentRatio > 0.08) {
+  if (currentRatio > 0.04) {
     const windowBroken = breakRemainingSixGramWindows(out, sourceGrams);
     if (windowBroken !== out) {
       const brokenRatio = ratioAgainstSixGrams(windowBroken, sourceGrams);
@@ -2233,19 +2275,22 @@ export function extractWorkedExample(
         )
     );
     const visualStepsHaveMath = steps.some((step) => /[=]|\d/.test(step));
-    const sessionHasEquation = Boolean(
-      exampleWithoutStepLabels &&
-        /[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/.test(exampleWithoutStepLabels)
-    );
     const visualHasEquation = /=/.test(`${problemStatement} ${steps.join(' ')}`);
-    if (sessionHasEquation && !visualHasEquation && steps.length > 0) {
-      const srcEq = exampleWithoutStepLabels
-        .match(/[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/)?.[0]
-        ?.trim()
-        .replace(/[.,;]+$/, '');
-      if (srcEq) {
+    const extractedSrcEq = exampleWithoutStepLabels
+      ? extractCompleteEquations(exampleWithoutStepLabels)[0]?.trim()
+      : undefined;
+    const sessionHasEquation = Boolean(extractedSrcEq);
+    if (!visualHasEquation && steps.length > 0 && extractedSrcEq) {
+      const openCount = (extractedSrcEq.match(/\(/g) || []).length;
+      const closeCount = (extractedSrcEq.match(/\)/g) || []).length;
+      if (
+        extractedSrcEq.length >= 5 &&
+        extractedSrcEq.length <= 42 &&
+        openCount === closeCount &&
+        !hasDanglingEnding(extractedSrcEq)
+      ) {
         const targetIdx = Math.min(1, steps.length - 1);
-        steps[targetIdx] = `${steps[targetIdx]!.replace(/[.]+$/, '')} (${srcEq}).`;
+        steps[targetIdx] = `${steps[targetIdx]!.replace(/[.]+$/, '')} (${extractedSrcEq}).`;
       }
     }
     if (steps.length === 2) {

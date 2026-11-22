@@ -721,5 +721,72 @@ describe('Auditoría Integral PM3_NVO — Regresiones Estructurales', () => {
         'Los elementos constructivos son componentes físicos que integran una vivienda.'
       )
     ).toBe(false);
+    expect(hasDanglingEnding('Mide siempre a partir.')).toBe(true);
+    expect(hasDanglingEnding('Observa la dispersión de luz en la muestra y considera.')).toBe(true);
+    expect(hasDanglingEnding('Aplica dichas construcciones geométricas para diseñar.')).toBe(true);
+    expect(hasDanglingEnding('Si ocurre un contacto accidental con la piel, el protocolo.')).toBe(true);
+  });
+
+  it('paraphraseSixGramOverlap preserva homógrafos y tildes ("en la muestra", "está funcionando", "desde") sin corrupción', () => {
+    const lab =
+      'Un estudiante mide una muestra de suelo húmedo porque el altavoz interno está funcionando y mide siempre desde la misma altura.';
+    const out = paraphraseSixGramOverlap(lab, [lab]);
+    expect(out).not.toMatch(/\b(?:en\s+la|una)\s+expone\b/i);
+    expect(out).not.toMatch(/\bdicha\s+funcionando\b/i);
+    expect(out).not.toMatch(/\ba\s+partir\./i);
+    expect(out).toContain('muestra');
+    expect(out).toContain('está funcionando');
+  });
+
+  it('extractWorkedExample nunca inyecta paréntesis de ecuación truncados en letras acentuadas como "(dibujo = (Dimensi)."', () => {
+    const s: SessionPlan = {
+      sessionNumber: 1,
+      objetivo: 'Aplicar escalas normalizadas en planos técnicos.',
+      motivacion: 'Acotación de planos escolares.',
+      saberesPrevios: 'Conversión de unidades.',
+      contenido: 'La escala relaciona la dimensión en el dibujo con la dimensión real del objeto.',
+      ejemploResuelto:
+        'Planteamiento: Representar un banco de 2000 mm a escala 1:20. Paso 1: Aplica la relación dibujo = (Dimensión real) / 20 para hallar la cota. Paso 2: Calcula 2000 / 20 = 100 mm.',
+      practica: [{ enunciado: 'Calcula la medida en papel de una mesa de 1200 mm a escala 1:20.', pista: 'Divide entre 20.' }],
+      aplicacion: 'Se aplica en láminas de mobiliario escolar.',
+      autoevaluacion: ['Convierto medidas reales a escala 1:20 sin errores.'],
+      recursos: [],
+      productoIntegrador: 'Lámina acotada a escala 1:20.',
+      sintesisVisual: {
+        conceptoBreve: 'La escala normalizada permite representar objetos reales en planos técnicos.',
+        formulaOReglaClave: 'D = R / 20',
+        ejemploBreve: {
+          planteamiento: 'Representar un banco de 2000 mm en plano a escala 1:20.',
+          pasos: ['Identificar la medida real del banco.', 'Aplicar escala 1:20 y acotar correctamente.'],
+          conclusion: 'La longitud en la lámina será de 100 mm.',
+        },
+        mapaConceptual: {
+          definicionClave: 'Escala normalizada en planos técnicos.',
+          criterioDesarrollo: 'Dividir la medida real entre el denominador de la escala.',
+          errorComun: 'Omitir la conversión de unidades antes de aplicar la escala.',
+          correccionBreve: 'Verificar siempre que dibujo y realidad estén en milímetros.',
+        },
+      },
+    };
+    const missionStub = {
+      missionIndex: 1,
+      title: 'Escalas normalizadas',
+      coveredSessions: [1],
+      sessionTopic: 'Escalas normalizadas',
+      sessionFocus: 'Escala 1:20',
+      phenomenonHook: { story: '', detonatingQuestion: '' },
+      conceptZero: { physicalAnalogy: '', coreExplanation: '' },
+      iDoSection: { stepByStepDemo: '' },
+      weDoSection: { guidedPractice: '', workbookElements: [] },
+      youDoSection: { autonomousChallenge: '', workbookElements: [] },
+      troubleshooting: [],
+      formativeCheckpoint: { question: '', criteriaChecklist: [], reflectionPrompts: [] },
+      wordCount: 200,
+      sessionPlans: [s],
+    } as unknown as MissionSection;
+    const ex = extractWorkedExample(missionStub, s, { allowMissionFallback: false });
+    const joined = ex.steps.join(' ');
+    expect(joined).not.toContain('(Dimensi)');
+    expect(joined).not.toMatch(/\([A-Za-z]+\s*=\s*\([A-Za-z]+\)\./);
   });
 });

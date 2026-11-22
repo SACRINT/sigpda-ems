@@ -149,6 +149,25 @@ export function hasDanglingEnding(raw: string): boolean {
     return true;
   }
 
+  // Locuciones prepositivas truncadas ("a partir.", "por medio.", "en torno.", "previo.")
+  if (/\b(?:a\s+partir|por\s+medio|en\s+torno|con\s+respecto|acerca|previo|previa|junto)\.?$/i.test(clean)) {
+    return true;
+  }
+
+  // Verbos transitivos o infinitivos colgados al cierre sin objeto directo ("y considera.", "y asegura.", "para diseñar.")
+  if (
+    /\b(?:y|e|o|para|sin|al)\s+(?:considera|asegura|garantiza|permite|incluye|contiene|requiere|utiliza|emplea|aplica|presenta|muestra|indica|describe|identifica|reconoce|analiza|examina|define|expresa|representa|dise[ñn]ar|construir|elaborar|calcular|determinar|identificar|analizar|explicar|resolver|aplicar|obtener|verificar|registrar|evaluar|comparar|representar|medir|trazar|acotar)\.?$/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // Condicional truncado en sintagma nominal sin verbo principal ("Si ocurre un contacto accidental, el protocolo.")
+  if (/^Si\s+[^,]{3,80},\s*(?:el|la|los|las|un|una)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+)?\.?$/i.test(clean)) {
+    return true;
+  }
+
   // Detectar cola tipo "). El." o ". Si al." (oración final de 1–2 palabras funcionales tras punto)
   const stubAfterDot = clean.match(/\.\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+)?)\.?$/);
   if (stubAfterDot) {

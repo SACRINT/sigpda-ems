@@ -1391,7 +1391,7 @@ function compactActivityStatement(statement: string): string {
     .replace(/\bpara determinar el costo unitario de cada tipo de bal[oó]n,\s*y elabora la matriz de comprobaci[oó]n num[eé]rica que valide tus resultados algebraicos\b/gi, 'para hallar el costo de cada balón y comprobarlo')
     .replace(/\bde dichos\b/gi, 'de esos')
     .replace(/\bcorrespondiente\s+a\b/gi, 'de')
-    .replace(/\b(?:paso a paso|exactamente|posteriormente|correspondiente|rigurosamente)\b/gi, '')
+    .replace(/\b(?:paso a paso|exactamente|posteriormente|rigurosamente)\b/gi, '')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([,.;])/g, '$1')
     .trim();
@@ -1418,7 +1418,9 @@ function hasActivityTask(value: string): boolean {
       ''
     )
     .replace(/\b(?:se|que|donde|cuyo|cuya)\s+(?:modela|describe|presenta|establece|indica|muestra|representa)\b/gi, '')
-    .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+muestra\b/gi, '');
+    .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+muestra\b/gi, '')
+    .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha|cada|en|tras|durante)\s+(?:la\s+|una\s+)?prueba\b/gi, '')
+    .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+marca\b/gi, '');
   if (ACTIVITY_TASK_RE.test(withoutDescriptiveThirdPerson)) return true;
   return IMPERATIVE_MODELA_RE.test(withoutDescriptiveThirdPerson);
 }
@@ -1446,6 +1448,7 @@ function hasIncompleteConditionalEnding(value: string): boolean {
 function ensureActivityClosure(statement: string): string {
   const cleaned = capitalizeProseStart(
     String(statement || '')
+      .replace(/^[:;.\-–—\s]+/, '')
       .replace(/\.,/g, ',')
       .replace(/,\./g, '.')
       .replace(/(\?\s+[^¿?]{6,140})\?$/g, '$1.')
@@ -1507,12 +1510,12 @@ function compactActivityPreservingTaskAndData(
     const uniqueRef = new Set(mathTokens(reference));
     if (uniqueRef.size > 0) {
       const candSet = new Set(mathTokens(c));
-      const strictNumbers = !allowPartialNumbers || requiresStrictNumericPreservation(reference) || uniqueRef.size <= 3;
+      const strictNumbers = !allowPartialNumbers || requiresStrictNumericPreservation(reference) || uniqueRef.size <= 2;
       if (strictNumbers) {
         for (const tok of uniqueRef) {
           if (!candSet.has(tok)) return false;
         }
-      } else if (candSet.size < Math.min(3, uniqueRef.size)) {
+      } else if (candSet.size < Math.min(2, uniqueRef.size)) {
         return false;
       }
     }
@@ -1641,8 +1644,11 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
     }
     return fitted;
   };
-  const compactMathStep = (step: string, maxChars: number, maxWords: number): string =>
-    /[=+\-*/^]|\d/.test(step) ? step : distillStepPreservingMath(step, maxChars, maxWords);
+  const compactMathStep = (step: string, maxChars: number, maxWords: number): string => {
+    if (/[=+\-*/^]|\d/.test(step)) return step;
+    const distilled = distillStepPreservingMath(step, maxChars, maxWords);
+    return distilled && distilled.trim().length >= 12 && !hasDanglingEnding(distilled) ? distilled : step;
+  };
 
   if (slide.kind === 'concept') {
     const cs = slide as SacrintConceptSlide;
@@ -1721,11 +1727,18 @@ function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide {
       .filter(isValidEvaluationCriterionItem);
     return {
       ...ps,
-      activities: (ps.activities ?? []).slice(0, 2).map((activity) => ({
-        ...activity,
-        statement: compactActivityPreservingTaskAndData(activity.statement, 220, 36),
-        hint: fitShort(compactHintText(activity.hint), 100, 16, 'hint', 22),
-      })),
+      activities: (ps.activities ?? []).slice(0, 2).map((activity) => {
+        const fittedHint = fitShort(compactHintText(activity.hint), 100, 16, 'hint', 22);
+        const cleanHint =
+          fittedHint && fittedHint.trim().length >= 18 && !hasDanglingEnding(fittedHint)
+            ? fittedHint
+            : undefined;
+        return {
+          ...activity,
+          statement: compactActivityPreservingTaskAndData(activity.statement, 220, 36),
+          hint: cleanHint,
+        };
+      }),
       applicationText: fitShort(ps.applicationText, 116, 18, 'application', 44),
       practiceText: fitShort(ps.practiceText, 116, 18, 'application', 44),
       objectiveBullets: (ps.objectiveBullets ?? [])
@@ -2177,7 +2190,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       artifactStep:
         fitPreserving(third.artifactStep, 80, 12, 'application', 32) || third.artifactStep,
     } as SacrintPracticeSlide;
-    if (countSlideWords(fourth) <= 180) return fourth;
+    if (countSlideWords(fourth) <= 172) return fourth;
 
     const fifth = {
       ...fourth,
@@ -2196,9 +2209,9 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       artifactStep:
         fitPreserving(fourth.artifactStep, 70, 11, 'application', 30) || fourth.artifactStep,
     } as SacrintPracticeSlide;
-    if (countSlideWords(fifth) <= 184) return fifth;
+    if (countSlideWords(fifth) <= 176) return fifth;
 
-    // Etapa 6 segura: si aún excede 184 palabras (p. ej. 2 actividades muy extensas de 70+ palabras),
+    // Etapa 6 segura: si aún excede 176 palabras (p. ej. 2 actividades muy extensas de 70+ palabras),
     // compactar frases narrativas secundarias en actividades (permitiendo condensación de enumeraciones largas)
     // y acortar pistas largas sin tocar nunca ecuaciones, datos clave ni la pregunta central.
     const sixth = {
@@ -2213,7 +2226,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       artifactStep:
         fitPreserving(fifth.artifactStep, 64, 10, 'application', 30) || fifth.artifactStep,
     } as SacrintPracticeSlide;
-    if (countSlideWords(sixth) <= 186) return sixth;
+    if (countSlideWords(sixth) <= 178) return sixth;
 
     // Respaldo final determinista: si las 2 actividades juntas todavía superan 186w,
     // condensar cláusulas explicativas largas dentro de cada enunciado sin borrar datos ni consigna.
@@ -2246,13 +2259,13 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
         statement: compactActivityPreservingTaskAndData(condenseNarrativeClauses(activity.statement), 145, 24, true),
       })),
     } as SacrintPracticeSlide;
-    if (countSlideWords(seventh) <= 188) return seventh;
+    if (countSlideWords(seventh) <= 170) return seventh;
     return {
       ...seventh,
       activities: (seventh.activities ?? []).slice(0, 2).map((activity, idx) => ({
         ...activity,
-        statement: condenseNarrativeClauses(activity.statement),
-        hint: idx === 1 && countSlideWords(seventh) > 188 ? undefined : activity.hint,
+        statement: compactActivityPreservingTaskAndData(condenseNarrativeClauses(activity.statement), 130, 21, true),
+        hint: idx === 1 && countSlideWords(seventh) > 170 ? undefined : activity.hint,
       })),
     } as SacrintPracticeSlide;
   }
@@ -2290,6 +2303,7 @@ function buildLessonGuideSlidesForSession(
     session,
     allowMissionFallback: false,
     preferredExampleText: preferredExampleText.length >= 16 ? preferredExampleText : undefined,
+    theorySources: workbookTheorySources,
   });
   const isQuantOrReactionDiagram =
     diagram.available &&
@@ -4137,6 +4151,7 @@ export function buildSacrintInfographic(
         session: selectedSession,
         allowMissionFallback: false,
         preferredExampleText: infoPreferredExampleText.length >= 16 ? infoPreferredExampleText : undefined,
+        theorySources: infographicSources,
       })
     : undefined;
   const candidateDiagram =

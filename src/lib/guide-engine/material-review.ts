@@ -183,6 +183,27 @@ function normalizeForMatch(value: string | null | undefined): string {
     .trim();
 }
 
+const LINGUISTIC_CORRUPTION_PATTERNS: Array<{ label: string; regex: RegExp }> = [
+  { label: 'hacia+infinitivo', regex: /\bhacia\s+[a-záéíóúñ]{3,}(?:ar|er|ir)\b/i },
+  { label: 'tal_tal', regex: /\btal\s+tal\b/i },
+  { label: 'dicha+gerundio', regex: /\bdicha\s+(?:funcionando|siendo|teniendo|haciendo|operando|trabajando)\b/i },
+  { label: 'en_la_expone', regex: /\b(?:en\s+la|una|esta|esa|dicha)\s+expone\b/i },
+  { label: 'un_lado_al', regex: /\bun\s+lado\s+al\s+de\b/i },
+  { label: 'mediante_forma', regex: /\bmediante\s+forma\b/i },
+  { label: 'a_partir_truncado', regex: /\ba\s+partir\.(?=["'\s,}\]]|$)/i },
+  { label: 'y_considera_truncado', regex: /\by\s+considera\.(?=["'\s,}\]]|$)/i },
+  { label: 'paren_ecuacion_trunca', regex: /\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\s*=\s*\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\)\./ },
+];
+
+export function findLinguisticCorruption(text: string | null | undefined): string | null {
+  if (!text) return null;
+  for (const { label, regex } of LINGUISTIC_CORRUPTION_PATTERNS) {
+    const match = text.match(regex);
+    if (match) return `${label}: "${match[0]}"`;
+  }
+  return null;
+}
+
 function findPlaceholderToken(text: string | null | undefined): string | null {
   if (!text) return null;
   for (const pattern of PLACEHOLDER_PATTERNS) {
@@ -763,6 +784,15 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
         message: `La presentación contiene un marcador inválido o no interpolado (${deckPlaceholder}).`,
       });
     }
+    const deckCorruption = findLinguisticCorruption(serializedDeck);
+    if (deckCorruption) {
+      pushIssue({
+        code: 'S6_LINGUISTIC_CORRUPTION',
+        material: 'deck',
+        severity: 'error',
+        message: `La presentación contiene corrupción lingüística o truncamiento mecánico (${deckCorruption}).`,
+      });
+    }
     for (let sIdx = 0; sIdx < slides.length; sIdx++) {
       const slide = slides[sIdx];
       const title = (slide?.title ?? '').trim();
@@ -817,6 +847,15 @@ export function reviewBlockMaterials(input: ReviewBlockMaterialsInput): Material
         material: 'infographic',
         severity: 'error',
         message: `La infografía contiene un marcador inválido o no interpolado (${infoPlaceholder}).`,
+      });
+    }
+    const infoCorruption = findLinguisticCorruption(serializedInfo);
+    if (infoCorruption) {
+      pushIssue({
+        code: 'S6_LINGUISTIC_CORRUPTION',
+        material: 'infographic',
+        severity: 'error',
+        message: `La infografía contiene corrupción lingüística o truncamiento mecánico (${infoCorruption}).`,
       });
     }
     const hasRequiredInfoFields = Boolean(

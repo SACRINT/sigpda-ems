@@ -105,7 +105,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['double_dots', /(?<![.\d])\.\.(?![.\d])(?!\s*$)/],
     ['dup_session_header', /Sesi[oó]n\s+(\d{1,2})\s*[:.\-–—]*\s*Sesi[oó]n\s+\1\b/i],
     ['dangling_activaras_tus', /y\s+activar[aá]s\s+tus(?:\s*["".»)]|\s+[—–-]|\s*\[|\s*$)/i],
-    ['placeholder_modelo', /Modelo\s+por\s+construir|MODELO\s+POR\s+CONSTRUIR|Contenido\s+por\s+completar|Por\s+completar\s+en\s+el\s+libro/i],
+    ['placeholder_modelo', /Modelo\s+por\s+construir|MODELO\s+POR\s+CONSTRUIR|Contenido\s+por\s+completar(?!\s+el\s+cuadrado)|Por\s+completar\s+en\s+el\s+libro/i],
     ['glued_paso_inline', /[^\n.?!][ \t]+\d+\)[ \t]+[^\n.?!]{3,60}[ \t]+Paso[ \t]+\d+[ \t]*:|[=x0-9)][ \t]+Paso[ \t]+\d+[ \t]*:/i],
     ['uninterpolated_template', /\$\{[A-Za-z0-9_.]+\}|\[\[(?:material|img|tag):[^\]]+\]\]/],
     ['meta_boilerplate', /\b(?:Cálculos y mediciones en aula|Paso\s+1:\s+Comprensi[oó]n\s+e\s+identificaci[oó]n\s+de\s+datos)\b|\ben aula(?=\s*[.]?\s*$)/i],
@@ -120,7 +120,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['meta_conclusion_instruction', /(?:Conclusi[oó]n\s*:\s*|^[ \t]*)Redacta\s+la\s+conclusi[oó]n\s+t[ée]cnica\s*\./im],
     ['exercise_dot_colon', /\bEjercicio\s+\d+\.\s*:/],
     ['generic_ej6_report', /Reporte\s+t[ée]cnico\s+justificando\s+que\s+el\s+terreno\s+propuesto\s+es\s+geom[ée]tricamente\s+imposible/i],
-    ['orphan_paso_number', /(?:^|\n)[ \t]*\d+\.\s*\n+[ \t]*Paso\s+\d+\s*:/i],
+    ['orphan_paso_number', /(?:^|\n)[ \t]*[1-9]\.\s*\n+[ \t]*Paso\s+\d+\s*:/i],
     ['truncated_quadratic_formula', /(?:MODELO Y F[ÓO]RMULA CENTRAL|F[ÓO]RMULA CENTRAL)\s*\n?\s*c\s*=\s*0\b/i],
     ['truncated_angles_formula', /(?:^|[:•])\s*\(2x\s*\+\s*20\)\s*=\s*180/i],
     ['latex_monomial_leak', /\$[+-]?\d+(?:[.,]\d+)?[a-zA-Zα-ωΑ-Ω²³₀-₉]+(?:\^[a-zA-Z0-9]+)?\$/],
@@ -128,12 +128,21 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['raw_subscript_formula', /\bM_\((?:simple|compuesto)\)/i],
     [
       'dangling_question',
-      /¿[^?]{0,90}(?<![\p{L}\p{N}_])(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|y|o|sus?)\s*\?/iu,
+      /¿[^?]{0,90}(?<![\p{L}\p{N}_])(?:entre|de|del|la|el|los|las|un|una|que|por|para|con|en|o|sus?|(?<!\b(?:variable|eje|valor\s+de|inc[oó]gnita|respecto\s+a|con)\s+)y)\s*\?/iu,
     ],
     [
       'incomplete_concept_ending',
       /\b(?:a los que llamamos|valor desconocido llamado|expresado en el lado|miembro derecho para)\.\s*(?:\n|$)|(?:equivalencia|expresiones|miembros|valores)[^.]{0,50}\bentre dos\.\s*(?:\n|$)/i,
     ],
+    ['linguistic_hacia_inf', /\bhacia\s+[a-záéíóúñ]{3,}(?:ar|er|ir)\b/i],
+    ['linguistic_tal_tal', /\btal\s+tal\b/i],
+    ['linguistic_dicha_gerund', /\bdicha\s+(?:funcionando|siendo|teniendo|haciendo|operando|trabajando)\b/i],
+    ['linguistic_en_la_expone', /\b(?:en\s+la|una|esta|esa|dicha)\s+expone\b/i],
+    ['linguistic_un_lado_al', /\bun\s+lado\s+al\s+de\b/i],
+    ['linguistic_mediante_forma', /\bmediante\s+forma\b/i],
+    ['linguistic_truncated_a_partir', /\ba\s+partir\.(?=\s|$)/i],
+    ['linguistic_truncated_y_considera', /\by\s+considera\.(?=\s|$)/i],
+    ['linguistic_broken_paren_eq', /\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\s*=\s*\([A-Za-zÁÉÍÓÚÑáéíóúñ]+\)\./],
   ];
 
   for (const [key, re] of rules) {
@@ -196,7 +205,7 @@ function appendPdfSemanticFindings(
     const orphanCount = lines.reduce((count, line, idx) => {
       if (!/^\s*[1-9]\d*\.\s*$/.test(line)) return count;
       const prev = (lines[idx - 1] || '').trim();
-      if (/[=+\-*/^(,;:]$/.test(prev) || /\b(?:a|de|del|al|en|con|por|para|y|o|u|seg[uú]n|desde|hasta|entre|sobre|bajo|contra|sin|hacia|ante|tras)$/i.test(prev)) {
+      if (/[=+\-*/^(,;:]$/.test(prev) || /\b(?:art|art[ií]culo|n[uú]m|cap|fracc|p[aá]g|sesi[oó]n)\.?$/i.test(prev) || /\b(?:a|de|del|al|en|con|por|para|y|o|u|seg[uú]n|desde|hasta|entre|sobre|bajo|contra|sin|hacia|ante|tras)$/i.test(prev)) {
         return count;
       }
       return count + 1;
@@ -593,8 +602,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
                 s !== badge &&
                 s.x > badge.x + 0.05 &&
                 s.x < badge.x + 1.2 &&
-                Math.abs(s.y - badge.y) <= 0.18 &&
-                !/^Conclusi[oó]n\s*:/i.test(s.text)
+                Math.abs(s.y - badge.y) <= 0.18
             )
             .sort((a, b) => a.x - b.x)[0];
           if (!stepBody || stepBody.text.trim().length < 12 || hasDanglingEnding(stepBody.text.trim())) {
@@ -644,7 +652,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
         .sort((a, b) => a.y - b.y);
       for (let aIdx = 0; aIdx < actHeaders.length; aIdx++) {
         const hdr = actHeaders[aIdx]!;
-        const nextHeaderY = actHeaders[aIdx + 1]?.y ?? 6.2;
+        const nextHeaderY = Math.min(actHeaders[aIdx + 1]?.y ?? 5.95, 5.95);
         const bodyBoxes = shapes
           .filter(
             (s) =>
@@ -663,7 +671,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           .trim();
         const hasTaskOrQuestion =
           /\?/.test(txt) ||
-          /\b(?:calcula|determina|resuelve|plantea|encuentra|halla|obten|obtén|verifica|comprueba|construye|crea|grafica|tabula|compara|justifica|explica|interpreta|redacta|escribe|elabora|prepara|analiza|evalua|evalúa|identifica|clasifica|ordena|organiza|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|propón|propon|diseña|disena|corrige|revisa|audita|integra|consolida|presenta|defiende|expón|expon|estima|proyecta|convierte|contrasta|relaciona|formula|aplica|traza|usa|utiliza|completa|responde|asegúrate|asegurate|dibuja|marca|señala)\b/i.test(
+          /\b(?:calcula|determina|resuelve|soluciona|plantea|encuentra|halla|obten|obtén|verifica|comprueba|construye|arma|crea|grafica|tabula|compara|justifica|sustenta|fundamenta|explica|detalla|interpreta|redacta|escribe|elabora|prepara|analiza|examina|evalua|evalúa|valora|identifica|reconoce|clasifica|ordena|organiza|registra|anota|sustituye|reemplaza|despeja|a[ií]sla|simplifica|factoriza|demuestra|argumenta|describe|selecciona|elige|propón|propon|diseña|disena|corrige|revisa|audita|integra|incorpora|a[ñn]ade|consolida|presenta|defiende|expón|expon|estima|proyecta|convierte|contrasta|relaciona|vincula|formula|aplica|traza|usa|utiliza|emplea|efect[uú]a|fija|completa|responde|asegúrate|asegurate|dibuja|representa|marca|señala|instala|configura|actualiza|conecta|mide|documenta|ejecuta|repara|limpia|inspecciona|traduce|conjuga|subraya|contesta|investiga|debate|concluye|enumera|enlista|ejemplifica|empareja|observa|consulta|modifica|implementa|monitorea|diagnostica)\b/i.test(
             txt
           ) ||
           /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i.test(
@@ -704,7 +712,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           hasDuplicateSentence ||
           hasDanglingEnding(txt) ||
           txt.endsWith('...') ||
-          /(?:,|\b(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si|debes|puedes|tienes|necesitas|forma)\.?)\s*$/i.test(
+          /(?:,|(?<![\p{L}\p{N}_])(?:de|del|en|para|con|la|el|y|o|un|una|que|su|sus|si|debes|puedes|tienes|necesitas|forma)\.?)\s*$/iu.test(
             txt
           );
         if (isTruncated) {

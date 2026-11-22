@@ -1,0 +1,2079 @@
+[
+  {
+    "dir": "PM3_ANT",
+    "subject": "Pensamiento Matemático III",
+    "kind": "Formación Fundamental",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_PM3.pdf": 13,
+      "02_Secuencia_PM3.pdf": 14,
+      "03_Planes_Clase_PM3.pdf": 73,
+      "04_Solucionario_PM3.pdf": 54,
+      "05_Guias_Practica_PM3.pdf": 72,
+      "06_Libro_Semestral_PM3.pdf": 151,
+      "07_Instrumentos_PM3.pdf": 6,
+      "09_Infografias_PM3.pdf": 58
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "session03Count": 24,
+    "session05Count": 24,
+    "page1Footers": {
+      "03_Planes_Clase_PM3.pdf": 1,
+      "04_Solucionario_PM3.pdf": 1,
+      "05_Guias_Practica_PM3.pdf": 1,
+      "07_Instrumentos_PM3.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [
+      {
+        "kind": "por_completar",
+        "count": 7,
+        "examples": [
+          "mpleta con la resolución detallada por completar el cuadrado y la fórmula general, validando",
+          "mpleta con la resolución detallada por completar el cuadrado y la fórmula general, validando"
+        ]
+      }
+    ],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 7.3,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 0,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_PM3.pptx] weak_or_truncated_activity (1): S35: Act 1 (145c): \"Un equipo estudiantil dispone de $8,000 hacia comprar redes de voleibol de $400 y balones \"",
+      "[08_Presentaciones_PM3.pptx] duplicate_activity_hint (1): S64: a├¡sla y en las dos ecuaciones."
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_PM3.pptx",
+      "slideCount": 156,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 151.6,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 160.9,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S35: Act 1 (145c): \"Un equipo estudiantil dispone de $8,000 hacia comprar redes de voleibol de $400 y balones \""
+        ],
+        "duplicate_activity_hint": [
+          "S64: a├¡sla y en las dos ecuaciones."
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "PM3_NVO",
+    "subject": "Pensamiento Matemático III",
+    "kind": "Formación Fundamental",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_PM3.pdf": 13,
+      "02_Secuencia_PM3.pdf": 13,
+      "03_Planes_Clase_PM3.pdf": 75,
+      "04_Solucionario_PM3.pdf": 56,
+      "05_Guias_Practica_PM3.pdf": 72,
+      "06_Libro_Semestral_PM3.pdf": 153,
+      "07_Instrumentos_PM3.pdf": 6,
+      "09_Infografias_PM3.pdf": 56
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "session03Count": 24,
+    "session05Count": 24,
+    "page1Footers": {
+      "03_Planes_Clase_PM3.pdf": 1,
+      "04_Solucionario_PM3.pdf": 1,
+      "05_Guias_Practica_PM3.pdf": 1,
+      "07_Instrumentos_PM3.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [
+      {
+        "kind": "por_completar",
+        "count": 7,
+        "examples": [
+          "mpleta con la resolución detallada por completar el cuadrado y la fórmula general, validando",
+          "mpleta con la resolución detallada por completar el cuadrado y la fórmula general, validando"
+        ]
+      }
+    ],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 7.1,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 0,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[06_Libro_Semestral_PM3.pdf] orphan_paso_number (3): a ecuaci├│n es: 300x + 150y = 1200. Paso 3: Sustituci├│n y desarrollo. S",
+      "[06_Libro_Semestral_PM3.pdf] dangling_question (1): do. Si tienes 2x + 3y = 10, ┬┐c├│mo expresar├¡as x en t├®rminos de y? Reflexiona sobre la importa",
+      "[08_Presentaciones_PM3.pptx] weak_or_truncated_activity (3): S20: Act 2 (145c): \"Un estudiante plante├│: 1,000 + 300x = 4,000 y obtuvo x = 10. Valora su trabajo y, si detec\""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_PM3.pptx",
+      "slideCount": 156,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 151.3,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 160.1,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S20: Act 2 (145c): \"Un estudiante plante├│: 1,000 + 300x = 4,000 y obtuvo x = 10. Valora su trabajo y, si detec\"",
+          "S133: Act 1 (247c): \"Emplea la f├│rmula del ├írea A = (L┬▓ ┬À ÔêÜ3) / 4. Si tu encuesta indica que el 40% de los j├│ve\"",
+          "S141: Act 2 (138c): \"El pol├¡gono A tiene lados de 2, 3 y 4 cm. El pol├¡gono B tiene un lado al de 2 cm que mide \""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_AECAEF_PDF",
+    "subject": "Actualiza equipos de cómputo de acuerdo con especificaciones del fabricante",
+    "kind": "Formación Laboral",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_AECAEF.pdf": 10,
+      "02_Secuencia_AECAEF.pdf": 11,
+      "03_Planes_Clase_AECAEF.pdf": 54,
+      "04_Solucionario_AECAEF.pdf": 49,
+      "05_Guias_Practica_AECAEF.pdf": 54,
+      "06_Libro_Semestral_AECAEF.pdf": 130,
+      "07_Instrumentos_AECAEF.pdf": 9,
+      "09_Infografias_AECAEF.pdf": 53
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "session03Count": 54,
+    "session05Count": 54,
+    "page1Footers": {
+      "03_Planes_Clase_AECAEF.pdf": 1,
+      "04_Solucionario_AECAEF.pdf": 1,
+      "05_Guias_Practica_AECAEF.pdf": 1,
+      "07_Instrumentos_AECAEF.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 15.4,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 4.8,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_AECAEF.pptx] weak_or_truncated_activity (10): S10: Act 1 (196c): \"Reconoce en un equipo de taller los tres tipos de buses de comunicaci├│n y detalla su funci\"",
+      "[08_Presentaciones_AECAEF.pptx] incomplete_worked_example (1): S112: Paso 02 truncado: \"Usar men├║ Inicio -> Apagar (Prioridad = 1. Si el s).\"",
+      "[08_Presentaciones_AECAEF.pptx] Slides > 200 palabras: 1/2=2, 2/2=0",
+      "[08_Presentaciones_AECAEF.pptx] Promedio 1/2 (172.3w) excede el presupuesto estricto 90ÔÇô170w",
+      "[08_Presentaciones_AECAEF.pptx] Solapamiento de 6-gramas con el libro 06 (presentaci├│n): 20.4% (m├íx. 20%)"
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_AECAEF.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 172.3,
+        "slide12Over200": 2,
+        "slide12Under80": 0,
+        "slide22Avg": 154.8,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S10: Act 1 (196c): \"Reconoce en un equipo de taller los tres tipos de buses de comunicaci├│n y detalla su funci\"",
+          "S45: Act 1 (128c): \"Un equipo con BIOS Phoenix emite una secuencia de 1-1-2 pitidos al encender. Investiga qu├®\"",
+          "S71: Act 1 (55c): \"Instala un SSD de 2.5 pulgadas en un gabinete de torre.\"",
+          "S76: Act 1 (163c): \"Un equipo de c├│mputo del taller mostraba una velocidad de escritura de 80 MB/s previo. Tra\"",
+          "S98: Act 2 (97c): \"Investiga el 'ID de hardware' en las propiedades del dispositivo. H├®roes de la Patria ┬À Sa\"",
+          "S100: Act 2 (164c): \"Configura un plan de energ├¡a personalizado en tu equipo que reduzca el brillo de pantalla \"",
+          "S105: Act 1 (151c): \"Efect├║a una prueba de estabilidad de memoria RAM empleando la herramienta AIDA64 'System S\"",
+          "S107: Act 1 (132c): \"Reconoce si existe alguna ca├¡da de voltaje superior al 5% en las l├¡neas de 12V o 5V. Anota\"",
+          "S109: Act 1 (105c): \"Un procesador tiene una Tjmax de 95┬░C y anota una temperatura de 88┬░C tras diez minutos de\"",
+          "S109: Act 2 (88c): \"Examina un equipo que anota 60┬░C con una Tjmax de 105┬░C. H├®roes de la Patria ┬À Samuel CI\""
+        ],
+        "incomplete_worked_example": [
+          "S112: Paso 02 truncado: \"Usar men├║ Inicio -> Apagar (Prioridad = 1. Si el s).\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_CECBV_PDF",
+    "subject": "Coloca elementos constructivos básicos de una vivienda",
+    "kind": "Formación Laboral",
+    "subjectDetected": "emestre / Grupo: 5° Semestre · 5°B Unidad de Aprendizaje (UAC): Coloca elementos constructivos básicos de una vivienda Componente: Formación Laboral Horas",
+    "pages": {
+      "01_Planeacion_CECBV.pdf": 10,
+      "02_Secuencia_CECBV.pdf": 10,
+      "03_Planes_Clase_CECBV.pdf": 60,
+      "04_Solucionario_CECBV.pdf": 50,
+      "05_Guias_Practica_CECBV.pdf": 54,
+      "06_Libro_Semestral_CECBV.pdf": 129,
+      "07_Instrumentos_CECBV.pdf": 9,
+      "09_Infografias_CECBV.pdf": 50
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "session03Count": 18,
+    "session05Count": 18,
+    "page1Footers": {
+      "03_Planes_Clase_CECBV.pdf": 1,
+      "04_Solucionario_CECBV.pdf": 1,
+      "05_Guias_Practica_CECBV.pdf": 1,
+      "07_Instrumentos_CECBV.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 11.1,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 4.9,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_CECBV.pptx] weak_conocimiento_nuevo (1): S2: Corte/inicio ac├®falo: \"Los elementos constructivos son componentes f├¡sicos que integran una vivienda, cuya identi\"",
+      "[08_Presentaciones_CECBV.pptx] incomplete_worked_example (1): S28: Paso 02 truncado: \"Calcular el impacto total considerando emisiones y costos (Impacto = (Distancia).\"",
+      "[08_Presentaciones_CECBV.pptx] weak_or_truncated_activity (7): S58: Act 1 (127c): \"Valida la estiba de 20 sacos de cemento apilados en 4 niveles. Anota los hallazgos en una \""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_CECBV.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 167.5,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 156.2,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_conocimiento_nuevo": [
+          "S2: Corte/inicio ac├®falo: \"Los elementos constructivos son componentes f├¡sicos que integran una vivienda, cuya identi\""
+        ],
+        "incomplete_worked_example": [
+          "S28: Paso 02 truncado: \"Calcular el impacto total considerando emisiones y costos (Impacto = (Distancia).\""
+        ],
+        "weak_or_truncated_activity": [
+          "S58: Act 1 (127c): \"Valida la estiba de 20 sacos de cemento apilados en 4 niveles. Anota los hallazgos en una \"",
+          "S58: Act 2 (157c): \"Los pautas son: alineaci├│n, altura m├íxima (1.5 m) y seguridad del ├írea. Si la estiba mide \"",
+          "S69: Act 1 (124c): \"Valora el plan de carga de un equipo que propone transportar 15 piezas de madera pesada en\"",
+          "S73: Act 1 (96c): \"Efect├║a una prueba de esfuerzo simulada mediante una carga de 20 kg de materiales construc\"",
+          "S76: Act 1 (73c): \"Valora un proceso de traslado de 10 varillas de acero de 6 m de longitud.\"",
+          "S92: Act 1 (201c): \"A lo largo de la nivelaci├│n de un murete, obtienes una diferencia de 8 mm entre los extrem\"",
+          "S103: Act 2 (235c): \"El protocolo exige el uso de cuatro pernos mediante una profundidad m├¡nima de 5 cm. Observ\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_CNET1_PDF",
+    "subject": "Ciencias Naturales, Experimentales y Tecnología I",
+    "kind": "Formación Fundamental",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_CNET1.pdf": 12,
+      "02_Secuencia_CNET1.pdf": 13,
+      "03_Planes_Clase_CNET1.pdf": 72,
+      "04_Solucionario_CNET1.pdf": 55,
+      "05_Guias_Practica_CNET1.pdf": 72,
+      "06_Libro_Semestral_CNET1.pdf": 144,
+      "07_Instrumentos_CNET1.pdf": 9,
+      "09_Infografias_CNET1.pdf": 70
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72
+    ],
+    "session03Count": 72,
+    "session05Count": 72,
+    "page1Footers": {
+      "03_Planes_Clase_CNET1.pdf": 1,
+      "04_Solucionario_CNET1.pdf": 1,
+      "05_Guias_Practica_CNET1.pdf": 1,
+      "07_Instrumentos_CNET1.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 15.1,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 8.3,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_CNET1.pptx] weak_or_truncated_activity (4): S3: Act 1 (99c): \"Un estudiante mide una expone de suelo h├║medo con una masa de 120 g y un volumen ocupado d\"",
+      "[08_Presentaciones_CNET1.pptx] incomplete_worked_example (1): S63: Paso 03 truncado: \"En la Expone.\"",
+      "[08_Presentaciones_CNET1.pptx] Slides > 200 palabras: 1/2=10, 2/2=0",
+      "[08_Presentaciones_CNET1.pptx] Promedio 1/2 (186.4w) excede el presupuesto estricto 90ÔÇô170w",
+      "[08_Presentaciones_CNET1.pptx] Solapamiento de 6-gramas con el libro 06 (presentaci├│n): 21.5% (m├íx. 20%)"
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_CNET1.pptx",
+      "slideCount": 156,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 186.4,
+        "slide12Over200": 10,
+        "slide12Under80": 0,
+        "slide22Avg": 160.9,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S3: Act 1 (99c): \"Un estudiante mide una expone de suelo h├║medo con una masa de 120 g y un volumen ocupado d\"",
+          "S16: Act 1 (145c): \"Emplea una probeta de 100 ml y una pieza de metal irregular. Anota 40 ml de agua inicial. \"",
+          "S22: Act 2 (187c): \"Empleando un matraz Erlenmeyer, mide 100 mililitros de agua y anota su temperatura. Luego,\"",
+          "S145: Act 2 (187c): \"A lo largo de la prueba de dureza, el agua inicial requiri├│ 15 gotas de reactivo para camb\""
+        ],
+        "incomplete_worked_example": [
+          "S63: Paso 03 truncado: \"En la Expone.\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_CS1_PDF",
+    "subject": "Ciencias Sociales I",
+    "kind": "Formación Fundamental",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_CS1.pdf": 8,
+      "02_Secuencia_CS1.pdf": 8,
+      "03_Planes_Clase_CS1.pdf": 36,
+      "04_Solucionario_CS1.pdf": 42,
+      "05_Guias_Practica_CS1.pdf": 36,
+      "06_Libro_Semestral_CS1.pdf": 101,
+      "07_Instrumentos_CS1.pdf": 9,
+      "09_Infografias_CS1.pdf": 36
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36
+    ],
+    "session03Count": 36,
+    "session05Count": 36,
+    "page1Footers": {
+      "03_Planes_Clase_CS1.pdf": 1,
+      "04_Solucionario_CS1.pdf": 1,
+      "05_Guias_Practica_CS1.pdf": 1,
+      "07_Instrumentos_CS1.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 10,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 3.8,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[04_Solucionario_CS1.pdf] orphan_numbered_lines (1): 1 l├¡neas hu├®rfanas con n├║mero solo (ej. \"1.\")",
+      "[08_Presentaciones_CS1.pptx] weak_or_truncated_activity (2): S10: Act 1 (140c): \"Investiga en el art├¡culo 115 de la Constituci├│n Pol├¡tica de los Estados Unidos Mexicanos c\""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_CS1.pptx",
+      "slideCount": 84,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 162.2,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 152.6,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S10: Act 1 (140c): \"Investiga en el art├¡culo 115 de la Constituci├│n Pol├¡tica de los Estados Unidos Mexicanos c\"",
+          "S79: Act 1 (152c): \"Fundamenta por qu├® dicha intervenci├│n es prioritaria hacia el bienestar com├║n y concluye m\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_DT1_PDF",
+    "subject": "Dibujo Técnico I",
+    "kind": "Formación Fundamental Extendida",
+    "subjectDetected": "Grupo: 5° Semestre · 5°A, 5°B, 5°C Unidad de Aprendizaje (UAC): Dibujo Técnico I Componente: Formación Fundamental Extendida (Optativa) Horas Semanales / Totales: 3 hrs/sem · 54 hr",
+    "pages": {
+      "01_Planeacion_DT1.pdf": 11,
+      "02_Secuencia_DT1.pdf": 12,
+      "03_Planes_Clase_DT1.pdf": 108,
+      "04_Solucionario_DT1.pdf": 50,
+      "05_Guias_Practica_DT1.pdf": 54,
+      "06_Libro_Semestral_DT1.pdf": 143,
+      "07_Instrumentos_DT1.pdf": 9,
+      "09_Infografias_DT1.pdf": 50
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "session03Count": 18,
+    "session05Count": 18,
+    "page1Footers": {
+      "03_Planes_Clase_DT1.pdf": 1,
+      "04_Solucionario_DT1.pdf": 1,
+      "05_Guias_Practica_DT1.pdf": 1,
+      "07_Instrumentos_DT1.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 11.7,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 0,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_DT1.pptx] incomplete_worked_example (1): S39: Paso 02 truncado: \"Aplicar escala 1:20 y acotar correctamente (dibujo = (Dimensi).\"",
+      "[08_Presentaciones_DT1.pptx] weak_or_truncated_activity (2): S58: Act 2 (199c): \"Examina y representa un contenedor de residuos urbano con forma de prisma hexagonal regula\"",
+      "[08_Presentaciones_DT1.pptx] Slides > 200 palabras: 1/2=0, 2/2=1",
+      "[08_Presentaciones_DT1.pptx] Solapamiento de 6-gramas con el libro 06 (presentaci├│n): 20.7% (m├íx. 20%)"
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_DT1.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 158.5,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 159.8,
+        "slide22Over200": 1,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "incomplete_worked_example": [
+          "S39: Paso 02 truncado: \"Aplicar escala 1:20 y acotar correctamente (dibujo = (Dimensi).\""
+        ],
+        "weak_or_truncated_activity": [
+          "S58: Act 2 (199c): \"Examina y representa un contenedor de residuos urbano con forma de prisma hexagonal regula\"",
+          "S118: Act 2 (176c): \"Representa una rampa de acceso para personas con discapacidad que mide 300 cm de largo, 12\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_I1_PDF",
+    "subject": "Inglés I",
+    "kind": "Formación Fundamental",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_I1.pdf": 8,
+      "02_Secuencia_I1.pdf": 9,
+      "03_Planes_Clase_I1.pdf": 54,
+      "04_Solucionario_I1.pdf": 49,
+      "05_Guias_Practica_I1.pdf": 54,
+      "06_Libro_Semestral_I1.pdf": 128,
+      "07_Instrumentos_I1.pdf": 9,
+      "09_Infografias_I1.pdf": 49
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "session03Count": 54,
+    "session05Count": 54,
+    "page1Footers": {
+      "03_Planes_Clase_I1.pdf": 1,
+      "04_Solucionario_I1.pdf": 1,
+      "05_Guias_Practica_I1.pdf": 1,
+      "07_Instrumentos_I1.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 10,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 1.8,
+      "conceptExampleMissing": 0,
+      "corruption": [
+        {
+          "kind": "recuerda_puedes",
+          "count": 1,
+          "examples": [
+            "estudiante cuyo texto dice. Pista: Recuerda que puedes. APLICACIÓN REAL Incorpora las correcciones r"
+          ]
+        }
+      ]
+    },
+    "qaFailures": [
+      "[08_Presentaciones_I1.pptx] weak_or_truncated_activity (3): S73: Pista d├®bil/trunca: \"Recuerda que puedes.\""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_I1.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 163.9,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 148.9,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S73: Pista d├®bil/trunca: \"Recuerda que puedes.\"",
+          "S90: Pista d├®bil/trunca: \"Si hablas de 'people' el verbo no lleva 's'.\"",
+          "S109: Act 2 (191c): \"Examina un folleto existente y valora su accesibilidad. Reconoce dos errores de dise├▒o que\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_ICDIBV_PDF",
+    "subject": "Interpreta croquis de diferentes instalaciones básicas de una vivienda",
+    "kind": "Formación Laboral",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_ICDIBV.pdf": 9,
+      "02_Secuencia_ICDIBV.pdf": 10,
+      "03_Planes_Clase_ICDIBV.pdf": 65,
+      "04_Solucionario_ICDIBV.pdf": 49,
+      "05_Guias_Practica_ICDIBV.pdf": 54,
+      "06_Libro_Semestral_ICDIBV.pdf": 130,
+      "07_Instrumentos_ICDIBV.pdf": 9,
+      "09_Infografias_ICDIBV.pdf": 49
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "session03Count": 18,
+    "session05Count": 18,
+    "page1Footers": {
+      "03_Planes_Clase_ICDIBV.pdf": 1,
+      "04_Solucionario_ICDIBV.pdf": 1,
+      "05_Guias_Practica_ICDIBV.pdf": 1,
+      "07_Instrumentos_ICDIBV.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 12.5,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 5.6,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_ICDIBV.pptx] weak_or_truncated_activity (10): S5: Act 2 (182c): \"En un espacio de 4 m de largo por 2.5 m de ancho, reconoce la ubicaci├│n de una ventana de \""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_ICDIBV.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 164.3,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 151,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S5: Act 2 (182c): \"En un espacio de 4 m de largo por 2.5 m de ancho, reconoce la ubicaci├│n de una ventana de \"",
+          "S12: Act 2 (173c): \"Emplea el nivel de agua para comprobar la horizontalidad de un tramo de 2 m. Anota la dife\"",
+          "S16: Act 2 (115c): \"Representa en un croquis la zona social de una vivienda que mide 5m x 6m. H├®roes de la Pat\"",
+          "S20: Act 2 (177c): \"Enumera tres habilidades que fortaleciste y detalla brevemente c├│mo las emplear├ís en futur\"",
+          "S25: Act 1 (112c): \"Anota la longitud total de la pared, el ancho de la puerta y la distancia a partir de la e\"",
+          "S45: Act 1 (79c): \"En un plano sanitario a escala 1:20, un tramo de tuber├¡a de drenaje mide 15 cm.\"",
+          "S45: Act 2 (140c): \"Examina el plano de una cocina con escala 1:50. La tuber├¡a de agua caliente mide 4 cm en e\"",
+          "S47: Act 1 (68c): \"En un plano de gas LP a escala 1:25, un tramo de tuber├¡a mide 12 cm.\"",
+          "S47: Act 2 (130c): \"Examina el plano de una cocina con escala 1:40. La tuber├¡a de gas mide 5 cm en el papel. H\"",
+          "S76: Act 2 (189c): \"Decodifica el funcionamiento del circuito y detalla qu├® suceder├¡a si uno de los apagadores\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_LC1_PDF",
+    "subject": "Lenguaje y Comunicación I",
+    "kind": "Formación Fundamental",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_LC1.pdf": 10,
+      "02_Secuencia_LC1.pdf": 10,
+      "03_Planes_Clase_LC1.pdf": 54,
+      "04_Solucionario_LC1.pdf": 49,
+      "05_Guias_Practica_LC1.pdf": 54,
+      "06_Libro_Semestral_LC1.pdf": 129,
+      "07_Instrumentos_LC1.pdf": 9,
+      "09_Infografias_LC1.pdf": 47
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "session03Count": 54,
+    "session05Count": 54,
+    "page1Footers": {
+      "03_Planes_Clase_LC1.pdf": 1,
+      "04_Solucionario_LC1.pdf": 1,
+      "05_Guias_Practica_LC1.pdf": 1,
+      "07_Instrumentos_LC1.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 8.8,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 0,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_LC1.pptx] incomplete_worked_example (2): S11: Paso 02 truncado: \"ausente\"",
+      "[08_Presentaciones_LC1.pptx] weak_or_truncated_activity (4): S31: Act 2 (101c): \"Examina una intervenci├│n oral de un estudiante a lo largo del debate. H├®roes de la Patria \""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_LC1.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 156.4,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 147.2,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "incomplete_worked_example": [
+          "S11: Paso 02 truncado: \"ausente\"",
+          "S77: Paso 01 truncado: \"Aplicar\""
+        ],
+        "weak_or_truncated_activity": [
+          "S31: Act 2 (101c): \"Examina una intervenci├│n oral de un estudiante a lo largo del debate. H├®roes de la Patria \"",
+          "S58: Act 1 (98c): \"Elige la que mejor se adapte a tu tono y sustenta tu elecci├│n en tu bit├ícora t├®cnica de Bl\"",
+          "S96: Act 1 (147c): \"Elige un fragmento de tu art├¡culo de opini├│n y pres├®ntalo en tres tama├▒os de fuente distin\"",
+          "S113: Pista d├®bil/trunca: \"S├® conciso.\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_LMTCLCDIV_PDF",
+    "subject": "Limpia muebles, tuberías y conexiones para llevar a cabo diferentes instalaciones de una vivienda",
+    "kind": "Formación Laboral",
+    "subjectDetected": "emestre / Grupo: 5° Semestre · 5°B Unidad de Aprendizaje (UAC): Limpia muebles, tuberías y conexiones para llevar a cabo diferentes instalaciones de una viviend",
+    "pages": {
+      "01_Planeacion_LMTCLCDIV.pdf": 10,
+      "02_Secuencia_LMTCLCDIV.pdf": 11,
+      "03_Planes_Clase_LMTCLCDIV.pdf": 59,
+      "04_Solucionario_LMTCLCDIV.pdf": 51,
+      "05_Guias_Practica_LMTCLCDIV.pdf": 54,
+      "06_Libro_Semestral_LMTCLCDIV.pdf": 132,
+      "07_Instrumentos_LMTCLCDIV.pdf": 9,
+      "09_Infografias_LMTCLCDIV.pdf": 46
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "session03Count": 18,
+    "session05Count": 18,
+    "page1Footers": {
+      "03_Planes_Clase_LMTCLCDIV.pdf": 1,
+      "04_Solucionario_LMTCLCDIV.pdf": 1,
+      "05_Guias_Practica_LMTCLCDIV.pdf": 1,
+      "07_Instrumentos_LMTCLCDIV.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 11.4,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 5.6,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_LMTCLCDIV.pptx] weak_or_truncated_activity (15): S5: Act 1 (135c): \"Elige cu├íl usar├¡as hacia una instalaci├│n de drenaje exterior y sustenta tu respuesta bas├ín\""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_LMTCLCDIV.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 163.2,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 151.8,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S5: Act 1 (135c): \"Elige cu├íl usar├¡as hacia una instalaci├│n de drenaje exterior y sustenta tu respuesta bas├ín\"",
+          "S12: Act 2 (187c): \"Documenta los pasos cr├¡ticos que incluyen la limpieza de la tuber├¡a, el uso de fundente, l\"",
+          "S52: Act 2 (262c): \"Somete un tramo de manguera reforzada a una prueba de presi├│n de 5 kg/cm┬▓. Examina si dich\"",
+          "S58: Act 2 (139c): \"A lo largo de una prueba de presi├│n, el man├│metro indica una ca├¡da de 0.5 kg/cm┬▓ tras 20 m\"",
+          "S63: Act 1 (146c): \"Valora su impacto ambiental bas├índote en la facilidad de reciclaje y su pertinencia comuni\"",
+          "S65: Act 1 (115c): \"Efect├║a un muestreo de 15 tramos de tuber├¡a de PVC y mide su resistencia a la flexi├│n bajo\"",
+          "S73: Act 1 (131c): \"Anota la presi├│n inicial, la presi├│n de cierre tras 15 minutos y cualquier observaci├│n ace\"",
+          "S76: Act 1 (74c): \"Valora un lote de 15 conexiones de PVC hacia una instalaci├│n de agua fr├¡a.\"",
+          "S94: Act 1 (133c): \"Si existe una diferencia mayor a 0.5 mm, sustenta por qu├® es requerido el reemplazo. Anota\"",
+          "S96: Act 2 (156c): \"Examina el mantenimiento de una red de tuber├¡as de PVC de 20 m. Valora la pertinencia comu\"",
+          "S98: Act 1 (119c): \"Anota el consumo de agua diario en un mobiliario sanitario tras una limpieza profunda: 150\"",
+          "S105: Act 1 (112c): \"Documenta en tu bit├ícora el tipo de residuo encontrado, el m├®todo de limpieza empleado y e\"",
+          "S105: Act 2 (144c): \"Examina la bit├ícora de otro equipo y valora si el proceso de iteraci├│n seguido fue l├│gico \"",
+          "S107: Act 1 (106c): \"Anota en una tabla los valores de presi├│n obtenidos cada 5 minutos a lo largo de un period\"",
+          "S107: Act 2 (181c): \"Incorpora los datos cuantitativos obtenidos, la descripci├│n de la metodolog├¡a de prueba y \""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_PMCCELCDTM_PDF",
+    "subject": "Prepara materiales en cantidad y calidad especificada para llevar a cabo diferentes tipos de mezclas",
+    "kind": "Formación Laboral",
+    "subjectDetected": "",
+    "pages": {
+      "01_Planeacion_PMCCELCDTM.pdf": 11,
+      "02_Secuencia_PMCCELCDTM.pdf": 10,
+      "03_Planes_Clase_PMCCELCDTM.pdf": 69,
+      "04_Solucionario_PMCCELCDTM.pdf": 49,
+      "05_Guias_Practica_PMCCELCDTM.pdf": 54,
+      "06_Libro_Semestral_PMCCELCDTM.pdf": 128,
+      "07_Instrumentos_PMCCELCDTM.pdf": 9,
+      "09_Infografias_PMCCELCDTM.pdf": 49
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "session03Count": 18,
+    "session05Count": 18,
+    "page1Footers": {
+      "03_Planes_Clase_PMCCELCDTM.pdf": 1,
+      "04_Solucionario_PMCCELCDTM.pdf": 1,
+      "05_Guias_Practica_PMCCELCDTM.pdf": 1,
+      "07_Instrumentos_PMCCELCDTM.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 11.7,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 0,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[08_Presentaciones_PMCCELCDTM.pptx] weak_or_truncated_activity (8): S3: Act 2 (287c): \"Examina un lote de conectores de PVC cuyo di├ímetro interno nominal es de 25 mm. Obtienes u\""
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_PMCCELCDTM.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 160.2,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 155.8,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S3: Act 2 (287c): \"Examina un lote de conectores de PVC cuyo di├ímetro interno nominal es de 25 mm. Obtienes u\"",
+          "S5: Act 2 (227c): \"Examina un interruptor termomagn├®tico cuyas terminales deben tener una resistencia interna\"",
+          "S83: Act 1 (207c): \"Examina un lote de conductores el├®ctricos de calibre 12 AWG. Consulta la NOM-001-SEDE para\"",
+          "S90: Act 1 (228c): \"Tienes un lote de cables el├®ctricos de calibre 12 AWG. La norma exige un di├ímetro de condu\"",
+          "S90: Act 2 (209c): \"La norma especifica una longitud de rosca de 25 mm con tolerancia de ┬▒1 mm. Tus mediciones\"",
+          "S94: Act 1 (145c): \"Efect├║a un an├ílisis de fallas: reconoce la causa, detalla la prueba de confirmaci├│n y prop\"",
+          "S96: Act 1 (182c): \"Recibes un lote de concreto con una resistencia especificada de 200. Al realizar la prueba\"",
+          "S118: Act 1 (251c): \"Emplea el mult├¡metro en la funci├│n de ohmetro. Debes verificar que la resistencia entre lo\""
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  },
+  {
+    "dir": "Paquete_TPV1_PDF",
+    "subject": "Taller de Pensamiento Variacional I",
+    "kind": "Formación Fundamental Extendida",
+    "subjectDetected": "Grupo: 5° Semestre · 5°A, 5°B, 5°C Unidad de Aprendizaje (UAC): Taller de Pensamiento Variacional I Componente: Formación Fundamental Extendida (Optativa) Horas Semanales / Totales: 3 hrs/sem · 54 hr",
+    "pages": {
+      "01_Planeacion_TPV1.pdf": 13,
+      "02_Secuencia_TPV1.pdf": 13,
+      "03_Planes_Clase_TPV1.pdf": 108,
+      "04_Solucionario_TPV1.pdf": 49,
+      "05_Guias_Practica_TPV1.pdf": 54,
+      "06_Libro_Semestral_TPV1.pdf": 132,
+      "07_Instrumentos_TPV1.pdf": 9,
+      "09_Infografias_TPV1.pdf": 50
+    },
+    "sessions03": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "sessions05": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "session03Count": 18,
+    "session05Count": 18,
+    "page1Footers": {
+      "03_Planes_Clase_TPV1.pdf": 1,
+      "04_Solucionario_TPV1.pdf": 1,
+      "05_Guias_Practica_TPV1.pdf": 1,
+      "07_Instrumentos_TPV1.pdf": 1
+    },
+    "foreignHeaders": [],
+    "placeholders": [],
+    "rubrics07": [
+      {
+        "block": "1",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "2",
+        "sum": 100,
+        "criteria": 4
+      },
+      {
+        "block": "3",
+        "sum": 100,
+        "criteria": 4
+      }
+    ],
+    "rubrics06": [],
+    "badRubrics07": [],
+    "badRubrics06": [],
+    "tautologies": [],
+    "overlap09": 7.5,
+    "corruption09": [],
+    "pptxExtra": {
+      "conceptExampleOverlapSlides": 0,
+      "maxConceptExampleOverlap": 4.2,
+      "conceptExampleMissing": 0,
+      "corruption": []
+    },
+    "qaFailures": [
+      "[05_Guias_Practica_TPV1.pdf] dangling_question (1): idos. Autoevaluaci├│n: ÔÇó [ ] ┬┐Comprendo por qu├® debo multiplicar por dy/dx al derivar t├®rminos con y? ÔÇó [ ] ┬┐Cu├índo es correcto a",
+      "[06_Libro_Semestral_TPV1.pdf] orphan_paso_number (2): de cambio instant├ínea en t = 2. Paso 1: Datos e inc├│gnitas: t = 2 s",
+      "[06_Libro_Semestral_TPV1.pdf] dangling_question (1): aprendidos. Autoevaluaci├│n ┬┐Comprendo por qu├® debo multiplicar por dy/dx al derivar t├®rminos con y? ┬┐Cu├índo es correcto aplicar",
+      "[08_Presentaciones_TPV1.pptx] weak_or_truncated_activity (3): S10: Act 1 (131c): \"Anota el consumo de bebidas azucaradas en un conjunto de 20 j├│venes a lo largo de 5 d├¡as, \"",
+      "[08_Presentaciones_TPV1.pptx] dangling_question (1): S80: optimizaci├│n. EVALUACI├ôN Ô£ô ┬┐Comprendo por qu├® debo multiplicar por dy/dx al derivar t├®rminos mediante y? EVIDENCIA Modelo Din├ímico d",
+      "[09_Infografias_TPV1.pdf] dangling_question (1): aldo. LISTA DE VERIFICACI├ôN ┬┐Comprendo por qu├® debo multiplicar por dy/dx al derivar t├®rminos mediante y? ┬┐Cu├índo es correcto emplear"
+    ],
+    "qaPptx": {
+      "file": "08_Presentaciones_TPV1.pptx",
+      "slideCount": 120,
+      "wrapNoneShapes": 0,
+      "outOfBoundsShapes": 0,
+      "collisions": [],
+      "wordStats": {
+        "slide12Avg": 143.8,
+        "slide12Over200": 0,
+        "slide12Under80": 0,
+        "slide22Avg": 159.7,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0
+      },
+      "repeatedMisconceptions": [],
+      "findings": {
+        "weak_or_truncated_activity": [
+          "S10: Act 1 (131c): \"Anota el consumo de bebidas azucaradas en un conjunto de 20 j├│venes a lo largo de 5 d├¡as, \"",
+          "S23: Act 2 (148c): \"Un modelo de estr├®s acad├®mico E(t) = -t┬▓ + 6t + 5 mide el nivel de tensi├│n en un conjunto \"",
+          "S56: Act 2 (161c): \"Modifica el presupuesto del ejercicio anterior a $10000 y observa tal como cambia la regi├│\""
+        ],
+        "dangling_question": [
+          "S80: optimizaci├│n. EVALUACI├ôN Ô£ô ┬┐Comprendo por qu├® debo multiplicar por dy/dx al derivar t├®rminos mediante y? EVIDENCIA Modelo Din├ímico d"
+        ]
+      }
+    },
+    "verdict": "NO_APTA"
+  }
+]

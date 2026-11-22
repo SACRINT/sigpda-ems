@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import JSZip from 'jszip';
 import { MATH_DEMO_WORKBOOK } from '@/lib/visual-engine/sacrint/fixtures/math-demo-workbook';
 import { buildSacrintDeck, LessonGuideNoSessionsError } from '@/lib/visual-engine/sacrint/spec';
-import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
+import { findLinguisticCorruption, reviewBlockMaterials } from '@/lib/guide-engine/material-review';
 import type { ActiveWorkTextbook, SessionPlan } from '@/types/work-textbook';
 
 const mockAuth = vi.fn();
@@ -263,5 +263,21 @@ describe('SACRINT Part 2 — S6 Review Gate on Combined Decks & Aula Package', (
     }
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('presentationml');
+  });
+
+  it('blocks decks with mechanical linguistic corruption via S6_LINGUISTIC_CORRUPTION', () => {
+    expect(findLinguisticCorruption('Recibe $2000 hacia comprar kits.')).toContain('hacia+infinitivo');
+    expect(findLinguisticCorruption('Se define tal tal como adjetivo.')).toContain('tal_tal');
+    expect(findLinguisticCorruption('El altavoz interno dicha funcionando.')).toContain('dicha+gerundio');
+    expect(findLinguisticCorruption('Dispersión de luz en la expone.')).toContain('en_la_expone');
+    expect(findLinguisticCorruption('Mide siempre a partir.')).toContain('a_partir_truncado');
+    expect(findLinguisticCorruption('Aplicar escala (dibujo = (Dimensi).')).toContain('paren_ecuacion_trunca');
+    expect(findLinguisticCorruption('El estudiante mide una muestra de suelo para hallar la densidad.')).toBeNull();
+
+    const wb = buildWorkbookWithSession(1);
+    const deck = buildSacrintDeck(wb, { mode: 'lesson-guide' });
+    deck.slides[0]!.subtitle = 'Recibe $2000 hacia comprar kits escolares.';
+    const report = reviewBlockMaterials({ workbook: wb, deck, checkFullBlockPersistence: false });
+    expect(report.byMaterial.deck.issues.some((i) => i.code === 'S6_LINGUISTIC_CORRUPTION' && i.severity === 'error')).toBe(true);
   });
 });

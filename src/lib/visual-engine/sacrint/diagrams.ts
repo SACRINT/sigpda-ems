@@ -1,7 +1,12 @@
 import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SacrintPack } from './discipline-packs';
-import { cleanSacrintText, distillConciseText, sanitizePedagogicalMetaPhrases } from './content-distiller';
-import { fitPedagogicalText } from '@/lib/editorial/pedagogical-text-fitter';
+import {
+  cleanSacrintText,
+  distillConciseText,
+  paraphraseSixGramOverlap,
+  sanitizePedagogicalMetaPhrases,
+} from './content-distiller';
+import { fitPedagogicalText, hasDanglingEnding } from '@/lib/editorial/pedagogical-text-fitter';
 import { classifyTopic, detectExponentialContext } from '@/lib/visual-engine/topic-classifier';
 
 /**
@@ -227,6 +232,8 @@ interface DiagramBuildOptions {
   allowMissionFallback?: boolean;
   /** Texto del ejemplo efectivamente mostrado en la lámina/infografía para garantizar 100% coherencia Ejemplo ↔ FIG. 01. */
   preferredExampleText?: string;
+  /** Fuentes del libro para parafrasear nodos de diagramas no cuantitativos y evitar solapamiento 6-grama 08↔06. */
+  theorySources?: string[];
 }
 
 function clean(value: string | null | undefined): string {
@@ -1787,104 +1794,162 @@ function stripSessionLead(text: string): string {
   return out;
 }
 
-function compactDiagramDetail(raw: string, maxChars = 48, maxWords = 7): string {
-  const cleaned = sanitizePedagogicalMetaPhrases(stripSessionLead(raw));
-  if (!cleaned) return '';
-  return (
-    fitPedagogicalText(cleaned, {
-      maxChars,
-      maxWords,
-      role: 'concept',
-      ensurePeriod: false,
-    }) || cleaned
-  );
+function compactDiagramDetail(
+  raw: string,
+  maxChars = 48,
+  maxWords = 7,
+  theorySources?: string[]
+): string {
+  const cleanedBase = sanitizePedagogicalMetaPhrases(stripSessionLead(raw));
+  if (!cleanedBase) return '';
+
+  // Evitar volcar preguntas o párrafos narrativos completos de 25–40 palabras dentro de un nodo de diagrama.
+  let cleaned = cleanedBase;
+  if (cleaned.length > maxChars + 12) {
+    const strippedLead = cleaned
+      .replace(/^(?:Imagina\s+que\s+[^,]{3,60},\s*|En\s+el\s+(?:laboratorio|taller|aula),?\s*(?:a\s+menudo\s+)?|Al\s+[a-záéíóúñ]+(?:lo|la|los|las)?,\s*notas\s+que\s+)/i, '')
+      .trim();
+    if (strippedLead.length >= 16) {
+      cleaned = strippedLead.charAt(0).toUpperCase() + strippedLead.slice(1);
+    }
+    if (cleaned.includes('?') && cleaned.length > maxChars + 14) {
+      const qMatch = cleaned.match(/¿[^?]{8,72}\?/);
+      if (qMatch && qMatch[0].split(/\s+/).length <= maxWords + 3) {
+        cleaned = qMatch[0].trim();
+      } else {
+        const beforeQ = cleaned.split('¿')[0]?.replace(/[,;:\s]+$/, '').trim() || '';
+        const firstClause = beforeQ.split(/[,;.]/)[0]?.trim() || '';
+        if (firstClause.length >= 14) cleaned = firstClause;
+      }
+    }
+  }
+
+  const paraphrased =
+    theorySources && theorySources.length > 0
+      ? paraphraseSixGramOverlap(cleaned, theorySources)
+      : cleaned;
+
+  const fitted = fitPedagogicalText(paraphrased, {
+    maxChars,
+    maxWords,
+    role: 'concept',
+    ensurePeriod: false,
+  });
+
+  if (fitted && fitted.split(/\s+/).filter(Boolean).length <= maxWords + 3 && !hasDanglingEnding(fitted)) {
+    return fitted;
+  }
+
+  // Fallback compacto determinista: conservar la cláusula nominal/verbal sin colgar preposiciones ni verbos.
+  const firstClause = paraphrased.split(/[.;!?]/)[0]?.trim() || paraphrased;
+  const retry = fitPedagogicalText(firstClause, {
+    maxChars: maxChars + 14,
+    maxWords: maxWords + 2,
+    role: 'concept',
+    ensurePeriod: false,
+  });
+  if (retry && retry.split(/\s+/).filter(Boolean).length <= maxWords + 3 && !hasDanglingEnding(retry)) {
+    return retry;
+  }
+  const tokens = firstClause.split(/\s+/).filter(Boolean).slice(0, maxWords + 1);
+  while (tokens.length > 2 && hasDanglingEnding(tokens.join(' '))) {
+    tokens.pop();
+  }
+  return tokens.join(' ').replace(/[,;:]+$/, '').trim() || fitted || paraphrased;
 }
 
-function compactNode(node: SacrintDiagramNode): SacrintDiagramNode {
-  return { ...node, detail: compactDiagramDetail(node.detail) };
+function compactNode(node: SacrintDiagramNode, theorySources?: string[]): SacrintDiagramNode {
+  return { ...node, detail: compactDiagramDetail(node.detail, 40, 6, theorySources) };
 }
 
-function compactNonQuantitativeDiagram(diagram: SacrintDiagramSpec): SacrintDiagramSpec {
+function compactNonQuantitativeDiagram(
+  diagram: SacrintDiagramSpec,
+  theorySources?: string[]
+): SacrintDiagramSpec {
+  const cn = (node: SacrintDiagramNode) => compactNode(node, theorySources);
+  const cd = (text: string, maxChars: number, maxWords: number) =>
+    compactDiagramDetail(text, maxChars, maxWords, theorySources);
+
   switch (diagram.kind) {
     case 'argument': {
-      const thesis = compactNode(diagram.thesis);
+      const thesis = cn(diagram.thesis);
       const thesisNorm = thesis.detail.toLowerCase();
       const premises = diagram.premises
-        .map(compactNode)
+        .map(cn)
         .filter((p) => p.detail && p.detail.toLowerCase() !== thesisNorm)
         .map((p, index) => ({ ...p, label: `PREMISA ${index + 1}` }));
       return {
         ...diagram,
         thesis,
         premises,
-        objection: compactNode(diagram.objection),
-        conclusion: compactNode(diagram.conclusion),
+        objection: cn(diagram.objection),
+        conclusion: cn(diagram.conclusion),
       };
     }
     case 'language':
       return {
         ...diagram,
-        input: compactNode(diagram.input),
-        rule: compactNode(diagram.rule),
-        output: compactNode(diagram.output),
-        context: compactNode(diagram.context),
+        input: cn(diagram.input),
+        rule: cn(diagram.rule),
+        output: cn(diagram.output),
+        context: cn(diagram.context),
       };
     case 'concept':
       return {
         ...diagram,
-        center: compactNode(diagram.center),
-        nodes: diagram.nodes.map(compactNode),
+        center: cn(diagram.center),
+        nodes: diagram.nodes.map(cn),
       };
     case 'timeline':
       return {
         ...diagram,
-        span: compactDiagramDetail(diagram.span, 56, 8),
-        events: diagram.events.map(compactNode),
+        span: cd(diagram.span, 56, 8),
+        events: diagram.events.map(cn),
       };
     case 'system-map':
       return {
         ...diagram,
-        center: compactNode(diagram.center),
-        components: diagram.components.map(compactNode),
-        environment: compactNode(diagram.environment),
+        center: cn(diagram.center),
+        components: diagram.components.map(cn),
+        environment: cn(diagram.environment),
       };
     case 'clinical-flow':
       return {
         ...diagram,
-        stages: diagram.stages.map(compactNode),
-        note: compactDiagramDetail(diagram.note, 64, 10),
+        stages: diagram.stages.map(cn),
+        note: cd(diagram.note, 64, 10),
       };
     case 'block-diagram':
       return {
         ...diagram,
-        input: compactNode(diagram.input),
-        process: compactNode(diagram.process),
-        output: compactNode(diagram.output),
-        feedback: compactNode(diagram.feedback),
+        input: cn(diagram.input),
+        process: cn(diagram.process),
+        output: cn(diagram.output),
+        feedback: cn(diagram.feedback),
       };
     case 'sop-flow':
       return {
         ...diagram,
-        steps: diagram.steps.map(compactNode),
-        standard: compactDiagramDetail(diagram.standard, 64, 10),
+        steps: diagram.steps.map(cn),
+        standard: cd(diagram.standard, 64, 10),
       };
     case 'creative-cycle':
       return {
         ...diagram,
-        phases: diagram.phases.map(compactNode),
-        statement: compactDiagramDetail(diagram.statement, 64, 10),
+        phases: diagram.phases.map(cn),
+        statement: cd(diagram.statement, 64, 10),
       };
     case 'training-cycle':
       return {
         ...diagram,
-        phases: diagram.phases.map(compactNode),
-        principle: compactDiagramDetail(diagram.principle, 64, 10),
+        phases: diagram.phases.map(cn),
+        principle: cd(diagram.principle, 64, 10),
       };
     case 'regulation-flow':
       return {
         ...diagram,
-        stages: diagram.stages.map(compactNode),
-        anchor: compactDiagramDetail(diagram.anchor, 64, 10),
+        stages: diagram.stages.map(cn),
+        anchor: cd(diagram.anchor, 64, 10),
       };
     default:
       return diagram;
@@ -1932,7 +1997,9 @@ export function buildSacrintDiagram(
     }
   })();
 
-  return options.allowMissionFallback === false ? compactNonQuantitativeDiagram(built) : built;
+  return options.allowMissionFallback === false
+    ? compactNonQuantitativeDiagram(built, options.theorySources)
+    : built;
 }
 
 export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVariable[] {
