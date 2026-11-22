@@ -734,6 +734,23 @@ export async function withKeyRotation<T>(
       // - Al completar la vuelta al pool (o en pools de 1 llave), aplicar Retry-After / backoff real.
       if (is429) {
         consecutive429Count++;
+        // Si ya se recorrió toda la Vuelta 1 de un pool multi-llave (≥3 llaves) con 100% 429,
+        // no martillar una Vuelta 2 innecesaria: cortar limpiamente con AiCooldownExhaustedError
+        // para que job-worker preserve el checkpoint y aplique backoff real.
+        if (
+          source === 'pool' &&
+          poolSize >= 3 &&
+          round === 1 &&
+          triedKeyIdsInRound.size >= poolSize &&
+          consecutive429Count >= poolSize
+        ) {
+          const waitSec = errRetryAfterMs
+            ? Math.min(45, Math.max(15, Math.ceil(errRetryAfterMs / 1000)))
+            : 30;
+          throw new AiCooldownExhaustedError(
+            `Todas las ${poolSize} claves de "${provider}" devolvieron cuota 429 en la Vuelta 1 (restan ${waitSec}s). Cortando antes de Vuelta 2 para respetar presupuesto.`
+          );
+        }
         if (attempt < maxAttempts - 1) {
           const isTestEnv = process.env.NODE_ENV === 'test';
           const hasUntriedPoolKeysInRound1 =

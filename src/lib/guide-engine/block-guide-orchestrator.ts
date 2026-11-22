@@ -1022,7 +1022,8 @@ export async function generateBlockWorkTextbook(
       validation.qualityWarning ||
       !alignmentReport.pass ||
       !coverageReport.allSessionsPresent ||
-      !coverageReport.withinTargetRange ||
+      coverageReport.aiWords < budget.targetWords.min ||
+      coverageReport.aiWords > maxAllowedWords ||
       fallbackWords > 0 ||
       !crossContaminationReport.clean ||
       Boolean(signal?.aborted),

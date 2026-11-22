@@ -557,4 +557,29 @@ describe('Gateway Único y Rotador Atómico de API Keys (P1 - Blindaje Integral)
     expect(result).toBe('OK en key-3');
     expect(tried).toEqual(['gemini-key-1', 'gemini-key-2', 'gemini-key-3']);
   });
+
+  it('16. Si todas las llaves de un pool (>=3) devuelven 429 en Vuelta 1, corta limpiamente con AiCooldownExhaustedError sin martillar Vuelta 2', async () => {
+    const encKeys = [encryptKey('k1'), encryptKey('k2'), encryptKey('k3')];
+    let pick = 0;
+    mockSqlFn.mockImplementation(async (strings: TemplateStringsArray) => {
+      const q = strings.join('');
+      if (q.includes('FOR UPDATE SKIP LOCKED')) {
+        const i = pick++ % 3;
+        return [{ id: `k-${i + 1}`, label: `K${i + 1}`, key_encrypted: encKeys[i], is_active: true }];
+      }
+      if (q.includes('COUNT(*)')) return [{ cnt: 3 }];
+      return [];
+    });
+
+    let calls = 0;
+    const fnAll429 = vi.fn().mockImplementation(async () => {
+      calls++;
+      const err = new Error('429 RESOURCE_EXHAUSTED') as Error & { status?: number };
+      err.status = 429;
+      throw err;
+    });
+
+    await expect(withKeyRotation('gemini', fnAll429)).rejects.toThrow(/Vuelta 1/);
+    expect(calls).toBe(3);
+  });
 });

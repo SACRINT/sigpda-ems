@@ -560,5 +560,38 @@ describe('Cross-Contamination Guard (P3.1.2)', () => {
         )
       ).toBe(true);
     });
+
+    it('permite analogía cotidiana con "llave de paso" en Taller de Pensamiento Variacional I pero bloquea plomería real (llave de paso + CPVC)', () => {
+      const analogyMission: MissionSection = {
+        missionIndex: 3,
+        title: 'Misión 3: Modelado de Caudales',
+        coveredSessions: [10],
+        sessionTopic: 'Razón de cambio',
+        sessionFocus: 'Variación temporal',
+        phenomenonHook: { story: 'Caudal comunitario.', detonatingQuestion: '¿Cómo varía el volumen?' },
+        conceptZero: {
+          physicalAnalogy: 'Imagina abrir gradualmente una llave de paso para observar cómo cambia el volumen de agua por minuto.',
+          coreExplanation: 'La razón de cambio describe el incremento por unidad de tiempo.',
+        },
+        iDoSection: { stepByStepDemo: 'Cálculo de razón de cambio.' },
+        weDoSection: { guidedPractice: 'Tabulación de caudal.', workbookElements: [] },
+        youDoSection: { autonomousChallenge: 'Gráfica de variación.', workbookElements: [] },
+        troubleshooting: [],
+        formativeCheckpoint: { question: '¿Qué indica la pendiente?', reflectionPrompts: [], criteriaChecklist: [] },
+        sessionPlans: [createMockPlan({ sessionNumber: 10 })],
+        wordCount: 1200,
+      };
+
+      const cleanAnalogy = validateBlockCrossContamination([analogyMission], 'Taller de Pensamiento Variacional I');
+      expect(cleanAnalogy.clean).toBe(true);
+
+      const plumbingPlan = createMockPlan({
+        sessionNumber: 10,
+        contenido: 'Instala la llave de paso en la tubería de CPVC aplicando cinta teflón en la rosca.',
+      });
+      expect(
+        validateSessionPlanContamination(plumbingPlan, 'Lenguaje y Comunicación I').length
+      ).toBeGreaterThan(0);
+    });
   });
 });

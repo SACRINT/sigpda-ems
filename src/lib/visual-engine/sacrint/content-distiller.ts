@@ -150,11 +150,11 @@ export function isRubricOrBoilerplateLeak(value: string | null | undefined): boo
   if (!cleaned) return false;
   if (RUBRIC_OR_META_LEAK_RE.test(cleaned)) return true;
   if (/^r[úu]brica\s+anal[íi]tica\s*[:\-–]?$/i.test(cleaned)) return true;
+  const isWorkedExampleProse = /^(?:planteamiento|paso\s*\d+|evaluar\b|debes\s+evaluar\b)/i.test(cleaned);
   if (
+    !isWorkedExampleProse &&
     /r[úu]brica\s+anal[íi]tica/i.test(cleaned) &&
-    /criterio\s*:|ponderaci[oó]n|excelente|insuficiente|requiere\s+apoyo|niveles?\s+de\s+desempe[ñn]o|\b\d+\s*(?:pts?|puntos?|%)/i.test(
-      cleaned
-    )
+    /criterio\s*:|ponderaci[oó]n|\b\d+\s*(?:pts?|puntos?|%)/i.test(cleaned)
   ) {
     return true;
   }
@@ -1018,7 +1018,6 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\brequiere\b/gi, 'exige'],
   [/\brequieren\b/gi, 'exigen'],
   [/\bnecesita\b/gi, 'precisa'],
-  [/\bsituaciones\b/gi, 'condiciones'],
   [/\bprocedimiento\b/gi, 'proceso'],
   [/\bprocedimientos\b/gi, 'procesos'],
   [/\bfundamental\b/gi, 'esencial'],
@@ -1272,12 +1271,8 @@ const WINDOW_BREAKER_REPLACEMENTS: Record<string, string> = {
   analisis: 'estudio',
   criterio: 'pauta',
   criterios: 'pautas',
-  equipo: 'grupo',
-  equipos: 'grupos',
   etapa: 'fase',
   etapas: 'fases',
-  proceso: 'flujo',
-  procesos: 'flujos',
   correcto: 'adecuado',
   correcta: 'adecuada',
   correctamente: 'adecuadamente',
@@ -2189,18 +2184,28 @@ export function extractWorkedExample(
     const interpretation = sanitizePedagogicalMetaPhrases(
       cleanSacrintText(visualExample.conclusion)
     );
+    // Eliminar etiquetas estructurales ("Paso 1", "Sesión 2", "Nivel 3") antes de juzgar
+    // si el ejemplo de la sesión es realmente cuantitativo; de lo contrario, toda sesión
+    // humanística/social/inglés parecería matemática solo por contener "Paso 1".
+    const exampleWithoutStepLabels = (session?.ejemploResuelto || '').replace(
+      /\b(?:paso|sesi[oó]n|nivel|etapa|fase|criterio|bloque|corte|p[aá]rrafo|art[ií]culo)\s*\d+\b/gi,
+      ''
+    );
     const hasSessionQuantitativeExample = Boolean(
-      session?.ejemploResuelto && /[=]|\d/.test(session.ejemploResuelto)
+      exampleWithoutStepLabels &&
+        /[=±≈√]|(?:\d+(?:[.,]\d+)?\s*(?:%|°|m²|m³|cm|mm|km|kg|mg|g|ml|l|hz|gb|mb|v|a|w|ω|mol|pesos|\$|horas|minutos|segundos|a[ñn]os|unidades))|\$\s*\d/i.test(
+          exampleWithoutStepLabels
+        )
     );
     const visualStepsHaveMath = steps.some((step) => /[=]|\d/.test(step));
     const sessionHasEquation = Boolean(
-      session?.ejemploResuelto &&
-        /[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/.test(session.ejemploResuelto)
+      exampleWithoutStepLabels &&
+        /[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/.test(exampleWithoutStepLabels)
     );
     const visualHasEquation = /=/.test(`${problemStatement} ${steps.join(' ')}`);
     if (sessionHasEquation && !visualHasEquation && steps.length > 0) {
-      const srcEq = session?.ejemploResuelto
-        ?.match(/[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/)?.[0]
+      const srcEq = exampleWithoutStepLabels
+        .match(/[A-Za-z0-9()²³]+\s*=\s*[-+A-Za-z0-9()²³*/.\s]+/)?.[0]
         ?.trim()
         .replace(/[.,;]+$/, '');
       if (srcEq) {
@@ -2223,16 +2228,16 @@ export function extractWorkedExample(
       }
     }
     const hasAdequateContext =
-      problemStatement.length >= 42 &&
+      problemStatement.length >= 24 &&
       !hasDanglingEnding(problemStatement) &&
-      problemStatement.split(/\s+/).filter(Boolean).length >= 7;
+      problemStatement.split(/\s+/).filter(Boolean).length >= 5;
     const hasAdequateConclusion =
-      interpretation.length >= 18 && !hasDanglingEnding(interpretation);
+      interpretation.length >= 14 && !hasDanglingEnding(interpretation);
     if (
       hasAdequateContext &&
       steps.length >= 2 &&
       hasAdequateConclusion &&
-      (!hasSessionQuantitativeExample || visualStepsHaveMath)
+      (!hasSessionQuantitativeExample || visualStepsHaveMath || sessionHasEquation)
     ) {
       return {
         problemStatement,

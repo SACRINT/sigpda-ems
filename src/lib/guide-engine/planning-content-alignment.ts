@@ -76,18 +76,49 @@ function normalize(s: string): string {
     .trim();
 }
 
+function stemSpanishWord(word: string): string {
+  if (word.length <= 4) return word;
+  if (word.endsWith('ciones')) return `${word.slice(0, -6)}cion`;
+  if (word.endsWith('siones')) return `${word.slice(0, -6)}sion`;
+  if (word.endsWith('ces') && word.length >= 6) return `${word.slice(0, -3)}z`;
+  if (word.endsWith('es') && word.length >= 6 && /[lrndjz]es$/.test(word)) {
+    return word.slice(0, -2);
+  }
+  if (word.endsWith('s') && word.length >= 5 && !word.endsWith('ss') && !word.endsWith('is')) {
+    return word.slice(0, -1);
+  }
+  return word;
+}
+
 function distinctiveWords(s: string): string[] {
   return normalize(s)
     .split(' ')
-    .filter((w) => w.length >= 4 && !STOPWORDS.has(w));
+    .filter((w) => w.length >= 4 && !STOPWORDS.has(w))
+    .map(stemSpanishWord);
 }
 
+/**
+ * Infraestructura audiovisual exclusivamente docente del aula que NO debe
+ * penalizar la alineación del libro del estudiante (el libro evita voz docente).
+ */
+const TEACHER_CLASSROOM_AV_RE =
+  /^(?:proyector(?:\s+digital|\s+multimedia)?|ca[ñn][oó]n(?:\s+proyector)?|pizarr[oó]n(?:\s+blanco|\s+digital)?|pintarr[oó]n|plumones(?:\s+para\s+pizarr[oó]n)?|marcadores\s+para\s+pizarr[oó]n|borrador\s+de\s+pizarr[oó]n)$/i;
+
 /** Divide listas de la planeación en ítems individuales. */
-function splitItems(raw: string | null | undefined, opts: { minLen: number; forceComma?: boolean }): string[] {
+function splitItems(
+  raw: string | null | undefined,
+  opts: { minLen: number; forceComma?: boolean; splitConjunctions?: boolean }
+): string[] {
   if (!raw) return [];
-    let parts = raw.split(/[;\n·•]+/).map((s) => s.trim()).filter(Boolean);
+  let parts = raw.split(/[;\n·•]+/).map((s) => s.trim()).filter(Boolean);
   if ((parts.length === 1 && raw.length > 160) || opts.forceComma) {
     parts = parts.flatMap((p) => p.split(/,/g)).map((s) => s.trim()).filter(Boolean);
+  }
+  if (opts.splitConjunctions) {
+    parts = parts
+      .flatMap((p) => p.split(/\s+(?:y|e)\s+/i))
+      .map((s) => s.trim())
+      .filter((s) => s.length >= opts.minLen && !TEACHER_CLASSROOM_AV_RE.test(s));
   }
   return parts.filter((p) => p.length >= opts.minLen);
 }
@@ -141,7 +172,12 @@ function itemCovered(item: string, corpusNorm: string, corpusWords: Set<string>)
 
 function wordsOf(corpusNorm: string): Set<string> {
   const set = new Set<string>();
-  for (const w of corpusNorm.split(' ')) if (w.length >= 4) set.add(w);
+  for (const w of corpusNorm.split(' ')) {
+    if (w.length >= 4) {
+      set.add(w);
+      set.add(stemSpanishWord(w));
+    }
+  }
   return set;
 }
 
@@ -195,9 +231,9 @@ export function evaluatePlanningContentAlignment(
     ...splitItems(activities.saberes?.saberSer, { minLen: 15 }),
   ];
   const materialesItems = [
-    ...splitItems(activities.apertura?.materials, { minLen: 4, forceComma: true }),
-    ...splitItems(activities.ejecucion?.materials, { minLen: 4, forceComma: true }),
-    ...splitItems(activities.conclusion?.materials, { minLen: 4, forceComma: true }),
+    ...splitItems(activities.apertura?.materials, { minLen: 4, forceComma: true, splitConjunctions: true }),
+    ...splitItems(activities.ejecucion?.materials, { minLen: 4, forceComma: true, splitConjunctions: true }),
+    ...splitItems(activities.conclusion?.materials, { minLen: 4, forceComma: true, splitConjunctions: true }),
   ];
 
   const checks: AlignmentCheck[] = [
@@ -310,9 +346,9 @@ export function extractRequiredCurricularTerms(
     ...splitItems(activities.saberes?.saberSer, { minLen: 15 }),
   ]).map((t) => clipTerm(t));
   const materiales = dedupeKeepOrder([
-    ...splitItems(activities.apertura?.materials, { minLen: 4, forceComma: true }),
-    ...splitItems(activities.ejecucion?.materials, { minLen: 4, forceComma: true }),
-    ...splitItems(activities.conclusion?.materials, { minLen: 4, forceComma: true }),
+    ...splitItems(activities.apertura?.materials, { minLen: 4, forceComma: true, splitConjunctions: true }),
+    ...splitItems(activities.ejecucion?.materials, { minLen: 4, forceComma: true, splitConjunctions: true }),
+    ...splitItems(activities.conclusion?.materials, { minLen: 4, forceComma: true, splitConjunctions: true }),
   ]).map((t) => clipTerm(t, 120));
   return { contenido, saberes, materiales };
 }

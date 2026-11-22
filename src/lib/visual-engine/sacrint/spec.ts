@@ -1407,7 +1407,7 @@ function compactActivityStatement(statement: string): string {
 }
 
 const ACTIVITY_TASK_RE =
-  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|escribe|redacta|prepara|elabora|integra|organiza|audita|revisa|verifica|comprueba|justifica|identifica|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|explica|construye|crea|consolida|completa|obt[eé]n|usa|utiliza|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala)\b/i;
+  /\?|\b(?:calcula|determina|encuentra|halla|resuelve|plantea|formula|escribe|redacta|prepara|elabora|integra|organiza|audita|revisa|verifica|comprueba|justifica|identifica|estima|proyecta|dise[ñn]a|aplica|eval[uú]a|compara|analiza|explica|construye|crea|consolida|completa|obt[eé]n|usa|utiliza|aseg[uú]rate|tabula|grafica|clasifica|ordena|registra|sustituye|despeja|simplifica|factoriza|demuestra|argumenta|describe|selecciona|prop[oó]n|corrige|presenta|defiende|exp[oó]n|convierte|contrasta|relaciona|traza|responde|dibuja|marca|se[ñn]ala|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|documenta|ejecuta|prueba|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|complete|write|rewrite|fill|match|choose|select|translate|read|answer|identify|describe|explain|analyze|compare|contrast|classify|create|correct|conjugate|underline|circle|practice|order|arrange|calculate|determine|solve|justify|discuss|list|label|convert|change|form)\b/i;
 
 const IMPERATIVE_MODELA_RE = /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i;
 
@@ -1459,13 +1459,13 @@ function ensureActivityClosure(statement: string): string {
   if (!incompleteCond && hasActivityTask(value) && value.length >= 55 && !hasDanglingEnding(value)) return value;
   const base = value.replace(/[.!?]+$/, '').trim();
   if (incompleteCond) {
-    return `${base}, calcula y determina los valores requeridos.`;
+    return `${base}, desarrolla el análisis y justifica tu respuesta.`;
   }
   if (!hasActivityTask(value)) {
-    const withTask = `${base}. Calcula y determina los valores requeridos.`;
+    const withTask = `${base}. Aplica el procedimiento estudiado y fundamenta tu respuesta.`;
     return withTask.length >= 55
       ? withTask
-      : `${base}. Calcula, registra el procedimiento y determina los valores requeridos.`;
+      : `${base}. Aplica el procedimiento estudiado, registra tu desarrollo y fundamenta tu respuesta.`;
   }
   return `${base}. Registra tu procedimiento y comprueba la respuesta.`;
 }

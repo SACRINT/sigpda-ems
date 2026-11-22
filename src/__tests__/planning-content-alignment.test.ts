@@ -273,4 +273,28 @@ describe('utilidades del reintento dirigido', () => {
     // Cobertura por palabras distintivas (paráfrasis parcial)
     expect(corpusCoversTerm(corpus, 'cálculo del área de rectángulos con fórmula')).toBe(true);
   });
+
+  it('normaliza plurales/conjunciones en materiales y excluye proyector digital docente sin relajar materiales reales', () => {
+    const actsWithPlurals: PlanningActivities = {
+      ...ACTIVITIES,
+      apertura: {
+        ...ACTIVITIES.apertura,
+        materials: 'regla metálica, compás, bibliografía y cuadernos, fichas diagnósticas y proyector digital',
+      },
+      conclusion: {
+        ...ACTIVITIES.conclusion,
+        materials: 'papel bond, rúbricas y bitácoras',
+      },
+    };
+    const mission = makeMission({
+      weDoSection: {
+        guidedPractice:
+          'Calculen áreas con la calculadora científica, la regla metálica y el compás; anoten en su cuaderno y bitácora usando la ficha diagnóstica, la bibliografía y la rúbrica, y socialicen en papel bond.',
+        workbookElements: [],
+      },
+    });
+    const report = evaluatePlanningContentAlignment(makeSource({ missions: [mission] }), actsWithPlurals);
+    expect(report.score).toBe(100);
+    expect(report.checks.find((c) => c.id === 'materiales')?.missing).toEqual([]);
+  });
 });

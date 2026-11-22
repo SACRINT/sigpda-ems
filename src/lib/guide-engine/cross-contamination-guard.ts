@@ -378,11 +378,14 @@ function findIssues(
       ) {
         continue;
       }
-      // En cualquier disciplina, "llave de paso" referido explícitamente a cristalería de laboratorio
-      // (embudo de decantación, bureta) no es plomería residencial.
+      // "llave de paso" es vocabulario cotidiano/de laboratorio (grifo, embudo de decantación, analogía
+      // de flujo). Solo se marca como contaminación de Construcción/Plomería si coexiste con contexto
+      // explícito de instalación hidráulica/plomería residencial.
       if (
         rule.label === 'llave de paso' &&
-        /embudo\s+de\s+decantaci[oó]n|bureta|decantaci[oó]n|cristaler[ií]a|laboratorio/i.test(value)
+        !/cpvc|ppr|pvc|rosca|tefl[oó]n|soldadura|plomer[ií]a|instalaci[oó]n\s+hidr[aá]ulica|ramal|codo|niple|v[aá]lvula\s+de\s+compuerta/i.test(
+          value
+        )
       ) {
         continue;
       }

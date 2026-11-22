@@ -291,4 +291,44 @@ describe('Prompts V2 — sintesisVisual y retrocompatibilidad', () => {
     expect(humReport.deficits).toEqual([]);
     expect(humReport.ok).toBe(true);
   });
+
+  it('extractWorkedExample preserva sintesisVisual.ejemploBreve en sesiones humanísticas/sociales/inglés aunque ejemploResuelto tenga "Paso 1" o trate sobre rúbricas analíticas', () => {
+    const rubricEvalSession = makeSession({
+      sessionNumber: 53,
+      objetivo: 'Evaluar el criterio de diseño accesible del periódico mural usando una rúbrica.',
+      ejemploResuelto:
+        'Planteamiento: Debes evaluar el criterio de Diseño accesible de tu periódico mural utilizando la rúbrica analítica del bloque con niveles Excelente, Satisfactorio y Necesita mejorar.\n' +
+        'Paso 1: Compara el mural final con los descriptores de la rúbrica.\n' +
+        'Paso 2: Justifica el nivel asignado con evidencias de legibilidad.\n' +
+        'Paso 3: Define acciones de mejora concretas.\n' +
+        'Paso 4: Conclusión: La evaluación objetiva orienta mejoras futuras.',
+      sintesisVisual: {
+        conceptoBreve:
+          'La rúbrica analítica permite valorar con objetividad cada dimensión del producto comunicativo y orientar mejoras concretas.',
+        formulaOReglaClave: 'Evidencia + Descriptores de Rúbrica → Nivel y Mejora',
+        ejemploBreve: {
+          planteamiento:
+            'Evaluar el criterio de Diseño accesible usando una rúbrica de tres niveles (Excelente, Satisfactorio, Necesita mejorar).',
+          pasos: [
+            'Comparar el mural final con los descriptores de la rúbrica.',
+            'Justificar el nivel Excelente mediante la aplicación de técnicas de legibilidad.',
+            'Asignar puntaje y establecer compromiso de mejora.',
+          ],
+          conclusion:
+            'La evaluación objetiva permite identificar fortalezas y áreas de oportunidad para futuras producciones.',
+        },
+        mapaConceptual: {
+          definicionClave: 'Instrumento con niveles graduados para valorar evidencias de aprendizaje.',
+          criterioDesarrollo: 'Contrastar cada descriptor con evidencias visibles del producto.',
+          errorComun: 'Asignar calificación global sin justificar cada criterio de desempeño.',
+          correccionBreve: 'Revisar criterio por criterio y documentar una acción concreta de mejora.',
+        },
+      },
+    });
+    const mission = makeWorkbook(rubricEvalSession).missions![0]!;
+    const extracted = extractWorkedExample(mission, rubricEvalSession, { allowMissionFallback: false });
+    expect(extracted.problemStatement).toContain('Diseño accesible');
+    expect(extracted.steps).toHaveLength(3);
+    expect(extracted.interpretation).toContain('fortalezas');
+  });
 });
