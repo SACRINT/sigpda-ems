@@ -164,7 +164,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['infographic_stub_question', /\b[FCRPDE]\s+¿(?:Alguna\s+vez|Logr[eé]\s+mantener|Puedo\s+detallar|Puedo\s+distinguir)\b/i],
     [
       'surface_concordance',
-      /\b(?:todas\s+los|todos\s+las|las\s+pautas\s+t[eé]cnicos|los\s+tres\s+clases|conforme\s+a\s+corresponda|respaldos(?:\s+de\s+aprendizaje)?\s+firmadas|respaldos\s+requeridas|pautas[^.\n]{0,50}\brequeridos)\b/i,
+      /\b(?:todas\s+los|todos\s+las|las\s+pautas\s+t[eé]cnicos|la\s+pauta\s+adecuado|el\s+caso\s+planteada|la\s+prop[oó]sito|el\s+l[aá]mina|un\s+funci[oó]n|los\s+(?:(?:dos|tres|cuatro|cinco|seis|diversos|distintos|varios|diferentes|principales)\s+)?clases|conforme\s+a\s+corresponda|respaldos(?:\s+de\s+aprendizaje)?\s+(?:firmadas|requeridas|t[eé]cnicas)|pautas[^.\n]{0,50}\brequeridos)\b/i,
     ],
     [
       'corrupt_title_fragment',
@@ -276,7 +276,7 @@ function appendPdfSemanticFindings(
       }
       // Gates duros sobre 09 PDF visible: pasos puramente numéricos, 03 EL RESULTADO vacío y título genérico
       const resultBlockMatch = pTxt.match(
-        /03\s+EL\s+RESULTADO\s+([\s\S]{0,160}?)(?=\b04\s+[A-ZÁÉÍÓÚÑ]|ERROR\s+COM[UÚ]N|CONCEPTO\s+CLAVE|EJEMPLO|$)/i
+        /03\s+EL\s+RESULTADO\s+([\s\S]{0,160}?)(?=(?<!\d[.,])\b04\s+(?:LA\s+VERIFICACI[OÓ]N|LA\s+DECISI[OÓ]N|PASO\s+4|[A-ZÁÉÍÓÚÑ]{2,})|ERROR\s+COM[UÚ]N|CONCEPTO\s+CLAVE|EJEMPLO|$)/i
       );
       if (resultBlockMatch) {
         const resultBody = resultBlockMatch[1]!.replace(/\s+/g, ' ').trim();
@@ -288,7 +288,7 @@ function appendPdfSemanticFindings(
         }
       }
       const numberedStepMatches = pTxt.matchAll(
-        /\b0[1-4]\s+(?:EL\s+FEN[OÓ]MENO|EL\s+DESARROLLO|EL\s+RESULTADO|LA\s+VERIFICACI[OÓ]N|EL\s+CONCEPTO|LA\s+PR[AÁ]CTICA|LA\s+DECISI[OÓ]N|PASO\s+\d)\s+([\s\S]{0,140}?)(?=\b0[2-4]\s+[A-ZÁÉÍÓÚÑ]|ERROR\s+COM[UÚ]N|CONCEPTO\s+CLAVE|$)/gi
+        /\b0[1-4]\s+(?:EL\s+FEN[OÓ]MENO|EL\s+DESARROLLO|EL\s+RESULTADO|LA\s+VERIFICACI[OÓ]N|EL\s+CONCEPTO|LA\s+PR[AÁ]CTICA|LA\s+DECISI[OÓ]N|PASO\s+\d)\s+([\s\S]{0,140}?)(?=(?<!\d[.,])\b0[2-4]\s+(?:EL\s+FEN[OÓ]MENO|EL\s+DESARROLLO|EL\s+RESULTADO|LA\s+VERIFICACI[OÓ]N|EL\s+CONCEPTO|LA\s+PR[AÁ]CTICA|LA\s+DECISI[OÓ]N|PASO\s+\d)|ERROR\s+COM[UÚ]N|CONCEPTO\s+CLAVE|$)/gi
       );
       for (const sm of numberedStepMatches) {
         const body = sm[1]!.replace(/\s+/g, ' ').trim();

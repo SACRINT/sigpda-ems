@@ -126,10 +126,25 @@ export function repairSpanishSurfaceGrammar(value: string | null | undefined): s
     .replace(/\btodos las pautas\b/gi, 'todas las pautas')
     .replace(/\btodas las respaldos\b/gi, 'todos los respaldos')
     .replace(/\blas pautas t[eé]cnicos\b/gi, 'las pautas técnicas')
-    .replace(/\blos tres clases\b/gi, 'las tres clases')
+    .replace(/\bla pauta adecuado\b/gi, 'la pauta adecuada')
+    .replace(/\bel caso planteada\b/gi, 'el caso planteado')
+    .replace(/\bla prop[oó]sito\b/gi, 'el propósito')
+    .replace(/\bel l[aá]mina\b/gi, 'la lámina')
+    .replace(/\b([Uu])n funci[oó]n\b/g, '$1na función')
+    .replace(
+      /\b([Ll])os\s+((?:(?:dos|tres|cuatro|cinco|seis|divers[oa]s|distint[oa]s|vari[oa]s|diferentes|principales)\s+)?)clases\b/g,
+      (_m, lChar: string, mod: string) => {
+        const femMod = mod
+          .replace(/\bdiversos\b/gi, 'diversas')
+          .replace(/\bdistintos\b/gi, 'distintas')
+          .replace(/\bvarios\b/gi, 'varias');
+        const art = lChar === 'L' ? 'Las' : 'las';
+        return `${art} ${femMod}clases`;
+      }
+    )
     .replace(/\bconforme a corresponda\b/gi, 'conforme corresponda');
 
-  out = out.replace(/\b(todas|todos)\s+(los|las)\s+([a-záéíóúñ]+)/gi, (match, _quant, _art, noun: string) => {
+  out = out.replace(/\b(todas|todos)\s+(los|las)\s+([a-záéíóúñ]+)/gi, (_match, _quant, _art, noun: string) => {
     const feminine = isLikelyFeminineNoun(noun);
     return `${feminine ? 'todas' : 'todos'} ${feminine ? 'las' : 'los'} ${noun}`;
   });
@@ -137,7 +152,8 @@ export function repairSpanishSurfaceGrammar(value: string | null | undefined): s
   out = out
     .replace(/\brespaldos([^.!?]{0,60}?)\brequeridas\b/gi, 'respaldos$1requeridos')
     .replace(/\bpautas([^.!?]{0,60}?)\brequeridos\b/gi, 'pautas$1requeridas')
-    .replace(/\brespaldos([^.!?]{0,60}?)\bfirmadas\b/gi, 'respaldos$1firmados');
+    .replace(/\brespaldos([^.!?]{0,60}?)\bfirmadas\b/gi, 'respaldos$1firmados')
+    .replace(/\brespaldos([^.!?]{0,60}?)\bt[eé]cnicas\b/gi, 'respaldos$1técnicos');
 
   return out;
 }
@@ -1737,7 +1753,7 @@ function normalizeOverlapText(value: string): string {
 const GENERIC_SIX_GRAM_PARAPHRASES: Array<[RegExp, string]> = [
   [/\bplano cartesiano\b/gi, 'plano de coordenadas'],
   [/\bpresupuesto de (\$?[\d.,]+) en espacios recreativos\b/gi, 'monto de $1 para áreas comunitarias'],
-  [/\bpropiedad geom[eé]trica de los [aá]ngulos suplementarios\b/gi, 'rasgo geométrico de ángulos suplementarios'],
+  [/\bpropiedad geom[eé]trica de los [aá]ngulos suplementarios\b/gi, 'cualidad geométrica de ángulos suplementarios'],
   [/\ben la f[oó]rmula general\b/gi, 'con la fórmula cuadrática'],
   [/\bpapel milim[eé]trico\b/gi, 'hoja cuadriculada'],
   [/\bsuma total\b/gi, 'suma'],
@@ -1954,20 +1970,35 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\byeso dental tipo III\b/gi, 'yeso piedra tipo III'],
   [/\bimpresiones de alginato\b/gi, 'registros en alginato'],
   [/\bmodelos de estudio\b/gi, 'modelos diagnósticos'],
-  [/\bprotocolo de bioseguridad\b/gi, 'medida de bioseguridad'],
-  [/\bprotocolos de bioseguridad\b/gi, 'normas de bioseguridad'],
-  [/\bintenci[oó]n comunicativa\b/gi, 'propósito comunicativo'],
+  [/\bprotocolo de bioseguridad\b/gi, 'reglamento de bioseguridad'],
+  [/\bprotocolos de bioseguridad\b/gi, 'lineamientos de bioseguridad'],
+  [/\bintenci[oó]n comunicativa\b/gi, 'finalidad comunicativa'],
   [/\btesis central\b/gi, 'postura principal'],
   [/\bfuentes confiables\b/gi, 'fuentes verificadas'],
   [/\blectura cr[ií]tica\b/gi, 'análisis crítico'],
   [/\btexto argumentativo\b/gi, 'escrito argumentativo'],
   [/\btextos argumentativos\b/gi, 'escritos argumentativos'],
-  [/\bevidencia verificable\b/gi, 'respaldo comprobable'],
-  [/\bevidencias verificables\b/gi, 'respaldos comprobables'],
+  [/\bevidencia verificable\b/gi, 'constancia comprobable'],
+  [/\bevidencias verificables\b/gi, 'constancias comprobables'],
   [/\bde manera ordenada\b/gi, 'en orden'],
   [/\bpaso a paso\b/gi, 'etapa por etapa'],
   [/\bcada uno de los\b/gi, 'todos los'],
   [/\bcada una de las\b/gi, 'todas las'],
+  [/\bseg[uú]n corresponda\b/gi, 'como corresponda'],
+  [/\bseg[uú]n se requiera\b/gi, 'como se requiera'],
+  [/\bseg[uú]n aplique\b/gi, 'como aplique'],
+  [/\bseg[uú]n la\b/gi, 'conforme a la'],
+  [/\bseg[uú]n las\b/gi, 'conforme a las'],
+  [/\bseg[uú]n los\b/gi, 'conforme a los'],
+  [/\bseg[uú]n el\b/gi, 'conforme al'],
+  [/\bseg[uú]n tu\b/gi, 'conforme a tu'],
+  [/\bseg[uú]n su\b/gi, 'conforme a su'],
+  [/\blos tres tipos\b/gi, 'las tres clases'],
+  [/\blos dos tipos\b/gi, 'las dos clases'],
+  [/\blos diversos tipos\b/gi, 'las diversas clases'],
+  [/\blos distintos tipos\b/gi, 'las distintas clases'],
+  [/\blos diferentes tipos\b/gi, 'las diferentes clases'],
+  [/\blos tipos\b/gi, 'las clases'],
   [/\bde acuerdo con\b/gi, 'conforme a'],
   [/\ba partir de\b/gi, 'desde'],
   [/\bdentro de la\b/gi, 'en la'],
@@ -2001,24 +2032,24 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bcon los datos del\b/gi, 'usando las cifras del'],
   [/\ben el contexto de\b/gi, 'dentro del marco de'],
   [/\ben el contexto del\b/gi, 'en el marco del'],
-  [/\bel concepto central\b/gi, 'la noción clave'],
-  [/\bel criterio central\b/gi, 'la regla rectora'],
+  [/\bel concepto central\b/gi, 'el eje conceptual'],
+  [/\bel criterio central\b/gi, 'el principio rector'],
   [/\blo aprendido en\b/gi, 'lo estudiado en'],
-  [/\bla informaci[oó]n disponible\b/gi, 'los datos existentes'],
-  [/\blos datos relevantes\b/gi, 'la información clave'],
+  [/\bla informaci[oó]n disponible\b/gi, 'la documentación disponible'],
+  [/\blos datos relevantes\b/gi, 'los registros clave'],
   [/\bdatos concretos\b/gi, 'cifras específicas'],
-  [/\buna situaci[oó]n concreta\b/gi, 'un caso específico'],
-  [/\bla situaci[oó]n\b/gi, 'el caso'],
-  [/\buna situaci[oó]n\b/gi, 'un caso'],
-  [/\blas situaciones\b/gi, 'los casos'],
+  [/\buna situaci[oó]n concreta\b/gi, 'una problemática específica'],
+  [/\bla situaci[oó]n\b/gi, 'la circunstancia'],
+  [/\buna situaci[oó]n\b/gi, 'una circunstancia'],
+  [/\blas situaciones\b/gi, 'las circunstancias'],
   [/\bsituaciones reales\b/gi, 'casos concretos'],
   [/\bla vida real\b/gi, 'la vida cotidiana'],
-  [/\bla evidencia\b/gi, 'el respaldo'],
-  [/\blas evidencias\b/gi, 'los respaldos'],
-  [/\bel criterio\b/gi, 'la pauta'],
-  [/\blos criterios\b/gi, 'las pautas'],
-  [/\bplano t[eé]cnico definitivo\b/gi, 'lámina técnica final'],
-  [/\ben tu plano t[eé]cnico\b/gi, 'en tu lámina técnica'],
+  [/\bla evidencia\b/gi, 'la constancia'],
+  [/\blas evidencias\b/gi, 'las constancias'],
+  [/\bel criterio\b/gi, 'el parámetro'],
+  [/\blos criterios\b/gi, 'los lineamientos'],
+  [/\bplano t[eé]cnico definitivo\b/gi, 'dibujo técnico final'],
+  [/\ben tu plano t[eé]cnico\b/gi, 'en tu trazo técnico'],
   [/\bplano definitivo\b/gi, 'plano final'],
   [/\bmedida real\b/gi, 'dimensión real'],
   [/\bmedidas reales\b/gi, 'dimensiones reales'],
@@ -2077,7 +2108,7 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\ba escala\b/gi, 'en escala'],
   [/\buna escala\b/gi, 'la escala'],
   [/\bcalcula y traza\b/gi, 'determina y dibuja'],
-  [/\beje de simetr[ií]a\b/gi, 'línea de simetría'],
+  [/\beje de simetr[ií]a\b/gi, 'trazo de simetría'],
   [/\bnivel de piso terminado\b/gi, 'cota de piso terminado'],
   [/\bperspectiva isom[eé]trica de\b/gi, 'vista isométrica de'],
   [/\bhabilidades de dibujo t[eé]cnico\b/gi, 'destrezas de dibujo técnico'],
@@ -2092,11 +2123,11 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bcuando t =\b/gi, 'en t ='],
   [/\bun modelo de consumo de\b/gi, 'el modelo de consumo de'],
   [/\bun modelo de estr[eé]s\b/gi, 'el modelo de estrés'],
-  [/\bmodelo de estr[eé]s\b/gi, 'función de estrés'],
-  [/\bmodelo de vulnerabilidad\b/gi, 'función de vulnerabilidad'],
-  [/\bmodelo de bienestar\b/gi, 'función de bienestar'],
-  [/\bmodelo de incidentes\b/gi, 'función de incidentes'],
-  [/\bel modelo original\b/gi, 'la expresión inicial'],
+  [/\bmodelo de estr[eé]s\b/gi, 'perfil de estrés'],
+  [/\bmodelo de vulnerabilidad\b/gi, 'perfil de vulnerabilidad'],
+  [/\bmodelo de bienestar\b/gi, 'perfil de bienestar'],
+  [/\bmodelo de incidentes\b/gi, 'perfil de incidentes'],
+  [/\bel modelo original\b/gi, 'el esquema inicial'],
   [/\bel nuevo valor de la constante\b/gi, 'la constante ajustada'],
   [/\bpase por el punto\b/gi, 'cruce por el punto'],
   [/\bel valor real es\b/gi, 'el dato real vale'],
@@ -2130,7 +2161,6 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
  * Se consulta usando la palabra original en minúsculas (con tilde preservada).
  */
 const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string, string>([
-  ['según', 'conforme a'],
   ['porque', 'puesto que'],
   ['problema', 'reto'],
   ['problemas', 'retos'],
@@ -2265,7 +2295,6 @@ const WINDOW_BREAKER_REPLACEMENTS: ReadonlyMap<string, string> = new Map<string,
   ['futuros', 'venideros'],
   ['clasifican', 'agrupan'],
   ['abertura', 'amplitud'],
-  ['tipos', 'clases'],
   ['igual', 'equivalente'],
   ['dibuja', 'traza'],
   ['dibujan', 'trazan'],
@@ -2312,9 +2341,11 @@ function breakRemainingSixGramWindows(text: string, sourceGrams: Set<string>): s
     const r = replacementsToApply[k]!;
     out = `${out.slice(0, r.start)}${r.replacement}${out.slice(r.end)}`;
   }
-  return out
-    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\b/gi, 'del')
-    .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\b/gi, 'al');
+  return repairSpanishSurfaceGrammar(
+    out
+      .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\b/gi, 'del')
+      .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\b/gi, 'al')
+  );
 }
 
 export function paraphraseSixGramOverlap(
@@ -2327,11 +2358,11 @@ export function paraphraseSixGramOverlap(
   )
     .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])de\s+el\b/gi, 'del')
     .replace(/(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])a\s+el\b/gi, 'al');
-  if (!sources || sources.length === 0) return out;
+  if (!sources || sources.length === 0) return repairSpanishSurfaceGrammar(out);
   const sourceGrams = resolveSourceSixGrams(sources);
-  if (sourceGrams.size === 0) return out;
+  if (sourceGrams.size === 0) return repairSpanishSurfaceGrammar(out);
   let currentRatio = ratioAgainstSixGrams(out, sourceGrams);
-  if (currentRatio === 0) return out;
+  if (currentRatio === 0) return repairSpanishSurfaceGrammar(out);
   for (const [pattern, replacement] of TARGETED_OVERLAP_SYNONYMS) {
     pattern.lastIndex = 0;
     if (!pattern.test(out)) continue;
@@ -2362,7 +2393,7 @@ export function paraphraseSixGramOverlap(
       }
     }
   }
-  return out;
+  return repairSpanishSurfaceGrammar(out);
 }
 
 function sourceIsSelfOrFieldContainer(source: string, text: string): boolean {

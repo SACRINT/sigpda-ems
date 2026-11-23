@@ -329,7 +329,7 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
   // cortar en un conector secundario (" mediante ", " para ", " con ", etc.) SIN cortar palabras clave como "dos variables"
   if (text.length > 62) {
     const secondaryCut = text.match(
-      /^(.{18,64}?)(?:,\s*como\b|\s+(?:mediante|para|utilizando|aplicando|vinculad[oa]s?|en\s+la\s+validaci[oó]n|en\s+el\s+an[aá]lisis|en\s+planos\s+de|en\s+tu\s+|de\s+tu\s+|con\s+los\s+fundamentos|a\s+trav[eé]s|con\s+un[a]?|y\s+(?:el|la|los|las)\s+|y\s+su\s+(?:aplicaci[oó]n|relaci[oó]n|uso)|y\s+un[a]?|sobre\s+(?:tu|la|los)|antes\s+y\s+despu[eé]s|en\s+el\s+gabinete)\b)/i
+      /^(.{18,64}?)(?:,\s*como\b|\s+(?:mediante|para|utilizando|empleando|usando|aplicando|vinculad[oa]s?|en\s+la\s+validaci[oó]n|en\s+el\s+an[aá]lisis|en\s+planos\s+de|en\s+tu\s+|de\s+tu\s+|con\s+los\s+fundamentos|a\s+trav[eé]s|con\s+un[a]?|y\s+(?:el|la|los|las)\s+|y\s+su\s+(?:aplicaci[oó]n|relaci[oó]n|uso)|y\s+un[a]?|sobre\s+(?:tu|la|los)|antes\s+y\s+despu[eé]s|en\s+el\s+gabinete)\b)/i
     );
     if (secondaryCut && !hasDanglingEnding(secondaryCut[1])) {
       text = secondaryCut[1].trim();

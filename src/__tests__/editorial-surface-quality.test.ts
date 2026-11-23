@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   cleanSacrintText,
+  paraphraseSixGramOverlap,
+  preventSixGramTheoryOverlap,
   repairSpanishSurfaceGrammar,
   sanitizePedagogicalMetaPhrases,
 } from '@/lib/visual-engine/sacrint/content-distiller';
@@ -137,5 +139,33 @@ describe('calidad superficial editorial — concordancia y títulos corruptos', 
         'Aprenderás a graficar los resultados obtenidos y a jerarquizar las problemáticas mediante una representación gráfica.'
       )
     ).toBe('Jerarquización de problemáticas');
+    expect(
+      extractDisciplinaryConceptPhrase(
+        'Redactas un párrafo de apertura argumentativo empleando una oración temática clara y conectores discursivos adecuados para estructurar tu postura sobre la alfabetización mediática en tu comunidad escolar.'
+      )
+    ).toBe('Párrafo de apertura argumentativo');
+  });
+
+  it('el desolapador de 6-gramas preserva concordancia de género, número y régimen preposicional después de cleanSacrintText', () => {
+    const aecaefSource =
+      'Identifica en un equipo de taller los tres tipos de buses de comunicación y describe su función específica en la transferencia de información hacia la memoria RAM.';
+    const aecaefClean = cleanSacrintText(aecaefSource);
+    const aecaefOut = preventSixGramTheoryOverlap(aecaefClean, [aecaefSource]);
+    expect(aecaefOut).not.toMatch(/\blos\s+tres\s+clases\b/i);
+    expect(aecaefOut).toMatch(/\b(?:los tres tipos|las tres clases)\b/i);
+
+    const portfolioSource =
+      'Mi registro técnico contiene todas las evidencias requeridas con sus respectivas firmas, respeta todos los criterios técnicos de la rúbrica, ilustra la situación planteada y aplica los conectores según corresponda.';
+    const portfolioOut = paraphraseSixGramOverlap(cleanSacrintText(portfolioSource), [portfolioSource]);
+    expect(scanEditorialDefects(portfolioOut).surface_concordance ?? []).toHaveLength(0);
+    expect(portfolioOut).not.toMatch(/\btodas\s+los\b/i);
+    expect(portfolioOut).not.toMatch(/\btodos\s+las\b/i);
+    expect(portfolioOut).not.toMatch(/\bpautas\s+t[eé]cnicos\b/i);
+    expect(portfolioOut).not.toMatch(/\bel\s+caso\s+planteada\b/i);
+    expect(portfolioOut).not.toMatch(/\bconforme\s+a\s+corresponda\b/i);
+
+    const lcSource = 'Comprende la intención comunicativa del texto y elabora un resumen.';
+    const lcOut = paraphraseSixGramOverlap(cleanSacrintText(lcSource), [lcSource]);
+    expect(lcOut).not.toMatch(/\bla\s+prop[oó]sito\b/i);
   });
 });
