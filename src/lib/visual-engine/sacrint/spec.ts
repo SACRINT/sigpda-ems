@@ -2769,11 +2769,26 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
         ? 'Registra este avance en tu evidencia.'
         : rawCompactedArtifact;
 
+    const dedupeObjectiveAgainstTitle = (bullet: string, slideTitle: string): string => {
+      const cleanBullet = bullet.trim();
+      const cleanTitle = slideTitle.trim();
+      if (!cleanBullet) return cleanTitle;
+      const norm = (v: string) =>
+        v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+      if (norm(cleanBullet) === norm(cleanTitle)) {
+        const lowerTitle = cleanTitle.charAt(0).toLowerCase() + cleanTitle.slice(1);
+        return `Aplicar ${lowerTitle}.`;
+      }
+      return cleanBullet;
+    };
+
+    const compactedObjective = (seventh.objectiveBullets ?? [])
+      .slice(0, 1)
+      .map((item) => dedupeObjectiveAgainstTitle(compactObjectiveBullet(item, seventh.title), seventh.title));
+
     let eighth: SacrintPracticeSlide = {
       ...seventh,
-      objectiveBullets: (seventh.objectiveBullets ?? [])
-        .slice(0, 1)
-        .map((item) => compactObjectiveBullet(item, seventh.title)),
+      objectiveBullets: compactedObjective,
       applicationText: compactedApp,
       artifactStep: compactedArtifact,
       evaluationCriteria: (seventh.evaluationCriteria ?? []).slice(0, 1),
@@ -2815,7 +2830,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
 
     return {
       ...eighth,
-      objectiveBullets: [eighth.title],
+      objectiveBullets: [dedupeObjectiveAgainstTitle(eighth.title, eighth.title)],
       applicationText: trimRedundantBlockTail(eighth.applicationText, 36) || eighth.applicationText,
       evaluationCriteria: (eighth.evaluationCriteria ?? []).map(
         (c) => trimRedundantBlockTail(c, 22) || c
