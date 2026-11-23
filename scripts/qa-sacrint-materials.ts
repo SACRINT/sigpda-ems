@@ -13,6 +13,17 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { hasDanglingEnding } from '../src/lib/editorial/pedagogical-text-fitter';
 import { isValidRenderableFormula } from '../src/lib/editorial/text-normalization';
 import {
+  GENERIC_TITLE_BLACKLIST_RE,
+  LEADING_MODE_ADVERB_RE,
+} from '../src/lib/editorial/topic-title-resolver';
+import {
+  GENERIC_CONCLUSION_RE,
+  isSpanishInfinitiveVerb,
+  NUMERIC_ONLY_STEP_RE,
+  TEMPLATE_PHRASE_RE,
+  validatePracticeActivity,
+} from '../src/lib/visual-engine/sacrint/content-distiller';
+import {
   buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
   dedupeInfographicSpecs,
@@ -249,6 +260,38 @@ function appendPdfSemanticFindings(
       }
       if (/(?:^|\n)\s*(?:\/\s*\d+\s*=|-\s+\d+\s*=|cm\s*=\s*\d|P\(t\)\s*=\s*P(?:\s|$))/m.test(pTxt)) {
         pushFinding('broken_infographic_formula', `Pág. ${idx + 1}: fórmula truncada o mal formada`);
+      }
+      // Gates duros sobre 09 PDF visible: pasos puramente numéricos, 03 EL RESULTADO vacío y título genérico
+      const resultBlockMatch = pTxt.match(
+        /03\s+EL\s+RESULTADO\s+([\s\S]{0,160}?)(?=\b04\s+[A-ZÁÉÍÓÚÑ]|ERROR\s+COM[UÚ]N|CONCEPTO\s+CLAVE|EJEMPLO|$)/i
+      );
+      if (resultBlockMatch) {
+        const resultBody = resultBlockMatch[1]!.replace(/\s+/g, ' ').trim();
+        if (!resultBody || resultBody.length < 10 || NUMERIC_ONLY_STEP_RE.test(resultBody)) {
+          pushFinding('empty_result', `Pág. ${idx + 1}: 03 EL RESULTADO vacío o numérico ("${resultBody}")`);
+        }
+        if (NUMERIC_ONLY_STEP_RE.test(resultBody)) {
+          pushFinding('example_numeric_only_step', `Pág. ${idx + 1}: paso 03 solo numérico ("${resultBody}")`);
+        }
+      }
+      const numberedStepMatches = pTxt.matchAll(
+        /\b0[1-4]\s+(?:EL\s+FEN[OÓ]MENO|EL\s+DESARROLLO|EL\s+RESULTADO|LA\s+VERIFICACI[OÓ]N|EL\s+CONCEPTO|LA\s+PR[AÁ]CTICA|LA\s+DECISI[OÓ]N|PASO\s+\d)\s+([\s\S]{0,140}?)(?=\b0[2-4]\s+[A-ZÁÉÍÓÚÑ]|ERROR\s+COM[UÚ]N|CONCEPTO\s+CLAVE|$)/gi
+      );
+      for (const sm of numberedStepMatches) {
+        const body = sm[1]!.replace(/\s+/g, ' ').trim();
+        if (NUMERIC_ONLY_STEP_RE.test(body) || /:\s*\d+\.\s*$/.test(body)) {
+          pushFinding('example_numeric_only_step', `Pág. ${idx + 1}: paso numérico/truncado ("${body.slice(0, 60)}")`);
+        }
+      }
+      if (/Concepto\s+clave\s+de\s+la\s+sesi[oó]n/i.test(pTxt)) {
+        pushFinding('generic_title', `Pág. ${idx + 1}: contiene "Concepto clave de la sesión"`);
+      }
+      if (TEMPLATE_PHRASE_RE.test(pTxt)) {
+        const tm = pTxt.match(TEMPLATE_PHRASE_RE);
+        pushFinding('template_phrase', `Pág. ${idx + 1}: "${tm?.[0]?.slice(0, 80) ?? ''}"`);
+      }
+      if (GENERIC_CONCLUSION_RE.test(pTxt)) {
+        pushFinding('generic_conclusion', `Pág. ${idx + 1}: conclusión genérica prohibida`);
       }
     });
     // Detectar títulos duplicados o de un adjetivo suelto entre páginas de infografía (H1)
@@ -530,13 +573,41 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
     };
 
     // Semantic checks on PIZARRÓN DOCENTE (1/2) & (2/2)
+    let visibleSlideTitle = '';
     if (allSlideText.includes('PIZARRÓN DOCENTE')) {
-      const titleBox = shapes.find((s) => s.hasText && s.y >= 0.45 && s.y <= 1.2 && s.x < 9.5 && s.fontSizePt >= 16);
+      const titleBox = shapes.find(
+        (s) =>
+          s.hasText &&
+          s.y >= 0.65 &&
+          s.y <= 1.4 &&
+          s.x >= 0.35 &&
+          s.x < 9.5 &&
+          s.fontSizePt >= 9.5 &&
+          !/^(?:SESI[ÓO]N\s+\d+|PIZARR[ÓO]N\s+DOCENTE|CONOCIMIENTO\s+NUEVO$|EJERCICIOS\s+Y\s+APLICACI[ÓO]N$|PR[ÁA]CTICA$)/i.test(
+            s.text.trim()
+          )
+      );
+      visibleSlideTitle = titleBox?.text.replace(/\s+/g, ' ').trim() ?? '';
+      if (
+        !visibleSlideTitle ||
+        GENERIC_TITLE_BLACKLIST_RE.test(visibleSlideTitle) ||
+        /concepto\s+clave\s+de\s+la\s+sesi[oó]n/i.test(allSlideText)
+      ) {
+        pushSlideFinding('generic_title', visibleSlideTitle || 'Título vacío o genérico');
+      }
+      if (TEMPLATE_PHRASE_RE.test(allSlideText)) {
+        const tm = allSlideText.match(TEMPLATE_PHRASE_RE);
+        pushSlideFinding('template_phrase', tm?.[0]?.slice(0, 80) ?? 'frase de plantilla');
+      }
+      if (GENERIC_CONCLUSION_RE.test(allSlideText)) {
+        pushSlideFinding('generic_conclusion', 'Conclusión genérica prohibida');
+      }
       if (
         titleBox &&
         (FUTURE_TITLE_RE.test(titleBox.text) ||
           /\b[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b/i.test(titleBox.text) ||
-          /^[a-záéíóúñ]+mente\b/i.test(titleBox.text.trim()))
+          /^[a-záéíóúñ]+mente\b/i.test(titleBox.text.trim()) ||
+          LEADING_MODE_ADVERB_RE.test(titleBox.text.trim()))
       ) {
         pushSlideFinding('future_tense_slide_title', titleBox.text.slice(0, 80));
       }
@@ -612,13 +683,20 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
                 Math.abs(s.y - badge.y) <= 0.18
             )
             .sort((a, b) => a.x - b.x)[0];
-          if (!stepBody || stepBody.text.trim().length < 12 || hasDanglingEnding(stepBody.text.trim())) {
+          const stepTxt = stepBody?.text.trim() ?? '';
+          if (NUMERIC_ONLY_STEP_RE.test(stepTxt) || /:\s*\d+\.\s*$/.test(stepTxt)) {
+            pushSlideFinding(
+              'example_numeric_only_step',
+              `Paso ${badge.text} solo numérico/truncado: "${stepTxt.slice(0, 80)}"`
+            );
+          }
+          if (!stepBody || stepTxt.length < 12 || hasDanglingEnding(stepTxt)) {
             pushSlideFinding(
               'incomplete_worked_example',
-              `Paso ${badge.text} truncado: "${stepBody?.text.trim().slice(0, 90) ?? 'ausente'}"`
+              `Paso ${badge.text} truncado: "${stepTxt.slice(0, 90) || 'ausente'}"`
             );
           } else {
-            stepTexts.push(stepBody.text.trim());
+            stepTexts.push(stepTxt);
           }
         }
         if (stepBadges.length < 2 || stepTexts.length < 2) {
@@ -629,6 +707,12 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
       const conclBox = shapes.find((s) => s.hasText && /Conclusi[oó]n\s*:/i.test(s.text));
       if (conclBox) {
         const after = conclBox.text.replace(/^[\s\S]*?Conclusi[oó]n\s*:\s*/i, '').trim();
+        if (!after || after.length < 10 || NUMERIC_ONLY_STEP_RE.test(after)) {
+          pushSlideFinding('empty_result', `Conclusión vacía/numérica: "${conclBox.text.slice(0, 80)}"`);
+        }
+        if (GENERIC_CONCLUSION_RE.test(after)) {
+          pushSlideFinding('generic_conclusion', after.slice(0, 90));
+        }
         if (
           after.length < 15 ||
           hasDanglingEnding(after) ||
@@ -637,6 +721,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           pushSlideFinding('empty_or_meta_conclusion', conclBox.text.slice(0, 80));
         }
       } else if (exHeader) {
+        pushSlideFinding('empty_result', 'Sin conclusión en ejemplo resuelto');
         pushSlideFinding('empty_or_meta_conclusion', 'Sin conclusión en ejemplo resuelto');
       }
 
@@ -676,20 +761,11 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           .join(' ')
           .replace(/\s+/g, ' ')
           .trim();
-        const hasTaskOrQuestion =
-          /\?/.test(txt) ||
-          /\b(?:calcula|determina|resuelve|soluciona|plantea|encuentra|halla|obten|obtén|verifica|comprueba|construye|arma|crea|grafica|tabula|compara|justifica|sustenta|fundamenta|explica|detalla|interpreta|redacta|escribe|elabora|prepara|analiza|examina|evalua|evalúa|valora|identifica|reconoce|clasifica|ordena|organiza|registra|anota|sustituye|reemplaza|despeja|a[ií]sla|simplifica|factoriza|demuestra|argumenta|describe|selecciona|elige|propón|propon|diseña|disena|corrige|revisa|audita|integra|incorpora|a[ñn]ade|consolida|presenta|defiende|expón|expon|estima|proyecta|convierte|contrasta|relaciona|vincula|formula|aplica|traza|usa|utiliza|emplea|efect[uú]a|fija|completa|responde|asegúrate|asegurate|dibuja|representa|marca|señala|instala|configura|actualiza|conecta|mide|documenta|ejecuta|repara|limpia|inspecciona|traduce|conjuga|subraya|contesta|investiga|debate|concluye|enumera|enlista|ejemplifica|empareja|observa|consulta|modifica|implementa|monitorea|diagnostica|simula)\b/i.test(
-            txt
-          ) ||
-          /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i.test(
-            txt
-              .replace(/\b(?:se|que|donde|cuyo|cuya)\s+modela\b/gi, '')
-              .replace(
-                /\b(?:ecuaci[oó]n|expresi[oó]n|funci[oó]n|f[oó]rmula|gr[aá]fica|club|comit[eé]|centro|programa|tabla)\b[^.?!]{0,45}\bmodela\b/gi,
-                ''
-              )
-              .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+muestra\b/gi, '')
-          );
+        const actValidation = validatePracticeActivity(txt, '', { strict: false });
+        if (!actValidation.valid) {
+          pushSlideFinding('activity_without_task', `Act ${aIdx + 1}: ${actValidation.reason} — "${txt.slice(0, 90)}"`);
+        }
+        const hasTaskOrQuestion = actValidation.valid;
         const isPlaceholder =
           /^(?:calcula lo solicitado|verifica el resultado|registra evidencia)\.?$/i.test(txt) ||
           /(?:calcula lo solicitado|verifica el resultado|registra evidencia)\.?$/i.test(txt);
@@ -779,15 +855,56 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           pushSlideFinding('weak_or_truncated_activity', `Evidencia trunca (${evidenceWords}w): "${evidenceText.slice(0, 90)}"`);
         }
       }
+      const objectiveHeader = shapes.find((s) => s.hasText && /^OBJETIVO DE LA SESI[ÓO]N$/i.test(s.text.trim()));
+      const objectiveBox = objectiveHeader
+        ? shapes.find(
+            (s) =>
+              s.hasText &&
+              Math.abs(s.x - objectiveHeader.x) < 0.6 &&
+              s.y > objectiveHeader.y &&
+              s.y <= objectiveHeader.y + 0.65 &&
+              !/^OBJETIVO DE LA SESI[ÓO]N$|^ACTIVIDAD\s*[12]$|^EJERCICIOS$/i.test(s.text.trim())
+          )
+        : undefined;
       const objectiveMatch = allSlideText.match(
         /OBJETIVO DE LA SESI[ÓO]N\s+(.+?)(?:\s+EJERCICIOS|\s+CRITERIOS|\s+EVALUACI[ÓO]N|\s+ACTIVIDAD|$)/i
       );
-      const objectiveText = objectiveMatch?.[1]?.trim();
-      if (objectiveText && /^Aplicar\s+/i.test(objectiveText)) {
-        pushSlideFinding(
-          'objective_aplicar_prefix',
-          `Objetivo con prefijo Aplicar: "${objectiveText.slice(0, 90)}"`
-        );
+      const objectiveText = (objectiveBox?.text || objectiveMatch?.[1] || '')
+        .replace(/^[•\-–—]\s*/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (objectiveText) {
+        const objWords = objectiveText.split(/\s+/).filter(Boolean);
+        const objFirst = objWords[0] ?? '';
+        const normCmp = (s: string) =>
+          s
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+        if (/^Aplicar\s+/i.test(objectiveText)) {
+          pushSlideFinding(
+            'objective_aplicar_prefix',
+            `Objetivo con prefijo Aplicar: "${objectiveText.slice(0, 90)}"`
+          );
+        }
+        if (GENERIC_TITLE_BLACKLIST_RE.test(objectiveText) || /concepto\s+clave\s+de\s+la\s+sesi[oó]n/i.test(objectiveText)) {
+          pushSlideFinding('generic_title', `Objetivo genérico: "${objectiveText.slice(0, 90)}"`);
+        }
+        if (LEADING_MODE_ADVERB_RE.test(objectiveText) || hasDanglingEnding(objectiveText)) {
+          pushSlideFinding('objective_fragment', `Objetivo fragmentado/colgado: "${objectiveText.slice(0, 90)}"`);
+        }
+        if (visibleSlideTitle && normCmp(objectiveText) === normCmp(visibleSlideTitle)) {
+          pushSlideFinding('objective_equals_title', `Objetivo idéntico al título: "${objectiveText.slice(0, 90)}"`);
+        }
+        if (!isSpanishInfinitiveVerb(objFirst)) {
+          if (objWords.length <= 4) {
+            pushSlideFinding('objective_topic_only', `Objetivo de ${objWords.length} palabras sin verbo: "${objectiveText.slice(0, 90)}"`);
+          } else {
+            pushSlideFinding('objective_not_infinitive', `Objetivo no inicia en infinitivo ("${objFirst}"): "${objectiveText.slice(0, 90)}"`);
+          }
+        }
       }
     }
 

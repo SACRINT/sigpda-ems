@@ -20,6 +20,36 @@ import {
   repairDanglingEnding,
 } from './pedagogical-text-fitter';
 
+export type SacrintContentErrorCode =
+  | 'SACRINT_GENERIC_TITLE'
+  | 'SACRINT_OBJECTIVE_INVALID'
+  | 'SACRINT_ACTIVITY_INVALID'
+  | 'SACRINT_EXAMPLE_INVALID'
+  | 'SACRINT_TEMPLATE_LEAK';
+
+export interface SacrintContentErrorContext {
+  packageCode?: string;
+  sessionNumber?: number | null;
+  field?: string;
+  raw?: string;
+}
+
+export class SacrintContentError extends Error {
+  readonly code: SacrintContentErrorCode;
+  readonly context?: SacrintContentErrorContext;
+
+  constructor(
+    code: SacrintContentErrorCode,
+    message: string,
+    context?: SacrintContentErrorContext
+  ) {
+    super(`[${code}] ${message}`);
+    this.name = 'SacrintContentError';
+    this.code = code;
+    this.context = context;
+  }
+}
+
 export interface TopicTitleInput {
   sectionTitle?: string | null;
   conceptosClave?: string | null;
@@ -28,10 +58,24 @@ export interface TopicTitleInput {
   missionFocus?: string | null;
   missionTitle?: string | null;
   maxChars?: number;
+  strict?: boolean;
+  context?: SacrintContentErrorContext;
 }
 
+export const GENERIC_TITLE_BLACKLIST_RE =
+  /^(?:concepto\s+clave\s+de\s+la\s+sesi[oó]n|concepto\s+central\s+de\s+la\s+clase|tema\s+de\s+la\s+sesi[oó]n|sesi[oó]n\s*\d+|aplicar\s+.+)$/i;
+
+export const LEADING_MODE_ADVERB_RE =
+  /^(?:correctamente|adecuadamente|t[eé]cnicamente|f[ií]sicamente|conceptualmente|pr[aá]cticamente|anal[ií]ticamente|matem[aá]ticamente|gr[aá]ficamente|experimentalmente|rigurosamente|precisamente|exactamente|formalmente|estrictamente|progresivamente|gradualmente|finalmente|b[aá]sicamente|p[uú]blicamente|sistem[aá]ticamente|cr[ií]ticamente|cuidadosamente|eficientemente|ordenadamente|colaborativamente|aut[oó]nomamente|directamente|previamente|posteriormente)\b/i;
+
+export const FUTURE_SECOND_PERSON_VERB_RE =
+  /\b[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b/i;
+
+const SECOND_PERSON_PRESENT_START_RE =
+  /^(?:aprendes|comprendes|conoces|realizas|consolidas|socializas|integras|validas|depuras|aplicas|calculas|construyes|modelas|determinas|identificas|reconoces|resuelves|analizas|dise[ñn]as|utilizas|empleas|eval[uú]as|clasificas|comparas|contrastas|interpretas|interpretes|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas|sistematizas|dominas|implementas|elaboras|exploras|formulas|explicas|describes|preparas|limpias|colocas|instalas|configuras|actualizas|diagnosticas|redactas|argumentas|organizas|acotas|trazas|dibujas|mides|documentas|ejecutas|proyectas|seleccionas|comunicas|relacionas|distingues|transformas|diferencias|planificas|gestionas|estableces|generas|produces|registras|controlas|inspeccionas|reparas|conectas|aseguras|garantizas|representas|visualizas|traduces|conjugas|planteas|simulas|justificas|valoras|desarrollas|sintetizas|hallas|ensamblas|corriges|experimentas|investigas|estimas|pruebas|respondes|reflexionas|participas|recuperas|indagas|deduces|monitoreas|rehabilitas|sustentas|decodificas|cuantificas|capturas|transcribes|reescribes|inauguras|inicias|refinas|perfeccionas|procesas|auditas)\b/i;
+
 const INVALID_TITLE_START_RE =
-  /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|vamos\s+a\b|aprender[aá]s\b|evaluar[aá]s\b|integrar[aá]s\b|optimizar[aá]s\b|representar[aá]s\b|gr[aá]ficamente\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b|manera\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|forma\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|todos\s+los\s+conocimientos\b|sintetizar\s+y\s+realizar\b|realizar\s+una\s+reflexi[oó]n\b)/i;
+  /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|vamos\s+a\b|aprender[aá]s\b|evaluar[aá]s\b|integrar[aá]s\b|optimizar[aá]s\b|representar[aá]s\b|gr[aá]ficamente\b|correctamente\b|adecuadamente\b|t[eé]cnicamente\b|f[ií]sicamente\b|conceptualmente\b|pr[aá]cticamente\b|anal[ií]ticamente\b|matem[aá]ticamente\b|experimentalmente\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b|manera\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|forma\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|todos\s+los\s+conocimientos\b|sintetizar\s+y\s+realizar\b|realizar\s+una\s+reflexi[oó]n\b)/i;
 
 const BARE_ADJECTIVE_TITLE_RE =
   /^(?:anal[ií]tic[oa]s?|matem[aá]tic[oa]s?|gr[aá]fic[oa]s?|algebraic[oa]s?|cuantitativ[oa]s?|cualitativ[oa]s?|estad[ií]stic[oa]s?|geom[eé]tric[oa]s?|t[eé]cnic[oa]s?|te[oó]ric[oa]s?|pr[aá]ctic[oa]s?|formativ[oa]s?|generales?|espec[ií]fic[oa]s?|b[aá]sic[oa]s?|fundamentales?|cr[ií]tic[oa]s?|hist[oó]ric[oa]s?|digitales?|comunicativ[oa]s?|cient[ií]fic[oa]s?|colaborativ[oa]s?|aut[oó]nom[oa]s?|riguros[oa]s?|sistem[aá]tic[oa]s?)$/i;
@@ -91,6 +135,21 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
   let text = stripPhaseAndMissionBoilerplate(raw);
   if (!text) return '';
 
+  // Rechazar de inmediato fragmentos huérfanos que ya arrancan con adverbio de modo sin verbo previo
+  // (ej. "Correctamente las herramientas...", "Técnicamente la logística...", "Físicamente una unidad SSD...")
+  if (LEADING_MODE_ADVERB_RE.test(text)) {
+    return '';
+  }
+  // Rechazar fragmentos con verbo en futuro incrustado si no arrancan con un verbo de objetivo limpio
+  // (ej. "Rendimiento y ajustarás las tolerancias...")
+  const startsWithGoalVerb =
+    /^(?:en\s+esta\s+sesi[oó]n\b|hoy\b|vas\s+a\b|vamos\s+a\b|el\s+estudiante\b|lograr[aá]s\b|[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b)/i.test(
+      text
+    ) || SECOND_PERSON_PRESENT_START_RE.test(text);
+  if (!startsWithGoalVerb && FUTURE_SECOND_PERSON_VERB_RE.test(text)) {
+    return '';
+  }
+
   // Si contiene "...de tu proyecto integrador comunitario mediante la aplicación (rigurosa) de(l) <CONCEPTO>"
   const medianteAplicacionMatch = text.match(
     /\b(?:defender\s+p[uú]blicamente|presentar|socializar|evaluar\s+tu\s+aprendizaje)[^,.]{0,90}?\bmediante\s+la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+(?:de(?:l)?|de\s+los|de\s+las)\s+(.+)$/i
@@ -139,26 +198,54 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     text = resultadosFundamentosMatch[1].trim();
   }
 
+  const INLINE_MODE_ADVERB_TAIL_SRC =
+    '(?:\\s+(?:correctamente|adecuadamente|t[eé]cnicamente|f[ií]sicamente|conceptualmente|pr[aá]cticamente|anal[ií]ticamente|matem[aá]ticamente|gr[aá]ficamente|experimentalmente|rigurosamente|precisamente|exactamente|formalmente|estrictamente|p[uú]blicamente|sistem[aá]ticamente|cr[ií]ticamente|cuidadosamente|eficientemente|con\\s+rigor(?:\\s+(?:t[eé]cnico|anal[ií]tico(?:\\s+y\\s+matem[aá]tico)?|matem[aá]tico))?|con\\s+precisi[oó]n(?:\\s+t[eé]cnica)?|de\\s+(?:forma|manera)\\s+(?:segura|t[eé]cnica|pr[aá]ctica|correcta|adecuada|formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)))?';
+  const PRESENT_GOAL_VERB_RE = new RegExp(
+    `^(?:aprendes\\s+a(?:\\s+[a-záéíóúñ]{3,}(?:ar|er|ir))?|comprendes(?:\\s+y\\s+aplicas)?|conoces(?:\\s+y\\s+aplicas)?|realizas|consolidas|socializas(?:\\s+(?:los|tus)\\s+hallazgos(?:\\s+de)?)?|integras(?:,\\s*(?:depuras|organizas|validas))?(?:\\s+y\\s+(?:validas|eval[uú]as|consolidas|presentas|defiendes))?|validas(?:\\s+y\\s+depuras)?|depuras(?:\\s+y\\s+validas)?|aplicas|calculas|construyes|modelas|determinas|identificas(?:\\s+y\\s+(?:aplicas|clasificas|describes|analizas|utilizas|empleas|conectas|diagnosticas))?|reconoces(?:\\s+y\\s+(?:aplicas|distingues))?|resuelves|analizas(?:\\s+y\\s+(?:modelas|eval[uú]as|comparas|interpretas))?|dise[ñn]as(?:\\s+y\\s+(?:elaboras|construyes|eval[uú]as|trazas))?|utilizas|empleas|eval[uú]as|clasificas(?:\\s+y\\s+mides)?|comparas|contrastas|interpretas(?:\\s+y\\s+representas)?|interpretes|verificas(?:\\s+y\\s+utilizas)?|presentas|defiendes|estructuras|expones|demuestras|optimizas(?:\\s+y\\s+consolidas)?|sistematizas|dominas|implementas|elaboras|exploras|formulas(?:\\s+y\\s+respondes)?|explicas|describes|preparas|limpias|colocas|instalas|configuras|actualizas|diagnosticas|redactas|argumentas|organizas|acotas|trazas|dibujas|mides|documentas|ejecutas|proyectas(?:\\s+y\\s+trazas)?|seleccionas(?:\\s+y\\s+preparas)?|comunicas|relacionas|distingues|transformas|diferencias|planificas|gestionas|estableces|generas|produces|registras|controlas|inspeccionas|reparas|conectas|aseguras|garantizas|representas|visualizas|traduces|conjugas|planteas|simulas|justificas|valoras|desarrollas|sintetizas|hallas|ensamblas(?:\\s+y\\s+construyes)?|corriges(?:\\s+y\\s+redise[ñn]as)?|experimentas(?:\\s+y\\s+pruebas)?|investigas(?:\\s+y\\s+estructuras)?|estimas|pruebas|respondes|reflexionas(?:\\s+sobre)?|participas(?:\\s+en)?|recuperas(?:\\s+(?:tus\\s+)?(?:saberes|conocimientos)\\s+previos\\s+(?:sobre|de))?|indagas(?:\\s+y\\s+registras)?|deduces|monitoreas|rehabilitas|sustentas|decodificas|cuantificas|capturas(?:\\s+y\\s+depuras)?|transcribes(?:\\s+y\\s+seleccionas)?|reescribes|inauguras|inicias|refinas|perfeccionas|procesas|auditas)${INLINE_MODE_ADVERB_TAIL_SRC}\\s+`,
+    'i'
+  );
+  const FUTURE_GOAL_VERB_RE = new RegExp(
+    `^(?:aprender[aá]s\\s+a\\s+[a-záéíóúñ]{3,}(?:ar|er|ir)|[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)(?:\\s+(?:y|e)\\s+[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s))?)${INLINE_MODE_ADVERB_TAIL_SRC}\\s+`,
+    'i'
+  );
+
+  const STRIP_AFTER_VERB_ADVERB_RE = new RegExp(
+    `^(?:correctamente|adecuadamente|t[eé]cnicamente|f[ií]sicamente|conceptualmente|pr[aá]cticamente|anal[ií]ticamente|matem[aá]ticamente|gr[aá]ficamente|experimentalmente|rigurosamente|precisamente|exactamente|formalmente|estrictamente|p[uú]blicamente|sistem[aá]ticamente|cr[ií]ticamente|cuidadosamente|eficientemente|con\\s+rigor(?:\\s+(?:t[eé]cnico|anal[ií]tico(?:\\s+y\\s+matem[aá]tico)?|matem[aá]tico))?|con\\s+precisi[oó]n(?:\\s+t[eé]cnica)?|de\\s+(?:forma|manera)\\s+(?:segura|t[eé]cnica|pr[aá]ctica|correcta|adecuada|formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica))\\s+`,
+    'i'
+  );
+
+  const INFINITIVE_GOAL_VERB_RE = new RegExp(
+    `^(?:redactar|escribir|elaborar|dise[ñn]ar|construir|resolver|calcular|determinar|identificar|analizar|comprender|evaluar|valorar|explicar|comparar|aplicar|emplear|utilizar|interpretar|representar|modelar|desarrollar|sintetizar|verificar|validar|organizar|documentar|describir|clasificar|medir|trazar|dibujar|instalar|configurar|diagnosticar|ejecutar|realizar|preparar|limpiar|colocar|conectar|monitorear|rehabilitar|decodificar|consolidar|incorporar|graficar|tabular|plantear|formular|justificar|sustentar|argumentar|contrastar|distinguir|diferenciar|reconocer|explorar|dominar|estructurar|presentar|socializar|defender|exponer|demostrar|optimizar|sistematizar|implementar|acotar|proyectar|seleccionar|comunicar|relacionar|transformar|planificar|gestionar|establecer|generar|producir|registrar|controlar|inspeccionar|reparar|asegurar|garantizar|visualizar|traducir|conjugar|simular|ensamblar|corregir|experimentar|investigar|estimar|probar|responder|integrar|reflexionar|participar|recuperar|indagar|deducir|sustentar|cuantificar|capturar|transcribir|reescribir|inaugurar|iniciar|refinar|perfeccionar|procesar|auditar)${INLINE_MODE_ADVERB_TAIL_SRC}\\s+`,
+    'i'
+  );
+
   // Eliminar arranques verbales y muletillas pedagógicas en cascada (sin reducir el título a un adjetivo suelto)
+  let strippedAnyGoalVerb = false;
   for (let pass = 0; pass < 5; pass++) {
     const prev = text;
-    const candidate = text
+    let candidate = text
       .replace(
         /^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|vamos\s+a\s+|el\s+estudiante\s+(?:va\s+a\s+|lograr[aá]\s+)?|lograr[aá]s\s+)/i,
         ''
       )
-      .replace(
-        /^(?:aprendes\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|tabular|crear|dise[ñn]ar|identificar|analizar|elaborar|interpretar|utilizar|instalar|configurar|diagnosticar|acotar|trazar|medir|preparar|limpiar|colocar))?|comprendes(?:\s+y\s+aplicas)?|conoces(?:\s+y\s+aplicas)?|realizas|consolidas|socializas(?:\s+(?:los|tus)\s+hallazgos(?:\s+de)?)?|integras(?:,\s*(?:depuras|organizas|validas))?(?:\s+y\s+(?:validas|eval[uú]as|consolidas|presentas|defiendes))?|validas(?:\s+y\s+depuras)?|depuras(?:\s+y\s+validas)?|aplicas(?:\s+con\s+precisi[oó]n)?|calculas|construyes|modelas(?:\s+matem[aá]ticamente|\s+algebraicamente)?|determinas|identificas(?:\s+y\s+(?:aplicas|clasificas|describes|analizas))?|reconoces(?:\s+y\s+(?:aplicas|distingues))?|resuelves(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|analizas(?:\s+y\s+(?:modelas|evalu[aá]s|comparas|interpretas))?|dise[ñn]as(?:\s+y\s+(?:elaboras|construyes|eval[uú]as))?|utilizas|empleas|eval[uú]as(?:\s+de\s+(?:forma|manera)\s+(?:formativa|integral|cr[ií]tica|sistem[aá]tica))?|clasificas(?:\s+y\s+mides)?|comparas|contrastas|interpretas|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas(?:\s+y\s+consolidas)?|sistematizas|dominas|implementas|elaboras|exploras|formulas|explicas|describes|preparas|limpias|colocas|instalas|configuras|actualizas|diagnosticas|redactas|argumentas|organizas|acotas|trazas|dibujas|mides|documentas|ejecutas|proyectas|seleccionas|comunicas|relacionas|distingues|transformas|diferencias|planificas|gestionas|estableces|generas|produces|registras|controlas|inspeccionas|reparas|conectas|aseguras|garantizas|representas|visualizas|traduces|conjugas|planteas|simulas|justificas)\s+/i,
-        ''
-      )
+      .replace(PRESENT_GOAL_VERB_RE, '')
+      .replace(FUTURE_GOAL_VERB_RE, '')
+      .replace(INFINITIVE_GOAL_VERB_RE, '')
       .replace(
         /^(?:integrar(?:[aá]s)?\s+todos\s+los\s+conocimientos\s+de\s+|todos\s+los\s+conocimientos\s+de\s+)/i,
         ''
       )
       .replace(
-        /^(?:recuperar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|integrar(?:[aá]s)?(?:,\s*depurar(?:[aá]s)?)?(?:\s+y\s+(?:validar(?:[aá]s)?|evaluar(?:[aá]s)?|consolidar(?:[aá]s)?))?(?:\s+(?:los\s+conocimientos|los\s+modelos|las\s+soluciones))?(?:\s+(?:sobre|de|en))?|optimizar(?:[aá]s)?(?:,\s*depurar(?:[aá]s)?)?(?:\s+y\s+(?:validar(?:[aá]s)?|consolidar(?:[aá]s)?|depurar(?:[aá]s)?))?(?:\s+(?:la\s+versi[oó]n\s+depurada\s+y\s+validada\s+de\s+)?(?:tu\s+evidencia\s+formativa|los\s+modelos(?:\s+matem[aá]ticos)?)\s*(?:mediante|integrando|sobre|de)?)?|depurar(?:[aá]s)?(?:\s+y\s+validar(?:[aá]s)?)?|validar(?:[aá]s)?|evaluar(?:[aá]s)?(?:\s+(?:de\s+manera\s+formativa|formativamente)(?:\s+(?:los|las|el|la))?|\s+tus\s+(?:conocimientos|aprendizajes)(?:\s+y\s+consolidar(?:\s+tu\s+dominio)?)?(?:\s+(?:sobre|de|del|en|mediante))?|\s+tu\s+aprendizaje\s+mediante(?:\s+la\s+aplicaci[oó]n\s+de)?)?|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?(?:\s+mediante(?:\s+la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?)?)?)?|aprender(?:[aá]s)?\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|Tabular|tabular))?|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|visualizar(?:[aá]s)?(?:\s+gr[aá]ficamente)?|representar(?:[aá]s)?(?:\s+gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?)?|graficar(?:[aá]s)?(?:\s+y\s+tabular(?:[aá]s)?)?|tabular(?:[aá]s)?|modelar(?:[aá]s)?(?:\s+matem[aá]ticamente|\s+algebraicamente)?|calcular(?:[aá]s)?|determinar(?:[aá]s)?|clasificar(?:[aá]s)?(?:\s+y\s+medir(?:[aá]s)?)?|medir(?:[aá]s)?|verificar(?:[aá]s)?|argumentar(?:[aá]s)?|elaborar(?:[aá]s)?|dise[ñn]ar(?:[aá]s)?|interpretar(?:[aá]s)?|sintetizar(?:[aá]s)?|presentar(?:[aá]s)?|socializar(?:[aá]s)?(?:\s+tus\s+hallazgos(?:\s+de)?|\s+hallazgos)?|exponer(?:[aá]s)?|trabajar(?:[aá]s)?|comparar(?:[aá]s)?|identificar(?:[aá]s)?|comprender(?:[aá]s)?|analizar(?:[aá]s)?(?:\s+y\s+modelar(?:[aá]s)?(?:\s+matem[aá]ticamente)?)?|aplicar(?:[aá]s)?|resolver(?:[aá]s)?(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|construir(?:[aá]s)?(?:\s+y\s+analizar(?:[aá]s)?)?|estructurar(?:[aá]s)?|dominar(?:[aá]s)?|contrastar(?:[aá]s)?|delimitar(?:[aá]s)?|explorar(?:[aá]s)?|consolidar(?:[aá]s)?|reflexionar(?:[aá]s)?(?:\s+sobre(?:\s+tus\s+aprendizajes\s+de)?)?|realizar(?:[aá]s)?)\s+/i,
+        /^(?:recuperar(?:\s+tus)?\s+(?:saberes|conocimientos)\s+previos(?:\s+sobre|\s+acerca\s+de|\s+y\s+delimitar(?:[aá]s)?)?|activar(?:\s+tus)?\s+saberes\s+previos(?:\s+sobre|\s+y)?|integrar,\s*evaluar\s+formativamente\s+y\s+reflexionar\s+sobre(?:\s+tus\s+aprendizajes\s+de)?|integrar(?:[aá]s)?(?:,\s*depurar(?:[aá]s)?)?(?:\s+y\s+(?:validar(?:[aá]s)?|evaluar(?:[aá]s)?|consolidar(?:[aá]s)?))?(?:\s+(?:los\s+conocimientos|los\s+modelos|las\s+soluciones))?(?:\s+(?:sobre|de|en))?|optimizar(?:[aá]s)?(?:,\s*depurar(?:[aá]s)?)?(?:\s+y\s+(?:validar(?:[aá]s)?|consolidar(?:[aá]s)?|depurar(?:[aá]s)?))?(?:\s+(?:la\s+versi[oó]n\s+depurada\s+y\s+validada\s+de\s+)?(?:tu\s+evidencia\s+formativa|los\s+modelos(?:\s+matem[aá]ticos)?)\s*(?:mediante|integrando|sobre|de)?)?|depurar(?:[aá]s)?(?:\s+y\s+validar(?:[aá]s)?)?|validar(?:[aá]s)?|evaluar(?:[aá]s)?(?:\s+(?:de\s+manera\s+formativa|formativamente)(?:\s+(?:los|las|el|la))?|\s+tus\s+(?:conocimientos|aprendizajes)(?:\s+y\s+consolidar(?:\s+tu\s+dominio)?)?(?:\s+(?:sobre|de|del|en|mediante))?|\s+tu\s+aprendizaje\s+mediante(?:\s+la\s+aplicaci[oó]n\s+de)?)?|defender(?:\s+p[uú]blicamente)?(?:\s+los\s+hallazgos\s+de\s+tu\s+proyecto(?:\s+integrador)?(?:\s+comunitario)?(?:\s+mediante(?:\s+la\s+aplicaci[oó]n(?:\s+rigurosa)?\s+de(?:l)?)?)?)?|aprender(?:[aá]s)?\s+a(?:\s+(?:aplicar|resolver|modelar|calcular|contrastar(?:\s+y\s+verificar)?|construir|Tabular|tabular))?|comprender(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|identificar(?:[aá]s)?\s+y\s+aplicar(?:[aá]s)?|visualizar(?:[aá]s)?(?:\s+gr[aá]ficamente)?|representar(?:[aá]s)?(?:\s+gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?)?|graficar(?:[aá]s)?(?:\s+y\s+tabular(?:[aá]s)?)?|tabular(?:[aá]s)?|modelar(?:[aá]s)?(?:\s+matem[aá]ticamente|\s+algebraicamente)?|calcular(?:[aá]s)?|determinar(?:[aá]s)?|clasificar(?:[aá]s)?(?:\s+y\s+medir(?:[aá]s)?)?|medir(?:[aá]s)?|verificar(?:[aá]s)?|argumentar(?:[aá]s)?|elaborar(?:[aá]s)?|dise[ñn]ar(?:[aá]s)?|interpretar(?:[aá]s)?|sintetizar(?:[aá]s)?|presentar(?:[aá]s)?|socializar(?:[aá]s)?(?:\s+tus\s+hallazgos(?:\s+de)?|\s+hallazgos)?|exponer(?:[aá]s)?|trabajar(?:[aá]s)?|comparar(?:[aá]s)?|identificar(?:[aá]s)?|comprender(?:[aá]s)?|analizar(?:[aá]s)?(?:\s+y\s+modelar(?:[aá]s)?(?:\s+matem[aá]ticamente)?)?|aplicar(?:[aá]s)?|resolver(?:[aá]s)?(?:\s+gr[aá]ficamente|\s+anal[ií]ticamente)?|construir(?:[aá]s)?(?:\s+y\s+analizar(?:[aá]s)?)?|estructurar(?:[aá]s)?|dominar(?:[aá]s)?|contrastar(?:[aá]s)?|delimitar(?:[aá]s)?|explorar(?:[aá]s)?|consolidar(?:[aá]s)?|reflexionar(?:[aá]s)?(?:\s+sobre(?:\s+tus\s+aprendizajes\s+de)?)?|realizar(?:[aá]s)?)\s+/i,
         ''
-      )
+      );
+    if (candidate !== prev) {
+      strippedAnyGoalVerb = true;
+    }
+    if (strippedAnyGoalVerb) {
+      candidate = candidate.replace(STRIP_AFTER_VERB_ADVERB_RE, '');
+    }
+    candidate = candidate
       .replace(
         /^(?:(?:tu|su)\s+evidencia\s+formativa\s+(?:de|sobre)\s+|el\s+avance\s+estructurado\s+de(?:l)?\s+(?:tu\s+)?(?:producto\s+o\s+)?reporte\s+t[eé]cnico\s+(?:de\s+la\s+unidad\s+)?(?:aplicando|sobre|mediante)\s+|una\s+revisi[oó]n\s+cruzada(?:\s+y\s+(?:coevaluaci[oó]n|retroalimentaci[oó]n(?:\s+constructiva)?))?(?:\s+(?:de|entre\s+pares))?(?:\s+(?:sobre|aplicando|de))?\s+)/i,
         ''
@@ -185,15 +272,12 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     if (text === prev) break;
   }
 
-  // Última salvaguarda ante verbos en segunda persona del futuro residuales
-  text = text.replace(/\s+y\s+(?:aprender[áa]s|resolver[áa]s|contrastar[áa]s|presentar[áa]s|validar[áa]s|tabular[áa]s|delimitar[áa]s)\b.*$/i, '').trim();
-  if (/^(?:Aprender[áa]s|Evaluar[áa]s|Vas\s+a)\b/i.test(text)) {
-    text = normalizeSessionDescriptorTense(text);
-  }
-
-  // Cortar colas circunstanciales o administrativas que no son parte del concepto disciplinar
+  // Cortar cualquier cláusula coordinada que introduzca un verbo en 2ª persona (presente o futuro)
   text = text
-    .replace(/\s+y\s+(?:activar[aá]s|delimitar[aá]s|aplicar[aá]s|evaluar[aá]s|reflexionar[aá]s|presentar[aá]s|socializar[aá]s|defender[aá]s|validar[aá]s|consolidar[aá]s|comunicar[aá]s|interpretar[aá]s|verificar[aá]s|justificar[aá]s|documentar[aá]s|registrar[aá]s|defiendes|presentas|socializas|validas|eval[uú]as|aplicas|consolidas|expones|comunicas|verificas|justificas|documentas|registras|garantizas|aseguras)\b.*$/i, '')
+    .replace(
+      /\s+(?:y|e)\s+(?:[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)|comprendes|identificas|aplicas|analizas|verificas|registras|pruebas|ajustas|defiendes|presentas|socializas|validas|eval[uú]as|consolidas|expones|comunicas|justificas|documentas|garantizas|aseguras|ejecutas|utilizas|empleas|construyes|estructuras|estableces|propones|redactas|elaboras|dise[ñn]as|resuelves|determinas|calculas|aprendes|valoras|desarrollas|sintetizas|experimentas|investigas|estimas|respondes|integras|reflexionas|participas)\b.*$/i,
+      ''
+    )
     .replace(/\s+y\s+su\s+relaci[oó]n\s+con\s+la\s+problem[aá]tica\b.*$/i, '')
     .replace(/\s+como\s+una\s+herramienta(?:\s+matem[aá]tica)?(?:\s+fundamental)?\s+para\s+modelar.*$/i, ' y modelado de situaciones')
     .replace(/\s+para\s+modelar\s+situaciones\s+de\s+tu\s+entorno.*$/i, '')
@@ -201,14 +285,14 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     .replace(/\s+en\s+el\s+an[aá]lisis\s+de\s+din[aá]micas.*$/i, '')
     .replace(/\s+mediante\s+(?:una\s+bit[aá]cora|la\s+construcci[oó]n\s+de\s+una\s+matriz|una\s+r[uú]brica|un\s+rigor).*$/i, '')
     .replace(/\s+aplicando\s+un\s+rigor\s+met[oó]dico.*$/i, '')
-    .replace(/,\s*(?:integrando|activando|aplicando|asegurando|verificando|presentando|socializando)\b.*$/i, '')
+    .replace(/,\s*(?:integrando|activando|aplicando|asegurando|verificando|presentando|socializando|comprendiendo|garantizando|identificando|validando|evaluando|describiendo|fortaleciendo|utilizando|registrando|detallando|defendiendo|preparando|consolidando|articulando|logrando|permiti[eé]ndote|rescatando|optimizando|ajustando)\b.*$/i, '')
     .replace(/[.;:,]+$/, '')
     .trim();
 
-  // Si aún empieza con palabra inválida ("Y ", "Sobre ", "Tu ", etc.) o cola adverbial/institucional, limpiar de nuevo
+  // Si aún empieza con palabra inválida ("Y ", "Sobre ", "Tu ", etc.) o cola institucional, limpiar de nuevo
   text = text
     .replace(
-      /^(?:gr[aá]ficamente(?:\s+y\s+tabular(?:[aá]s)?)?\s+|anal[ií]ticamente\s+|algebraicamente\s+|riguros[oa]s?\s+de\s+|detallad[oa]s?\s+de\s+|conceptos\s+(?:diagn[oó]sticos|fundamentales|b[aá]sicos)\s+(?:de(?:l)?|sobre)\s+|los\s+principios\s+de\s+|situaciones\s+modeladas\s+por\s+|matriz\s+de\s+contextualizaci[oó]n(?:\s+y\s+(?:una\s+)?ruta\s+de\s+trabajo\s+aplicando|\s+para\s+identificar)?\s+|y\s+|sobre\s+|tu\s+|tus\s+|su\s+|sus\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)/i,
+      /^(?:riguros[oa]s?\s+de\s+|detallad[oa]s?\s+de\s+|conceptos\s+(?:diagn[oó]sticos|fundamentales|b[aá]sicos)\s+(?:de(?:l)?|sobre)\s+|los\s+principios\s+de\s+|situaciones\s+modeladas\s+por\s+|y\s+|sobre\s+|tu\s+|tus\s+|su\s+|sus\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)/i,
       ''
     )
     .replace(
@@ -217,11 +301,11 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     )
     .trim();
 
-  // Si después de limpiar sigue excediendo el presupuesto de título (ej. > 68 chars),
+  // Si después de limpiar sigue excediendo el presupuesto de título (ej. > 62 chars),
   // cortar en un conector secundario (" mediante ", " para ", " con ", etc.) SIN cortar palabras clave como "dos variables"
-  if (text.length > 68) {
+  if (text.length > 62) {
     const secondaryCut = text.match(
-      /^(.{18,66}?)\s+(?:mediante|para|utilizando|aplicando|vinculad[oa]s?|en\s+la\s+validaci[oó]n|en\s+el\s+an[aá]lisis|a\s+trav[eé]s|con\s+un[a]?|y\s+la\s+aplicaci[oó]n|y\s+la\s+exploraci[oó]n|y\s+su\s+(?:aplicaci[oó]n|relaci[oó]n|uso)|y\s+un[a]?|sobre\s+(?:tu|la|los))\b/i
+      /^(.{18,64}?)(?:,\s*como\b|\s+(?:mediante|para|utilizando|aplicando|vinculad[oa]s?|en\s+la\s+validaci[oó]n|en\s+el\s+an[aá]lisis|en\s+planos\s+de|en\s+tu\s+|de\s+tu\s+|con\s+los\s+fundamentos|a\s+trav[eé]s|con\s+un[a]?|y\s+(?:el|la|los|las)\s+|y\s+su\s+(?:aplicaci[oó]n|relaci[oó]n|uso)|y\s+un[a]?|sobre\s+(?:tu|la|los)|antes\s+y\s+despu[eé]s|en\s+el\s+gabinete)\b)/i
     );
     if (secondaryCut && !hasDanglingEnding(secondaryCut[1])) {
       text = secondaryCut[1].trim();
@@ -233,27 +317,44 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
     }
   }
 
-  text = stripLeadingTitleAdverbs(text).replace(/^(?:el|la|los|las|un|una)\s+/i, '').trim();
+  text = text.replace(/^(?:el|la|los|las|un|una)\s+/i, '').trim();
   text = repairDanglingEnding(text, false);
-  if (STRUCTURAL_HEADING_ONLY_RE.test(text) || BARE_ADJECTIVE_TITLE_RE.test(text)) return '';
-  if (/^[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)$/i.test(text)) return '';
 
-  if (text.length > 0) {
-    text = normalizeSessionDescriptorTense(text);
-    text = text.charAt(0).toUpperCase() + text.slice(1);
+  // Validación estricta de salida: nunca devolver adverbios de modo, futuros, conjugaciones 2ª persona ni sintagmas huecos
+  if (
+    !text ||
+    text.length < 6 ||
+    STRUCTURAL_HEADING_ONLY_RE.test(text) ||
+    BARE_ADJECTIVE_TITLE_RE.test(text) ||
+    GENERIC_TITLE_BLACKLIST_RE.test(text) ||
+    LEADING_MODE_ADVERB_RE.test(text) ||
+    /^[a-záéíóúñ]+mente\b/i.test(text) ||
+    FUTURE_SECOND_PERSON_VERB_RE.test(text) ||
+    SECOND_PERSON_PRESENT_START_RE.test(text) ||
+    INVALID_TITLE_START_RE.test(text)
+  ) {
+    return '';
   }
 
+  text = normalizeSessionDescriptorTense(text);
+  if (FUTURE_SECOND_PERSON_VERB_RE.test(text) || LEADING_MODE_ADVERB_RE.test(text)) {
+    return '';
+  }
+  text = text.charAt(0).toUpperCase() + text.slice(1);
   return text;
 }
 
 function isValidResolvedTitle(candidate: string, maxChars: number): boolean {
   if (!candidate || candidate.length < 6) return false;
-  if (candidate.length > maxChars + 15) return false;
+  if (candidate.length > maxChars + 28) return false;
   if (STRUCTURAL_HEADING_ONLY_RE.test(candidate)) return false;
   if (BARE_ADJECTIVE_TITLE_RE.test(candidate)) return false;
+  if (GENERIC_TITLE_BLACKLIST_RE.test(candidate)) return false;
   if (INVALID_TITLE_START_RE.test(candidate)) return false;
-  if (/\b[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b/i.test(candidate)) return false;
+  if (LEADING_MODE_ADVERB_RE.test(candidate)) return false;
   if (/^[a-záéíóúñ]+mente\b/i.test(candidate)) return false;
+  if (FUTURE_SECOND_PERSON_VERB_RE.test(candidate)) return false;
+  if (SECOND_PERSON_PRESENT_START_RE.test(candidate)) return false;
   if (hasDanglingEnding(candidate)) return false;
   return true;
 }
@@ -277,15 +378,15 @@ function extractSectionHeadingFromConceptos(conceptosClave: string | null | unde
   }
   const firstSentence = normalizeEditorialText(conceptosClave).split(/(?<=[.?!])\s+/)[0] || '';
   const subjectMatch = firstSentence.match(
-    /^(?:El|La|Los|Las|Un|Una)\s+([^,.;:()]{6,84}?)(?:\s+(?:es\b|son\b|constituye[ns]?\b|representa[ns]?\b|requiere[ns]?\b|permite[ns]?\b|describe[ns]?\b|mide[ns]?\b|establece[ns]?\b|estudia[ns]?\b|analiza[ns]?\b|compara[ns]?\b|modela[ns]?\b|garantiza[ns]?\b|integra[ns]?\b|consolida[ns]?\b|valida[ns]?\b|sintetiza[ns]?\b|demuestra[ns]?\b|verifica[ns]?\b|traduce[ns]?\b|relaciona[ns]?\b|vincula[ns]?\b)|,\s*tambi[eé]n\s+conocid[oa])/i
+    /^(?:El|La|Los|Las|Un|Una)\s+([^,.;:()]{4,84}?)(?:\s+(?:es\b|son\b|constituye[ns]?\b|representa[ns]?\b|requiere[ns]?\b|permite[ns]?\b|describe[ns]?\b|mide[ns]?\b|establece[ns]?\b|estudia[ns]?\b|analiza[ns]?\b|compara[ns]?\b|modela[ns]?\b|garantiza[ns]?\b|integra[ns]?\b|consolida[ns]?\b|valida[ns]?\b|sintetiza[ns]?\b|demuestra[ns]?\b|verifica[ns]?\b|traduce[ns]?\b|relaciona[ns]?\b|vincula[ns]?\b|exige[ns]?\b|implica[ns]?\b|involucra[ns]?\b|cumple[ns]?\b|act[uú]a[ns]?\b|funciona[ns]?\b|opera[ns]?\b|sirve[ns]?\b|consiste[ns]?\b|indica[ns]?\b|transforma[ns]?\b|determina[ns]?\b|diferencia[ns]?\b|clasifica[ns]?\b|organiza[ns]?\b|controla[ns]?\b|regula[ns]?\b|explica[ns]?\b|eval[uú]a[ns]?\b|calcula[ns]?\b|sustituye[ns]?\b|conecta[ns]?\b|se\s+(?:utiliza[ns]?|emplea[ns]?|usa[ns]?|logra[ns]?|define[ns]?|fundamenta[ns]?|basa[ns]?)\b)|,\s*(?:tambi[eé]n\s+)?conocid[oa])/i
   );
   if (subjectMatch && subjectMatch[1]) {
-    const subjectCandidate = extractDisciplinaryConceptPhrase(subjectMatch[1]);
+    const rawSubject = subjectMatch[1].trim();
+    const subjectCandidate = extractDisciplinaryConceptPhrase(rawSubject);
     if (
-      subjectCandidate.length >= 8 &&
+      subjectCandidate.length >= 6 &&
       !STRUCTURAL_HEADING_ONLY_RE.test(subjectCandidate) &&
-      !isEvaluationOrClosureObjective(subjectCandidate) &&
-      !isPaecProjectOrArtifactTitle(subjectCandidate)
+      !isEvaluationOrClosureObjective(subjectCandidate)
     ) {
       return subjectCandidate;
     }
@@ -295,6 +396,7 @@ function extractSectionHeadingFromConceptos(conceptosClave: string | null | unde
 
 /**
  * Resuelve el título de pizarrón para una sesión de clase (`08_Presentaciones`).
+ * Nunca emite textos genéricos como "Concepto clave de la sesión".
  */
 export function resolveChalkboardTopicTitle(input: TopicTitleInput): string {
   const maxChars = input.maxChars ?? 68;
@@ -326,22 +428,52 @@ export function resolveChalkboardTopicTitle(input: TopicTitleInput): string {
     }
   }
 
-  // Fallback seguro desde el mejor candidato limpio (descartando inicios inválidos o futuros truncados)
-  const cleanFallback = [...pool, ...candidates].find(
-    (c) =>
-      c.length >= 6 &&
-      !INVALID_TITLE_START_RE.test(c) &&
-      !/\b[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b/i.test(c) &&
-      !/^[a-záéíóúñ]+mente\b/i.test(c)
-  );
-  const fallback = cleanFallback || 'Concepto clave de la sesión';
-  const fittedFallback = fitPedagogicalText(fallback, {
+  // Fallback seguro desde el mejor candidato limpio (descartando adverbios de modo, futuros, conjugaciones y fragmentos)
+  const cleanFallback = [...pool, ...candidates].find((c) => {
+    if (
+      c.length < 6 ||
+      GENERIC_TITLE_BLACKLIST_RE.test(c) ||
+      INVALID_TITLE_START_RE.test(c) ||
+      LEADING_MODE_ADVERB_RE.test(c) ||
+      /^[a-záéíóúñ]+mente\b/i.test(c) ||
+      FUTURE_SECOND_PERSON_VERB_RE.test(c) ||
+      SECOND_PERSON_PRESENT_START_RE.test(c) ||
+      STRUCTURAL_HEADING_ONLY_RE.test(c) ||
+      BARE_ADJECTIVE_TITLE_RE.test(c)
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  if (!cleanFallback) {
+    if (input.strict) {
+      throw new SacrintContentError(
+        'SACRINT_GENERIC_TITLE',
+        `No se pudo resolver un título disciplinar válido (sesión=${input.context?.sessionNumber ?? 'N/A'})`,
+        input.context
+      );
+    }
+    return '';
+  }
+
+  const fittedFallback = fitPedagogicalText(cleanFallback, {
     maxChars,
     maxWords: Math.max(7, Math.round(maxChars / 6)),
     role: 'concept',
     ensurePeriod: false,
   });
-  const finalTitle = fittedFallback || repairDanglingEnding(fallback, false) || 'Concepto clave de la sesión';
+  const finalTitle = fittedFallback || repairDanglingEnding(cleanFallback, false);
+  if (!finalTitle || !isValidResolvedTitle(finalTitle, maxChars + 24)) {
+    if (input.strict) {
+      throw new SacrintContentError(
+        'SACRINT_GENERIC_TITLE',
+        `El título candidato resultó inválido tras ajuste: "${finalTitle}"`,
+        { ...input.context, raw: cleanFallback }
+      );
+    }
+    return '';
+  }
   return finalTitle.length > maxChars + 24
     ? repairDanglingEnding(finalTitle.slice(0, maxChars + 24).replace(/\s+\S*$/, ''), false) || finalTitle
     : finalTitle;
@@ -350,16 +482,16 @@ export function resolveChalkboardTopicTitle(input: TopicTitleInput): string {
 /**
  * Resuelve el título conceptual para una infografía (`09_Infografias_Sinteticas`).
  * Garantiza que en misiones de evaluación/cierre el título sea siempre el concepto disciplinar,
- * nunca "Versión depurada y validada de tu evidencia formativa...".
+ * nunca "Versión depurada y validada de tu evidencia formativa..." ni textos genéricos.
  */
 function stripLeadingTitleAdverbs(value: string): string {
   const cleaned = value
     .replace(
-      /^(?:rigurosamente|precisamente|exactamente|formalmente|estrictamente|conceptualmente|progresivamente|gradualmente|finalmente|básicamente)\s+/i,
+      /^(?:correctamente|adecuadamente|t[eé]cnicamente|f[ií]sicamente|conceptualmente|pr[aá]cticamente|anal[ií]ticamente|matem[aá]ticamente|gr[aá]ficamente|experimentalmente|rigurosamente|precisamente|exactamente|formalmente|estrictamente|progresivamente|gradualmente|finalmente|b[aá]sicamente|p[uú]blicamente|sistem[aá]ticamente|cr[ií]ticamente)\s+/i,
       ''
     )
     .trim();
-  if (!cleaned) return value;
+  if (!cleaned) return '';
   return /^[a-záéíóúñ]/.test(cleaned)
     ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
     : cleaned;
@@ -408,6 +540,9 @@ export function resolveInfographicConceptTitle(input: TopicTitleInput): string {
 
   if (finalCandidates.length > 0) {
     const candidate = stripLeadingTitleAdverbs(finalCandidates[0]!);
+    if (!isValidResolvedTitle(candidate, maxChars)) {
+      return resolveChalkboardTopicTitle({ ...input, maxChars });
+    }
     // Enriquecer títulos de 2–3 palabras muy cortos en cierre (ej. "Tipos de ángulos" -> "Tipos de ángulos y geometría plana" si el contexto lo respalda)
     if (/^tipos\s+de\s+[aá]ngulos$/i.test(candidate)) {
       return 'Tipos de ángulos y geometría plana';
@@ -418,7 +553,19 @@ export function resolveInfographicConceptTitle(input: TopicTitleInput): string {
     return candidate;
   }
 
-  return stripLeadingTitleAdverbs(resolveChalkboardTopicTitle({ ...input, maxChars }));
+  const fallback = resolveChalkboardTopicTitle({ ...input, maxChars });
+  if (!fallback || GENERIC_TITLE_BLACKLIST_RE.test(fallback)) {
+    if (input.strict) {
+      throw new SacrintContentError(
+        'SACRINT_GENERIC_TITLE',
+        `No se pudo resolver un título conceptual válido para la infografía`,
+        input.context
+      );
+    }
+    return '';
+  }
+  const cleanedFallback = stripLeadingTitleAdverbs(fallback);
+  return isValidResolvedTitle(cleanedFallback, maxChars + 24) ? cleanedFallback : '';
 }
 
 /**

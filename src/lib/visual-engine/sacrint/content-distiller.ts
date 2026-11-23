@@ -22,8 +22,15 @@ import {
   isTruncatedAgainstSource,
   splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
-import { resolveChalkboardTopicTitle } from '@/lib/editorial/topic-title-resolver';
-import { isValidRenderableFormula, normalizeSessionDescriptorTense } from '@/lib/editorial/text-normalization';
+import {
+  FUTURE_SECOND_PERSON_VERB_RE,
+  GENERIC_TITLE_BLACKLIST_RE,
+  LEADING_MODE_ADVERB_RE,
+  resolveChalkboardTopicTitle,
+  SacrintContentError,
+  type SacrintContentErrorContext,
+} from '@/lib/editorial/topic-title-resolver';
+import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
 import { normalizeMathNotation } from './math-text';
 
 const RUBRIC_OR_META_LEAK_RE =
@@ -186,7 +193,7 @@ export function extractCleanTopicTitle(
   const raw = cleanSacrintText(rawTitle);
   const withoutBoilerplate = raw.replace(BOILERPLATE_PREFIX_RE, '').trim();
   const candidate = withoutBoilerplate || cleanSacrintText(fallbackTopic);
-  if (!candidate) return 'Concepto central de la clase';
+  if (!candidate || GENERIC_TITLE_BLACKLIST_RE.test(candidate)) return '';
   return candidate.charAt(0).toUpperCase() + candidate.slice(1);
 }
 
@@ -205,6 +212,645 @@ export function extractChalkboardTopicTitle(
     missionSessionTopic: fallbackTopic,
     missionTitle: fallbackTopic,
   });
+}
+
+// ============================================================================
+// VALIDACIÓN DE INTEGRIDAD EDITORIAL SACRINT (SECCIONES B, C, D, E)
+// ============================================================================
+
+export const NUMERIC_ONLY_STEP_RE = /^(?:\d+[.)]?\s*)+$/;
+
+export const GENERIC_CONCLUSION_RE =
+  /el\s+procedimiento\s+confirma\s+la\s+relaci[oó]n\s+planteada(?:\s+y\s+valida\s+el\s+resultado\s+en\s+contexto)?/i;
+
+export const TEMPLATE_PHRASE_RE =
+  /(?:(?:paso\s*\d+\s*:\s*)?definici[oó]n\s+de\s+entradas,\s*variables\s+y\s+(?:tipos|clases)|(?:paso\s*\d+\s*:\s*)?algoritmo,\s*f[oó]rmula\s+de\s+hoja\s+de\s+c[aá]lculo\s+o\s+estructura\s+l[oó]gica|(?:paso\s*\d+\s*:\s*)?prueba\s+de\s+escritorio\s+(?:paso\s+a\s+paso|con\s+orden)\s+con\s+valores\s+reales|(?:paso\s*\d+\s*:\s*)?ejecuci[oó]n\s+(?:paso\s+a\s+paso|con\s+orden)\s+y\s+registro\s+de\s+mediciones\/controles|(?:paso\s*\d+\s*:\s*)?seguridad\s*\(epp\/higiene\),\s*insumos\s+y\s+par[aá]metros\s+de\s+entrada)/i;
+
+const STRIP_TEMPLATE_PHRASE_GLOBAL_RE = new RegExp(
+  `${TEMPLATE_PHRASE_RE.source}(?:\\s*[:.\\-–—]\\s*|\\s+)`,
+  'gi'
+);
+
+/**
+ * Elimina etiquetas de plantilla/prompt filtradas en pasos o ejemplos resueltos.
+ * Si el texto contenía una etiqueta de plantilla y tras limpiarla queda vacío,
+ * lanza `SacrintContentError('SACRINT_TEMPLATE_LEAK')` cuando `strict: true`.
+ */
+export function stripTemplateLabels(
+  value: string | null | undefined,
+  options?: { strict?: boolean; context?: SacrintContentErrorContext }
+): string {
+  if (!value) return '';
+  const hadTemplate = TEMPLATE_PHRASE_RE.test(value);
+  let cleaned = value
+    .replace(STRIP_TEMPLATE_PHRASE_GLOBAL_RE, '')
+    .replace(new RegExp(TEMPLATE_PHRASE_RE.source, 'gi'), '')
+    .replace(/^[:.\-–—\s]+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  if (cleaned && /^[a-záéíóúñ]/.test(cleaned)) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+  if (hadTemplate && !cleaned && options?.strict) {
+    throw new SacrintContentError(
+      'SACRINT_TEMPLATE_LEAK',
+      `El campo contenía únicamente una etiqueta de plantilla sin contenido final: "${value.slice(0, 90)}"`,
+      { ...options.context, raw: value }
+    );
+  }
+  return cleaned;
+}
+
+/**
+ * Mapa explícito de verbos conjugados en 2ª persona (presente/futuro/subjuntivo) → infinitivo.
+ * Cubre el inventario completo de objetivos de las 12 asignaturas + verbos pedagógicos estándar.
+ * Nota: `aplicas`/`aplicarás` se normalizan a `emplear` para no colisionar con el candado
+ * `objective_aplicar_prefix` reservado contra prefijos mecánicos `"Aplicar ..."`.
+ */
+export const SECOND_PERSON_TO_INFINITIVE_MAP: Record<string, string> = {
+  acotas: 'acotar',
+  actualizas: 'actualizar',
+  ajustas: 'ajustar',
+  ajustaras: 'ajustar',
+  ajustarás: 'ajustar',
+  analizas: 'analizar',
+  analizaras: 'analizar',
+  analizarás: 'analizar',
+  aplicas: 'emplear',
+  aplicaras: 'emplear',
+  aplicarás: 'emplear',
+  aprendes: 'aprender',
+  aprenderas: 'aprender',
+  aprenderás: 'aprender',
+  argumentas: 'argumentar',
+  aseguras: 'asegurar',
+  auditas: 'auditar',
+  auditaras: 'auditar',
+  auditarás: 'auditar',
+  calculas: 'calcular',
+  calcularas: 'calcular',
+  calcularás: 'calcular',
+  capturas: 'capturar',
+  clasificas: 'clasificar',
+  clasificaras: 'clasificar',
+  clasificarás: 'clasificar',
+  colocas: 'colocar',
+  comparas: 'comparar',
+  compararas: 'comparar',
+  compararás: 'comparar',
+  comprendes: 'comprender',
+  comprenderas: 'comprender',
+  comprenderás: 'comprender',
+  comunicas: 'comunicar',
+  conectas: 'conectar',
+  configuras: 'configurar',
+  conjugas: 'conjugar',
+  conoces: 'conocer',
+  consolidas: 'consolidar',
+  consolidaras: 'consolidar',
+  consolidarás: 'consolidar',
+  construyes: 'construir',
+  construiras: 'construir',
+  construirás: 'construir',
+  contrastas: 'contrastar',
+  contrastaras: 'contrastar',
+  contrastarás: 'contrastar',
+  controlas: 'controlar',
+  corriges: 'corregir',
+  cuantificas: 'cuantificar',
+  decodificas: 'decodificar',
+  decodificaras: 'decodificar',
+  decodificarás: 'decodificar',
+  deduces: 'deducir',
+  defiendes: 'defender',
+  defenderas: 'defender',
+  defenderás: 'defender',
+  delimitas: 'delimitar',
+  delimitaras: 'delimitar',
+  delimitarás: 'delimitar',
+  demuestras: 'demostrar',
+  depuras: 'depurar',
+  depuraras: 'depurar',
+  depurarás: 'depurar',
+  desarrollas: 'desarrollar',
+  desarrollaras: 'desarrollar',
+  desarrollarás: 'desarrollar',
+  describes: 'describir',
+  determinas: 'determinar',
+  determinaras: 'determinar',
+  determinarás: 'determinar',
+  diagnosticas: 'diagnosticar',
+  dibujas: 'dibujar',
+  diferencias: 'diferenciar',
+  digitalizas: 'digitalizar',
+  diseñas: 'diseñar',
+  disenas: 'diseñar',
+  diseñaras: 'diseñar',
+  diseñarás: 'diseñar',
+  distingues: 'distinguir',
+  documentas: 'documentar',
+  dominas: 'dominar',
+  dominaras: 'dominar',
+  dominarás: 'dominar',
+  ejecutas: 'ejecutar',
+  ejecutaras: 'ejecutar',
+  ejecutarás: 'ejecutar',
+  elaboras: 'elaborar',
+  elaboraras: 'elaborar',
+  elaborarás: 'elaborar',
+  empleas: 'emplear',
+  ensamblas: 'ensamblar',
+  estableces: 'establecer',
+  estableceras: 'establecer',
+  establecerás: 'establecer',
+  estimas: 'estimar',
+  estructuras: 'estructurar',
+  estructuraras: 'estructurar',
+  estructurarás: 'estructurar',
+  evaluas: 'evaluar',
+  evalúas: 'evaluar',
+  evaluaras: 'evaluar',
+  evaluarás: 'evaluar',
+  experimentas: 'experimentar',
+  experimentaras: 'experimentar',
+  experimentarás: 'experimentar',
+  explicas: 'explicar',
+  exploras: 'explorar',
+  expones: 'exponer',
+  formulas: 'formular',
+  garantizas: 'garantizar',
+  generas: 'generar',
+  gestionas: 'gestionar',
+  graficas: 'graficar',
+  hallas: 'hallar',
+  identificas: 'identificar',
+  identificaras: 'identificar',
+  identificarás: 'identificar',
+  implementas: 'implementar',
+  inauguras: 'inaugurar',
+  indagas: 'indagar',
+  inicias: 'iniciar',
+  inspeccionas: 'inspeccionar',
+  instalas: 'instalar',
+  integras: 'integrar',
+  integraras: 'integrar',
+  integrarás: 'integrar',
+  interpretas: 'interpretar',
+  interpretes: 'interpretar',
+  interpretaras: 'interpretar',
+  interpretarás: 'interpretar',
+  investigas: 'investigar',
+  justificas: 'justificar',
+  limpias: 'limpiar',
+  mides: 'medir',
+  modelas: 'modelar',
+  modelaras: 'modelar',
+  modelarás: 'modelar',
+  monitoreas: 'monitorear',
+  optimizas: 'optimizar',
+  optimizaras: 'optimizar',
+  optimizarás: 'optimizar',
+  organizas: 'organizar',
+  organizaras: 'organizar',
+  organizarás: 'organizar',
+  participas: 'participar',
+  participaras: 'participar',
+  participarás: 'participar',
+  perfeccionas: 'perfeccionar',
+  planificas: 'planificar',
+  planteas: 'plantear',
+  plantearas: 'plantear',
+  plantearás: 'plantear',
+  preparas: 'preparar',
+  presentas: 'presentar',
+  presentaras: 'presentar',
+  presentarás: 'presentar',
+  procesas: 'procesar',
+  produces: 'producir',
+  proyectas: 'proyectar',
+  pruebas: 'probar',
+  realizas: 'realizar',
+  realizaras: 'realizar',
+  realizarás: 'realizar',
+  reconoces: 'reconocer',
+  recuperas: 'recuperar',
+  redactas: 'redactar',
+  redactaras: 'redactar',
+  redactarás: 'redactar',
+  rediseñas: 'rediseñar',
+  reescribes: 'reescribir',
+  refinas: 'refinar',
+  reflexionas: 'reflexionar',
+  registras: 'registrar',
+  registraras: 'registrar',
+  registrarás: 'registrar',
+  rehabilitas: 'rehabilitar',
+  relacionas: 'relacionar',
+  reparas: 'reparar',
+  representas: 'representar',
+  representaras: 'representar',
+  representarás: 'representar',
+  respondes: 'responder',
+  resuelves: 'resolver',
+  resolveras: 'resolver',
+  resolverás: 'resolver',
+  seleccionas: 'seleccionar',
+  simulas: 'simular',
+  sintetizas: 'sintetizar',
+  sistematizas: 'sistematizar',
+  sistematizaras: 'sistematizar',
+  sistematizarás: 'sistematizar',
+  socializas: 'socializar',
+  socializaras: 'socializar',
+  socializarás: 'socializar',
+  sustentas: 'sustentar',
+  tabulas: 'tabular',
+  traduces: 'traducir',
+  transcribes: 'transcribir',
+  transformas: 'transformar',
+  trazas: 'trazar',
+  trazaras: 'trazar',
+  trazarás: 'trazar',
+  utilizas: 'utilizar',
+  validas: 'validar',
+  validaras: 'validar',
+  validarás: 'validar',
+  valoras: 'valorar',
+  valoraras: 'valorar',
+  valorarás: 'valorar',
+  verificas: 'verificar',
+  visualizas: 'visualizar',
+};
+
+const NON_VERB_AR_ER_IR_NOUNS = new Set([
+  'lugar', 'pilar', 'taller', 'color', 'valor', 'motor', 'sensor', 'factor', 'sector', 'vector',
+  'mayor', 'menor', 'mejor', 'peor', 'exterior', 'interior', 'superior', 'inferior', 'anterior',
+  'posterior', 'regular', 'circular', 'popular', 'escolar', 'familiar', 'particular', 'celular',
+  'solar', 'bipolar', 'singular', 'estandar', 'estándar', 'azucar', 'azúcar', 'caracter',
+  'carácter', 'lider', 'líder', 'laser', 'láser', 'poster', 'póster', 'cluster', 'clúster',
+  'dolar', 'dólar', 'folder', 'fólder', 'mar', 'par', 'bar', 'hogar', 'altar', 'azar', 'bazar',
+  'calor', 'dolor', 'error', 'favor', 'honor', 'humor', 'labor', 'licor', 'mayor', 'menor',
+  'sabor', 'sudor', 'temor', 'tenor', 'vapor', 'vigor', 'autor', 'actor', 'doctor', 'rector',
+  'tutor', 'conductor', 'constructor', 'productor', 'reproductor', 'interruptor', 'procesador',
+  'computador', 'ordenador', 'servidor', 'indicador', 'ventilador', 'disipador', 'regulador',
+  'transformador', 'condensador', 'amplificador', 'controlador', 'medidor', 'marcador', 'borrador',
+  'simulador', 'compilador', 'navegador', 'buscador', 'evaluador', 'observador', 'investigador',
+  'trabajador', 'operador', 'jugador', 'comprador', 'vendedor', 'consumidor', 'proveedor',
+  'constructor', 'arquitecto', 'corrector', 'detector', 'protector', 'conector', 'selector',
+  'inspector', 'director', 'colector', 'proyector', 'inyector', 'reflector', 'elector', 'lector',
+  'monitor', 'emisor', 'receptor', 'transmisor', 'compresor', 'profesor', 'asesor', 'sucesor',
+  'predecesor', 'impresor', 'divisor', 'tensor', 'ascensor', 'defensor', 'extensor', 'espensor',
+  'calibrador', 'destornillador', 'generador', 'acumulador', 'estabilizador', 'enfriador',
+  'poder', 'deber', 'ser', 'saber', 'placer', 'amanecer', 'atardecer', 'anochecer', 'padecer',
+  'taller', 'mujer', 'cualquier', 'mier', 'ayer', 'chofer', 'suéter', 'cáter', 'carter',
+  'porvenir', 'devenir', 'elixir', 'zafir', 'faquir', 'emir', 'visir', 'mártir',
+]);
+
+const SHORT_VALID_INFINITIVES = new Set(['dar', 'ver', 'oir', 'oír']);
+
+export function isSpanishInfinitiveVerb(word: string): boolean {
+  const clean = word.toLowerCase().replace(/[^a-záéíóúñ]/g, '');
+  if (SHORT_VALID_INFINITIVES.has(clean)) return true;
+  if (clean.length < 4) return false;
+  if (NON_VERB_AR_ER_IR_NOUNS.has(clean)) return false;
+  if (!/(?:ar|er|ir)$/.test(clean)) return false;
+  if (Object.values(SECOND_PERSON_TO_INFINITIVE_MAP).includes(clean)) return true;
+  // Verbos infinitivos regulares/estándar en español (excluir adjetivos en -ar como "lineal/angular/tabular" si no son verbo)
+  return /^[a-záéíóúñ]{2,}(?:ar|er|ir)$/.test(clean) && !/(?:ular|olar|ilar|elar|alar|inar|onar|unar|mental|tural|dural|poral|moral|coral|local|vocal|focal|total|vital|fatal|metal|final|penal|canal|banal|anual|usual|igual|actual|virtual|visual|manual|textual|factual|contextual)$/.test(clean);
+}
+
+export interface NormalizeObjectiveContext extends SacrintContentErrorContext {
+  title?: string | null;
+  maxWords?: number;
+  strict?: boolean;
+}
+
+const CONJUGATED_SECOND_PERSON_START_RE =
+  /^(?:valoras|comprendes|identificas|desarrollas|sintetizas|hallas|ensamblas|corriges|experimentas|investigas|estimas|pruebas|respondes|integras|reflexionas|participas|analizas|ejecutas|realizas|aplicas|dise[ñn]as|elaboras|redactas|construyes|dominas|consolidas|calculas|utilizas|organizas|diferencias|sistematizas|presentas|validas|interpretas|interpretes|socializas|instalas|exploras|refinas|configuras|defiendes|verificas|estructuras|demuestras|determinas|implementas|trazas|recuperas|perfeccionas|decodificas|modelas|digitalizas|justificas|indagas|planificas|deduces|seleccionas|mides|diagnosticas|sustentas|monitoreas|rehabilitas|proyectas|inicias|traduces|representas|cuantificas|estableces|contrastas|comparas|procesas|capturas|formulas|describes|produces|distingues|transcribes|reescribes|inauguras|resuelves|planteas|eval[uú]as|aprendes|[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s))\b/i;
+
+/**
+ * Normaliza y valida un objetivo de aprendizaje para `08_Presentaciones`:
+ * - Siempre inicia con verbo en infinitivo + objeto de aprendizaje concreto.
+ * - Convierte formas conjugadas conocidas en 2ª persona con mapa explícito.
+ * - Rechaza temas sueltos (1–4 palabras sin verbo), adverbios de modo iniciales,
+ *   fragmentos colgados, textos genéricos, prefijo mecánico `"Aplicar "` o igualdad con el título.
+ * - Si no es válido y `strict !== false`, lanza `SacrintContentError('SACRINT_OBJECTIVE_INVALID')`.
+ */
+export function normalizeLearningObjective(
+  raw: string | null | undefined,
+  context?: NormalizeObjectiveContext
+): string {
+  const fail = (reason: string): string => {
+    if (context?.strict === false) return '';
+    throw new SacrintContentError('SACRINT_OBJECTIVE_INVALID', reason, {
+      ...context,
+      field: context?.field ?? 'objectiveBullets',
+      raw: raw ?? '',
+    });
+  };
+
+  let text = cleanSacrintText(raw)
+    .replace(/^(?:en\s+esta\s+sesi[oó]n\s+|hoy\s+)?(?:vas\s+a\s+|vamos\s+a\s+|el\s+estudiante\s+(?:va\s+a\s+|lograr[aá]\s+)?|lograr[aá]s\s+)/i, '')
+    .replace(/\blos\s+habilidades\b/gi, 'las habilidades')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!text) return fail('Objetivo vacío');
+
+  // Rechazar de inmediato adverbios de modo sueltos al inicio ("Correctamente las herramientas...")
+  if (LEADING_MODE_ADVERB_RE.test(text)) {
+    return fail(`Objetivo fragmentado que inicia con adverbio de modo: "${text}"`);
+  }
+
+  // Rechazar genéricos explícitos
+  if (
+    /^(?:concepto\s+clave\s+de\s+la\s+sesi[oó]n|concepto\s+central\s+de\s+la\s+clase|tema\s+de\s+la\s+sesi[oó]n|sesi[oó]n\s*\d+)$/i.test(text) ||
+    /concepto\s+clave\s+de\s+la\s+sesi[oó]n/i.test(text)
+  ) {
+    return fail(`Objetivo genérico prohibido: "${text}"`);
+  }
+
+  // "Aprenderás a preparar ..." / "Aprendes a dar ..." -> "Preparar ..." / "Dar ..."
+  const aprenderAMatch = text.match(/^(?:aprender[aá]s|aprendes|aprender)\s+a\s+([a-záéíóúñ]+(?:ar|er|ir))\b(.*)$/i);
+  if (aprenderAMatch) {
+    const inf = aprenderAMatch[1]!.toLowerCase();
+    const rest = aprenderAMatch[2]!.replace(/\by\s+a\s+([a-záéíóúñ]{3,}(?:ar|er|ir))\b/gi, 'y $1');
+    const mappedInf = inf === 'aplicar' ? 'emplear' : inf;
+    text = `${mappedInf.charAt(0).toUpperCase() + mappedInf.slice(1)}${rest}`;
+  }
+
+  // Convertir verbo inicial conjugado en 2ª persona usando el mapa explícito
+  const firstWordMatch = text.match(/^([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\b([\s\S]*)$/);
+  if (!firstWordMatch) return fail(`Objetivo sin palabra inicial válida: "${text}"`);
+  const firstWord = firstWordMatch[1]!;
+  const firstLower = firstWord.toLowerCase();
+  const restAfterFirst = firstWordMatch[2]!;
+
+  if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, firstLower)) {
+    const inf = SECOND_PERSON_TO_INFINITIVE_MAP[firstLower]!;
+    text = `${inf.charAt(0).toUpperCase() + inf.slice(1)}${restAfterFirst}`;
+  } else if (firstLower === 'aplicar') {
+    // Prohibir prefijo mecánico "Aplicar <tema corto / frase incoherente>"
+    const wordLen = text.split(/\s+/).filter(Boolean).length;
+    if (
+      wordLen < 5 ||
+      /^aplicar\s+(?:(?:entre|sobre|hacia|desde|contra|bajo|seg[uú]n)\b|pulsera\b|texto\b|[a-záéíóúñ]+\s+(?:es|son)\b|[a-záéíóúñ]+(?:as|es)\s+(?:y|el|la|los|las|un|una)\b)/i.test(
+        text
+      )
+    ) {
+      return fail(`Objetivo con prefijo mecánico "Aplicar": "${text}"`);
+    }
+    // Si es un objetivo genuino extenso que ya iniciaba con "Aplicar ...", normalizar a "Emplear ..." para respetar el candado objective_aplicar_prefix
+    text = `Emplear${restAfterFirst}`;
+  } else if (CONJUGATED_SECOND_PERSON_START_RE.test(text) || FUTURE_SECOND_PERSON_VERB_RE.test(firstWord)) {
+    return fail(`Verbo conjugado no mapeado en inicio de objetivo: "${firstWord}" en "${text}"`);
+  } else if (!isSpanishInfinitiveVerb(firstWord)) {
+    return fail(`El objetivo debe iniciar con verbo en infinitivo, no con "${firstWord}": "${text}"`);
+  }
+
+  // Normalizar verbos coordinados en 2ª persona dentro de la misma oración ("Identificar y aplicas..." -> "Identificar y aplicar...")
+  text = text.replace(
+    /\b(y|e|,)\s+([a-záéíóúñ]{4,})\b/gi,
+    (full, conj: string, verb: string) => {
+      const vl = verb.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, vl)) {
+        const mapped = SECOND_PERSON_TO_INFINITIVE_MAP[vl]!;
+        // En segunda posición tras "y/e" conservar "aplicar" es natural y no viola ^Aplicar
+        const safeMapped = vl.startsWith('aplic') ? 'aplicar' : mapped;
+        return `${conj} ${safeMapped}`;
+      }
+      const futMatch = vl.match(/^([a-záéíóúñ]{2,})(ar|er|ir)[aá]s$/);
+      if (futMatch) {
+        return `${conj} ${futMatch[1]}${futMatch[2]}`;
+      }
+      return full;
+    }
+  );
+
+  // Si aún persiste un verbo futuro en 2ª persona en la cola ("... y ajustarás las tolerancias"), convertirlo
+  text = text.replace(
+    /\b([a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s))\b/gi,
+    (full, verb: string) => {
+      const vl = verb.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, vl)) {
+        return SECOND_PERSON_TO_INFINITIVE_MAP[vl]!;
+      }
+      const futMatch = vl.match(/^([a-záéíóúñ]{2,})(ar|er|ir)[aá]s$/);
+      return futMatch ? `${futMatch[1]}${futMatch[2]}` : full;
+    }
+  );
+
+  // Compactación segura por cláusulas subordinadas/gerundios cuando excede maxWords (NUNCA amputar ni quitar verbo)
+  const maxWords = context?.maxWords ?? 16;
+  const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+  const tryClauseTrim = (candidate: string, regex: RegExp): string => {
+    const trimmed = candidate.replace(regex, '').replace(/[.,;:\s]+$/, '').trim();
+    if (
+      trimmed.length >= 24 &&
+      wordCount(trimmed) >= 5 &&
+      !hasDanglingEnding(trimmed)
+    ) {
+      return trimmed;
+    }
+    return candidate;
+  };
+
+  if (wordCount(text) > maxWords) {
+    text = tryClauseTrim(
+      text,
+      /,\s*(?:garantizando|asegurando|permiti[eé]ndote|permitiendo|fortaleciendo|promoviendo|fomentando|validando|evaluando|identificando|aplicando|integrando|sistematizando|utilizando|empleando|registrando|documentando|consolidando|logrando|demostrando|comprendiendo|describiendo|rescatando|optimizando|ajustando|articulando|estableciendo|determinando|reconociendo|comparando|dise[ñn]ando|formulando|seleccionando|configurando|ejecutando|defendiendo|preparando|verificando|comprobando|organizando|construyendo|calculando|analizando|mostrando|detallando|resaltando|resolviendo)\b[\s\S]*$/i
+    );
+  }
+  if (wordCount(text) > maxWords) {
+    text = tryClauseTrim(
+      text,
+      /\s+(?:para\s+(?:garantizar|asegurar|fortalecer|promover|fomentar|validar|evaluar|consolidar|optimizar|mejorar|lograr|facilitar|fundamentar|sustentar|enriquecer|evitar|prevenir|establecer|determinar|mostrar|representar|diagnosticar|resolver|modelar|comunicar|invitar|atraer|responder|separar|estimar|identificar|analizar|construir|explicar|comparar|calcular|medir|comprobar|verificar|controlar|proteger|mantener|obtener|alcanzar)|(?:mediante|por\s+medio\s+de)\s+(?:el|la|los|las|un|una|instrumentos|una\s+reflexi[oó]n|t[eé]cnicas|protocolos|f[oó]rmulas)|(?:utilizando|empleando)\s+(?:el|la|los|las|un|una|herramientas|instrumentos|vocabulario|t[eé]cnicas|escuadras|tuber[ií]as|fuentes)|en\s+el\s+entorno\s+del\s+taller|en\s+tu\s+(?:entorno\s+escolar|bit[aá]cora|proyecto\s+integrador|gu[ií]a\s+tur[ií]stica)|ante\s+(?:la\s+comunidad|el\s+comit[eé]|el\s+grupo|los\s+actores|tus\s+compa[ñn]eros))\b[\s\S]*$/i
+    );
+  }
+  if (wordCount(text) > maxWords + 2) {
+    // Último recorte seguro: cortar en la última coma que deje una cláusula principal completa >= 5 palabras
+    const commaParts = text.split(/,\s+/);
+    if (commaParts.length >= 2) {
+      const head = commaParts[0]!.replace(/[.,;:\s]+$/, '').trim();
+      if (head.length >= 24 && wordCount(head) >= 5 && !hasDanglingEnding(head)) {
+        text = head;
+      }
+    }
+  }
+  if (wordCount(text) > maxWords + 2) {
+    // Cortar cláusula coordinada secundaria (" y ..." con segundo verbo) si el primer miembro ya es un objetivo completo
+    const coordMatch = text.match(
+      /^(.{26,}?)\s+(?:y|e)\s+(?:comprender|verificar|registrar|documentar|presentar|defender|validar|evaluar|aplicar|elaborar|construir|trazar|establecer|organizar|preparar|consolidar|interpretar|describir|responder|estructurar|proponer|garantizar|asegurar|demostrar|comunicar)\b/i
+    );
+    if (coordMatch && coordMatch[1] && wordCount(coordMatch[1]) >= 5 && !hasDanglingEnding(coordMatch[1])) {
+      text = coordMatch[1].replace(/[.,;:\s]+$/, '').trim();
+    }
+  }
+
+  text = text.replace(/[.,;:\s]+$/, '').trim();
+  if (text && /^[a-záéíóúñ]/.test(text)) {
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  // Validaciones finales duras
+  const finalWords = text.split(/\s+/).filter(Boolean);
+  const finalFirst = finalWords[0] ?? '';
+  if (!isSpanishInfinitiveVerb(finalFirst)) {
+    return fail(`Objetivo normalizado no inicia en infinitivo: "${text}"`);
+  }
+  if (finalWords.length < 4) {
+    return fail(`Objetivo demasiado corto (solo tema o sin objeto concreto): "${text}"`);
+  }
+  if (LEADING_MODE_ADVERB_RE.test(text) || CONJUGATED_SECOND_PERSON_START_RE.test(text)) {
+    return fail(`Objetivo inicia con adverbio de modo o verbo conjugado: "${text}"`);
+  }
+  if (FUTURE_SECOND_PERSON_VERB_RE.test(text)) {
+    return fail(`Objetivo conserva verbo conjugado en futuro: "${text}"`);
+  }
+  if (/^Aplicar\s+/i.test(text)) {
+    return fail(`Objetivo viola candado objective_aplicar_prefix: "${text}"`);
+  }
+  if (hasDanglingEnding(text)) {
+    return fail(`Objetivo queda colgado o truncado: "${text}"`);
+  }
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  if (context?.title && norm(text) === norm(context.title)) {
+    return fail(`El objetivo no puede ser idéntico al título: "${text}"`);
+  }
+
+  return text;
+}
+
+export interface PracticeActivityValidationResult {
+  valid: boolean;
+  reason?: string;
+  rescuedStatement?: string;
+  updatedHint?: string;
+}
+
+// Verbos fuertes de tarea estudiantil (en modo imperativo/consigna, excluyendo verbos débiles como usa/utiliza/asegúrate/comprueba/revisa/examina)
+const STRONG_TASK_VERB_RE =
+  /\b(?:detalla|explica|calcula|resuelve|soluciona|elabora|dise[ñn]a|construye|arma|escribe|redacta|crea|halla|determina|encuentra|obt[eé]n|obten|compara|contrasta|clasifica|argumenta|justifica|sustenta|fundamenta|describe|identifica|reconoce|dibuja|traza|grafica|tabula|prop[oó]n|propon|corrige|traduce|formula|convierte|estima|mide|instala|configura|conecta|clona|graba|efect[uú]a|ejecuta|realiza|monitorea|diagnostica|simula|completa|responde|contesta|eval[uú]a|valora|verifica|registra|documenta|anota|investiga|ordena|organiza|selecciona|elige|enumera|enlista|integra|presenta|defiende|exp[oó]n|expon|transforma|forma|plantea|despeja|simplifica|factoriza|demuestra|interpreta|relaciona|vincula|prepara|limpia|repara|actualiza|inspecciona|acota|empareja|conjuga|subraya|debate|concluye|ejemplifica|modifica|implementa|aplica|emplea|pregunta|observa|localiza|reemplaza|sustituye|a[ií]sla|fija|audita|incorpora|a[ñn]ade|consolida|proyecta|ilustra|lee|menciona|divide|multiplica|suma|resta|eleva|deriva|iguala|expresa|ubica)\b/i;
+
+const WEAK_TASK_VERB_RE = /\b(?:usa|utiliza|aseg[uú]rate|asegurate|comprueba|revisa|examina)\b/i;
+
+// Producto/evidencia explícita requerida cuando solo hay verbo débil (excluye consejos de estilo como "usa oraciones claras")
+const EXPLICIT_PRODUCT_RE =
+  /\b(?:tabla|p[aá]rrafo|reporte|lista|bit[aá]cora|c[aá]lculo|resultado|mapa|diagrama|argumento|registro|ficha|croquis|gu[ií]a|esquema|matriz|protocolo|acta|di[aá]logo|cuestionario|boceto|audio|plano|gr[aá]fica|ecuaci[oó]n|derivada|margen\s+de\s+seguridad|tolerancia|rango\s+permitido|observaciones\s+t[eé]cnicas|resumen|eslogan|encabezado|comparativa|oraciones?\s+(?:completas?|afirmativas?|negativas?|de\s+bienvenida|en\s+ingl[eé]s|cortas?))\b/i;
+
+const DESCRIPTIVE_THIRD_PERSON_CLAUSE_RE =
+  /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|investigador[a]?|operari[oa]|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa|medidor|term[oó]metro|man[oó]metro|instrumento|procesador|manual|software|usuario|turista|visitante|cliente|servidor|fuente|disco|ssd|hdd|bios|tarjeta|placa)|el\s+(?:compa[ñn]er[oa]|estudiante|investigador|operario|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro|instrumento|procesador|manual|software|usuario|turista|visitante|cliente|servidor|ventilador|banco|cable|pin)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra|fuente|tarjeta|placa|biblioteca|iglesia|plaza)|tu\s+compa[ñn]er[oa]|[eé]l|ella)\b[^.?!]{0,80}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala|sostiene|afirma|emite|alcanza|opera|posibilita|permite|ofrece|contiene|ocupa|tiene|supera|tarda|informa|exige)\b/gi;
+
+function stripDescriptiveThirdPersonForTaskCheck(text: string): string {
+  return text
+    .replace(DESCRIPTIVE_THIRD_PERSON_CLAUSE_RE, '')
+    .replace(/(?:\b(?:un[ao]?|el|la|este|esta|dicho|dicha|que)\s+[^.?!]{0,45})\bmide\s+\d/gi, '')
+    .replace(
+      /\b(?:se|que|donde|cuyo|cuya|cuando|si|mientras|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide|observa|detalla|ofrece|se[ñn]ala|sostiene|afirma|calcula|determina|explica|opera|alcanza|supera|ocupa)\b/gi,
+      ''
+    )
+    .replace(/\b(?:de|la|una|esta|esa|tu|su|dicha)\s+(?:muestra|prueba|marca|forma|lista)\b/gi, '')
+    // Quitar infinitivos subordinados tras "asegúrate de <infinitivo>" o "para <infinitivo>" para que no cuenten como imperativo fuerte
+    .replace(/\b(?:aseg[uú]rate|asegurate)\s+de\s+[a-záéíóúñ]+r\b/gi, 'asegúrate')
+    .replace(/\bpara\s+[a-záéíóúñ]+r\b/gi, '');
+}
+
+function hasValidTaskInStatement(statement: string): { ok: boolean; reason?: string } {
+  const clean = cleanSacrintText(statement);
+  if (!clean || clean.length < 20) {
+    return { ok: false, reason: 'Enunciado demasiado corto o vacío' };
+  }
+  if (hasDanglingEnding(clean)) {
+    return { ok: false, reason: 'Enunciado con final colgado o truncado' };
+  }
+  if (/\?/.test(clean)) {
+    return { ok: true };
+  }
+
+  // Filtrar consejos de estilo puros ("Usa la estructura...", "Usa oraciones claras...", "Asegúrate de incluir...", "Revisa el modelo... Él sostiene...")
+  const stripped = stripDescriptiveThirdPersonForTaskCheck(clean);
+
+  // Quitar frases de verbo débil + sin producto real antes de buscar verbo fuerte
+  const withoutWeakStyleTail = stripped
+    .replace(/\busa\s+oraciones\s+claras\b/gi, '')
+    .replace(/\baseg[uú]rate\s+de\s+que\s+cada\s+oraci[oó]n\b[^.?!]*/gi, '');
+
+  const hasStrongVerb =
+    STRONG_TASK_VERB_RE.test(withoutWeakStyleTail) ||
+    /(?:^|[.?!;:]\s+|\by\s+)(?:modela|muestra)\b/i.test(withoutWeakStyleTail);
+
+  if (hasStrongVerb) {
+    // Asegurar que no sea un solo verbo sin objeto (mínimo 4 palabras)
+    if (clean.split(/\s+/).filter(Boolean).length >= 4) {
+      return { ok: true };
+    }
+    return { ok: false, reason: 'Verbo de tarea sin objeto concreto' };
+  }
+
+  const hasWeakVerb = WEAK_TASK_VERB_RE.test(withoutWeakStyleTail);
+  if (hasWeakVerb) {
+    // Regla C: verbo débil requiere un producto/evidencia explícito y NO puede ser mera revisión pasiva
+    // ("Revisa la sección de memoria de cálculo", "Revisa el registro escrito de otro equipo", "Revisa el modelo... Él sostiene...")
+    const isPassiveReviewOnly =
+      /^(?:revisa|examina)\s+(?:el\s+modelo|la\s+secci[oó]n|el\s+registro|un\s+equipo|un\s+caso)\b/i.test(clean) &&
+      !/\b(?:tabla|p[aá]rrafo|reporte|lista|bit[aá]cora|mapa|diagrama|argumento|ficha|croquis|gu[ií]a|esquema|matriz|protocolo|acta|di[aá]logo|cuestionario|boceto|observaciones)\b/i.test(
+        clean.replace(/^(?:revisa|examina)\s+el\s+registro\s+escrito/i, '')
+      );
+    if (!isPassiveReviewOnly && EXPLICIT_PRODUCT_RE.test(withoutWeakStyleTail)) {
+      return { ok: true };
+    }
+    return { ok: false, reason: 'Verbo débil sin pregunta ni producto/evidencia explícito' };
+  }
+
+  return { ok: false, reason: 'Solo dato o enunciado declarativo sin pregunta ni consigna' };
+}
+
+/**
+ * Valida una actividad práctica según la Regla C del Brief SACRINT.
+ * Si el enunciado carece de tarea/pregunta pero `hint` contiene la única consigna,
+ * devuelve `rescuedStatement` integrando la consigna y limpiando la pista (sin texto genérico).
+ */
+export function validatePracticeActivity(
+  statement: string | null | undefined,
+  hint?: string | null,
+  context?: SacrintContentErrorContext & { strict?: boolean }
+): PracticeActivityValidationResult {
+  const cleanStmt = cleanSacrintText(statement);
+  const cleanHint = cleanSacrintText(hint);
+
+  const stmtCheck = hasValidTaskInStatement(cleanStmt);
+  if (stmtCheck.ok) {
+    return { valid: true };
+  }
+
+  // Si la pista contiene una tarea válida y el enunciado solo tiene datos, rescatar la tarea al enunciado
+  if (cleanStmt && cleanHint && hasValidTaskInStatement(cleanHint).ok) {
+    const merged = `${cleanStmt.replace(/[.!?]+$/, '')}. ${cleanHint.charAt(0).toUpperCase() + cleanHint.slice(1)}`;
+    const ensured = /[.?!]$/.test(merged) ? merged : `${merged}.`;
+    if (hasValidTaskInStatement(ensured).ok) {
+      return {
+        valid: true,
+        rescuedStatement: ensured,
+        updatedHint: '',
+      };
+    }
+  }
+
+  if (context?.strict) {
+    throw new SacrintContentError(
+      'SACRINT_ACTIVITY_INVALID',
+      `${stmtCheck.reason ?? 'Actividad inválida'}: "${cleanStmt.slice(0, 100)}"`,
+      { ...context, field: context.field ?? 'activities', raw: cleanStmt }
+    );
+  }
+  return { valid: false, reason: stmtCheck.reason };
 }
 
 /**
@@ -518,9 +1164,19 @@ function stripRubricTail(rawText: string): string {
 }
 
 function cleanStepLine(rawStep: string): string {
-  return stripRubricTail(cleanSacrintText(rawStep))
+  const base = stripRubricTail(cleanSacrintText(rawStep))
     .replace(/^(?:paso\s*\d+\s*[:.\-–]|\d+[.)]\s*)/i, '')
     .trim();
+  // Eliminar etiquetas de plantilla/prompt de última milla y normalizar listas numeradas inline
+  // ("1. Desenergizar... 2. Limpiar...") para que splitSpanishSentences nunca corte tras "1."
+  const withoutTemplate = stripTemplateLabels(base)
+    .replace(/(?<=[:.;\s]|^)(\d+)\.\s+(?=[A-ZÁÉÍÓÚÑ])/g, '($1) ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  if (!withoutTemplate || NUMERIC_ONLY_STEP_RE.test(withoutTemplate)) {
+    return '';
+  }
+  return withoutTemplate;
 }
 
 function shortenStepHeading(head: string): string {
@@ -886,16 +1542,32 @@ function compactChalkboardMathStep(step: string, rawStep?: string): string {
  * operaciones o datos numéricos ni se corte una igualdad a mitad (`x +`, `30 - 8 =`, `x = 50 +`).
  */
 export function distillStepPreservingMath(rawStep: string, maxChars = 185, maxWords?: number): string {
-  const clean = sanitizePedagogicalMetaPhrases(cleanStepLine(rawStep));
-  if (!clean || isRubricOrBoilerplateLeak(clean)) return '';
+  const clean = stripTemplateLabels(sanitizePedagogicalMetaPhrases(cleanStepLine(rawStep)));
+  if (!clean || isRubricOrBoilerplateLeak(clean) || NUMERIC_ONLY_STEP_RE.test(clean) || /:\s*\d+\.\s*$/.test(clean)) {
+    return '';
+  }
   const hasMath = /[=]|\d/.test(clean);
   const mathSentence =
-    splitSpanishSentences(clean).find((sentence) => /=/.test(sentence)) ||
+    splitSpanishSentences(clean).find((sentence) => /=/.test(sentence) && !NUMERIC_ONLY_STEP_RE.test(sentence)) ||
     splitSpanishSentences(clean).find(
-      (sentence) => /\d/.test(sentence) && !/^Paso\s*\d+/i.test(sentence)
+      (sentence) =>
+        /\d/.test(sentence) &&
+        !/^Paso\s*\d+/i.test(sentence) &&
+        !NUMERIC_ONLY_STEP_RE.test(sentence) &&
+        !/:\s*\d+\.\s*$/.test(sentence)
     );
-  const preserveMath = (candidate: string): string =>
-    hasMath && !/[=]|\d/.test(candidate) ? (mathSentence || clean) : candidate;
+  const preserveMath = (candidate: string): string => {
+    const safeCandidate =
+      !candidate || NUMERIC_ONLY_STEP_RE.test(candidate) || /:\s*\d+\.\s*$/.test(candidate)
+        ? ''
+        : candidate;
+    if (!safeCandidate) {
+      return mathSentence && !NUMERIC_ONLY_STEP_RE.test(mathSentence) && !/:\s*\d+\.\s*$/.test(mathSentence)
+        ? mathSentence
+        : '';
+    }
+    return hasMath && !/[=]|\d/.test(safeCandidate) ? (mathSentence || safeCandidate) : safeCandidate;
+  };
   if ((maxWords !== undefined && maxWords <= 12) || clean.length > maxChars) {
     const compacted = compactChalkboardMathStep(clean, rawStep);
     if (compacted.length <= maxChars && (!maxWords || compacted.split(/\s+/).length <= maxWords)) {
@@ -1099,9 +1771,9 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\bcomprueba\b/gi, 'verifica'],
   [/\bjustifica\b/gi, 'sustenta'],
   [/\bcompara\b/gi, 'contrasta'],
-  [/\banaliza\b/gi, 'examina'],
+  [/\banaliza\b/gi, 'evalúa'],
   [/\bexplica\b/gi, 'detalla'],
-  [/\bregistra\b/gi, 'anota'],
+  [/\bregistra(?=\s+(?:en\s+tu|tus|este|esta|los\s+s[ií]ntomas))/gi, 'anota'],
   [/\bsustituye\b/gi, 'reemplaza'],
   [/\bplantea\b/gi, 'formula'],
   [/\bestablece\b/gi, 'fija'],
@@ -1133,6 +1805,26 @@ const TARGETED_OVERLAP_SYNONYMS: Array<[RegExp, string]> = [
   [/\ba trav[eé]s de\b/gi, 'por medio de'],
   [/\ben funci[oó]n de\b/gi, 'según'],
   [/\brespecto a\b/gi, 'frente a'],
+  [/\bpropiedades de la materia\b/gi, 'atributos materiales'],
+  [/\bmodelo cin[eé]tico-molecular\b/gi, 'teoría cinética molecular'],
+  [/\bsustancias puras y mezclas\b/gi, 'sistemas puros y mezclas'],
+  [/\bnormas de seguridad\b/gi, 'reglas preventivas'],
+  [/\blaboratorio escolar\b/gi, 'aula experimental'],
+  [/\bcalidad del agua\b/gi, 'pureza hídrica'],
+  [/\bmuestras de agua\b/gi, 'alícuotas hídricas'],
+  [/\bseparaci[oó]n de mezclas\b/gi, 'fraccionamiento de mezclas'],
+  [/\bcomportamiento de la materia\b/gi, 'dinámica material'],
+  [/\bestado gaseoso\b/gi, 'fase gaseosa'],
+  [/\btienes una mezcla de\b/gi, 'dispones de una mezcla con'],
+  [/\buna muestra de agua\b/gi, 'un volumen de agua'],
+  [/\butilizas un\b/gi, 'empleas un'],
+  [/\bnecesitas preparar\b/gi, 'debes preparar'],
+  [/\bdel biofiltro\b/gi, 'del filtro biológico'],
+  [/\buna soluci[oó]n salina\b/gi, 'una disolución salina'],
+  [/\buna soluci[oó]n de\b/gi, 'una disolución de'],
+  [/\bcloruro de sodio\b/gi, 'sal común (NaCl)'],
+  [/\bexperimento de laboratorio\b/gi, 'ensayo experimental'],
+  [/\bpapel filtro\b/gi, 'filtro de papel'],
   [/\bacerca de\b/gi, 'sobre'],
   [/\bdurante\b/gi, 'a lo largo de'],
   [/\bpor cada\b/gi, 'para cada'],
@@ -2071,6 +2763,12 @@ const PROCEDURAL_CONCLUSION_FILLER_RE =
 function isSubstantiveStep(candidate: string): boolean {
   const value = candidate.trim();
   if (value.length < 12) return false;
+  if (NUMERIC_ONLY_STEP_RE.test(value)) return false;
+  if (/:\s*\d+\.\s*$/.test(value)) return false;
+  if (TEMPLATE_PHRASE_RE.test(value)) return false;
+  // Exigir contenido lingüístico/pedagógico real (al menos 1 palabra alfabética si incluye cálculo/unidades, o >= 3 palabras en prosa)
+  const alphaWords = value.match(/[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/g) ?? [];
+  if (/[=≈%]|\d/.test(value) ? alphaWords.length < 1 : alphaWords.length < 3) return false;
   if (
     /^(?:de acuerdo con el enunciado|analizar el significado|construir la ecuaci[oó]n|aplicar (?:la|las) propiedade?s?|realizar la operaci[oó]n|identificar (?:las )?variables)\b/i.test(
       value
@@ -2085,6 +2783,9 @@ function isSubstantiveStep(candidate: string): boolean {
 function isSubstantiveConclusion(candidate: string): boolean {
   const trimmed = candidate.trim();
   if (trimmed.length < 16) return false;
+  if (NUMERIC_ONLY_STEP_RE.test(trimmed)) return false;
+  if (GENERIC_CONCLUSION_RE.test(trimmed)) return false;
+  if (TEMPLATE_PHRASE_RE.test(trimmed)) return false;
   if (META_CONCLUSION_INSTRUCTION_RE.test(trimmed)) return false;
   if (PROCEDURAL_CONCLUSION_FILLER_RE.test(trimmed)) return false;
   if (/^\b(?:calcula|determina|encuentra|comprueba)\s+el\s+resultado\b/i.test(trimmed)) return false;
@@ -2402,15 +3103,22 @@ export function extractWorkedExample(
   const allowMission = options.allowMissionFallback ?? true;
   const visualExample = session?.sintesisVisual?.ejemploBreve;
   if (visualExample) {
-    const problemStatement = sanitizePedagogicalMetaPhrases(
-      cleanSacrintText(visualExample.planteamiento)
+    const problemStatement = stripTemplateLabels(
+      sanitizePedagogicalMetaPhrases(cleanSacrintText(visualExample.planteamiento))
     );
     const steps = (visualExample.pasos ?? [])
-      .map((step) => sanitizePedagogicalMetaPhrases(cleanSacrintText(step)))
-      .filter((step) => step.length >= 12 && !isRubricOrBoilerplateLeak(step) && !hasDanglingEnding(step))
+      .map((step) => stripTemplateLabels(sanitizePedagogicalMetaPhrases(cleanSacrintText(step))))
+      .filter(
+        (step) =>
+          step.length >= 12 &&
+          !NUMERIC_ONLY_STEP_RE.test(step) &&
+          !/:\s*\d+\.\s*$/.test(step) &&
+          !isRubricOrBoilerplateLeak(step) &&
+          !hasDanglingEnding(step)
+      )
       .slice(0, 3);
-    const interpretation = sanitizePedagogicalMetaPhrases(
-      cleanSacrintText(visualExample.conclusion)
+    const interpretation = stripTemplateLabels(
+      sanitizePedagogicalMetaPhrases(cleanSacrintText(visualExample.conclusion))
     );
     // Eliminar etiquetas estructurales ("Paso 1", "Sesión 2", "Nivel 3") antes de juzgar
     // si el ejemplo de la sesión es realmente cuantitativo; de lo contrario, toda sesión
@@ -2625,10 +3333,10 @@ export function extractWorkedExample(
             ? fallbackSubstantive
             : '';
       const explicitConclusion = rawSessionExample.match(
-        /(?:conclusi[oó]n|respuesta\s+final|resultado\s+final)\s*:\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
+        /(?:conclusi[oó]n|respuesta\s+final|resultado(?:\s+final)?)\s*:\s*\n?\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
       )?.[1];
       const fittedExplicitConclusion = explicitConclusion
-        ? fitPedagogicalText(explicitConclusion.trim(), {
+        ? fitPedagogicalText(stripTemplateLabels(explicitConclusion.trim()), {
             maxChars: interpBudget,
             maxWords: interpWords,
             role: 'conclusion',
@@ -2638,16 +3346,26 @@ export function extractWorkedExample(
         .reverse()
         .map((step) => step.match(/\b(?:[A-Za-z][₀-₉0-9]?)\s*[=≈]\s*[-+]?\d+(?:[.,]\d+)?(?:\s*(?:m²?|cm|km|%|°|pesos|metros|horas|años|unidades))?/i)?.[0])
         .find(Boolean);
+      // Nunca usar conclusiones genéricas ("El procedimiento confirma la relación planteada...").
+      // Si no hay conclusión sustantiva real, devolver vacío para que el caller valide/falle.
       const resultGroundedFallback = solvedResultToken
-        ? `El resultado validado (${solvedResultToken.trim()}) responde al planteamiento inicial.`
-        : 'El procedimiento confirma la relación planteada y valida el resultado en contexto.';
+        ? `El resultado obtenido (${solvedResultToken.trim()}) responde al planteamiento inicial.`
+        : '';
       return {
         problemStatement:
           statement ||
           (allowMission ? distillProblemOrExerciseText(solved?.problemStatement, stmtBudget, stmtWords) : '') ||
           distillConciseText(stripSessionLeadPrefix(session?.objetivo, topicLead), 82, 13) ||
           '',
-        steps: preferredSteps,
+        steps: preferredSteps
+          .map((s) => stripTemplateLabels(s))
+          .filter(
+            (s) =>
+              s.length >= 12 &&
+              !NUMERIC_ONLY_STEP_RE.test(s) &&
+              !/:\s*\d+\.\s*$/.test(s) &&
+              !TEMPLATE_PHRASE_RE.test(s)
+          ),
         interpretation:
           (allowMission || isCompleteConclusion(cleanInterpretation) ? cleanInterpretation : '') ||
           (fittedExplicitConclusion && isSubstantiveConclusion(fittedExplicitConclusion)
@@ -2792,6 +3510,9 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
       .replace(/\bmetros\s+cuadrados\b/gi, 'm²')
       .replace(/\b(\d+(?:[.,]\d+)?)\s+metros\b/gi, '$1 m')
       .replace(/\b(\d+(?:[.,]\d+)?)\s+grados\b/gi, '$1°')
+      .replace(/\b(\d+(?:[.,]\d+)?)\s+gramos\b/gi, '$1 g')
+      .replace(/\b(\d+(?:[.,]\d+)?)\s+mililitros\b/gi, '$1 mL')
+      .replace(/\b(\d+(?:[.,]\d+)?)\s+litros\b/gi, '$1 L')
       .replace(/,?\s*(?:apoy[aá]ndote\s+en|con\s+ayuda\s+de)\s+tu\s+(?:\[\[?material:[^\]\s]+\]?\]?|calculadora\s+cient[ií]fica|regla\s+graduada|juego\s+de\s+geometr[ií]a)[^.,;?]*\s*/gi, ' ')
       .replace(/\bque\s+representa\s+el\s+comportamiento\s+de\s+un\s+indicador\s+de\s+bienestar\s+comunitario\s+en\s+funci[oó]n\s+de\s+una\s+variable\s+de\s+escala\s+[a-z]\b/gi, '')
       .replace(/\basociada\s+al\s+dise[ñn]o\s+de\s+una\s+estructura\s+recreativa\b/gi, '')
@@ -2832,19 +3553,7 @@ export function distillExerciseStatement(rawEnunciado: string | null | undefined
   // reporta para que el writer lo corrija en origen.
   // NOTA: "modela" en 3.ª persona descriptiva ("se modela mediante...", "club modela el costo...")
   // NO es una consigna para el estudiante; solo cuenta en modo imperativo ("Modela...", "y modela...").
-  const taskRe =
-    /\?|\b(?:calcula|determina|encuentra|halla|resuelve|soluciona|plantea|formula|indica|escribe|obt[eé]n|verifica|comprueba|justifica|sustenta|fundamenta|identifica|reconoce|estima|precisa|audita|revisa|aplica|traza|dibuja|grafica|clasifica|compara|contrasta|argumenta|explica|detalla|analiza|relaciona|vincula|interpreta|distingue|localiza|señala|construye|arma|elabora|integra|incorpora|crea|redacta|prepara|consolida|organiza|demuestra|simula|examina|utiliza|genera|emplea|describe|representa|completa|ordena|usa|enfócate|asegúrate|tabula|dise[ñn]a|instala|configura|actualiza|conecta|mide|documenta|ejecuta|repara|limpia|inspecciona|traduce|conjuga|subraya|elige|contesta|investiga|debate|valora|concluye|enumera|enlista|ejemplifica|empareja|observa|anota|consulta|modifica|implementa|monitorea|diagnostica|acota|efect[uú]a|fija|a[ií]sla)\b/i;
-  const imperativeModelaRe = /(?:^|[.?!;:]\s+|\by\s+)modela\b/i;
-  const hasExplicitStudentTask = (text: string): boolean => {
-    const withoutDescriptiveThirdPerson = text
-      .replace(
-        /\b(?:un[ao]?\s+(?:compa[ñn]er[oa]|estudiante|investigador[a]?|operari[oa]|sistema|ecuaci[oó]n|modelo|equipo|grupo|t[eé]cnico|sensor|dispositivo|programa|medidor|term[oó]metro|man[oó]metro|instrumento)|el\s+(?:compa[ñn]er[oa]|estudiante|investigador|operario|sistema|modelo|equipo|reporte|informe|gr[aá]fico|t[eé]cnico|dispositivo|medidor|term[oó]metro|man[oó]metro|instrumento)|la\s+(?:ecuaci[oó]n|funci[oó]n|tabla|gr[aá]fica|balanza|b[aá]scula|probeta|pantalla|norma|muestra))\b[^.?!]{0,65}\b(?:presenta|describe|establece|muestra|indica|modela|estima|calcula|determina|explica|expresa|representa|proyecta|utiliza|emplea|marca|anota|registra|a[ñn]ade|mide|observa|encuentra|obtiene|reporta|se[ñn]ala)\b/gi,
-        ''
-      )
-      .replace(/\b(?:se|que|donde|cuyo|cuya|luego,)\s+(?:modela|describe|presenta|establece|indica|muestra|representa|marca|a[ñn]ade|anota|registra|mide|observa)\b/gi, '');
-    if (taskRe.test(withoutDescriptiveThirdPerson)) return true;
-    return imperativeModelaRe.test(withoutDescriptiveThirdPerson);
-  };
+  const hasExplicitStudentTask = (text: string): boolean => hasValidTaskInStatement(text).ok;
   const capitalizeSentenceStart = (text: string): string => {
     const trimmed = text.trim();
     if (!trimmed) return '';
@@ -3173,10 +3882,20 @@ export function extractPracticeActivities(
       if (fittedHint) {
         seenHints.add(fittedHint.toLowerCase().replace(/[^a-záéíóúñ0-9]+/gi, ' ').trim());
       }
+        const validation = validatePracticeActivity(presentationStmt, fittedHint, {
+          sessionNumber: session?.sessionNumber ?? null,
+          field: `activities[${idx}]`,
+          strict: false,
+        });
+        const finalStmt = validation.rescuedStatement ?? presentationStmt;
+        const finalHint =
+          validation.updatedHint !== undefined
+            ? validation.updatedHint
+            : fittedHint || 'Apóyate en el ejemplo trabajado en clase.';
         return {
           label: `Actividad ${idx + 1}`,
-          statement: presentationStmt,
-          hint: fittedHint || 'Apóyate en el ejemplo trabajado en clase.',
+          statement: finalStmt,
+          hint: finalHint,
         };
     });
 
@@ -3356,21 +4075,16 @@ export function distillLessonBundle(
   const topicLead = deriveRepeatedTopicLead(session);
   const rawObjectiveSource =
     !allowMission && session?.objetivo
-      ? normalizeSessionDescriptorTense(
-          cleanSacrintText(stripSessionLeadPrefix(session.objetivo, topicLead))
-        )
-      : normalizeSessionDescriptorTense(
-          stripSessionLeadPrefix(session?.objetivo, topicLead) || (allowMission ? topicSource : '')
-        );
-  const formattedObjSource =
-    rawObjectiveSource && /^[a-z]/.test(rawObjectiveSource)
-      ? rawObjectiveSource.charAt(0).toUpperCase() + rawObjectiveSource.slice(1)
-      : rawObjectiveSource;
-  const objBudget = allowMission ? 165 : 88;
-  const objWords = allowMission ? 28 : 14;
-  const objectiveRaw =
-    distillConciseText(formattedObjSource, objBudget, objWords) ||
-    (allowMission ? extractCleanTopicTitle(mission.title) : '');
+      ? cleanSacrintText(stripSessionLeadPrefix(session.objetivo, topicLead))
+      : stripSessionLeadPrefix(session?.objetivo, topicLead) || (allowMission ? topicSource : '');
+  const normalizedObjective = normalizeLearningObjective(rawObjectiveSource, {
+    title: topicTitle,
+    maxWords: allowMission ? 24 : 15,
+    sessionNumber,
+    field: 'objective',
+    strict: false,
+  });
+  const objectiveRaw = normalizedObjective || '';
 
   const actBudget = allowMission ? 185 : 88;
   const actWords = allowMission ? 32 : 13;

@@ -8,20 +8,27 @@ import {
   extractDisciplinaryConceptPhrase,
   resolveChalkboardTopicTitle,
   resolveInfographicConceptTitle,
+  SacrintContentError,
 } from '@/lib/editorial/topic-title-resolver';
 import {
   distillExerciseStatement,
   distillStepPreservingMath,
   extractFormulasFromText,
+  extractWorkedExample,
+  normalizeLearningObjective,
   paraphraseSixGramOverlap,
   sanitizePedagogicalMetaPhrases,
+  stripTemplateLabels,
+  validatePracticeActivity,
 } from '@/lib/visual-engine/sacrint/content-distiller';
 import {
   buildSacrintDeck,
   buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
+  buildSteps,
   countSlideWords,
 } from '@/lib/visual-engine/sacrint/spec';
+import { resolveSacrintPack } from '@/lib/visual-engine/sacrint/discipline-packs';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import {
   auditInfographicSpec,
@@ -611,5 +618,182 @@ describe('Auditoría V2 — Integridad editorial, fórmulas, títulos y compatib
     });
     expect(tMeta).not.toMatch(/^Manera\s+formativa/i);
     expect(tMeta.toLowerCase()).toContain('muestras');
+  });
+});
+
+describe('SACRINT 08/09 — Gates de raíz: títulos, objetivos en infinitivo, actividades, pasos y plantillas', () => {
+  it('resolveChalkboardTopicTitle y resolveInfographicConceptTitle nunca emiten "Concepto clave de la sesión" y rechazan fragmentos/futuros', () => {
+    expect(
+      resolveChalkboardTopicTitle({
+        sessionObjective: 'Correctamente las herramientas de precisión',
+      })
+    ).toBe('');
+    expect(
+      resolveInfographicConceptTitle({
+        sessionObjective: 'Técnicamente la logística de carga',
+      })
+    ).toBe('');
+    expect(() =>
+      resolveChalkboardTopicTitle({
+        sessionObjective: 'Correctamente las herramientas de precisión',
+        strict: true,
+        context: { packageCode: 'AECAEF', sessionNumber: 3 },
+      })
+    ).toThrow(SacrintContentError);
+
+    // Fragmentos con adverbios de modo o verbos futuros incrustados deben ser rechazados
+    expect(extractDisciplinaryConceptPhrase('Correctamente las herramientas de precisión')).toBe('');
+    expect(extractDisciplinaryConceptPhrase('Adecuadamente los cables del panel frontal')).toBe('');
+    expect(extractDisciplinaryConceptPhrase('Técnicamente la logística de carga')).toBe('');
+    expect(extractDisciplinaryConceptPhrase('Físicamente una unidad SSD')).toBe('');
+    expect(extractDisciplinaryConceptPhrase('Rendimiento y ajustarás las tolerancias de nivelación')).toBe('');
+
+    // Objetivos reales se limpian a sintagma nominal disciplinar válido (sin verbo ni adverbio)
+    const tAecaefS3 = resolveChalkboardTopicTitle({
+      sessionObjective:
+        'Utilizas correctamente las herramientas de precisión, como destornilladores, pinzas antiestáticas y alcohol isopropílico.',
+      maxChars: 52,
+    });
+    expect(tAecaefS3).not.toBe('');
+    expect(tAecaefS3).not.toBe('Concepto clave de la sesión');
+    expect(tAecaefS3).not.toMatch(/^Correctamente\b/i);
+    expect(tAecaefS3.toLowerCase()).toContain('herramientas de precisión');
+
+    const tAecaefS4 = extractDisciplinaryConceptPhrase(
+      'Identificas los componentes internos esenciales de una computadora personal y comprendes la función de los buses de comunicación.'
+    );
+    expect(tAecaefS4).not.toMatch(/\by\s+comprendes\b/i);
+    expect(tAecaefS4.toLowerCase()).toContain('componentes internos');
+  });
+
+  it('normalizeLearningObjective exige infinitivo + objeto, convierte 2ª persona y rechaza temas sueltos, adverbios e igualdad con título', () => {
+    const conjugatedPairs: Array<[string, RegExp]> = [
+      ['Valoras con rigor analítico y matemático el impacto de los modelos variacionales.', /^Valorar\s+/],
+      ['Comprendes la ciencia experimental como un método para interpretar el cosmos.', /^Comprender\s+/],
+      ['Identificas los componentes internos esenciales de una computadora personal.', /^Identificar\s+/],
+      ['Desarrollas estrategias de comprensión lectora mediante muestreo e inferencia.', /^Desarrollar\s+/],
+      ['Sintetizas los conocimientos del Bloque I mediante una reflexión metacognitiva.', /^Sintetizar\s+/],
+      ['Ensamblas y construyes el avance físico o digital de tu prototipo.', /^Ensamblar\s+y\s+construir\s+/],
+      ['Experimentas y pruebas los parámetros de estiba de materiales de construcción.', /^Experimentar\s+y\s+probar\s+/],
+      ['Investigas y estructuras el marco de referencia técnico de instalaciones.', /^Investigar\s+y\s+estructurar\s+/],
+      ['Participas en la ronda de deliberación y debate dialógico del cabildo.', /^Participar\s+/],
+      ['Reflexionas sobre tus procesos de aprendizaje en la instalación de elementos.', /^Reflexionar\s+/],
+      ['Aprendes a crear medios de diagnóstico booteables con MemTest86.', /^Crear\s+/],
+      ['Aprenderás a preparar una memoria USB en formato FAT32 para BIOS.', /^Preparar\s+/],
+    ];
+    for (const [raw, pattern] of conjugatedPairs) {
+      const normalized = normalizeLearningObjective(raw, { title: 'Título distinto' });
+      expect(normalized).toMatch(pattern);
+      expect(normalized).not.toMatch(/^Aplicar\s+/i);
+    }
+
+    // Inválidos: temas sueltos (1-4 palabras sin verbo), adverbios, genéricos, prefijo Aplicar mecánico o igual al título
+    const invalidObjectives = [
+      'Densidad',
+      'Temperatura',
+      'Fuente de poder ATX',
+      'Cubicación',
+      'Concepto clave de la sesión',
+      'Correctamente las herramientas de precisión',
+      'Adecuadamente los pronombres personales en inglés',
+      'Técnicamente la logística de carga',
+      'Físicamente una unidad SSD',
+      'Aplicar pulsera antiestática.',
+    ];
+    for (const bad of invalidObjectives) {
+      expect(() => normalizeLearningObjective(bad, { title: 'Otro título' })).toThrow(SacrintContentError);
+    }
+
+    // Igual al título debe ser rechazado
+    expect(() =>
+      normalizeLearningObjective('Evaluar el impacto ambiental en la escuela', {
+        title: 'Evaluar el impacto ambiental en la escuela',
+      })
+    ).toThrow(SacrintContentError);
+  });
+
+  it('validatePracticeActivity rechaza datos sin tarea y verbos débiles sin producto, y rescata consignas desde pista', () => {
+    const invalidActivities = [
+      'El manual señala que el Power LED ocupa los pines 2 y 4, siendo el pin 2 el positivo.',
+      'Un procesador tiene una Tjmax de 95°C y anota una temperatura de 88°C tras diez minutos de uso intensivo.',
+      "Usa la estructura 'He/She is from [Country]' y 'He/She is [Nationality]'.",
+      "Asegúrate de incluir la estructura 'There is' para ofrecer el lugar.",
+      'Usa oraciones claras y asegúrate de que el vocabulario sea preciso para un visitante.',
+      'Asegúrate de usar los ángulos de 30° y de acotar las alturas respecto al nivel del piso terminado.',
+      'Revisa el modelo de otro compañero definido por P(t) = 2t² - 4t + 1. Él sostiene que la tasa de cambio en t = 2 es 4.',
+      'Examina el modelo de riesgo V(t) = t² + 6t. Tu compañero señala que la tasa de cambio en t = 0 es 0.',
+    ];
+    for (const bad of invalidActivities) {
+      const res = validatePracticeActivity(bad, '', { strict: false });
+      expect(res.valid, `Debió rechazar: "${bad}"`).toBe(false);
+      expect(() => validatePracticeActivity(bad, '', { strict: true })).toThrow(SacrintContentError);
+    }
+
+    // Actividades válidas: con ?, con verbo fuerte + objeto, o con verbo débil + producto explícito
+    expect(
+      validatePracticeActivity('¿En qué pin debe ir el hilo marcado si el blanco representa el negativo?').valid
+    ).toBe(true);
+    expect(
+      validatePracticeActivity('Calcula el margen de seguridad y determina si el equipo es apto para entrega.').valid
+    ).toBe(true);
+    expect(
+      validatePracticeActivity('Revisa los datos del circuito y completa la tabla de tolerancias en tu bitácora.').valid
+    ).toBe(true);
+
+    // Rescate cuando la pista carga la única tarea
+    const rescued = validatePracticeActivity(
+      'Un procesador tiene una Tjmax de 95°C y opera a 88°C.',
+      'Calcula el margen de seguridad y determina si supera los 20°C mínimos.'
+    );
+    expect(rescued.valid).toBe(true);
+    expect(rescued.rescuedStatement).toContain('Calcula el margen de seguridad');
+    expect(rescued.updatedHint).toBe('');
+  });
+
+  it('stripTemplateLabels, extractWorkedExample y buildSteps bloquean etiquetas de plantilla, pasos solo numéricos y conclusión genérica', () => {
+    expect(() =>
+      stripTemplateLabels('Paso 1: Definición de entradas, variables y tipos', { strict: true })
+    ).toThrow(SacrintContentError);
+
+    const stripped = stripTemplateLabels(
+      'Algoritmo, fórmula de hoja de cálculo o estructura lógica: Realiza una inspección física de los módulos de RAM.'
+    );
+    expect(stripped).toBe('Realiza una inspección física de los módulos de RAM.');
+
+    const mockMission: MissionSection = {
+      missionNumber: 1,
+      title: 'Diagnóstico POST de hardware',
+      sessionTopic: 'Tarjetas de diagnóstico POST PCI/PCIe',
+      sessionPlans: [],
+    } as unknown as MissionSection;
+    const mockSession: SessionPlan = {
+      sessionNumber: 21,
+      objetivo: 'Utilizas tarjetas de diagnóstico POST PCI/PCIe para identificar fallas de hardware.',
+      contenido: 'La tarjeta de diagnóstico POST muestra códigos hexadecimales para ubicar fallas de arranque.',
+      ejemploResuelto:
+        "Planteamiento: Al insertar una tarjeta POST en la ranura PCIe, el display muestra el código 'C1' de falla de RAM.\n\nPaso 1: Definición de entradas, variables y tipos: Identifica el código hexadecimal 'C1' como entrada principal y revisa los bancos DIMM.\n\nPaso 2: Algoritmo, fórmula de hoja de cálculo o estructura lógica: Aplica el procedimiento algorítmico: 1. Desenergizar el equipo. 2. Limpiar contactos de la RAM con isopropílico. 3. Reinsertar en otro slot.\n\nPaso 3: Prueba de escritorio paso a paso con valores reales: Tras limpiar el módulo y cambiarlo al slot B1, el display recorre 'C1' -> 'C3' -> 'FF'.\n\nPaso 4: Resultado: El cambio de slot resolvió la falla física y el equipo arrancó normalmente.",
+      practica: [],
+      aplicacion: 'Verifica los códigos POST en un equipo del taller comunitario.',
+      autoevaluacion: [],
+      recursos: [],
+    } as unknown as SessionPlan;
+
+    const ex = extractWorkedExample(mockMission, mockSession, { allowMissionFallback: false });
+    expect(ex.steps.length).toBeGreaterThanOrEqual(2);
+    for (const st of ex.steps) {
+      expect(st).not.toMatch(/^(?:\d+[.)]?\s*)+$/);
+      expect(st).not.toMatch(/:\s*1\.$/);
+      expect(st).not.toMatch(/Definici[oó]n de entradas|Algoritmo, f[oó]rmula|Prueba de escritorio/i);
+    }
+    expect(ex.interpretation).not.toMatch(/El procedimiento confirma la relaci[oó]n planteada/i);
+    expect(ex.interpretation.toLowerCase()).toContain('falla');
+
+    const pack = resolveSacrintPack('Informática y Soporte Técnico');
+    const builtSteps = buildSteps(mockMission, pack, mockSession);
+    expect(builtSteps.length).toBeGreaterThanOrEqual(2);
+    for (const s of builtSteps) {
+      expect(s.body).not.toMatch(/^(?:\d+[.)]?\s*)+$/);
+      expect(s.body).not.toMatch(/Definici[oó]n de entradas|Algoritmo, f[oó]rmula|Prueba de escritorio/i);
+    }
   });
 });
