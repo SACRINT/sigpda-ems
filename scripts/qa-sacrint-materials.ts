@@ -174,10 +174,6 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
       'corrupt_title_paren',
       /(?:^|\n)\s*\((?:Ciencias\s+Naturales|Ciencias\s+Sociales|Matem[aá]ticas|Lengua)[^\n)]{0,40}\s*(?:\n|$)/i,
     ],
-    [
-      'broken_nominal_title',
-      /\bResultados\s+obtenidos\s+y\s+a\s+jerarquizar\b|\bFundamentos\s+de\s+la\s+igualdad\s+algebraica\s*,\s*identificas\b/i,
-    ],
   ];
 
   for (const [key, re] of rules) {

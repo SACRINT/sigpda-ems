@@ -119,7 +119,23 @@ describe('calidad superficial editorial — concordancia y títulos corruptos', 
     expect(malformed.corrupt_title_fragment?.length).toBeGreaterThan(0);
     expect(malformed.corrupt_title_paren?.length).toBeGreaterThan(0);
 
-    const broken = scanEditorialDefects('Resultados obtenidos y a jerarquizar las problemáticas');
-    expect(broken.broken_nominal_title?.length).toBeGreaterThan(0);
+    const grammaticalObjective = scanEditorialDefects(
+      'Aprenderás a graficar los resultados obtenidos y a jerarquizar las problemáticas mediante una representación gráfica.'
+    );
+    expect(grammaticalObjective.surface_concordance ?? []).toHaveLength(0);
+    expect(grammaticalObjective.corrupt_title_fragment ?? []).toHaveLength(0);
+  });
+
+  it('normaliza objetivos en segunda persona a títulos nominales', () => {
+    expect(
+      extractDisciplinaryConceptPhrase(
+        'Comprendes los fundamentos de la igualdad algebraica, identificas variables y aplicas el principio de sustitución para resolver ecuaciones.'
+      )
+    ).toBe('Fundamentos de la igualdad algebraica');
+    expect(
+      extractDisciplinaryConceptPhrase(
+        'Aprenderás a graficar los resultados obtenidos y a jerarquizar las problemáticas mediante una representación gráfica.'
+      )
+    ).toBe('Jerarquización de problemáticas');
   });
 });
