@@ -779,6 +779,16 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           pushSlideFinding('weak_or_truncated_activity', `Evidencia trunca (${evidenceWords}w): "${evidenceText.slice(0, 90)}"`);
         }
       }
+      const objectiveMatch = allSlideText.match(
+        /OBJETIVO DE LA SESI[ÓO]N\s+(.+?)(?:\s+EJERCICIOS|\s+CRITERIOS|\s+EVALUACI[ÓO]N|\s+ACTIVIDAD|$)/i
+      );
+      const objectiveText = objectiveMatch?.[1]?.trim();
+      if (objectiveText && /^Aplicar\s+/i.test(objectiveText)) {
+        pushSlideFinding(
+          'objective_aplicar_prefix',
+          `Objetivo con prefijo Aplicar: "${objectiveText.slice(0, 90)}"`
+        );
+      }
     }
 
     const slideDefects = scanEditorialDefects(allSlideText);

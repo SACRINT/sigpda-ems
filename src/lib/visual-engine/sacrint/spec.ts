@@ -2769,22 +2769,9 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
         ? 'Registra este avance en tu evidencia.'
         : rawCompactedArtifact;
 
-    const dedupeObjectiveAgainstTitle = (bullet: string, slideTitle: string): string => {
-      const cleanBullet = bullet.trim();
-      const cleanTitle = slideTitle.trim();
-      if (!cleanBullet) return cleanTitle;
-      const norm = (v: string) =>
-        v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-      if (norm(cleanBullet) === norm(cleanTitle)) {
-        const lowerTitle = cleanTitle.charAt(0).toLowerCase() + cleanTitle.slice(1);
-        return `Aplicar ${lowerTitle}.`;
-      }
-      return cleanBullet;
-    };
-
     const compactedObjective = (seventh.objectiveBullets ?? [])
       .slice(0, 1)
-      .map((item) => dedupeObjectiveAgainstTitle(compactObjectiveBullet(item, seventh.title), seventh.title));
+      .map((item) => compactObjectiveBullet(item, seventh.title));
 
     let eighth: SacrintPracticeSlide = {
       ...seventh,
@@ -2830,7 +2817,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
 
     return {
       ...eighth,
-      objectiveBullets: [dedupeObjectiveAgainstTitle(eighth.title, eighth.title)],
+      objectiveBullets: [eighth.title],
       applicationText: trimRedundantBlockTail(eighth.applicationText, 36) || eighth.applicationText,
       evaluationCriteria: (eighth.evaluationCriteria ?? []).map(
         (c) => trimRedundantBlockTail(c, 22) || c
@@ -5192,6 +5179,16 @@ export function validateSacrintContentIntegrity(
         (slide.activities ?? []).forEach((act, aIdx) => {
           checkText(`${p}.activities[${aIdx}].statement`, act.statement);
           checkText(`${p}.activities[${aIdx}].hint`, act.hint);
+        });
+        (slide.objectiveBullets ?? []).forEach((obj, oIdx) => {
+          const cleanObj = (obj || '').trim();
+          if (
+            /^Aplicar\s+(?:(?:entre|sobre|hacia|desde|contra|bajo|seg[uú]n)\b|[a-záéíóúñ]{3,}(?:ar|er|ir)\b|[a-záéíóúñ]+(?:as|es)\s+(?:y\s+|con\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)|pulsera\b|texto\b|[a-záéíóúñ]+\s+(?:es|son)\s+)/i.test(
+              cleanObj
+            )
+          ) {
+            issues.push(`${p}.objectiveBullets[${oIdx}]: prefijo "Aplicar" incoherente ("${cleanObj.slice(0, 80)}")`);
+          }
         });
         checkText(`${p}.applicationText`, slide.applicationText);
         checkText(`${p}.artifactStep`, slide.artifactStep);

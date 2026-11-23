@@ -307,4 +307,29 @@ describe('SACRINT content integrity guardrails (08 & 09)', () => {
     const pdfBuf = renderSacrintInfographicsVectorPdf([infoSpec]);
     expect(pdfBuf.length).toBeGreaterThan(2000);
   });
+
+  it('rechaza objetivos con prefijo mecánico "Aplicar " ante verbos o frases nominales incoherentes', () => {
+    const badObjectives = [
+      'Aplicar pulsera antiestática.',
+      'Aplicar masa es una propiedad extensiva de la materia.',
+      'Aplicar entre la ciudadanía activa y pasiva.',
+      'Aplicar ensamblas y construyes el avance físico o digital del prototipo.',
+      'Aplicar valoras con rigor analítico y matemático el impacto de los modelos.',
+      'Aplicar texto reflexivo de metacognición.',
+      'Aplicar analizar la estructura de una crónica.',
+    ];
+    for (const obj of badObjectives) {
+      const deck = {
+        slides: [
+          {
+            kind: 'practice',
+            objectiveBullets: [obj],
+            activities: [{ label: 'Actividad 1', statement: 'Resuelve el ejercicio con los datos dados.' }],
+          },
+        ],
+      } as unknown as SacrintDeckSpec;
+      const issues = validateSacrintContentIntegrity(deck);
+      expect(issues.some((i) => /prefijo "Aplicar"/i.test(i)), `Debe rechazar: "${obj}"`).toBe(true);
+    }
+  });
 });
