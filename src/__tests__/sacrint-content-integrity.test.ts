@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { jsPDF } from 'jspdf';
 import {
   fitPedagogicalText,
   GENERIC_FILLER_RE,
@@ -13,6 +14,11 @@ import {
   type SacrintDeckSpec,
   type SacrintInfographicSpec,
 } from '@/lib/visual-engine/sacrint/spec';
+import {
+  drawFittedVectorText,
+  renderSacrintInfographicsVectorPdf,
+} from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
+import { renderInfographicSvg } from '@/lib/visual-engine/sacrint/infographic-renderer';
 
 describe('SACRINT content integrity guardrails (08 & 09)', () => {
   it('ensureActivityClosure jamás inyecta cierres genéricos de relleno', () => {
@@ -90,7 +96,7 @@ describe('SACRINT content integrity guardrails (08 & 09)', () => {
     );
   });
 
-  it('isTruncatedAgainstSource y isPublishablePedagogicalText bloquean cortes intra-oración y rellenos', () => {
+  it('isTruncatedAgainstSource y isPublishablePedagogicalText bloquean cortes intra-oración, finales colgantes y rellenos', () => {
     const source = 'Revisa la conexión del conector de 24 pines en la tarjeta madre.';
     expect(isTruncatedAgainstSource('Revisa la conexión del conector de 24.', source)).toBe(true);
     expect(isPublishablePedagogicalText('Revisa la conexión del conector de 24.', 'activity', source)).toBe(false);
@@ -100,6 +106,20 @@ describe('SACRINT content integrity guardrails (08 & 09)', () => {
         'activity'
       )
     ).toBe(false);
+
+    // Finales colgantes en nodos de infografía 09 (preposiciones, artículos, conjunciones, comas, "de forma.")
+    const danglingSamples = [
+      'Inspeccionar, documentar y proteger el equipo antes de realizar cualquier',
+      'Dispositivos que guardan información de forma.',
+      'Documento que detalla insumos, costos y rendimientos para la',
+      'Protocolo operativo para mover materiales de forma segura y eficiente,',
+      'La tangencia es la propiedad donde una línea y una curva comparten un',
+      'Verificación de materiales según normas técnicas para asegurar la calidad y',
+      'Fundamentar cada observación en la norma técnica correspondiente y ser.',
+    ];
+    for (const sample of danglingSamples) {
+      expect(isPublishablePedagogicalText(sample, 'infographic')).toBe(false);
+    }
 
     const multiSentence =
       'Calcula la densidad de una muestra de 200 g en 100 mL. Registra tus pasos en el cuaderno.';
@@ -162,5 +182,129 @@ describe('SACRINT content integrity guardrails (08 & 09)', () => {
     } as unknown as SacrintInfographicSpec;
 
     expect(validateSacrintContentIntegrity(cleanInfo)).toEqual([]);
+  });
+
+  it('renderSacrintInfographicsVectorPdf no amputa nodos extensos de 09 al renderizar a PDF vectorial', () => {
+    const infoSpec = {
+      format: 'wide',
+      theme: 'light',
+      meta: {
+        subjectName: 'Dibujo Técnico I',
+        blockNumber: 1,
+        blockName: 'Bloque 1: Fundamentos geométricos',
+        missionNumber: 1,
+        missionTitle: 'Trazos geométricos normalizados',
+        schoolName: 'Plantel EMS',
+        teacherName: 'Docente',
+      },
+      pack: {
+        id: 'tecnologia',
+        short: 'TECNOLOGÍA',
+        label: 'Tecnología',
+        accent: '#2563EB',
+        accent2: '#0EA5E9',
+      },
+      style: {
+        id: 'clean',
+        accent: '#2563EB',
+        accent2: '#0EA5E9',
+      },
+      title: 'Tangencia y normalización en dibujo técnico',
+      topicTitle: 'Tangencia y normalización en dibujo técnico',
+      subtitle: 'Dibujo Técnico I · BLOQUE 1 · MISIÓN 01',
+      claim: 'La tangencia garantiza continuidad geométrica entre arcos y rectas en planos normalizados.',
+      formula: '',
+      formulasList: [],
+      keyConcepts: ['Verificación de materiales según normas técnicas para asegurar la calidad y seguridad en instalaciones.'],
+      conceptManual: {
+        centralConcept: 'Tangencia geométrica',
+        conceptMap: [],
+        definitions: [
+          {
+            term: 'CONCEPTO CENTRAL',
+            definition: 'Documento que detalla insumos, costos y rendimientos para la ejecución de elementos constructivos básicos.',
+          },
+        ],
+        usageGuidance: [],
+        masteryChecklist: ['Verificar continuidad tangencial en el trazo técnico.'],
+      },
+      quickExample: {
+        problemStatement: 'Traza un enlace tangente entre una recta y un arco.',
+        steps: ['Ubica el centro del arco.', 'Traza la perpendicular desde el punto de tangencia.'],
+        interpretation: 'El enlace resulta continuo sin quiebres visibles.',
+      },
+      variables: [],
+      diagram: {
+        kind: 'concept',
+        available: true,
+        center: { label: 'CONCEPTO CENTRAL', detail: 'Tangencia geométrica en dibujo técnico' },
+        nodes: [
+          {
+            label: 'CONCEPTO',
+            detail: 'La tangencia es la propiedad geométrica donde una línea y una curva comparten un único punto común sin cruzarse.',
+          },
+          {
+            label: 'PRÁCTICA',
+            detail: 'Inspeccionar, documentar y proteger el equipo antes de realizar cualquier intervención técnica.',
+          },
+        ],
+      },
+      steps: [
+        {
+          number: 1,
+          title: 'PREPARACIÓN',
+          body: 'Fundamentar cada observación en la norma técnica correspondiente y ser objetivo.',
+        },
+      ],
+      misconception: 'Trazar arcos sin localizar el punto de tangencia.',
+      misconceptionFix: {
+        error: 'Trazar arcos sin localizar el punto de tangencia.',
+        correction: 'Determinar primero el centro y la perpendicular al punto exacto de contacto.',
+      },
+      applicationSummary: 'Aplicable al diseño de mobiliario urbano y planos constructivos.',
+      criteria: ['Verificar continuidad tangencial en el trazo técnico.'],
+      rubric: [],
+      project: {
+        artifactName: 'Plano normalizado de mobiliario',
+        communityUtility: 'Mejora la calidad técnica de espacios comunitarios.',
+      },
+      facts: [],
+    } as unknown as SacrintInfographicSpec;
+
+    // 1. Verificar que drawFittedVectorText nunca guillotina nodos largos en tarjetas estrechas (ej. 38mm x 16mm)
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [279.4, 157.16] });
+    const emittedLines: string[] = [];
+    const textSpy = vi.spyOn(doc, 'text').mockImplementation((text: string | string[]) => {
+      if (Array.isArray(text)) emittedLines.push(...text.map(String));
+      else emittedLines.push(String(text));
+      return doc;
+    });
+    const longNodes = [
+      'La tangencia es la propiedad geométrica donde una línea y una curva comparten un único punto común sin cruzarse.',
+      'Inspeccionar, documentar y proteger el equipo antes de realizar cualquier intervención técnica.',
+      'Fundamentar cada observación en la norma técnica correspondiente y ser objetivo.',
+      'Verificación de materiales según normas técnicas para asegurar la calidad y seguridad en instalaciones.',
+      'Documento que detalla insumos, costos y rendimientos para la ejecución de elementos constructivos básicos.',
+    ];
+    for (const nodeText of longNodes) {
+      drawFittedVectorText(doc, nodeText, 10, 10, 38, 16, { fontSize: 6.9, minFontSize: 5.2 });
+    }
+    textSpy.mockRestore();
+    const joinedPdfLines = emittedLines.join(' ');
+    expect(joinedPdfLines).toContain('cruzarse.');
+    expect(joinedPdfLines).toContain('intervención técnica.');
+    expect(joinedPdfLines).toContain('objetivo.');
+    expect(joinedPdfLines).toContain('instalaciones.');
+    expect(joinedPdfLines).toContain('constructivos básicos.');
+
+    // 2. Verificar que renderInfographicSvg no elide ni trunca nodos con "…"
+    const svg = renderInfographicSvg(infoSpec);
+    expect(svg).not.toContain('…');
+    expect(svg).toContain('cruzarse.');
+    expect(svg).toContain('instalaciones.');
+
+    // 3. Verificar generación binaria completa del PDF vectorial
+    const pdfBuf = renderSacrintInfographicsVectorPdf([infoSpec]);
+    expect(pdfBuf.length).toBeGreaterThan(2000);
   });
 });

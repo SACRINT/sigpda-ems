@@ -12,7 +12,8 @@ import {
   finalizeVisibleText,
   fitPedagogicalText,
   hasDanglingEnding,
-  repairDanglingEnding,
+  isPublishablePedagogicalText,
+  splitSpanishSentences,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import { isValidRenderableFormula, normalizeEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
 import { diagramFormula, diagramModelLabel } from './diagrams';
@@ -143,7 +144,7 @@ function drawVectorCheckBadge(doc: jsPDF, cx: number, cy: number): void {
   doc.line(cx - 0.15, cy + 0.6, cx + 0.75, cy - 0.55);
 }
 
-function drawFittedVectorText(
+export function drawFittedVectorText(
   doc: jsPDF,
   value: string,
   x: number,
@@ -168,57 +169,84 @@ function drawFittedVectorText(
   const mmPerPt = 0.352778;
   const boxW = Math.max(8, maxW);
 
-  doc.setFont('helvetica', options.bold ? 'bold' : 'normal');
-  let chosenFont = minFont;
-  let chosenFactor = factor;
-  let chosenLines: string[] = [];
+  const measureFit = (candidateText: string, startFont: number, endFont: number): {
+    lines: string[];
+    font: number;
+    factor: number;
+    fits: boolean;
+  } => {
+    let bestLines: string[] = [];
+    let bestFont = endFont;
+    let bestFactor = factor;
+    for (let size = startFont; size >= endFont - 0.01; size -= 0.25) {
+      const activeFactor = size < minFont ? Math.min(factor, size < 4.6 ? 1.06 : 1.14) : factor;
+      doc.setFontSize(size);
+      const wrapped = doc.splitTextToSize(candidateText, boxW) as string[];
+      const neededH = wrapped.length * size * mmPerPt * activeFactor;
+      bestLines = wrapped;
+      bestFont = size;
+      bestFactor = activeFactor;
+      if (neededH <= maxH + 0.5) {
+        return { lines: bestLines, font: bestFont, factor: bestFactor, fits: true };
+      }
+    }
+    return { lines: bestLines, font: bestFont, factor: bestFactor, fits: false };
+  };
 
-  for (let size = maxFont; size >= floorFont - 0.01; size -= 0.35) {
-    const activeFactor = size < minFont ? Math.min(factor, 1.15) : factor;
-    doc.setFontSize(size);
-    const wrapped = doc.splitTextToSize(text, boxW) as string[];
-    const neededH = wrapped.length * size * mmPerPt * activeFactor;
-    chosenLines = wrapped;
-    chosenFont = size;
-    chosenFactor = activeFactor;
-    if (neededH <= maxH + 0.5) break;
+  doc.setFont('helvetica', options.bold ? 'bold' : 'normal');
+  let fitResult = measureFit(text, maxFont, floorFont);
+
+  // Etapa 2 (arquitectónica, sin amputar palabras): si el texto completo no cabe en floorFont,
+  // intentar primero una cláusula/oración completa semánticamente válida; nunca cortar líneas a la mitad.
+  if (!fitResult.fits) {
+    const ensureDot = /[.?!)]$/.test(text);
+    const semanticCandidates: string[] = [];
+    const sents = splitSpanishSentences(text);
+    if (sents.length > 1 && sents[0]) {
+      semanticCandidates.push(sents[0]);
+    }
+    const baseForClause = sents[0] || text;
+    const clauseCut = baseForClause.match(
+      /^(.{26,}?),\s+(?:cumpliendo|demostrando|incluyendo|incorporando|permitiendo|posibilitando|garantizando|asegurando|validando|verificando|comprobando|facilitando|mostrando|detallando|mediante\s+el\s+uso\s+de|para\s+(?:asegurar|garantizar|validar))\b/i
+    );
+    if (clauseCut && clauseCut[1]) {
+      const cleanClause = `${clauseCut[1].replace(/[.,;:\s]+$/, '').trim()}${ensureDot ? '.' : ''}`;
+      semanticCandidates.push(cleanClause);
+    }
+    const fittedCandidate = fitPedagogicalText(text, {
+      maxChars: Math.max(40, Math.round((boxW / (floorFont * mmPerPt * 0.52)) * Math.max(1, Math.floor(maxH / (floorFont * mmPerPt * 1.14))))),
+      ensurePeriod: ensureDot,
+      role: 'concept',
+    });
+    if (fittedCandidate && fittedCandidate !== text) {
+      semanticCandidates.push(fittedCandidate);
+    }
+
+    for (const cand of semanticCandidates) {
+      const vCand = vecText(cand);
+      if (!vCand || vCand === text) continue;
+      if (!isPublishablePedagogicalText(vCand, 'infographic') || hasDanglingEnding(vCand)) continue;
+      const attempt = measureFit(vCand, Math.min(maxFont, minFont + 0.5), floorFont);
+      if (attempt.fits) {
+        fitResult = attempt;
+        break;
+      }
+    }
   }
+
+  // Etapa 3 (garantía anti-truncamiento absoluto): si sigue excediendo floorFont, escalar
+  // la tipografía suavemente hasta 3.2pt para renderizar el enunciado íntegro sin cortar jamás líneas.
+  if (!fitResult.fits) {
+    fitResult = measureFit(text, floorFont - 0.25, 3.2);
+  }
+
+  const chosenFont = fitResult.font;
+  const chosenFactor = fitResult.factor;
+  const linesToDraw = fitResult.lines;
 
   doc.setFontSize(chosenFont);
   if (options.color) doc.setTextColor(options.color[0], options.color[1], options.color[2]);
   const lineH = chosenFont * mmPerPt * chosenFactor;
-  const maxLines = Math.max(1, Math.floor((maxH + 0.5) / lineH));
-  let linesToDraw = chosenLines;
-
-  if (chosenLines.length > maxLines) {
-    const ensureDot = /[.?!)]$/.test(text);
-    const visibleRaw = chosenLines.slice(0, maxLines).join(' ').trim();
-    const visibleWords = visibleRaw.split(/\s+/).length;
-    let fittedLines = chosenLines.slice(0, maxLines);
-    let fittedSuccess = false;
-
-    for (let targetWords = visibleWords; targetWords >= Math.max(3, visibleWords - 6); targetWords -= 1) {
-      const candidate = fitPedagogicalText(text, {
-        maxChars: Math.max(20, visibleRaw.length - (visibleWords - targetWords) * 4),
-        maxWords: targetWords,
-        ensurePeriod: ensureDot,
-      });
-      if (!candidate || hasDanglingEnding(candidate)) continue;
-      const rewrapped = doc.splitTextToSize(vecText(candidate), boxW) as string[];
-      if (rewrapped.length <= maxLines) {
-        fittedLines = rewrapped;
-        fittedSuccess = true;
-        break;
-      }
-    }
-
-    if (!fittedSuccess) {
-      const repaired = vecText(repairDanglingEnding(visibleRaw, ensureDot));
-      const rewrapped = doc.splitTextToSize(repaired || visibleRaw, boxW) as string[];
-      fittedLines = rewrapped.slice(0, maxLines);
-    }
-    linesToDraw = fittedLines;
-  }
 
   linesToDraw.forEach((line, idx) => {
     const ty = y + idx * lineH;
@@ -586,15 +614,15 @@ function drawVectorDiagram(
     const ny = y + 6;
     const nh = h - 12;
     drawCard(doc, nx, ny, nW, nh, [255, 255, 255], idx === 0 ? accent : accent2, 1.8);
-    drawFittedVectorText(doc, node.title, nx + 2.5, ny + 5.5, nW - 5, 8, {
-      fontSize: 7.5,
-      minFontSize: 6,
+    drawFittedVectorText(doc, node.title, nx + 2.5, ny + 4.8, nW - 5, 6.2, {
+      fontSize: 7.4,
+      minFontSize: 5.8,
       bold: true,
       color: idx === 0 ? accent : accent2,
     });
-    drawFittedVectorText(doc, node.detail, nx + 2.5, ny + 14.5, nW - 5, nh - 17, {
-      fontSize: 7,
-      minFontSize: 5.8,
+    drawFittedVectorText(doc, node.detail, nx + 2.5, ny + 11.8, nW - 5, nh - 13.5, {
+      fontSize: 6.9,
+      minFontSize: 5.2,
       color: [51, 65, 85],
     });
     if (idx < count - 1) {

@@ -365,16 +365,16 @@ function nodeCard(
   const labelSize = compact ? 8 : 9;
   const labelY = y + (compact ? 18 : 24);
   const detailY = y + (compact ? 34 : 44);
-  const maxLines = options.maxLines ?? (height >= 100 ? 3 : 2);
+  const maxLines = options.maxLines ?? (height >= 100 ? 4 : 3);
   const detail = textBlock(node.detail, width - 24, {
     x: x + 12,
     y: detailY,
     fill: SACRINT.textSoft,
     maxFontSize: compact ? 9 : 11,
-    minFontSize: 7,
+    minFontSize: 6.5,
     maxLines,
-    lineHeightRatio: 1.26,
-    truncate: true,
+    lineHeightRatio: 1.24,
+    truncate: false,
   });
   return `<g>${panel(x, y, width, height, {
     fill: options.fill ?? 'rgba(4,10,18,0.62)',
@@ -488,9 +488,9 @@ export function reactionScheme(
       fill: SACRINT.muted,
       maxFontSize: compact ? 8 : 9,
       minFontSize: 7,
-      maxLines: 2,
+      maxLines: 3,
       lineHeightRatio: 1.2,
-      truncate: true,
+      truncate: false,
       anchor: 'middle',
     });
     parts.push(note.svg);
@@ -801,9 +801,9 @@ export function clinicalFlowDiagram(
       fill: SACRINT.muted,
       maxFontSize: compact ? 8 : 9,
       minFontSize: 7,
-      maxLines: 2,
+      maxLines: 3,
       lineHeightRatio: 1.2,
-      truncate: true,
+      truncate: false,
       anchor: 'middle',
     });
     parts.push(note.svg);

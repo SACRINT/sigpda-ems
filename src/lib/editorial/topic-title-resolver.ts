@@ -236,6 +236,7 @@ export function extractDisciplinaryConceptPhrase(raw: string | null | undefined)
   text = stripLeadingTitleAdverbs(text).replace(/^(?:el|la|los|las|un|una)\s+/i, '').trim();
   text = repairDanglingEnding(text, false);
   if (STRUCTURAL_HEADING_ONLY_RE.test(text) || BARE_ADJECTIVE_TITLE_RE.test(text)) return '';
+  if (/^[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)$/i.test(text)) return '';
 
   if (text.length > 0) {
     text = normalizeSessionDescriptorTense(text);

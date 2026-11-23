@@ -306,10 +306,16 @@ function safeCompleteDetail(
   ) {
     return fitted;
   }
-  if (isPublishablePedagogicalText(first, 'infographic', text)) {
+  if (isPublishablePedagogicalText(first, 'infographic', text) && !isTruncatedAgainstSource(first, text)) {
     return first;
   }
-  return first || fallback;
+  if (isPublishablePedagogicalText(text, 'infographic')) {
+    return text;
+  }
+  if (fallback && isPublishablePedagogicalText(fallback, 'infographic')) {
+    return fallback;
+  }
+  return '';
 }
 
 function clip(value: string, max: number): string {

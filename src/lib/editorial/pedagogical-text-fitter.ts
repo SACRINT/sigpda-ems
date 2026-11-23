@@ -1135,6 +1135,9 @@ export function isTruncatedAgainstSource(candidate: string, source: string): boo
  * Validador único SSoT de publicabilidad para texto pedagógico en 08_Presentaciones y 09_Infografías.
  * Rechaza truncamientos, relleno genérico, pérdida de unidades numéricas, etiquetas huérfanas y consignas mutiladas.
  */
+export const TERMINAL_DANGLING_RE =
+  /(?:(?:^|\s)(?:a|al|de|del|con|en|para|por|que|y|o|e|u|la|el|los|las|un|una|unos|unas|cualquier|seg[uú]n|sobre|entre|hacia|desde|hasta|ser|estar)\s*\.?$|\bde\s+forma\.?$|,\s*$)/i;
+
 export function isPublishablePedagogicalText(
   raw: string | null | undefined,
   role: 'activity' | 'problem' | 'concept' | 'hint' | 'infographic' | 'application' | 'step' | 'conclusion',
@@ -1154,6 +1157,11 @@ export function isPublishablePedagogicalText(
   if (!clean || clean.length < minLenByRole[role]) return false;
   if (GENERIC_FILLER_RE.test(clean)) return false;
   if (NODE_TRUNCATION_RE.test(clean)) return false;
+  const isLegitimateTerminalWord =
+    /\bcada\s+(?:uno|una)\.?\s*$/i.test(clean) ||
+    /\b(?:canal|punto|eje|variable|inc[oó]gnita|valor\s+de|funci[oó]n\s+de|respecto\s+a|para)\s+[A-Za-z]\.?\s*$/i.test(clean) ||
+    /[=+\-*/÷×]\s*[xyXYaAbBcC]\.?\s*$/.test(clean);
+  if (TERMINAL_DANGLING_RE.test(clean) && !isLegitimateTerminalWord) return false;
   if (/(?:\.\.\.|…|[:,;])\s*$/.test(clean)) return false;
   if (hasDanglingEnding(clean)) return false;
   if (/^[FCRPDEISBT]\s+[¿¡]/.test(clean) || /^\d{1,2}$/.test(clean)) return false;
