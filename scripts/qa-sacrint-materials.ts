@@ -168,7 +168,7 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ],
     [
       'corrupt_title_fragment',
-      /\)\s*[—–-]\s*Sesi[oó]n\s+\d+\s*:|Sesi[oó]n\s+\d+\s*:\s*Session\s+\d+|Sesi[oó]n\s+\d+\s*:\s*Session\s*$/i,
+      /(?:^|\n)\s*\)\s*[—–-]\s*Sesi[oó]n\s+\d+\s*:/i,
     ],
     [
       'corrupt_title_paren',
