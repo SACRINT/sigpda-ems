@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   fitPedagogicalText,
   hasDanglingEnding,
+  NODE_TRUNCATION_RE,
   repairDanglingEnding,
 } from '@/lib/editorial/pedagogical-text-fitter';
 import {
@@ -16,6 +17,7 @@ import {
   extractFormulasFromText,
   extractWorkedExample,
   normalizeLearningObjective,
+  ORPHAN_LIST_END_RE,
   paraphraseSixGramOverlap,
   sanitizePedagogicalMetaPhrases,
   stripTemplateLabels,
@@ -27,6 +29,8 @@ import {
   buildSacrintInfographic,
   buildSteps,
   countSlideWords,
+  validateSacrintContentIntegrity,
+  type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { resolveSacrintPack } from '@/lib/visual-engine/sacrint/discipline-packs';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
@@ -795,5 +799,43 @@ describe('SACRINT 08/09 — Gates de raíz: títulos, objetivos en infinitivo, a
       expect(s.body).not.toMatch(/^(?:\d+[.)]?\s*)+$/);
       expect(s.body).not.toMatch(/Definici[oó]n de entradas|Algoritmo, f[oó]rmula|Prueba de escritorio/i);
     }
+  });
+
+  it('NODE_TRUNCATION_RE y hasDanglingEnding no bloquean oraciones completas válidas (PM3 "de tres puntos.", CNET1 "usarías... de forma definitiva.")', () => {
+    const validCompleteSentences = [
+      'Tu compañero revisa tu modelo 4X + 5Y = 2000 y sugiere que la justificación técnica es muy breve. Revisa el reporte de tu compañero, identifica si su modelo cumple con las restricciones y redacta una retroalimentación constructiva de tres puntos.',
+      'Resume tus hallazgos experimentales y argumentos principales en un párrafo.',
+      'Verifica las conexiones eléctricas y confirma que el prototipo esté listo.',
+      'Una muestra de 50 ml contiene limaduras de hierro y arena. Utilizas un imán y recuperas 3 g de hierro. Si la masa total de la mezcla era de 10 g, calcula el porcentaje de arena presente en la muestra original y explica qué método usarías para separarla de forma definitiva.',
+    ];
+    for (const s of validCompleteSentences) {
+      expect(NODE_TRUNCATION_RE.test(s)).toBe(false);
+      expect(hasDanglingEnding(s)).toBe(false);
+    }
+
+    const pm3Deck = {
+      slides: [
+        {
+          kind: 'practice',
+          title: 'Coevaluación de modelos lineales',
+          objectiveBullets: ['Evaluar modelos lineales con restricciones presupuestarias'],
+          activities: [
+            {
+              label: 'Actividad 1',
+              statement: validCompleteSentences[0],
+            },
+          ],
+        },
+      ],
+    } as unknown as SacrintDeckSpec;
+    expect(validateSacrintContentIntegrity(pm3Deck)).toEqual([]);
+
+    // Sigue bloqueando truncamientos genuinos y listas huérfanas sin romper escalas (1:100.)
+    expect(NODE_TRUNCATION_RE.test('La estiba es segura al estar')).toBe(true);
+    expect(NODE_TRUNCATION_RE.test('Revisa el conector de 24.')).toBe(true);
+    expect(NODE_TRUNCATION_RE.test('La mezcla debe ser.')).toBe(true);
+    expect(NODE_TRUNCATION_RE.test('Aplica el método en forma.')).toBe(true);
+    expect(ORPHAN_LIST_END_RE.test('Aplica el proceso algorítmico: 1.')).toBe(true);
+    expect(ORPHAN_LIST_END_RE.test('Traza el triángulo en papel milimetrado con escala 1:100.')).toBe(false);
   });
 });

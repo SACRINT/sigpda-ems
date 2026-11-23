@@ -20,6 +20,7 @@ import {
   GENERIC_CONCLUSION_RE,
   isSpanishInfinitiveVerb,
   NUMERIC_ONLY_STEP_RE,
+  ORPHAN_LIST_END_RE,
   TEMPLATE_PHRASE_RE,
   validatePracticeActivity,
 } from '../src/lib/visual-engine/sacrint/content-distiller';
@@ -279,7 +280,7 @@ function appendPdfSemanticFindings(
       );
       for (const sm of numberedStepMatches) {
         const body = sm[1]!.replace(/\s+/g, ' ').trim();
-        if (NUMERIC_ONLY_STEP_RE.test(body) || /:\s*\d+\.\s*$/.test(body)) {
+        if (NUMERIC_ONLY_STEP_RE.test(body) || ORPHAN_LIST_END_RE.test(body)) {
           pushFinding('example_numeric_only_step', `Pág. ${idx + 1}: paso numérico/truncado ("${body.slice(0, 60)}")`);
         }
       }
@@ -684,7 +685,7 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
             )
             .sort((a, b) => a.x - b.x)[0];
           const stepTxt = stepBody?.text.trim() ?? '';
-          if (NUMERIC_ONLY_STEP_RE.test(stepTxt) || /:\s*\d+\.\s*$/.test(stepTxt)) {
+          if (NUMERIC_ONLY_STEP_RE.test(stepTxt) || ORPHAN_LIST_END_RE.test(stepTxt)) {
             pushSlideFinding(
               'example_numeric_only_step',
               `Paso ${badge.text} solo numérico/truncado: "${stepTxt.slice(0, 80)}"`

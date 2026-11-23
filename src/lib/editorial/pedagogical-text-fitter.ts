@@ -1080,7 +1080,7 @@ export const GENERIC_FILLER_RE =
   /(?:Aplica\s+el\s+procedimiento\s+estudiado|Registra\s+tu\s+procedimiento\s+y\s+comprueba\s+la\s+respuesta|desarrolla\s+el\s+an[aá]lisis\s+y\s+justifica\s+tu\s+respuesta)/i;
 
 export const NODE_TRUNCATION_RE =
-  /(?:\b(?:al\s+estar|debe\s+ser|por\s+exceder|no\s+alcanza|reales\s+vs|vs|por\s+parte|que\s+comunica|que\s+utiliza|que\s+permite[n]?\s+trasladar|que\s+las\s+l[ií]neas|que\s+las\s+aristas|adecuado\s+ya|est[aá]\s+correctamente|sistematiza|como\s+cuarto|entre\s+temperatura|por\s+qu[eé]\s+el\s+valor|ayuda\s+a\s+entender|y\s+piensa|en\s+forma|y\s+une|y\s+documenta|listo|tres\s+puntos|formula|valora|conforme|incorpora|mide|el\s+instante|un\s+p[aá]rrafo)\s*\.?$|\b(?:conector|cable|puerto|ranura|m[oó]dulo|disco|voltaje|corriente|radio|di[aá]metro|altura|ancho|largo|espesor|longitud|distancia|masa|volumen|peso|temperatura|presi[oó]n|cada)\s+(?:de\s+)?\d+(?:[.,]\d+)?\s*\.$|\blim\s*\([^)]+\)\s*\.?$)/i;
+  /(?:\b(?:al\s+estar|debe\s+ser|por\s+exceder|no\s+alcanza|reales\s+vs|vs|por\s+parte|que\s+comunica|que\s+utiliza|que\s+permite[n]?\s+trasladar|que\s+las\s+l[ií]neas|que\s+las\s+aristas|adecuado\s+ya|est[aá]\s+correctamente|sistematiza|como\s+cuarto|entre\s+temperatura|por\s+qu[eé]\s+el\s+valor|ayuda\s+a\s+entender|y\s+piensa|en\s+forma|y\s+une|y\s+documenta|formula|valora|conforme|incorpora|mide)\s*\.?$|\b(?:conector|cable|puerto|ranura|m[oó]dulo|disco|voltaje|corriente|radio|di[aá]metro|altura|ancho|largo|espesor|longitud|distancia|masa|volumen|peso|temperatura|presi[oó]n|cada)\s+(?:de\s+)?\d+(?:[.,]\d+)?\s*\.$|\blim\s*\([^)]+\)\s*\.?$)/i;
 
 function normalizeForSourceCheck(value: string): string {
   return value

@@ -220,6 +220,8 @@ export function extractChalkboardTopicTitle(
 
 export const NUMERIC_ONLY_STEP_RE = /^(?:\d+[.)]?\s*)+$/;
 
+export const ORPHAN_LIST_END_RE = /[^\d]:\s+\d+\.\s*$/;
+
 export const GENERIC_CONCLUSION_RE =
   /el\s+procedimiento\s+confirma\s+la\s+relaci[oó]n\s+planteada(?:\s+y\s+valida\s+el\s+resultado\s+en\s+contexto)?/i;
 
@@ -1543,7 +1545,7 @@ function compactChalkboardMathStep(step: string, rawStep?: string): string {
  */
 export function distillStepPreservingMath(rawStep: string, maxChars = 185, maxWords?: number): string {
   const clean = stripTemplateLabels(sanitizePedagogicalMetaPhrases(cleanStepLine(rawStep)));
-  if (!clean || isRubricOrBoilerplateLeak(clean) || NUMERIC_ONLY_STEP_RE.test(clean) || /:\s*\d+\.\s*$/.test(clean)) {
+  if (!clean || isRubricOrBoilerplateLeak(clean) || NUMERIC_ONLY_STEP_RE.test(clean) || ORPHAN_LIST_END_RE.test(clean)) {
     return '';
   }
   const hasMath = /[=]|\d/.test(clean);
@@ -1554,15 +1556,15 @@ export function distillStepPreservingMath(rawStep: string, maxChars = 185, maxWo
         /\d/.test(sentence) &&
         !/^Paso\s*\d+/i.test(sentence) &&
         !NUMERIC_ONLY_STEP_RE.test(sentence) &&
-        !/:\s*\d+\.\s*$/.test(sentence)
+        !ORPHAN_LIST_END_RE.test(sentence)
     );
   const preserveMath = (candidate: string): string => {
     const safeCandidate =
-      !candidate || NUMERIC_ONLY_STEP_RE.test(candidate) || /:\s*\d+\.\s*$/.test(candidate)
+      !candidate || NUMERIC_ONLY_STEP_RE.test(candidate) || ORPHAN_LIST_END_RE.test(candidate)
         ? ''
         : candidate;
     if (!safeCandidate) {
-      return mathSentence && !NUMERIC_ONLY_STEP_RE.test(mathSentence) && !/:\s*\d+\.\s*$/.test(mathSentence)
+      return mathSentence && !NUMERIC_ONLY_STEP_RE.test(mathSentence) && !ORPHAN_LIST_END_RE.test(mathSentence)
         ? mathSentence
         : '';
     }
@@ -2764,7 +2766,7 @@ function isSubstantiveStep(candidate: string): boolean {
   const value = candidate.trim();
   if (value.length < 12) return false;
   if (NUMERIC_ONLY_STEP_RE.test(value)) return false;
-  if (/:\s*\d+\.\s*$/.test(value)) return false;
+  if (ORPHAN_LIST_END_RE.test(value)) return false;
   if (TEMPLATE_PHRASE_RE.test(value)) return false;
   // Exigir contenido lingüístico/pedagógico real (al menos 1 palabra alfabética si incluye cálculo/unidades, o >= 3 palabras en prosa)
   const alphaWords = value.match(/[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/g) ?? [];
@@ -3112,7 +3114,7 @@ export function extractWorkedExample(
         (step) =>
           step.length >= 12 &&
           !NUMERIC_ONLY_STEP_RE.test(step) &&
-          !/:\s*\d+\.\s*$/.test(step) &&
+          !ORPHAN_LIST_END_RE.test(step) &&
           !isRubricOrBoilerplateLeak(step) &&
           !hasDanglingEnding(step)
       )
@@ -3363,7 +3365,7 @@ export function extractWorkedExample(
             (s) =>
               s.length >= 12 &&
               !NUMERIC_ONLY_STEP_RE.test(s) &&
-              !/:\s*\d+\.\s*$/.test(s) &&
+              !ORPHAN_LIST_END_RE.test(s) &&
               !TEMPLATE_PHRASE_RE.test(s)
           ),
         interpretation:
