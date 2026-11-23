@@ -162,6 +162,22 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
     ['boilerplate_rigor_metodologico', /permite interpretar datos del entorno y resolver situaciones con rigor metodol[oó]gico/i],
     ['linguistic_estimar_objetos', /\bestimar\s+objetos\b/i],
     ['infographic_stub_question', /\b[FCRPDE]\s+¿(?:Alguna\s+vez|Logr[eé]\s+mantener|Puedo\s+detallar|Puedo\s+distinguir)\b/i],
+    [
+      'surface_concordance',
+      /\b(?:todas\s+los|todos\s+las|las\s+pautas\s+t[eé]cnicos|los\s+tres\s+clases|conforme\s+a\s+corresponda|respaldos(?:\s+de\s+aprendizaje)?\s+firmadas|respaldos\s+requeridas|pautas[^.\n]{0,50}\brequeridos)\b/i,
+    ],
+    [
+      'corrupt_title_fragment',
+      /\)\s*[—–-]\s*Sesi[oó]n\s+\d+\s*:|Sesi[oó]n\s+\d+\s*:\s*Session\s+\d+|Sesi[oó]n\s+\d+\s*:\s*Session\s*$/i,
+    ],
+    [
+      'corrupt_title_paren',
+      /(?:^|\n)\s*\((?:Ciencias\s+Naturales|Ciencias\s+Sociales|Matem[aá]ticas|Lengua)[^\n)]{0,40}\s*(?:\n|$)/i,
+    ],
+    [
+      'broken_nominal_title',
+      /\bResultados\s+obtenidos\s+y\s+a\s+jerarquizar\b|\bFundamentos\s+de\s+la\s+igualdad\s+algebraica\s*,\s*identificas\b/i,
+    ],
   ];
 
   for (const [key, re] of rules) {

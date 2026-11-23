@@ -78,6 +78,70 @@ function stripMaterialTagsForSlide(text: string): string {
   return stripMaterialTokens(withoutUnknownBareTags);
 }
 
+const MASCULINE_A_NOUN_EXCEPTIONS = new Set([
+  'dia',
+  'dias',
+  'mapa',
+  'mapas',
+  'problema',
+  'problemas',
+  'sistema',
+  'sistemas',
+  'tema',
+  'temas',
+  'planeta',
+  'planetas',
+  'idioma',
+  'idiomas',
+  'clima',
+  'climas',
+  'programa',
+  'programas',
+  'esquema',
+  'esquemas',
+  'poema',
+  'poemas',
+  'drama',
+  'dramas',
+  'fantasma',
+  'fantasmas',
+  'sintoma',
+  'sintomas',
+]);
+
+function isLikelyFeminineNoun(noun: string): boolean {
+  const lower = noun.toLowerCase();
+  if (MASCULINE_A_NOUN_EXCEPTIONS.has(lower)) return false;
+  if (/(?:a|as)$/.test(lower)) return true;
+  return /(?:ciones|siones|dades|tades|tudes|umbres|ies|sis|itis|eces|ezas|oras|istas|ncias|encias|ancias|uras)$/.test(
+    lower
+  );
+}
+
+export function repairSpanishSurfaceGrammar(value: string | null | undefined): string {
+  if (!value) return '';
+  let out = value
+    .replace(/\btodas los respaldos\b/gi, 'todos los respaldos')
+    .replace(/\btodas los inspecciones\b/gi, 'todas las inspecciones')
+    .replace(/\btodos las pautas\b/gi, 'todas las pautas')
+    .replace(/\btodas las respaldos\b/gi, 'todos los respaldos')
+    .replace(/\blas pautas t[eé]cnicos\b/gi, 'las pautas técnicas')
+    .replace(/\blos tres clases\b/gi, 'las tres clases')
+    .replace(/\bconforme a corresponda\b/gi, 'conforme corresponda');
+
+  out = out.replace(/\b(todas|todos)\s+(los|las)\s+([a-záéíóúñ]+)/gi, (match, _quant, _art, noun: string) => {
+    const feminine = isLikelyFeminineNoun(noun);
+    return `${feminine ? 'todas' : 'todos'} ${feminine ? 'las' : 'los'} ${noun}`;
+  });
+
+  out = out
+    .replace(/\brespaldos([^.!?]{0,60}?)\brequeridas\b/gi, 'respaldos$1requeridos')
+    .replace(/\bpautas([^.!?]{0,60}?)\brequeridos\b/gi, 'pautas$1requeridas')
+    .replace(/\brespaldos([^.!?]{0,60}?)\bfirmadas\b/gi, 'respaldos$1firmados');
+
+  return out;
+}
+
 /**
  * Limpia texto editorial para láminas e infografías preservando operadores aritméticos (`2*x`, `a * b`).
  */
@@ -103,7 +167,7 @@ export function cleanSacrintText(value: string | null | undefined): string {
     .replace(/\bdentro\s+de\s+/gi, 'en ')
     .replace(/\?(['"»”’])\?/g, '?$1')
     .replace(/(['"][^'"]+?)\.{2,}(?=\s|[A-Za-z'"])/g, '$1 ___');
-  return text.replace(/\s+/g, ' ').trim();
+  return repairSpanishSurfaceGrammar(text).replace(/\s+/g, ' ').trim();
 }
 
 function cleanSacrintTextPreservingLines(value: string | null | undefined): string {
@@ -125,7 +189,7 @@ function cleanSacrintTextPreservingLines(value: string | null | undefined): stri
     .replace(/\bpara\s+dentro\s+de\s+/gi, 'en ')
     .replace(/\bdentro\s+de\s+/gi, 'en ')
     .replace(/\?(['"»”’])\?/g, '?$1');
-  return text
+  return repairSpanishSurfaceGrammar(text)
     .split(/\r?\n/)
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter(Boolean)
@@ -154,6 +218,7 @@ export function sanitizePedagogicalMetaPhrases(value: string | null | undefined)
     .replace(/\s{2,}/g, ' ')
     .replace(/^[.,;:\s]+/, '')
     .trim();
+  out = repairSpanishSurfaceGrammar(out);
   if (
     out &&
     /^[a-záéíóúñ]/.test(out) &&

@@ -72,7 +72,31 @@ export const FUTURE_SECOND_PERSON_VERB_RE =
   /\b[a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s)\b/i;
 
 const SECOND_PERSON_PRESENT_START_RE =
-  /^(?:aprendes|comprendes|conoces|realizas|consolidas|socializas|integras|validas|depuras|aplicas|calculas|construyes|modelas|determinas|identificas|reconoces|resuelves|analizas|dise[ñn]as|utilizas|empleas|eval[uú]as|clasificas|comparas|contrastas|interpretas|interpretes|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas|sistematizas|dominas|implementas|elaboras|exploras|formulas|explicas|describes|preparas|limpias|colocas|instalas|configuras|actualizas|diagnosticas|redactas|argumentas|organizas|acotas|trazas|dibujas|mides|documentas|ejecutas|proyectas|seleccionas|comunicas|relacionas|distingues|transformas|diferencias|planificas|gestionas|estableces|generas|produces|registras|controlas|inspeccionas|reparas|conectas|aseguras|garantizas|representas|visualizas|traduces|conjugas|planteas|simulas|justificas|valoras|desarrollas|sintetizas|hallas|ensamblas|corriges|experimentas|investigas|estimas|pruebas|respondes|reflexionas|participas|recuperas|indagas|deduces|monitoreas|rehabilitas|sustentas|decodificas|cuantificas|capturas|transcribes|reescribes|inauguras|inicias|refinas|perfeccionas|procesas|auditas)\b/i;
+  /^(?:aprendes|comprendes|conoces|realizas|consolidas|socializas|integras|validas|depuras|aplicas|calculas|construyes|modelas|determinas|identificas|reconoces|resuelves|analizas|dise[ñn]as|utilizas|empleas|eval[uú]as|clasificas|comparas|contrastas|interpretas|interpretes|verificas|presentas|defiendes|estructuras|expones|demuestras|optimizas|sistematizas|dominas|implementas|elaboras|exploras|formulas|explicas|describes|preparas|limpias|colocas|instalas|configuras|actualizas|diagnosticas|digitalizas|redactas|argumentas|organizas|acotas|trazas|dibujas|mides|documentas|ejecutas|proyectas|seleccionas|comunicas|relacionas|distingues|transformas|diferencias|planificas|gestionas|estableces|generas|produces|registras|controlas|inspeccionas|reparas|conectas|aseguras|garantizas|representas|visualizas|traduces|conjugas|planteas|simulas|justificas|valoras|desarrollas|sintetizas|hallas|ensamblas|corriges|experimentas|investigas|estimas|pruebas|respondes|reflexionas|participas|recuperas|indagas|deduces|monitoreas|rehabilitas|sustentas|decodificas|cuantificas|capturas|transcribes|reescribes|inauguras|inicias|refinas|perfeccionas|procesas|auditas)\b/i;
+
+const INLINE_SECOND_PERSON_TITLE_RE =
+  /(?:,\s*(?:y\s+)?|\s+y\s+)(?:comprendes|identificas|aplicas|digitalizas|realizas|valoras|analizas|verificas|registras|pruebas|ajustas|defiendes|presentas|socializas|validas|eval[uú]as|consolidas|expones|comunicas|justificas|documentas|garantizas|aseguras|ejecutas|utilizas|empleas|construyes|estructuras|estableces|propones|redactas|elaboras|dise[ñn]as|resuelves|determinas|calculas|aprendes|desarrollas|sintetizas|experimentas|investigas|estimas|respondes|integras|reflexionas|participas)\b.*$/i;
+
+const TITLE_SESSION_FRAGMENT_RE = /^\s*\)\s*(?:[—–-]\s*)?sesi[oó]n\b.*$/i;
+const TITLE_UNBALANCED_PAREN_RE = /^\s*\([^)]*$/;
+const TITLE_SESSION_SUFFIX_RE = /\s*[—–-]\s*sesi[oó]n\s*\d+\b.*$/i;
+const TITLE_SESSION_PREFIX_RE = /^\s*sesi[oó]n\s*\d+\s*[:—–-]\s*/i;
+
+function sanitizeMalformedTitleFragment(raw: string | null | undefined): string {
+  if (!raw) return '';
+  let text = normalizeEditorialText(raw).replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (TITLE_SESSION_FRAGMENT_RE.test(text)) return '';
+  if (TITLE_UNBALANCED_PAREN_RE.test(text)) return '';
+  text = text.replace(TITLE_SESSION_SUFFIX_RE, '').replace(TITLE_SESSION_PREFIX_RE, '').trim();
+  if (!text || /^\)/.test(text)) return '';
+  text = text.replace(INLINE_SECOND_PERSON_TITLE_RE, '').trim();
+  text = text.replace(
+    /\bresultados\s+obtenidos\s+y\s+a\s+jerarquizar\s+(?:las\s+)?(problem[aá]ticas?)\b/i,
+    'Jerarquización de $1'
+  );
+  return text.trim();
+}
 
 const INVALID_TITLE_START_RE =
   /^(?:y\b|e\b|o\b|sobre\b|tu\b|tus\b|su\b|sus\b|vas\s+a\b|vamos\s+a\b|aprender[aá]s\b|evaluar[aá]s\b|integrar[aá]s\b|optimizar[aá]s\b|representar[aá]s\b|gr[aá]ficamente\b|correctamente\b|adecuadamente\b|t[eé]cnicamente\b|f[ií]sicamente\b|conceptualmente\b|pr[aá]cticamente\b|anal[ií]ticamente\b|matem[aá]ticamente\b|experimentalmente\b|versi[oó]n\s+depurada\b|evidencia\s+formativa\b|p[uú]blicamente\b|hallazgos\b|en\s+esta\s+sesi[oó]n\b|durante\s+la\b|para\s+que\b|mediante\s+la\b|a\s+trav[eé]s\s+de\b|manera\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|forma\s+(?:formativa|integral|rigurosa|sistem[aá]tica|cr[ií]tica)\b|todos\s+los\s+conocimientos\b|sintetizar\s+y\s+realizar\b|realizar\s+una\s+reflexi[oó]n\b)/i;
@@ -132,7 +156,7 @@ export function stripPhaseAndMissionBoilerplate(raw: string | null | undefined):
  */
 export function extractDisciplinaryConceptPhrase(raw: string | null | undefined): string {
   if (!raw) return '';
-  let text = stripPhaseAndMissionBoilerplate(raw);
+  let text = sanitizeMalformedTitleFragment(stripPhaseAndMissionBoilerplate(raw));
   if (!text) return '';
 
   // Rechazar de inmediato fragmentos huérfanos que ya arrancan con adverbio de modo sin verbo previo
