@@ -7,7 +7,6 @@ import {
   chip,
   circle,
   cornerMarks,
-  diagramSvg,
   footer,
   line,
   panel,
@@ -16,7 +15,8 @@ import {
   sectionLabel,
   svgDocument,
   topHud,
-} from './svg-primitives';
+} from './svg/core-primitives';
+import { diagramSvg } from './svg/schematic-diagrams';
 
 const W = SLIDE.width;
 const H = SLIDE.height;

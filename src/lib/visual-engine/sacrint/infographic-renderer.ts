@@ -5,7 +5,6 @@ import { INFOGRAPHIC, SACRINT, SACRINT_LIGHT, resolveLightAccent, type SacrintTh
 import { fitText, singleLine, textBlock, uppercaseLabel } from './text-layout';
 import {
   cornerMarks,
-  diagramSvg,
   dotGrid,
   footer,
   line,
@@ -15,7 +14,8 @@ import {
   sectionLabel,
   svgDocument,
   topHud,
-} from './svg-primitives';
+} from './svg/core-primitives';
+import { diagramSvg } from './svg/schematic-diagrams';
 
 interface ResolvedPalette {
   theme: SacrintThemeMode;
