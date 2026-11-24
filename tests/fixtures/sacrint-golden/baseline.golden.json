@@ -1,0 +1,1149 @@
+{
+  "version": 1,
+  "fixtures": {
+    "AAC": {
+      "key": "AAC",
+      "subjectName": "Actividades Artísticas y Culturales",
+      "deckCount": 1,
+      "slideCount": 5,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Experimentación con formas de expresión artística y su vínculo con emociones",
+          "wordCount": 11,
+          "contentHash": "4595763b5e2199965a1b35d2aa8be038835d8dbc76494ceda509679dcd9cb94c"
+        },
+        {
+          "kind": "concept",
+          "title": "Capacidad de expresión artística y vinculas tus emociones con formas creativas",
+          "wordCount": 174,
+          "contentHash": "c278334649cfe13bcf0af801b0183791c9cc640749ca726ec15823236bfe3a66",
+          "diagramKind": "creative-cycle",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Ciclo creativo",
+          "diagramLabels": [
+            "DETONANTE",
+            "EXPLORACIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Capacidad de expresión artística y vinculas tus emociones con formas creativas",
+          "wordCount": 173,
+          "contentHash": "07277ea65d2a91606f3f51903eb3bf2e3a8a8dbc0956f1d28aa950793d68308e"
+        },
+        {
+          "kind": "concept",
+          "title": "Delimitas el reto creativo del proyecto artístico",
+          "wordCount": 182,
+          "contentHash": "425dbc7d9ebbdd1f161b312802fb4924bec7903222429e0a9e98f4c048731a03",
+          "diagramKind": "creative-cycle",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Ciclo creativo",
+          "diagramLabels": [
+            "DETONANTE",
+            "OBRA"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Delimitas el reto creativo del proyecto artístico",
+          "wordCount": 157,
+          "contentHash": "3e5d715111067104ee6f3c986efba0fad5d2b19f168eef37f7064b1dd8fe85be"
+        }
+      ],
+      "infographicCount": 2,
+      "infographics": [
+        {
+          "title": "Capacidad de expresión artística y vinculas tus emociones con formas creativas",
+          "formula": "Emoción + Elemento Artístico (Línea/Color/Ritmo) → Representación Visual/Corporal",
+          "diagramKind": "creative-cycle",
+          "contentHash": "6f6b5124dd0238d25c27d7501f2940e97ff5930c63983982f03b5210103f3476"
+        },
+        {
+          "title": "Delimitas el reto creativo del proyecto artístico",
+          "formula": "Problema + Objetivo + Recursos → Ruta de Trabajo → Proyecto Artístico",
+          "diagramKind": "creative-cycle",
+          "contentHash": "c1be48e17a1b0ba63cbf599b2b6fa6dde416db1cd306e475243c9a152d3ea942"
+        }
+      ],
+      "pptxSemanticHash": "602072ddab12ad2e72384ea926a733204520cbbaacaa843e820799fe50adeda9",
+      "pptxQa": {
+        "slideCount": 5,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 150,
+        "slide12Over200": 0,
+        "slide22Avg": 136,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "AFD": {
+      "key": "AFD",
+      "subjectName": "Actividades Físicas y Deportivas",
+      "deckCount": 1,
+      "slideCount": 5,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "El juego como derecho humano",
+          "wordCount": 9,
+          "contentHash": "c8c317aa5fb3ef00da282580bcdc8f1c29c04866fef8986724f890f3c1189250"
+        },
+        {
+          "kind": "concept",
+          "title": "Juego como derecho humano",
+          "wordCount": 158,
+          "contentHash": "8539976397d2238e5eed6074e233b9272351be3005eaae9bbbafb37d07ddbe5f",
+          "diagramKind": "training-cycle",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Práctica física",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Juego como derecho humano",
+          "wordCount": 151,
+          "contentHash": "d4ff7a91b821443f078b7409b4b8643ca00e3879b93d07271de76d2168ca56f0"
+        },
+        {
+          "kind": "concept",
+          "title": "Fundamentas teóricamente la diferencia entre juego y deporte",
+          "wordCount": 208,
+          "contentHash": "4600e4d53b32b368a4105745c5227240e22ce3ca420aa243fb413db0358350e5",
+          "diagramKind": "training-cycle",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Práctica física",
+          "diagramLabels": [
+            "DIAGNÓSTICO",
+            "APLICACIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Fundamentas teóricamente la diferencia entre juego y deporte",
+          "wordCount": 158,
+          "contentHash": "b0f7bf652a6c933e48b797154474a88c06f802faced2af217391d9af7b0e8f8b"
+        }
+      ],
+      "infographicCount": 2,
+      "infographics": [
+        {
+          "title": "Juego como derecho humano",
+          "formula": "Derecho al Juego + Espacio Seguro = Salud Integral y Prevención de Riesgos",
+          "diagramKind": "training-cycle",
+          "contentHash": "914064ba049b1c806f0b553367b63c35b3120b27a3346b934c96912f956028b0"
+        },
+        {
+          "title": "Fundamentas teóricamente la diferencia entre juego y deporte",
+          "formula": "FC Basal → Calentamiento → Circuito Motor → FC Post-esfuerzo → Vuelta a la Calma",
+          "diagramKind": "training-cycle",
+          "contentHash": "f3c0e9ec2e40b15469153c36f07d8ef85081a4cafeb5352c63d9df21d323e2ae"
+        }
+      ],
+      "pptxSemanticHash": "57f078450ba374321591ab896726c38ffc4f407edbea9f3a8c5e3f8d1c23c24e",
+      "pptxQa": {
+        "slideCount": 5,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 161.5,
+        "slide12Over200": 0,
+        "slide22Avg": 125.5,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "CD1": {
+      "key": "CD1",
+      "subjectName": "Cultura Digital I. Ciudadanía digital",
+      "deckCount": 1,
+      "slideCount": 13,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Proyecto Integrador— Privacidad",
+          "wordCount": 13,
+          "contentHash": "a0745ef43729f82ba0310a04d9a077880e9c52048c4861a47d8631ec49190b7f"
+        },
+        {
+          "kind": "concept",
+          "title": "Situaciones de riesgo digital en el entorno",
+          "wordCount": 195,
+          "contentHash": "02244a763b0885f3612ee0ac2e23b10b2f1f5463edd46a429b38e3f2138598df",
+          "diagramKind": "block-diagram",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Diagrama de bloques",
+          "diagramLabels": [
+            "ENTRADA",
+            "PROCESO",
+            "SALIDA",
+            "CONTROL"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Situaciones de riesgo digital en el entorno",
+          "wordCount": 143,
+          "contentHash": "820ab46b4332fcea67fd8d90895677bd0b243a0dc3e291559b9ac655eaed507f"
+        },
+        {
+          "kind": "concept",
+          "title": "Riesgos de seguridad digital",
+          "wordCount": 187,
+          "contentHash": "42e0d62aa3b67e9b1d336055ce82128909f1560e961bffb929845a6548402212",
+          "diagramKind": "block-diagram",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Diagrama de bloques",
+          "diagramLabels": [
+            "ENTRADA",
+            "PROCESO",
+            "SALIDA",
+            "CONTROL"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Riesgos de seguridad digital",
+          "wordCount": 142,
+          "contentHash": "bbb2f6e6339675aded7e8456268606f993862e0929480a686a63542714ddecdf"
+        },
+        {
+          "kind": "concept",
+          "title": "Protección de datos",
+          "wordCount": 179,
+          "contentHash": "e39717455d886fe8626969216ab2e848daefcb4781b564d7cb9e91e41814a8ce",
+          "diagramKind": "block-diagram",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Diagrama de bloques",
+          "diagramLabels": [
+            "ENTRADA",
+            "PROCESO",
+            "SALIDA",
+            "CONTROL"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Protección de datos",
+          "wordCount": 148,
+          "contentHash": "fcbd90d34a73b9bfacb218e7f71edc46dd9eab92c43b804d86f7421c4f2bef95"
+        },
+        {
+          "kind": "concept",
+          "title": "Ciudadanía digital",
+          "wordCount": 187,
+          "contentHash": "5ead2e8843729d8f212d8b35544d7eb51213f62d19eb0d329609862bf44ae1ae",
+          "diagramKind": "block-diagram",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Diagrama de bloques",
+          "diagramLabels": [
+            "ENTRADA",
+            "PROCESO",
+            "SALIDA",
+            "CONTROL"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Ciudadanía digital",
+          "wordCount": 142,
+          "contentHash": "1a23f245ad19481ca1e30efddcc5ac8f08e1fa28ad24ad3f66839b19c4c8e31e"
+        },
+        {
+          "kind": "concept",
+          "title": "Fundamentas la relevancia de la gestión segura de credenciales",
+          "wordCount": 150,
+          "contentHash": "1139e90855a6d7eae19a27a742a6cd0a61a49951d3b069cc00d4a49aedad299c",
+          "diagramKind": "block-diagram",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Diagrama de bloques",
+          "diagramLabels": [
+            "ENTRADA",
+            "PROCESO",
+            "SALIDA",
+            "CONTROL"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Fundamentas la relevancia de la gestión segura de credenciales",
+          "wordCount": 175,
+          "contentHash": "e7875aad81fc6a67602863d4696c878cacb678efba6e957eda5f83c09b6c2229"
+        },
+        {
+          "kind": "concept",
+          "title": "Proceso técnico para reducir la contaminación digital",
+          "wordCount": 154,
+          "contentHash": "3ea08f73360c1d321fce19a3a6222bc6662c405cfcd484a58e2701f0cad63eef",
+          "diagramKind": "block-diagram",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Diagrama de bloques",
+          "diagramLabels": [
+            "ENTRADA",
+            "PROCESO",
+            "SALIDA",
+            "CONTROL"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Proceso técnico para reducir la contaminación digital",
+          "wordCount": 161,
+          "contentHash": "09a61fe0ed1ad813aa0c1ea5b4708f5837634168672c17ac6c6e5cd235406372"
+        }
+      ],
+      "infographicCount": 6,
+      "infographics": [
+        {
+          "title": "Situaciones de riesgo digital en el entorno",
+          "formula": "Identificación de datos → Clasificación de riesgo → Configuración de permisos → Verificación de visibilidad",
+          "diagramKind": "block-diagram",
+          "contentHash": "cca50e541641ecd8d491c861a71cf4dd1e2272b579b386cd98a9374cc00114d1"
+        },
+        {
+          "title": "Riesgos de seguridad digital",
+          "formula": "Datos brutos → Tabulación (Categorías) → Gráfico (Visualización) → Análisis de efectividad",
+          "diagramKind": "block-diagram",
+          "contentHash": "a08d6de141cf3e9bd66e6ea4b3d4cd28f08e433ad18edb56eac1f0ffb99bd245"
+        },
+        {
+          "title": "Protección de datos",
+          "formula": "Problema (Riesgo) + Evidencia (Datos) + Solución (Acción) = Impacto Social",
+          "diagramKind": "block-diagram",
+          "contentHash": "3bd532cf149376588fc0436283acbd9f776e21bc9add79b39f3fef70252e252f"
+        },
+        {
+          "title": "Ciudadanía digital",
+          "formula": "Acción Digital + Conciencia Ética = Ciudadanía Digital Responsable",
+          "diagramKind": "block-diagram",
+          "contentHash": "1741ecacf759076583fa8ae6618417dde6bd5f63e4655e312292358c4551f043"
+        },
+        {
+          "title": "Fundamentas la importancia de la gestión segura de credenciales",
+          "formula": "Autenticación = Algo que sabes (Contraseña) + Algo que tienes (Dispositivo/Código)",
+          "diagramKind": "block-diagram",
+          "contentHash": "f0a6941b67de20ef4eccb84947e989e14f953231114d7007f3d5dc389c425bc6"
+        },
+        {
+          "title": "Procedimiento técnico para reducir la contaminación digital",
+          "formula": "Datos Almacenados (GB) × Energía de Servidor = Huella de Carbono Digital",
+          "diagramKind": "block-diagram",
+          "contentHash": "5d06c9f9660d7b749bfe40be3f8fa2a30bdb1774630c97bb88296e2b3baaca2d"
+        }
+      ],
+      "pptxSemanticHash": "3341842561f873d5ebbe74995c9dcfd9605e4cc980cb35d8ae17599ef367632b",
+      "pptxQa": {
+        "slideCount": 13,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 146.3,
+        "slide12Over200": 0,
+        "slide22Avg": 122.8,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "CNET2": {
+      "key": "CNET2",
+      "subjectName": "Ciencias Naturales, Experimentales y Tecnología II. El poder de la energía",
+      "deckCount": 1,
+      "slideCount": 7,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Evaluación y Cierre— Aplicaciones tecnológicas de la energía",
+          "wordCount": 13,
+          "contentHash": "66e81d67dac9384385ccc1bcacae7c18f80a3ffa8348a3221a14a75f231a6d62"
+        },
+        {
+          "kind": "concept",
+          "title": "Aplicaciones tecnológicas de la energía",
+          "wordCount": 203,
+          "contentHash": "4968318a98e603e3e8c74731a4eb2e0bba13db5815a5ed894181adf1bf9baa68",
+          "diagramKind": "concept",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa conceptual",
+          "diagramLabels": [
+            "CONCEPTO CENTRAL",
+            "CONCEPTO"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Aplicaciones tecnológicas de la energía",
+          "wordCount": 216,
+          "contentHash": "32959b435ba66cb894863ff3b26c488602c57b6f190598ca2dbc33248257c16b"
+        },
+        {
+          "kind": "concept",
+          "title": "Aplicaciones tecnológicas de la energía",
+          "wordCount": 204,
+          "contentHash": "97d919073ffcfbf902ca9a9b536ea762c18c37ddadb80271373e655728eb59b8",
+          "diagramKind": "concept",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa conceptual",
+          "diagramLabels": [
+            "CONCEPTO CENTRAL",
+            "CONCEPTO"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Aplicaciones tecnológicas de la energía",
+          "wordCount": 219,
+          "contentHash": "259bf9e4c570ec0722f39813f839e70dedbe626274db853af556848d7c54b13c"
+        },
+        {
+          "kind": "concept",
+          "title": "Evaluación formativa y la metacognición",
+          "wordCount": 201,
+          "contentHash": "766091bc18942331727b2ebb5835399c603f4b4d7dc29cf2fe59f7083e8e2fe0",
+          "diagramKind": "concept",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa conceptual",
+          "diagramLabels": [
+            "CONCEPTO CENTRAL",
+            "CONCEPTO"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Evaluación formativa y la metacognición",
+          "wordCount": 211,
+          "contentHash": "5351017a312be352ee324dd53ed12b14f74fe38cfd15e7753fa2d9dfde9ea4bd"
+        }
+      ],
+      "infographicCount": 1,
+      "infographics": [
+        {
+          "title": "Aplicaciones tecnológicas de la energía",
+          "formula": "η = (Ep / E_suministrada) · 100%",
+          "diagramKind": "concept",
+          "contentHash": "b031d674e3132f7ca2d4da4a441dbd2a1e39f525c6b844d61bd926040fadb5f6"
+        }
+      ],
+      "pptxSemanticHash": "7d2ea6e0d0d19f1343774b1f349a5325bfce76ddd805ad88c9a57c529a855311",
+      "pptxQa": {
+        "slideCount": 7,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 172.7,
+        "slide12Over200": 0,
+        "slide22Avg": 186.3,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "PFH1": {
+      "key": "PFH1",
+      "subjectName": "Pensamiento Filosófico y Humanidades I. El ejercicio de filosofar y la perspectiva",
+      "deckCount": 1,
+      "slideCount": 7,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Naturaleza del pensamiento filosófico",
+          "wordCount": 4,
+          "contentHash": "7db648f569473183fad736a816e6a5a799a9559a3e888e09e435a6b47639079c"
+        },
+        {
+          "kind": "concept",
+          "title": "Naturaleza del pensamiento filosófico",
+          "wordCount": 198,
+          "contentHash": "3ab3523b27f8d3e6bf458237e091d576648c132cb6c674bb069035da05ed4534",
+          "diagramKind": "argument",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa argumental",
+          "diagramLabels": [
+            "TESIS",
+            "PREMISA 1",
+            "CONCLUSIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Naturaleza del pensamiento filosófico",
+          "wordCount": 146,
+          "contentHash": "fdec5487c0db1c8bff8ddc358ce0ec50c3afd474a88ec3ade1399b05e9b8ff49"
+        },
+        {
+          "kind": "concept",
+          "title": "Saberes previos y delimitas el reto filosófico",
+          "wordCount": 199,
+          "contentHash": "075979fc0c47bc94515dfe7db5b45eea39405b23b948cfe0a9136931fef45106",
+          "diagramKind": "argument",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa argumental",
+          "diagramLabels": [
+            "TESIS",
+            "PREMISA 1",
+            "CONCLUSIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Saberes previos y delimitas el reto filosófico",
+          "wordCount": 167,
+          "contentHash": "598ef90e28e23019f92900f3932ae01f49623fef83955600c3fcb9d0931f35de"
+        },
+        {
+          "kind": "concept",
+          "title": "Fundamentos del pensamiento filosófico",
+          "wordCount": 196,
+          "contentHash": "cfbdfe8c82753efe360f0fadb7996367b0e147afb6828a13fb33699a4a0404ee",
+          "diagramKind": "argument",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa argumental",
+          "diagramLabels": [
+            "TESIS",
+            "PREMISA 1",
+            "CONCLUSIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Fundamentos del pensamiento filosófico",
+          "wordCount": 176,
+          "contentHash": "5e95518c7a0421bb0cdd496224b4d0eea32c9584c976cf9c667b5d762bd33ce1"
+        }
+      ],
+      "infographicCount": 3,
+      "infographics": [
+        {
+          "title": "Naturaleza del pensamiento filosófico",
+          "formula": "Asombro + Problematización + Argumentación = Pensamiento Filosófico",
+          "diagramKind": "argument",
+          "contentHash": "a6bbe6a58283151e724122753902f1d25cfbbb518ff17879e3e9e59cd957eacf"
+        },
+        {
+          "title": "Saberes previos y delimitas el reto filosófico",
+          "formula": "Contexto + Concepto Filosófico = Reto de Investigación",
+          "diagramKind": "argument",
+          "contentHash": "fb61c9f842d3184cb4f5d5cb77071e25d5ea43ce485c81f9b304c78b55a8caf0"
+        },
+        {
+          "title": "Fundamentos del pensamiento filosófico",
+          "formula": "Definición Técnica + Aplicación al Reto = Marco de Referencia",
+          "diagramKind": "argument",
+          "contentHash": "d9953a72ce692bb9184afe778281d4065232830001e56e13b71d53e7efd7d579"
+        }
+      ],
+      "pptxSemanticHash": "a66fcde69978d5d7a7c35b403d3aef03eba479b20f759c3445e19e756174cc7a",
+      "pptxQa": {
+        "slideCount": 7,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 166.7,
+        "slide12Over200": 0,
+        "slide22Avg": 134,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "PM1": {
+      "key": "PM1",
+      "subjectName": "Pensamiento Matemático I. Pensamiento aritmético",
+      "deckCount": 1,
+      "slideCount": 19,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Práctica y Aplicación— Proporción",
+          "wordCount": 5,
+          "contentHash": "8a99f119aeb3cea77c12034304a6fb8720cee59dd1895d5083a9fbbc107c3080"
+        },
+        {
+          "kind": "concept",
+          "title": "Modelado de proporciones directas",
+          "wordCount": 126,
+          "contentHash": "1d88f71c0f17801f76c89b6163a2cdfdcb7de8cb24f2ce308ad824a8976215d0",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Modelado de proporciones directas",
+          "wordCount": 177,
+          "contentHash": "1f066c2e48d16661b061de379feda8cc5262fb80cd9571dfc8cbea795c5f2c77"
+        },
+        {
+          "kind": "concept",
+          "title": "Situaciones de riesgo",
+          "wordCount": 130,
+          "contentHash": "bbd4446dc0c58c4e00f1607272a98f10ffcc051fa998ba467f8c69823514f09f",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Situaciones de riesgo",
+          "wordCount": 177,
+          "contentHash": "dc061761c2d9892e5093b57c28d367b086d352209cf5ccbdc9f6033cccdaf6aa"
+        },
+        {
+          "kind": "concept",
+          "title": "Unidad y los números racionales como fracciones",
+          "wordCount": 122,
+          "contentHash": "991cb5f63451fc61844cb1dd291e42efee8f33c46a04eb5a6e1900feb233f1bb",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Unidad y los números racionales como fracciones",
+          "wordCount": 193,
+          "contentHash": "12393bae53e18a98b6e8b984dcd04c9793153736f8a05948b898afb111486a13"
+        },
+        {
+          "kind": "concept",
+          "title": "Equivalencias entre fracciones y números enteros",
+          "wordCount": 149,
+          "contentHash": "ee3cd04edb83c10ed8686c78fbd62ef259184e2ff8728ce731b51bb6bc68395f",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Equivalencias entre fracciones y números enteros",
+          "wordCount": 212,
+          "contentHash": "2b4cc61c5a5f0a39388e9316082114c83aea857bb7d72bd82b77a2cdb7ecb512"
+        },
+        {
+          "kind": "concept",
+          "title": "Simplificas fracciones para estructurar el reporte técnico",
+          "wordCount": 142,
+          "contentHash": "040a967f25b97a92b17ef0f258a41974b770689e4f9922d8ed9ce263c9df0fdc",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Simplificas fracciones para estructurar el reporte técnico",
+          "wordCount": 191,
+          "contentHash": "db420383fdfb801a8a89105a7c95707e14789637247b6683978b2044415e2cfc"
+        },
+        {
+          "kind": "concept",
+          "title": "Retroalimentas el trabajo de tus pares",
+          "wordCount": 124,
+          "contentHash": "ae9cad2ba7c50c459ee804856b8dc83141a50f3b263a19dc26f2288f871b899b",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Retroalimentas el trabajo de tus pares",
+          "wordCount": 202,
+          "contentHash": "dabe6b0f8512f46f56f7674788910b86ed66956e1119de7b60a70c78ca8bbb2b"
+        },
+        {
+          "kind": "concept",
+          "title": "Aplicación rigurosa de la proporción inversa",
+          "wordCount": 139,
+          "contentHash": "f3065a35e307dd6b2740aa118f766a0d7909417ba430b35dd525240b7bb71c21",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Aplicación rigurosa de la proporción inversa",
+          "wordCount": 204,
+          "contentHash": "d9ec83cd24b27c442896c9fd6c395347fcc438197286f137aaa300f33e9d503a"
+        },
+        {
+          "kind": "concept",
+          "title": "Exposición de la evidencia",
+          "wordCount": 130,
+          "contentHash": "be30a2d11b967f4a1d7b70e375c8a3cf944e398a302c30d89a6aed5820dd05a2",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Exposición de la evidencia",
+          "wordCount": 182,
+          "contentHash": "361d3742cacc793f8066b915edae6224ee9184cd2a1744c5d38ceca88a720c77"
+        },
+        {
+          "kind": "concept",
+          "title": "Proceso de aprendizaje",
+          "wordCount": 131,
+          "contentHash": "17a1e03022ada0fed681bdac63f2e3d8fc874ec3cfec972a80833a6579712ea5",
+          "diagramKind": "linear",
+          "diagramAvailable": false,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Proceso de aprendizaje",
+          "wordCount": 183,
+          "contentHash": "2d52ceb51c309cf6a38737d7748a8fbf8f644a8b4a846aea58b87aab62605758"
+        }
+      ],
+      "infographicCount": 6,
+      "infographics": [
+        {
+          "title": "Modelado de proporciones directas",
+          "formula": "a/b = c/d",
+          "diagramKind": "linear",
+          "contentHash": "872c2df6e543f63121a3f7b78f739780829b45d6fe764f3e08ca4b7bfa2b9584"
+        },
+        {
+          "title": "Situaciones de riesgo",
+          "formula": "a·b = c·d",
+          "diagramKind": "linear",
+          "contentHash": "d76aa118ccaaf3d5829aeb6b2e3437432686edea58bf583ef35caab5b10e4ff8"
+        },
+        {
+          "title": "Proporción",
+          "formula": "a/b = parte/total",
+          "diagramKind": "linear",
+          "contentHash": "844700c2f808600727d3fd6f49c4ba3fa4f0ed9ae65b5852ab822641c5bf9a90"
+        },
+        {
+          "title": "Diversos métodos para establecer equivalencias entre fracciones y números enteros",
+          "formula": "a/b = (a ÷ n) / (b ÷ n) = c/d",
+          "diagramKind": "linear",
+          "contentHash": "a4644baf8024716ef1294b1727264abd7d5360c9dd10fa0d23b93e78c5acad20"
+        },
+        {
+          "title": "Simplificas fracciones para estructurar el reporte técnico",
+          "formula": "1/aⁿ = a⁻ⁿ",
+          "diagramKind": "linear",
+          "contentHash": "93f6e9a7fac16e500df8fb23c853641bc8e5f7b5c3a3cc6ead0e2faa36625382"
+        },
+        {
+          "title": "Retroalimentas el trabajo de tus pares",
+          "formula": "a/b = c/d ⇔ a·d = b·c",
+          "diagramKind": "linear",
+          "contentHash": "6996e51c1a80a809827d296cc279c5e4b8a0816f02ffa77e44a1e740203905fc"
+        }
+      ],
+      "pptxSemanticHash": "189412cc9343d04e842ad08768318ed562d0e05d3d34e0a29beb7964460f6544",
+      "pptxQa": {
+        "slideCount": 19,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 120.6,
+        "slide12Over200": 0,
+        "slide22Avg": 162.2,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "SYN_AFD_PHYS": {
+      "key": "SYN_AFD_PHYS",
+      "subjectName": "Actividades Físicas y Deportivas",
+      "deckCount": 1,
+      "slideCount": 3,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Circuito motor con control fisiológico",
+          "wordCount": 14,
+          "contentHash": "f8db02950d84b887cd9c9f0d9f10991fead9799cf2825172aa2551168c3e3ced"
+        },
+        {
+          "kind": "concept",
+          "title": "Circuito motor regulando frecuencia cardíaca e intensidad con escala de Borg",
+          "wordCount": 166,
+          "contentHash": "1e4a1860e4b3bb8a545c655f2e95582360f325c701498058f54ad84297a2514d",
+          "diagramKind": "training-cycle",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Ciclo de entrenamiento",
+          "diagramLabels": [
+            "CALENTAMIENTO",
+            "ACTIVACIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Circuito motor regulando frecuencia cardíaca e intensidad con escala de Borg",
+          "wordCount": 159,
+          "contentHash": "41078311cb42dae534ce8b93f21b735b05694c99669fc424e7ec89a63f106fb7"
+        }
+      ],
+      "infographicCount": 1,
+      "infographics": [
+        {
+          "title": "Circuito motor regulando frecuencia cardíaca e intensidad con escala de Borg",
+          "formula": "FC Basal + Escala Borg → Seguridad",
+          "diagramKind": "training-cycle",
+          "contentHash": "e81f050f7d63816f5852badc06e42784615e99fb3786d4890247cd50fd4db3d1"
+        }
+      ],
+      "pptxSemanticHash": "5b34b157923060cc10854a688c5085e8ec0e0de4360c94993e054a9d6a930a00",
+      "pptxQa": {
+        "slideCount": 3,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 137,
+        "slide12Over200": 0,
+        "slide22Avg": 130,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "SYN_HISTORIA": {
+      "key": "SYN_HISTORIA",
+      "subjectName": "Conciencia Histórica I. Procesos sociales",
+      "deckCount": 1,
+      "slideCount": 3,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Independencia de México (1810–1821)",
+          "wordCount": 8,
+          "contentHash": "a3dd90eacc0af5e3b56dcdf336e52277fe852ea17b0ca460457ad5685f389d8a"
+        },
+        {
+          "kind": "concept",
+          "title": "Causas de la Independencia de México (1810–1821)",
+          "wordCount": 151,
+          "contentHash": "252aa72985055b27f9fc85327c2cc116218c0dfc7d44a0da827c88a2a08fce9f",
+          "diagramKind": "timeline",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Línea de tiempo",
+          "diagramLabels": [
+            "PROCESO"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Causas de la Independencia de México (1810–1821)",
+          "wordCount": 146,
+          "contentHash": "fc98e4aa51f078154e47cf9a1d4a21839eff6713fb4fe9b3225dcbfbbaf9d9b0"
+        }
+      ],
+      "infographicCount": 1,
+      "infographics": [
+        {
+          "title": "Causas de la Independencia de México (1810–1821)",
+          "formula": "Crisis 1808 → Insurgencia 1810 → Consumación 1821",
+          "diagramKind": "timeline",
+          "contentHash": "13122f0f6c11c5b9fccbec474415bb2fba7d8baf0d569bf1eaf05d89634fe709"
+        }
+      ],
+      "pptxSemanticHash": "7c10bfc4e04d4c94a42c27b784bb954e7ac89216d0526782317b4749201d9ba9",
+      "pptxQa": {
+        "slideCount": 3,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 122,
+        "slide12Over200": 0,
+        "slide22Avg": 117,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "SYN_LABORAL": {
+      "key": "SYN_LABORAL",
+      "subjectName": "Instalaciones Eléctricas Residenciales (Formación Laboral)",
+      "deckCount": 1,
+      "slideCount": 3,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Verificación de continuidad y seguridad eléctrica",
+          "wordCount": 13,
+          "contentHash": "14532ca052d5ce2ae1cc8eaee4aef5bff495c064f53c89481825a22d1305ec1e"
+        },
+        {
+          "kind": "concept",
+          "title": "Prueba de continuidad en circuitos residenciales cumpliendo normas",
+          "wordCount": 163,
+          "contentHash": "56cf5c337d88fb5dedd8ec6a1d3bd1fc7fa6e495e93bb647a194ec2e3791ddca",
+          "diagramKind": "concept",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Mapa conceptual",
+          "diagramLabels": [
+            "CONCEPTO CENTRAL",
+            "CONCEPTO"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Prueba de continuidad en circuitos residenciales cumpliendo normas",
+          "wordCount": 164,
+          "contentHash": "63802f7a07606a9b793127f761d47b02ba538aceeed363e00df59c28b6d207ba"
+        }
+      ],
+      "infographicCount": 1,
+      "infographics": [
+        {
+          "title": "Prueba de continuidad en circuitos residenciales cumpliendo normas de seguridad y EPP",
+          "formula": "Desenergizar → 0 V → Continuidad (Ω)",
+          "diagramKind": "concept",
+          "contentHash": "f6d305c89827bf5b9fc45a8046d9df314eeb498fe397cf6f0615bd59fdc24294"
+        }
+      ],
+      "pptxSemanticHash": "dd0cc351a1cc89b0a31d53182accd278294341ef08f648a94dd664f8ed3a25de",
+      "pptxQa": {
+        "slideCount": 3,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 133,
+        "slide12Over200": 0,
+        "slide22Avg": 135,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "SYN_MATH": {
+      "key": "SYN_MATH",
+      "subjectName": "Pensamiento Matemático III",
+      "deckCount": 1,
+      "slideCount": 7,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Modelación algebraica y geométrica aplicada",
+          "wordCount": 12,
+          "contentHash": "f6eebfd291ce0f5897b3594e064be2a8b60831cd4a9bb937024e105d51443b67"
+        },
+        {
+          "kind": "concept",
+          "title": "Costo total mensual",
+          "wordCount": 151,
+          "contentHash": "9956866461053970fb4692bdbfddf0260680dcbca1c64167521d319dcc3c23c7",
+          "diagramKind": "linear",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Modelo lineal",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Costo total mensual",
+          "wordCount": 155,
+          "contentHash": "68fd398e604798ff630f2ff470628bb1cc839f0c60094ac79dcc90de9422acd5"
+        },
+        {
+          "kind": "concept",
+          "title": "Trayectoria parabólica de f(x) = -2x² + 16x determinando vértice y raíces",
+          "wordCount": 166,
+          "contentHash": "6f1db7513fae596ecec351a6a74a4bd6d0f6e6024ad6abbc89488a0881e508d2",
+          "diagramKind": "quadratic",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Modelo cuadrático",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Trayectoria parabólica de f(x) = -2x² + 16x determinando vértice y raíces",
+          "wordCount": 161,
+          "contentHash": "e14a1cf1856724547618a46014cba197377818d41987070a5181620e216e90a8"
+        },
+        {
+          "kind": "concept",
+          "title": "Sistemas de ecuaciones lineales 2x2 encontrando la intersección de rectas",
+          "wordCount": 182,
+          "contentHash": "ff9e4bb51a6e906f2befdd63e3b07e601c63072dd27dfdf67a6ecdc379789d2a",
+          "diagramKind": "system-2x2",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Sistema lineal 2×2",
+          "diagramLabels": []
+        },
+        {
+          "kind": "practice",
+          "title": "Sistemas de ecuaciones lineales 2x2 encontrando la intersección de rectas",
+          "wordCount": 168,
+          "contentHash": "b15b67fa3bacef06914950f0ca45672ec0b678434695aa37a6732319af0ff09a"
+        }
+      ],
+      "infographicCount": 3,
+      "infographics": [
+        {
+          "title": "Costo total mensual",
+          "formula": "C(x) = 150x + 400",
+          "diagramKind": "linear",
+          "contentHash": "c109dbca0cf2edd353b1f26905ded1714b7bb674d316c798229d077d0eb93fd9"
+        },
+        {
+          "title": "Trayectoria parabólica de f(x) = -2x² + 16x determinando vértice y raíces",
+          "formula": "f(x) = -2x² + 16x",
+          "diagramKind": "quadratic",
+          "contentHash": "046805ceaf04572d51e9b1053b98f45b7a26cd740a769761cb306eab30ae743d"
+        },
+        {
+          "title": "Sistemas de ecuaciones lineales 2x2 encontrando la intersección de rectas",
+          "formula": "x + y = 10 | 2x - y = 5",
+          "diagramKind": "system-2x2",
+          "contentHash": "4da2ce0242a56a7e7c08d6f604c54fe9b0a5a57c7478bf1fab3cf35c9658bff5"
+        }
+      ],
+      "pptxSemanticHash": "6c690bf71d5c2eb4358096f3fab07f6b2d281eabfd80f7b1d17f3033e0439a91",
+      "pptxQa": {
+        "slideCount": 7,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 146.7,
+        "slide12Over200": 0,
+        "slide22Avg": 132.3,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "SYN_QUIMICA": {
+      "key": "SYN_QUIMICA",
+      "subjectName": "Química I. Materia y reacciones",
+      "deckCount": 1,
+      "slideCount": 3,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Balanceo de ecuaciones químicas por tanteo",
+          "wordCount": 16,
+          "contentHash": "b06bd938b1eaea748dfd3a8580ebd7ffa6c65b4be1a5ce53152077dda80862d9"
+        },
+        {
+          "kind": "concept",
+          "title": "Balancear ecuaciones químicas por tanteo verificando la conservación",
+          "wordCount": 178,
+          "contentHash": "b7da060b6906e057cf57013a75b92cd38a4f8331a303dcd5415837022e4e28a0",
+          "diagramKind": "reaction",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Esquema de reacción",
+          "diagramLabels": [
+            "H2",
+            "O2",
+            "H2O"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Balancear ecuaciones químicas por tanteo verificando la conservación",
+          "wordCount": 172,
+          "contentHash": "8a1b2d94e32d1b584adf9d8b805571396c54f2d49d23f0450b213bbdf29cf7f9"
+        }
+      ],
+      "infographicCount": 1,
+      "infographics": [
+        {
+          "title": "Ley de conservación de la masa en reacciones de combustión",
+          "formula": "2H₂ + O₂ → 2H₂O",
+          "diagramKind": "reaction",
+          "contentHash": "cba0c3f862f1b9cc406d3e0e5d09409b9091a7da09dd98df0b0f1d9190978d33"
+        }
+      ],
+      "pptxSemanticHash": "065c93e053e415c1b4d19909256f37238534db6622d6cd98f430601a7170cc60",
+      "pptxQa": {
+        "slideCount": 3,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 145,
+        "slide12Over200": 0,
+        "slide22Avg": 143,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    },
+    "SYN_SOCIO": {
+      "key": "SYN_SOCIO",
+      "subjectName": "Desarrollo Socioemocional",
+      "deckCount": 1,
+      "slideCount": 5,
+      "slides": [
+        {
+          "kind": "cover",
+          "title": "Autorregulación emocional y convivencia escolar",
+          "wordCount": 10,
+          "contentHash": "b89f086c394d7d8b750f933d5b1218fd98c94402fbe4fc7561854ffb0afb9f5b"
+        },
+        {
+          "kind": "concept",
+          "title": "Acuerdos de convivencia democrática en el aula",
+          "wordCount": 150,
+          "contentHash": "1f9d03916e5c913f7cb95ee4a01aeeda3783952ad905cfa32eb7684a9a9749a5",
+          "diagramKind": "regulation-flow",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Ruta socioemocional",
+          "diagramLabels": [
+            "SITUACIÓN",
+            "ANÁLISIS"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Acuerdos de convivencia democrática en el aula",
+          "wordCount": 152,
+          "contentHash": "02b7559385c528395e41cd87fca5614e4d6955bec4a480ee69c8c3716184c4dc"
+        },
+        {
+          "kind": "concept",
+          "title": "Estrategias de regulación emocional ante circunstancias de estrés académico",
+          "wordCount": 151,
+          "contentHash": "0a7009765a4b9cdd2949f5dc72139f7ad07291521a583f55c1547bbddbcf9e66",
+          "diagramKind": "regulation-flow",
+          "diagramAvailable": true,
+          "diagramModelLabel": "Flujo de regulación",
+          "diagramLabels": [
+            "EMOCIÓN",
+            "INTERPRETACIÓN"
+          ]
+        },
+        {
+          "kind": "practice",
+          "title": "Estrategias de regulación emocional ante circunstancias de estrés académico",
+          "wordCount": 154,
+          "contentHash": "c6e435013eae4f920432e8e088bacc18fb9be6a804f9aaac5529fda699e906ca"
+        }
+      ],
+      "infographicCount": 2,
+      "infographics": [
+        {
+          "title": "Acuerdos de convivencia democrática en el aula",
+          "formula": "Diálogo + Escucha → Acuerdos",
+          "diagramKind": "regulation-flow",
+          "contentHash": "a6b19fd462991fbd193c3de5ec7a06983992d5eb339740bb49ce691591f79903"
+        },
+        {
+          "title": "Estrategias de regulación emocional ante situaciones de estrés académico",
+          "formula": "Pausa + Conciencia → Autorregulación",
+          "diagramKind": "regulation-flow",
+          "contentHash": "1e25d13648f02b4a61f220ae0c9ad6a67965aeb9a240350a5704f26d4621d4ca"
+        }
+      ],
+      "pptxSemanticHash": "1b33456f5bbf07553dc18b87f7891f688f0dfb56c35be3ca266dfe619f6df207",
+      "pptxQa": {
+        "slideCount": 5,
+        "collisions": 0,
+        "wrapNoneShapes": 0,
+        "slide12Avg": 121,
+        "slide12Over200": 0,
+        "slide22Avg": 124,
+        "slide22Over200": 0,
+        "slide22MissingRubricOrObjectives": 0,
+        "findingKeys": []
+      }
+    }
+  }
+}
