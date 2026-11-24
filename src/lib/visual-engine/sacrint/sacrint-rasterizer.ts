@@ -2,21 +2,17 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Resvg } from '@resvg/resvg-js';
 import { jsPDF } from 'jspdf';
-import type { SacrintDeckSpec, SacrintDiagramSpec, SacrintInfographicSpec } from './spec';
+import type { SacrintDeckSpec, SacrintDiagramSpec, SacrintInfographicSpec } from './types';
 import { renderDeckSvgs } from './slide-renderer';
 import { infographicFilename, renderInfographicSvg } from './infographic-renderer';
 import { ensureSacrintFontsRegistered, getSacrintFontFiles } from './sacrint-font-bootstrap';
 import { loadEditorialFonts } from '@/lib/visual-engine/font-loader';
 import { INFOGRAPHIC, SLIDE } from './tokens';
-import {
-  finalizeVisibleText,
-  fitPedagogicalText,
-  hasDanglingEnding,
-  isPublishablePedagogicalText,
-  splitSpanishSentences,
-} from '@/lib/editorial/pedagogical-text-fitter';
+import { finalizeVisibleText, fitPedagogicalText } from '@/lib/editorial/fitter/text-compactor';
+import { hasDanglingEnding, isPublishablePedagogicalText } from '@/lib/editorial/fitter/dangling-guards';
+import { splitSpanishSentences } from '@/lib/editorial/fitter/sentence-splitter';
 import { isValidRenderableFormula, normalizeEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
-import { diagramFormula, diagramModelLabel } from './diagrams';
+import { diagramFormula, diagramModelLabel } from './diagrams/registry';
 
 export interface RenderedPng {
   filename: string;

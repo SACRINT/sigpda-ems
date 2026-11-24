@@ -28,8 +28,9 @@ import type {
   SystemMapDiagramSpec,
   TimelineDiagramSpec,
   TrainingCycleDiagramSpec,
-} from './spec';
-import { diagramFooterLabel, diagramModelLabel, niceTickStep } from './diagrams';
+} from './types';
+import { diagramFooterLabel, diagramModelLabel } from './diagrams/registry';
+import { niceTickStep } from './diagrams/shared';
 import { getRuntimePlatformName } from '@/lib/platform/platform-name-shared';
 import { fitText } from './text-layout';
 

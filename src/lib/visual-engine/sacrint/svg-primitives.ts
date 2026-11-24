@@ -18,8 +18,8 @@ import type {
   SystemMapDiagramSpec,
   TimelineDiagramSpec,
   TrainingCycleDiagramSpec,
-} from './diagrams';
-import { niceTickStep } from './diagrams';
+} from './types';
+import { niceTickStep } from './diagrams/shared';
 import { FIGURE, SACRINT, SACRINT_LIGHT, resolveLightAccent, SACRINT_RADIUS, SACRINT_STROKE, type SacrintThemeMode } from './tokens';
 import { escapeXml, measureText, singleLine, textBlock, uppercaseLabel } from './text-layout';
 import { styleBackdrop, type StyleBackdropKind } from './style-art';

@@ -1,5 +1,5 @@
-import type { SacrintInfographicSpec, SacrintRubricItem } from './spec';
-import { diagramModelLabel } from './diagrams';
+import type { SacrintInfographicSpec, SacrintRubricItem } from './types';
+import { diagramModelLabel } from './diagrams/registry';
 import { isValidRenderableFormula } from '@/lib/editorial/text-normalization';
 import { INFOGRAPHIC, SACRINT, SACRINT_LIGHT, resolveLightAccent, type SacrintThemeMode } from './tokens';
 import { fitText, singleLine, textBlock, uppercaseLabel } from './text-layout';

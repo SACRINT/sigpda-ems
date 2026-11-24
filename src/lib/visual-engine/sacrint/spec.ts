@@ -60,7 +60,7 @@ import {
   diagramFormula,
   diagramSubtitle,
   stepLabelsForPack,
-} from './diagrams';
+} from './diagrams/registry';
 import { classifyTopic } from '@/lib/visual-engine/topic-classifier';
 import {
   extractDisciplinaryConceptPhrase,

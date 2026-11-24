@@ -1,5 +1,5 @@
-import type { SacrintDeckSpec, SacrintFact, SacrintSlide } from './spec';
-import { diagramFooterLabel, diagramModelLabel, diagramSubtitle } from './diagrams';
+import type { SacrintDeckSpec, SacrintFact, SacrintSlide } from './types';
+import { diagramFooterLabel, diagramModelLabel, diagramSubtitle } from './diagrams/registry';
 import { SACRINT, SACRINT_TYPE, SLIDE } from './tokens';
 import { measureText, singleLine, textBlock, uppercaseLabel } from './text-layout';
 import { styleCoverArt } from './style-art';
