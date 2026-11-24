@@ -4,7 +4,7 @@
 **Repositorio:** `C:\Proyectos_SACRINT\Proyecto_SIGPDA_EMS\SIGPDA_EMS`  
 **Base de partida:** Cierre de Fase 0 (incluye corrección de `training-cycle` / `regulation-flow`, guardia QA `diagram_label_body_mismatch` y AFD `1/2 avg < 170w`)  
 **Documento de referencia:** `docs/AUDITORIA_5_NUEVAS_Y_PLAN_REFACTOR_2026-11-23.md`  
-**Estado:** Borrador listo para revisión y visto bueno de **Opencode** antes de iniciar Fase 1.
+**Estado:** **COMPLETADO (Fases 1–5 ejecutadas y verificadas con `golden diff = 0`, 0 ciclos DAG y 6/6 PASS en vivo contra Neon DB).**
 
 ---
 
@@ -179,3 +179,44 @@ Ningún commit se da por cerrado hasta pasar los **5 checks en verde**:
 2. **Auditor de dependencias (`Fase 1.2`):** ¿prefieres un script determinista propio sin nuevas dependencias (`scripts/audit-sacrint-deps.mjs`) o instalar `dependency-cruiser` en `devDependencies`?
 3. **Granularidad de Fases 2–5 (21 commits atómicos):** ¿ves alguna frontera de módulo mal trazada o algún archivo que convenga fusionar/dividir distinto antes de comenzar?
 4. **Orden de trabajo del usuario:** una vez aprobado este plan y completadas Fases 1–5 con golden diff = 0, el usuario reanudará la generación de asignaturas de 2.º–4.º semestre como prueba de estrés en producción.
+
+---
+
+## 8. Registro de Ejecución y Cierre (2026-11-24)
+
+Las 4 observaciones de revisión de Opencode quedaron integradas desde Fase 1:
+1. **Golden de 12 fixtures** (`tests/fixtures/sacrint-golden/real-workbooks.json` con los 6 cuadernos reales anonimizados de Neon DB: `PFH1`, `AAC`, `PM1`, `CNET2`, `CD1`, `AFD`, más `synthetic-workbooks.ts` con 6 casos límite: `SYN_MATH`, `SYN_LABORAL` `sop-flow`, `SYN_QUIMICA` `reaction`, `SYN_HISTORIA` `timeline`, `SYN_SOCIO` `regulation-flow`, `SYN_AFD_PHYS` `training-cycle`), comparando hashes semánticos del texto y posiciones normalizadas del PPTX (nunca bytes crudos del ZIP).
+2. **Auditor DAG estático propio** (`scripts/audit-sacrint-deps.mjs`) con 5 pruebas unitarias (`src/__tests__/audit-sacrint-deps.test.ts`), exigiendo 0 ciclos, 0 violaciones de capa (0→5) y 0 imports internos vía fachadas/barrels.
+3. **Criterio determinista de cierre:** `golden diff === 0` + `audit:sacrint-deps` + `tsc --noEmit` + `eslint --max-warnings=0` + `vitest run` + QA en vivo sobre las 6 planeaciones de Neon DB.
+4. **Migración Strangler por módulo:** los submódulos internos y renderizadores (`slide-renderer.ts`, `infographic-renderer.ts`, `sacrint-rasterizer.ts`) importan rutas hoja directas desde el momento de extracción; las 6 fachadas se conservan delgadas para compatibilidad externa.
+
+### Commits atómicos ejecutados
+
+| Fase | Commit | Resumen |
+|---|---|---|
+| **Fase 1** | `b09ddb61` | Golden baseline congelado (12 fixtures), auditor DAG + 5 tests, aislamiento de flake temporal de Typst |
+| **Fase 2** | `7702c099` | Extracción de `types.ts`, submódulos `editorial/fitter/*` y guardias de texto Capa 1 (`text/*`) |
+| **Fase 3** | `e560dedf` | Extracción de destilador Capa 2 (`distiller/*`) y motor de presupuesto/integridad Capa 4 (`builders/slide-budget.ts`, `slide-final-compactor.ts`, `content-integrity.ts`) |
+| **Fase 4** | `5be1841e` | Modularización completa de diagramas Capa 3 (`diagrams/{shared,math-diagrams,conceptual-diagrams,cycle-diagrams,registry}.ts`) y migración de consumidores internos |
+| **Fase 5** | `461f6791` | Extracción de builders `08`/`09` (`builders/{shared-helpers,deck-builder,infographic-builder}.ts`) y renderizadores PPTX/SVG Capa 5 (`pptx/*`, `svg/*`) |
+
+### Reducción de monolitos (Antes `e8134701` → Después `461f6791`)
+
+| Monolito original | Antes (LOC) | Fachada final (LOC) | Submódulos creados (LOC) |
+|---|---:|---:|---|
+| `src/lib/visual-engine/sacrint/spec.ts` | 5,937 | **82** | `types.ts` (543), `builders/content-integrity.ts` (632), `builders/shared-helpers.ts` (807), `builders/slide-budget.ts` (890), `builders/infographic-builder.ts` (934), `builders/slide-final-compactor.ts` (1,292), `builders/deck-builder.ts` (1,294) |
+| `src/lib/visual-engine/sacrint/content-distiller.ts` | 4,595 | **70** | `text/grammar-normalization.ts` (256), `text/objective-and-activity-guards.ts` (905), `text/six-gram-overlap.ts` (935), `distiller/lesson-bundle.ts` (398), `distiller/worked-example.ts` (541), `distiller/summary-and-concepts.ts` (636), `distiller/formula-and-steps.ts` (990) |
+| `src/lib/visual-engine/sacrint/diagrams.ts` | 3,055 | **47** | `diagrams/cycle-diagrams.ts` (268), `diagrams/conceptual-diagrams.ts` (426), `diagrams/registry.ts` (542), `diagrams/shared.ts` (598), `diagrams/math-diagrams.ts` (1,098) |
+| `src/lib/visual-engine/sacrint/sacrint-pptx-generator.ts` | 2,268 | **10** | `pptx/theme-and-primitives.ts` (453), `pptx/slide-composers.ts` (797), `pptx/diagram-drawers.ts` (1,053) |
+| `src/lib/editorial/pedagogical-text-fitter.ts` | 1,852 | **22** | `fitter/sentence-splitter.ts` (35), `fitter/dangling-guards.ts` (810), `fitter/text-compactor.ts` (1,011) |
+| `src/lib/visual-engine/sacrint/svg-primitives.ts` | 1,652 | **54** | `svg/core-primitives.ts` (432), `svg/math-graphs.ts` (468), `svg/schematic-diagrams.ts` (799) |
+| **Total 6 fachadas** | **19,359** | **285** | **28 submódulos cohesivos (Capas 0–5)** |
+
+### Resultados finales de los gates de aceptación
+
+- `npm run audit:sacrint-deps` → `files=55 | cycles=0 | layerViolations=0 | barrelViolations=0` ✅
+- `npx tsc --noEmit` → **0 errores** ✅
+- `npx eslint --max-warnings=0` (sobre todos los archivos creados/modificados) → **0 errores, 0 warnings** ✅
+- `npm run test:sacrint-golden` → `fixtures=12 | diffs=0 | qaFailures=0 | passed=true` ✅
+- `npx vitest run` (suite completa) → **306/307 archivos (2,575/2,576 tests) PASS**; el único fallo (`src/__tests__/editorial-baseline-qa.test.ts:181`, esperaba `"Observa el salón"` vs `"Examina el salón"` producido por el sinónimo `['observa', 'examina']` introducido antes de Fase 1 en `six-gram-overlap.ts`) es preexistente al refactor y se deja intacto para respetar la regla de 0 cambios funcionales.
+- **QA en vivo sobre las 6 planeaciones reales en Neon DB:** **6/6 PASS idéntico a `e8134701`** (`PFH1` 168.8w, `AAC` 165.0w, `PM1` 130.6w, `CNET2` 151.9w, `CD1` 153.7w, `AFD` 169.9w; todos con `collisions=0`, `wrapNone=0`, `>200w=0`, `findings=0`, `s6Err=0`).
