@@ -27,6 +27,9 @@ import {
   getDisciplinaryAdapter,
   buildDisciplinaryPromptBlock,
 } from '@/lib/prompts/disciplinary-adapters';
+import { enforceCanonicalCortesOnActivities } from '@/lib/curricular-blocks';
+import { resolveSessionsPerBlock } from '@/lib/guide-engine/content-budget';
+import { distributeProgressionHoursAndCorte } from '@/lib/pdf-parser';
 
 export interface AuditFeedbackContext {
   overall_score: number;
@@ -69,39 +72,6 @@ interface ContenidoFormativoItem {
   categorias?: string[];
   subcategorias?: string[];
   metas?: string[];
-}
-
-/**
- * Distribución canónica de horas y cortes para N progresiones (sumando 18h por Corte = 54h).
- */
-function resolveProgressionHoursAndCorte(
-  index: number,
-  totalN: number,
-  totalHours: number = 54
-): { hours: number; corte: string } {
-  if (totalN === 8 && totalHours === 54) {
-    const hoursList = [6, 6, 6, 6, 6, 6, 9, 9];
-    const cortesList = [
-      'Corte 1', 'Corte 1', 'Corte 1',
-      'Corte 2', 'Corte 2', 'Corte 2',
-      'Corte 3', 'Corte 3',
-    ];
-    return { hours: hoursList[index] ?? 6, corte: cortesList[index] ?? 'Corte 3' };
-  }
-  if (totalN === 7 && totalHours === 54) {
-    const hoursList = [9, 9, 6, 6, 6, 9, 9];
-    const cortesList = [
-      'Corte 1', 'Corte 1',
-      'Corte 2', 'Corte 2', 'Corte 2',
-      'Corte 3', 'Corte 3',
-    ];
-    return { hours: hoursList[index] ?? 6, corte: cortesList[index] ?? 'Corte 3' };
-  }
-  const base = Math.floor(totalHours / Math.max(1, totalN));
-  const rem = totalHours % Math.max(1, totalN);
-  const hours = base + (index < rem ? 1 : 0);
-  const corteNum = Math.min(3, Math.floor((index * 3) / Math.max(1, totalN)) + 1);
-  return { hours, corte: `Corte ${corteNum}` };
 }
 
 /**
@@ -265,9 +235,13 @@ export function buildUserPrompt(
       : (extractedData.activities as unknown[]);
 
     const totalN = sourceActivities.length;
-    activitiesList = sourceActivities.map((raw, idx: number) => {
+    const rawActivitiesList = sourceActivities.map((raw, idx: number) => {
       const a = sanitizeActivityItem(raw);
-      const { hours: canonicalHours, corte: canonicalCorte } = resolveProgressionHoursAndCorte(idx, totalN, totalHours);
+      const { hours: canonicalHours, corte: canonicalCorte } = distributeProgressionHoursAndCorte(
+        idx,
+        totalN,
+        totalHours
+      );
       const baseName = a.name || a.description || `${isTransitionSemester ? 'Progresión' : 'Propósito Formativo'} ${idx + 1}`;
       const formattedName = isTransitionSemester && !/^Progresi[óo]n\s*\d+/i.test(baseName)
         ? `Progresión ${idx + 1}: ${baseName}`
@@ -283,6 +257,14 @@ export function buildUserPrompt(
         contenidoFormativo: a.contenidoFormativo,
       };
     });
+
+    // Regla inmortal: en asignaturas BGE (y cualquier carga de 1–5 h/sem equivalente a 6/12/18/24/30 sesiones/bloque),
+    // cada Corte debe sumar exactamente `resolveSessionsPerBlock(weeklyLoad)` sin importar cuántas progresiones tenga.
+    const canonicalPerCorte = resolveSessionsPerBlock(weeklyLoad);
+    activitiesList =
+      !isTec || totalHours === canonicalPerCorte * 3
+        ? enforceCanonicalCortesOnActivities(rawActivitiesList, weeklyLoad)
+        : rawActivitiesList;
   }
 
   // Asociar contenidos formativos oficiales enriquecidos si existen

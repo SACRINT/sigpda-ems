@@ -13,7 +13,7 @@ import { generateBlockSessions, generateCurricularBlockSessions, type DetailedSe
 import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import type { KeyActivityPlan, Planning, SecuenciaSesion } from '@/types/planning';
 import type { CurriculumContext } from './curriculum-context-agent';
-import { WORDS_PER_PAGE, computeMissionBudget } from './content-budget';
+import { WORDS_PER_PAGE, computeMissionBudget, resolveSessionsPerBlock, resolveWeeklyHours } from './content-budget';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
 
 export interface PlannedMissionBlueprint {
@@ -253,7 +253,9 @@ export function buildBlockBlueprint(params: {
   const { blockIndex, planning, curriculum, hasExistingExtras } = params;
   const blockName = params.blockName || `Bloque ${blockIndex + 1}`;
 
-  // 1. Obtener las sesiones desde sequenceJson / sequence_json o autogenerarlas si no existen
+  // 1. Obtener las sesiones desde sequenceJson / sequence_json o autogenerarlas si no existen.
+  //    Regla inmortal: solo se reutiliza sequence_json cuando coincide con las sesiones canónicas
+  //    del bloque (6, 12, 18, 24 o 30 según carga semanal); nunca se heredan secuencias desbalanceadas.
   let sessions: DetailedSession[] = [];
   const legacyPlanning = planning as Planning & {
     sequence_json?: Planning['sequenceJson'];
@@ -261,18 +263,26 @@ export function buildBlockBlueprint(params: {
   };
   const sequenceData = planning.sequenceJson || legacyPlanning.sequence_json || {};
   const currentBlockSeq = sequenceData[blockIndex];
+  const expectedBlockSessions =
+    curriculum.budget?.sessionsPerBlock ||
+    resolveSessionsPerBlock(resolveWeeklyHours(planning));
 
-  if (currentBlockSeq && Array.isArray(currentBlockSeq.sessions) && currentBlockSeq.sessions.length > 0) {
-    sessions = deduplicateSessions(
-      currentBlockSeq.sessions.map((s: SecuenciaSesion | DetailedSession) =>
-        normalizeToDetailedSession(s, blockIndex, blockName)
-      )
-    );
+  const dedupedCandidate =
+    currentBlockSeq && Array.isArray(currentBlockSeq.sessions) && currentBlockSeq.sessions.length > 0
+      ? deduplicateSessions(
+          currentBlockSeq.sessions.map((s: SecuenciaSesion | DetailedSession) =>
+            normalizeToDetailedSession(s, blockIndex, blockName)
+          )
+        )
+      : [];
+
+  if (dedupedCandidate.length === expectedBlockSessions) {
+    sessions = dedupedCandidate;
   } else {
     // Autogeneraci��n silenciosa en 5ms leyendo directamente los bloques curriculares
     const isLaboral = curriculum.subsystem === 'bt' || curriculum.component === 'laboral';
     const content = planning.contentJson || legacyPlanning.content_json;
-    const curricularBlocks = resolveCurricularBlocks(content);
+    const curricularBlocks = resolveCurricularBlocks(content, planning);
     const targetBlock = curricularBlocks[blockIndex];
 
     if (targetBlock) {

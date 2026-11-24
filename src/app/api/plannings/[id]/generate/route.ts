@@ -26,7 +26,9 @@ import {
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
-import { resolveSemesterWeeks, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
+import { resolveSemesterWeeks, resolveSessionsPerBlock, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
+import { enforceCanonicalCortesOnActivities } from '@/lib/curricular-blocks';
+import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { ensureRetoSituadoCalidad } from '@/lib/planning-evaluator';
 import {
   normalizeEvaluationPercentages,
@@ -421,6 +423,20 @@ export async function POST(
                   ? rawBitacora.ticketSalidaPregunta
                   : `¿Qué concepto de ${resolvedUacName} aplicaste hoy en tu contexto?`,
             };
+
+            // Regla inmortal de sesiones por bloque: en BGE (y cargas 1–5 h/sem equivalentes a 6/12/18/24/30 por bloque),
+            // cada Corte de sectionIV.activities DEBE sumar exactamente resolveSessionsPerBlock(resolvedWeeklyHours).
+            if (
+              Array.isArray(parsedContent.sectionIV?.activities) &&
+              parsedContent.sectionIV.activities.length > 0 &&
+              (!isTechnologicalSubsystem(resolvedSubsystem) ||
+                resolvedTotalHours === resolveSessionsPerBlock(resolvedWeeklyHours) * 3)
+            ) {
+              parsedContent.sectionIV.activities = enforceCanonicalCortesOnActivities(
+                parsedContent.sectionIV.activities,
+                resolvedWeeklyHours
+              ) as typeof parsedContent.sectionIV.activities;
+            }
 
             const sanitizedContent = sanitizePlanningContent(parsedContent, {
               fallbackCct: typeof parsedContent.sectionI.cct === 'string' ? parsedContent.sectionI.cct : undefined,

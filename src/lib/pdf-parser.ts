@@ -8,10 +8,12 @@ import { PdfProgramExtractSchema } from '@/lib/ai-schemas';
 import { removeHyphens } from '@/lib/text-utils';
 import { getProgramByUacAndSemester } from '@/lib/db/programs-catalog';
 import {
+  resolveSessionsPerBlock,
   resolveWeeklyHours,
   SEMESTER_WEEKS,
   WEEKS_PER_BLOCK,
 } from '@/lib/guide-engine/content-budget';
+import { enforceCanonicalCortesOnActivities } from '@/lib/curricular-blocks';
 
 const DEFAULT_SEMESTER_HOURS = resolveWeeklyHours() * SEMESTER_WEEKS;
 const DEFAULT_HOURS_PER_BLOCK = resolveWeeklyHours() * WEEKS_PER_BLOCK;
@@ -59,10 +61,14 @@ export function distributeProgressionHoursAndCorte(
     return { hours, corte: index === 0 ? 'Corte 1' : 'Corte 2' };
   }
 
-  // Fallback determinista para N >= 3: cada uno de los 3 cortes debe sumar exactamente totalHours / 3
-  // (18h para 54h semestrales, 24h para 72h semestrales). Las progresiones se reparten
-  // entre los 3 cortes garantizando que ningún corte quede vacío.
-  const expectedHoursPerCorte = Math.round(totalHours / 3);
+  // Fallback determinista para N >= 3: cada uno de los 3 cortes debe sumar exactamente
+  // resolveSessionsPerBlock(weekly) (6, 12, 18, 24, 30) cuando aplica o totalHours / 3.
+  const weeklyGuess = Math.max(1, Math.round(totalHours / SEMESTER_WEEKS));
+  const canonicalBlockHours = resolveSessionsPerBlock(weeklyGuess);
+  const expectedHoursPerCorte =
+    totalHours === canonicalBlockHours * 3
+      ? canonicalBlockHours
+      : Math.round(totalHours / 3);
   const baseCount = Math.floor(totalProgressions / 3);
   const remCount = totalProgressions % 3;
   const c1Count = baseCount + (remCount > 0 ? 1 : 0);
@@ -477,17 +483,24 @@ ${rawText}`;
   }
   const parsed = parseResult.data;
 
-  const activities: KeyActivity[] = Array.isArray(parsed.activities)
+  const resolvedTotalHours = Number(parsed.totalHours) || DEFAULT_SEMESTER_HOURS;
+  const resolvedWeeklyHours = Math.max(1, Math.round(resolvedTotalHours / SEMESTER_WEEKS));
+  const rawActivities: KeyActivity[] = Array.isArray(parsed.activities)
     ? parsed.activities
         .filter((a: { name?: string }) => a?.name)
         .map((a: { name: string; hours?: number; order?: number }, i: number) => ({
           name: removeHyphens(String(a.name).trim()),
           hours:
             Number(a.hours) ||
-            Math.round((parsed.totalHours || DEFAULT_SEMESTER_HOURS) / 3),
+            Math.round(resolvedTotalHours / 3),
           order: Number(a.order) || i + 1,
         }))
     : [];
+
+  const activities: KeyActivity[] =
+    rawActivities.length >= 3 && resolvedTotalHours === resolveSessionsPerBlock(resolvedWeeklyHours) * 3
+      ? enforceCanonicalCortesOnActivities(rawActivities, resolvedWeeklyHours)
+      : rawActivities;
 
   const finalActivities =
     activities.length > 0
@@ -505,7 +518,7 @@ ${rawText}`;
   const data = {
     uacName: parsed.uacName ? removeHyphens(String(parsed.uacName).trim()) : '',
     learningOutcome: parsed.learningOutcome ? removeHyphens(String(parsed.learningOutcome).trim()) : '',
-    totalHours: Number(parsed.totalHours) || DEFAULT_SEMESTER_HOURS,
+    totalHours: resolvedTotalHours,
     activities: finalActivities,
     evidences: evidences.map((e: string) => removeHyphens(e)),
     contenidosFormativos: Array.isArray(parsed.contenidosFormativos) ? parsed.contenidosFormativos : undefined,

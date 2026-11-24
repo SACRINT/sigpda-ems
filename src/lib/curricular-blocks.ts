@@ -22,6 +22,7 @@ import {
   BLOCKS_PER_SEMESTER,
   type ResolvableHoursPlanning,
   resolveSemesterWeeks,
+  resolveSessionsPerBlock,
   resolveWeeklyHours,
 } from '@/lib/guide-engine/content-budget';
 
@@ -164,6 +165,84 @@ function stripDuplicateBlockPrefix(raw: string): string {
     .trim();
 }
 
+/**
+ * Rebalancea las horas de las actividades pertenecientes a un mismo bloque/corte
+ * para que su suma sea exactamente `targetBlockHours` (`6, 12, 18, 24 o 30` según carga semanal),
+ * conservando sus proporciones cuando existan o repartiendo equitativamente si no cuadran.
+ */
+export function rebalanceBlockActivitiesHours<T extends { hours?: number }>(
+  activities: readonly T[],
+  targetBlockHours: number
+): T[] {
+  if (activities.length === 0) return [];
+  const safeTarget = Math.max(1, Math.round(targetBlockHours));
+  const currentHours = activities.map((a) => {
+    const h = Number(a.hours);
+    return Number.isFinite(h) && h > 0 ? Math.round(h) : 0;
+  });
+  const currentSum = currentHours.reduce((acc, h) => acc + h, 0);
+
+  if (currentSum === safeTarget && currentHours.every((h) => h > 0)) {
+    return activities.map((a) => ({ ...a }));
+  }
+
+  // Distribución entera determinista por bloque (reparte el residuo 1 a 1 a las primeras actividades)
+  const base = Math.floor(safeTarget / activities.length);
+  const rem = safeTarget % activities.length;
+
+  return activities.map((a, idx) => ({
+    ...a,
+    hours: Math.max(base > 0 ? 1 : 0, base + (idx < rem ? 1 : 0)),
+  }));
+}
+
+/**
+ * Normaliza una lista completa de actividades de Sección IV (o catálogo) para que cada Corte (1, 2, 3)
+ * tenga asignado su `corte` canónico y la suma de horas de cada Corte sea exactamente `targetHoursPerCorte`.
+ */
+export function enforceCanonicalCortesOnActivities<T extends { hours?: number; corte?: string | number }>(
+  activities: readonly T[],
+  weeklyHours: number
+): Array<T & { hours: number; corte: string }> {
+  if (!Array.isArray(activities) || activities.length === 0) return [];
+  const targetHoursPerCorte = resolveSessionsPerBlock(weeklyHours);
+  const totalN = activities.length;
+
+  const buckets: number[][] = Array.from({ length: BLOCKS_PER_SEMESTER }, () => []);
+  const mappedCortes: number[] = activities.map((act, idx) => {
+    const bIdx = mapActivityIndexToBlockIndex(idx, totalN, act.corte);
+    buckets[bIdx].push(idx);
+    return bIdx;
+  });
+
+  // Garantizar que ningún corte quede vacío cuando existan al menos 3 actividades
+  if (totalN >= BLOCKS_PER_SEMESTER && buckets.some((b) => b.length === 0)) {
+    for (let b = 0; b < BLOCKS_PER_SEMESTER; b++) buckets[b] = [];
+    activities.forEach((_, idx) => {
+      const bIdx = mapActivityIndexToBlockIndex(idx, totalN);
+      buckets[bIdx].push(idx);
+      mappedCortes[idx] = bIdx;
+    });
+  }
+
+  const rebalancedHours = new Array<number>(totalN).fill(0);
+  for (let b = 0; b < BLOCKS_PER_SEMESTER; b++) {
+    const idxs = buckets[b];
+    if (idxs.length === 0) continue;
+    const base = Math.floor(targetHoursPerCorte / idxs.length);
+    const rem = targetHoursPerCorte % idxs.length;
+    idxs.forEach((origIdx, pos) => {
+      rebalancedHours[origIdx] = base + (pos < rem ? 1 : 0);
+    });
+  }
+
+  return activities.map((act, idx) => ({
+    ...act,
+    hours: rebalancedHours[idx] || targetHoursPerCorte,
+    corte: `Corte ${mappedCortes[idx] + 1}`,
+  }));
+}
+
 export function resolveCurricularBlocks(
   contentJson: GeneratedPlanningContent | null | undefined,
   fallback?: ResolveBlocksFallback | null
@@ -186,13 +265,25 @@ export function resolveCurricularBlocks(
         : typeof extracted.hours === 'number' && extracted.hours > 0
           ? extracted.hours
           : undefined;
+  const weeklyHours = resolveWeeklyHours({
+    ...fallback,
+    subsystem,
+    totalHours:
+      s1?.totalHours ||
+      s1?.totalHoursSemester ||
+      fallback?.totalHours ||
+      extractedTotal,
+    contentJson,
+  });
   const totalSemesterHours =
     s1?.totalHours ||
     s1?.totalHoursSemester ||
     fallback?.totalHours ||
     extractedTotal ||
-    resolveWeeklyHours({ ...fallback, contentJson }) * semesterWeeks;
-  const defaultHoursPerBlock = Math.round(totalSemesterHours / BLOCKS_PER_SEMESTER);
+    weeklyHours * semesterWeeks;
+  // Regla inmortal: 1h->6, 2h->12, 3h->18, 4h->24, 5h->30 sesiones por bloque (weeklyHours * 6).
+  const canonicalBlockHours = resolveSessionsPerBlock(weeklyHours);
+  void totalSemesterHours;
 
   // Cubetas oficiales: una por corte del semestre (3 en MCCEMS).
   const buckets: { acts: KeyActivityPlan[]; indices: number[] }[] = Array.from(
@@ -209,10 +300,13 @@ export function resolveCurricularBlocks(
   return Array.from({ length: BLOCKS_PER_SEMESTER }, (_, bIdx) => bIdx).map((bIdx) => {
     const corteNumber = (bIdx + 1) as 1 | 2 | 3;
     const corteLabel = `Corte ${corteNumber}`;
-    const acts = buckets[bIdx].acts;
+    const rawActs = buckets[bIdx].acts;
     const indices = buckets[bIdx].indices;
 
-    const hours = acts.reduce((acc, a) => acc + (a.hours || 0), 0) || defaultHoursPerBlock;
+    // Normalizar siempre las horas internas del bloque al estándar canónico por carga semanal
+    // para que ningún bloque quede con 14, 28 o 30 sesiones cuando su carga semanal dicta 24.
+    const acts = rebalanceBlockActivitiesHours(rawActs, canonicalBlockHours);
+    const hours = canonicalBlockHours;
 
     let blockName = '';
     if (acts.length === 0) {

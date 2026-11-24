@@ -194,9 +194,9 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
     expect(geminiInstances[2].apiKey).toBe('AIzaFakeKey3');
   });
 
-  it('si 3.1 y 3.5 fallan con 503, usa 2.5 Flash como último respaldo', async () => {
+  it('si 3.1 y 3.5 fallan con 503, usa 3.8 Flash como último respaldo', async () => {
     mockGeminiGenerate.mockImplementation(async (_apiKey: string, model: string) => {
-      if (model !== 'gemini-2.5-flash') {
+      if (model !== 'gemini-3.8-flash') {
         throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
       }
       return '{"ok":true,"lastResort":true}';
@@ -212,7 +212,7 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
       'gemini-3.1-flash-lite',
       'gemini-3.5-flash-lite',
       'gemini-3.5-flash-lite',
-      'gemini-2.5-flash',
+      'gemini-3.8-flash',
     ]);
   });
 

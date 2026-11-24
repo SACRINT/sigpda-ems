@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Modelos autorizados
 - **Modelo primario estándar y premium**: `gemini-3.1-flash-lite` (proveedor `gemini`). Definidos en `src/lib/ai-provider/index.ts` (`DEFAULT_STANDARD_MODEL`, `DEFAULT_PREMIUM_MODEL`). `platform_config.active_model` y `platform_config.admin_model` también apuntan al primario vigente.
-- **Fallback explícito de Gemini**: `gemini-3.1-flash-lite → gemini-3.5-flash-lite → gemini-2.5-flash` (y la ruta inversa si el primario configurado es 3.5). Solo ante fallos elegibles de indisponibilidad; nunca relajar QA ni rellenar con texto sintético.
+- **Fallback explícito de Gemini**: `gemini-3.1-flash-lite → gemini-3.5-flash-lite → gemini-3.8-flash` (y la ruta inversa si el primario configurado es 3.5; `gemini-2.5-flash` fue retirado por Google con HTTP 404). Solo ante fallos elegibles de indisponibilidad; nunca relajar QA ni rellenar con texto sintético.
 - Los scripts offline (ej. `scripts/seed-*.js`, `scripts/ingest-normateca.js`) usan exclusivamente Gemini (vía `GEMINI_API_KEY` de `.env.local` o la tabla `api_keys` con `provider='gemini'`).
 - **NO agregar** nuevos proveedores, claves externas ni modelos hardcodeados sin aprobación del usuario. La cadena de fallback multi-proveedor de `src/lib/ai-provider/` existe solo como respaldo operativo; no se amplía por iniciativa propia.
 
@@ -16,13 +16,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Todo llamado de IA en la app debe pasar por `src/lib/ai-provider` (`generateWithRotation` / `generateStreamWithRotation`), nunca llamar SDKs externos directamente desde rutas API o componentes.
 - Los scripts offline que llamen IA deben reutilizar las claves del proyecto (env o tabla `api_keys`), nunca introducir claves nuevas ni pedirlas al usuario.
 
-## Política de sesiones por carga horaria (2026-11-06)
-- **No normalizar** todas las UAC a 18 sesiones. Cada asignatura conserva las sesiones que corresponden a sus horas semanales.
+## Política INMUTABLE de sesiones por carga horaria (REGLA INMORTAL — NO MODIFICAR SIN ORDEN EXPLÍCITA DEL USUARIO)
+- **No normalizar** todas las UAC a 18 sesiones, ni dividir los bloques de forma desigual (PROHIBIDO generar bloques como 30/28/14 o variar las sesiones de un bloque por el número de progresiones o propósitos que contenga).
+- **Cada uno de los 3 bloques (Bloque 1, Bloque 2 y Bloque 3) DEBE tener SIEMPRE exactamente el mismo número de sesiones según las horas semanales de la asignatura**:
+  - **1 h/semana → 6 sesiones por bloque** (18 sesiones semestrales)
+  - **2 h/semana → 12 sesiones por bloque** (36 sesiones semestrales)
+  - **3 h/semana → 18 sesiones por bloque** (54 sesiones semestrales)
+  - **4 h/semana → 24 sesiones por bloque** (72 sesiones semestrales)
+  - **5 h/semana → 30 sesiones por bloque** (90 sesiones semestrales)
 - Fórmula: `sesionesPorBloque = horasSemanales × 6` (6 semanas por bloque).
-- Mapa oficial: **1 h → 6**, **2 h → 12**, **3 h → 18**, **4 h → 24**, **5 h → 30** sesiones por bloque.
-- Totales del semestre (3 bloques): **18, 36, 54, 72 y 90** sesiones respectivamente.
-- `totalHours` de 54 h equivale a 3 h/semana (18/bloque); `totalHours` de 72 h equivale a 4 h/semana (24/bloque).
-- Fuente única: `resolveSessionsPerBlock` y `SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS` en `src/lib/guide-engine/content-budget.ts`. No duplicar esta tabla en otros módulos.
+- `totalHours` de 18h = 1 h/sem (6/bloque); 36h = 2 h/sem (12/bloque); 54h = 3 h/sem (18/bloque); 72h = 4 h/sem (24/bloque); 90h = 5 h/sem (30/bloque).
+- Si una UAC tiene 5, 7, 8 o N progresiones/propósitos repartidos de forma desigual entre Cortes (ej. 2 en Corte 1, 2 en Corte 2 y 1 en Corte 3), se **rebalancean las horas internas de las actividades dentro de cada Corte** para que la suma de CADA bloque sea exactamente `sesionesPorBloque` (`6/12/18/24/30`).
+- Fuente única: `resolveSessionsPerBlock` y `SESSIONS_PER_BLOCK_BY_WEEKLY_HOURS` en `src/lib/guide-engine/content-budget.ts`, y cumplimiento obligatorio en `resolveCurricularBlocks` (`src/lib/curricular-blocks.ts`), `build-prompt.ts`, `generate/route.ts` y `blueprint-architect-agent.ts`. No duplicar esta tabla ni alterar esta regla sin permiso expreso del usuario.
 
 ## Normateca SEP (tablas `normativa_documentos` / `normativa_articulos`)
 - `scripts/ingest-normateca.js` procesa SOLO las carpetas de `documentos_referencia\[08] Normateca` listadas en `ALLOWED_FOLDERS`.

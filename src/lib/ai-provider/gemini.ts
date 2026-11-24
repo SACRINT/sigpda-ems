@@ -5,7 +5,7 @@ import { API_CONFIG } from '@/lib/config';
  * Normalizes Gemini model names to enforce strictly authorized models:
  * - gemini-3.1-flash-lite (default / primary)
  * - gemini-3.5-flash-lite (fallback / premium)
- * - gemini-2.5-flash (last-resort fallback)
+ * - gemini-3.8-flash (last-resort fallback; reemplaza a gemini-2.5-flash retirado con 404)
  * Any unknown or prohibited model is mapped safely to gemini-3.1-flash-lite.
  */
 export function sanitizeGeminiModel(model?: string | null): string {
@@ -13,7 +13,7 @@ export function sanitizeGeminiModel(model?: string | null): string {
   const clean = model.trim().toLowerCase();
   if (clean === 'gemini-3.1-flash-lite') return 'gemini-3.1-flash-lite';
   if (clean === 'gemini-3.5-flash-lite') return 'gemini-3.5-flash-lite';
-  if (clean === 'gemini-2.5-flash') return 'gemini-2.5-flash';
+  if (clean === 'gemini-3.8-flash') return 'gemini-3.8-flash';
   return 'gemini-3.1-flash-lite';
 }
 
