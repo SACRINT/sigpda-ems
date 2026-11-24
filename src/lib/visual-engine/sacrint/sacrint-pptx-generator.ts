@@ -1,4 +1,4 @@
-﻿import PptxGenJS from 'pptxgenjs';
+import PptxGenJS from 'pptxgenjs';
 import type {
   ArgumentDiagramSpec,
   BlockDiagramSpec,
@@ -639,6 +639,7 @@ function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: st
     py: Math.max(plotY + 8, Math.min(plotY + plotH - 8, yToPx(point.y))),
   }));
 
+  const usedLabelRects: MarkerRect[] = [];
   if (typeof diagram.targetY === 'number' && diagram.targetY > yMin && diagram.targetY <= diagram.rangeMax) {
     const ty = yToPx(diagram.targetY);
     addLine(slide, plotX, ty, plotX + plotW, ty, C.amber, 1, 'dash');
@@ -652,6 +653,7 @@ function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: st
       color: C.amber,
       align: rightBusy ? 'left' : 'right',
     });
+    usedLabelRects.push({ x: metaX, y: metaY, w: 148, h: 18 });
   }
 
   const startX = xToPx(0);
@@ -660,15 +662,39 @@ function addGraph(slide: PptxGenJS.Slide, diagram: LinearDiagramSpec, accent: st
   const endY = yToPx(Math.max(yMin, Math.min(diagram.rangeMax, endYRaw)));
   addLine(slide, startX, startY, endX, endY, accent, 2.2);
 
-  for (const { point, px, py } of renderedPoints) {
-    addPointMarker(
-      slide,
-      px,
-      py,
-      point.label || `(${formatTickLabel(point.x)}, ${formatTickLabel(point.y)})`,
-      accent,
-      accent2
-    );
+  const drawnDots: Array<{ px: number; py: number }> = [];
+  const placements: MarkerPlacement[] = ['right', 'above-left', 'below', 'left'];
+  for (let idx = 0; idx < renderedPoints.length; idx += 1) {
+    const { point, px, py } = renderedPoints[idx]!;
+    const tooClose = drawnDots.some((d) => Math.hypot(d.px - px, d.py - py) < 14);
+    if (tooClose) continue;
+    drawnDots.push({ px, py });
+
+    const label = point.label || `(${formatTickLabel(point.x)}, ${formatTickLabel(point.y)})`;
+    const freePlacement = placements.find((pl) => {
+      const candidate = markerRect(px, py, label, 88, pl);
+      const inBounds =
+        candidate.x >= plotX - 4 &&
+        candidate.x + candidate.w <= plotX + plotW + 12 &&
+        candidate.y >= plotY - 4 &&
+        candidate.y + candidate.h <= plotY + plotH + 8;
+      return inBounds && !usedLabelRects.some((r) => rectsOverlap(candidate, r));
+    });
+
+    if (freePlacement) {
+      usedLabelRects.push(addPointMarker(slide, px, py, label, accent, accent2, 88, freePlacement));
+    } else if (idx === 0 || idx === renderedPoints.length - 1) {
+      const anyNoOverlap = placements.find(
+        (pl) => !usedLabelRects.some((r) => rectsOverlap(markerRect(px, py, label, 88, pl), r))
+      );
+      if (anyNoOverlap) {
+        usedLabelRects.push(addPointMarker(slide, px, py, label, accent, accent2, 88, anyNoOverlap));
+      } else {
+        addEllipse(slide, px - 5, py - 5, 10, 10, { fill: accent2, stroke: accent, strokeWidth: 1.2 });
+      }
+    } else {
+      addEllipse(slide, px - 5, py - 5, 10, 10, { fill: accent2, stroke: accent, strokeWidth: 1.2 });
+    }
   }
 }
 
@@ -999,33 +1025,60 @@ function addArgumentDiagram(slide: PptxGenJS.Slide, diagram: ArgumentDiagramSpec
   const rightPremiseX = leftPremiseX + premiseW + gap;
   const objectionX = area.x + pad;
   const conclusionX = objectionX + bottomW + gap;
-  const objectionNode = diagram.objection.detail.trim()
-    ? diagram.objection
-    : { label: 'OBJECIÓN', detail: 'Sin objeción registrada en la sesión.' };
+  const fullRowW = area.w - pad * 2;
+  const validPremises = diagram.premises.filter((p) => Boolean(p?.detail?.trim())).slice(0, 2);
+  const hasObjection = Boolean(diagram.objection?.detail?.trim());
 
   addNodeCard(slide, diagram.thesis, thesisX, thesisY, thesisW, thesisH, accent, accent2, {
     border: accent,
     compact: true,
   });
-  addNodeCard(slide, diagram.premises[0] ?? { label: 'PREMISA 1', detail: 'Sin registro.' }, leftPremiseX, premiseY, premiseW, premiseH, accent, accent2, {
-    compact: true,
-  });
-  addNodeCard(slide, diagram.premises[1] ?? { label: 'PREMISA 2', detail: 'Sin registro.' }, rightPremiseX, premiseY, premiseW, premiseH, accent, accent2, {
-    compact: true,
-  });
-  addNodeCard(slide, objectionNode, objectionX, bottomY, bottomW, bottomH, accent, accent2, {
-    border: C.red,
-    compact: true,
-  });
-  addNodeCard(slide, diagram.conclusion, conclusionX, bottomY, bottomW, bottomH, accent, accent2, {
-    border: accent,
-    compact: true,
-  });
+  if (validPremises.length === 2) {
+    addNodeCard(slide, validPremises[0]!, leftPremiseX, premiseY, premiseW, premiseH, accent, accent2, {
+      compact: true,
+    });
+    addNodeCard(slide, validPremises[1]!, rightPremiseX, premiseY, premiseW, premiseH, accent, accent2, {
+      compact: true,
+    });
+  } else if (validPremises.length === 1) {
+    addNodeCard(slide, validPremises[0]!, leftPremiseX, premiseY, fullRowW, premiseH, accent, accent2, {
+      compact: true,
+    });
+  }
+  if (hasObjection) {
+    addNodeCard(slide, diagram.objection, objectionX, bottomY, bottomW, bottomH, accent, accent2, {
+      border: C.red,
+      compact: true,
+    });
+    addNodeCard(slide, diagram.conclusion, conclusionX, bottomY, bottomW, bottomH, accent, accent2, {
+      border: accent,
+      compact: true,
+    });
+  } else {
+    addNodeCard(slide, diagram.conclusion, objectionX, bottomY, fullRowW, bottomH, accent, accent2, {
+      border: accent,
+      compact: true,
+    });
+  }
 
-  addLine(slide, thesisX + thesisW * 0.32, thesisY + thesisH, leftPremiseX + premiseW / 2, premiseY, accent2, 1, 'solid', true);
-  addLine(slide, thesisX + thesisW * 0.68, thesisY + thesisH, rightPremiseX + premiseW / 2, premiseY, accent2, 1, 'solid', true);
-  addLine(slide, leftPremiseX + premiseW / 2, premiseY + premiseH, objectionX + bottomW / 2, bottomY, C.red, 1, 'dash', true);
-  addLine(slide, rightPremiseX + premiseW / 2, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, 1, 'solid', true);
+  if (validPremises.length === 2) {
+    addLine(slide, thesisX + thesisW * 0.32, thesisY + thesisH, leftPremiseX + premiseW / 2, premiseY, accent2, 1, 'solid', true);
+    addLine(slide, thesisX + thesisW * 0.68, thesisY + thesisH, rightPremiseX + premiseW / 2, premiseY, accent2, 1, 'solid', true);
+    if (hasObjection) {
+      addLine(slide, leftPremiseX + premiseW / 2, premiseY + premiseH, objectionX + bottomW / 2, bottomY, C.red, 1, 'dash', true);
+      addLine(slide, rightPremiseX + premiseW / 2, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, 1, 'solid', true);
+    } else {
+      addLine(slide, area.x + area.w / 2, premiseY + premiseH, area.x + area.w / 2, bottomY, accent, 1, 'solid', true);
+    }
+  } else if (validPremises.length === 1) {
+    addLine(slide, area.x + area.w / 2, thesisY + thesisH, area.x + area.w / 2, premiseY, accent2, 1, 'solid', true);
+    if (hasObjection) {
+      addLine(slide, area.x + area.w * 0.35, premiseY + premiseH, objectionX + bottomW / 2, bottomY, C.red, 1, 'dash', true);
+      addLine(slide, area.x + area.w * 0.65, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, 1, 'solid', true);
+    } else {
+      addLine(slide, area.x + area.w / 2, premiseY + premiseH, area.x + area.w / 2, bottomY, accent, 1, 'solid', true);
+    }
+  }
 }
 
 function addLanguageDiagram(slide: PptxGenJS.Slide, diagram: LanguageDiagramSpec, accent: string, accent2: string) {
@@ -1253,11 +1306,13 @@ function addCreativeCycleDiagram(slide: PptxGenJS.Slide, diagram: CreativeCycleD
   const area = { x: 840, y: 330, w: 984, h: 400 };
   const pad = 14;
   const gap = 10;
-  const phases = diagram.phases.slice(0, 4);
+  const phases = diagram.phases.filter((p) => Boolean(p?.detail?.trim())).slice(0, 4);
   const count = Math.max(1, phases.length);
-  const stripH = 50;
+  const statementText = (diagram.statement || '').trim();
+  const hasStrip = Boolean(statementText);
+  const stripH = hasStrip ? 50 : 0;
   const cardW = (area.w - pad * 2 - gap * (count - 1)) / count;
-  const cardH = area.h - pad * 2 - stripH - 16;
+  const cardH = area.h - pad * 2 - stripH - (hasStrip ? 16 : 8);
   const cardY = area.y + pad;
   const stripY = area.y + area.h - pad - stripH;
 
@@ -1277,26 +1332,30 @@ function addCreativeCycleDiagram(slide: PptxGenJS.Slide, diagram: CreativeCycleD
       addLine(slide, cardX + cardW + 1, cardY + cardH / 2, cardX + cardW + gap - 2, cardY + cardH / 2, accent, 1.4, 'solid', true);
     }
   });
-  addPanel(slide, area.x + pad, stripY, area.w - pad * 2, stripH, { fill: C.panel, transparency: 10, stroke: accent, strokeWidth: 1 });
-  addText(slide, diagram.statement.toLocaleUpperCase('es-MX'), area.x + pad + 16, stripY + 6, area.w - pad * 2 - 32, stripH - 12, {
-    fontSize: pt(9),
-    bold: true,
-    color: C.textSoft,
-    align: 'center',
-    maxLines: 2,
-  });
+  if (hasStrip) {
+    addPanel(slide, area.x + pad, stripY, area.w - pad * 2, stripH, { fill: C.panel, transparency: 10, stroke: accent, strokeWidth: 1 });
+    addText(slide, statementText, area.x + pad + 16, stripY + 6, area.w - pad * 2 - 32, stripH - 12, {
+      fontSize: pt(9),
+      bold: true,
+      color: C.textSoft,
+      align: 'center',
+      maxLines: 2,
+    });
+  }
 }
 
 function addTrainingCycleDiagram(slide: PptxGenJS.Slide, diagram: TrainingCycleDiagramSpec, accent: string, accent2: string) {
   const area = { x: 840, y: 330, w: 984, h: 400 };
   const pad = 14;
   const gap = 10;
-  const phases = diagram.phases.slice(0, 4);
+  const phases = diagram.phases.filter((p) => Boolean(p?.detail?.trim())).slice(0, 4);
   const count = Math.max(1, phases.length);
-  const stripH = 48;
+  const principleText = (diagram.principle || '').trim();
+  const hasStrip = Boolean(principleText);
+  const stripH = hasStrip ? 48 : 0;
   const returnGap = 18;
   const cardW = (area.w - pad * 2 - gap * (count - 1)) / count;
-  const cardH = area.h - pad * 2 - stripH - returnGap - 12;
+  const cardH = area.h - pad * 2 - stripH - returnGap - (hasStrip ? 12 : 4);
   const cardY = area.y + pad;
   const returnY = cardY + cardH + returnGap / 2;
   const stripY = area.y + area.h - pad - stripH;
@@ -1329,28 +1388,32 @@ function addTrainingCycleDiagram(slide: PptxGenJS.Slide, diagram: TrainingCycleD
     addLine(slide, firstX, returnY, firstX, bottomY, accent2, 1.2, 'dash', true);
   }
 
-  addPanel(slide, area.x + pad, stripY, area.w - pad * 2, stripH, { fill: C.panel, transparency: 10, stroke: accent, strokeWidth: 1 });
-  addText(slide, diagram.principle.toLocaleUpperCase('es-MX'), area.x + pad + 16, stripY + 5, area.w - pad * 2 - 32, stripH - 10, {
-    fontSize: pt(9),
-    bold: true,
-    color: C.textSoft,
-    align: 'center',
-    maxLines: 2,
-  });
+  if (hasStrip) {
+    addPanel(slide, area.x + pad, stripY, area.w - pad * 2, stripH, { fill: C.panel, transparency: 10, stroke: accent, strokeWidth: 1 });
+    addText(slide, principleText, area.x + pad + 16, stripY + 5, area.w - pad * 2 - 32, stripH - 10, {
+      fontSize: pt(9),
+      bold: true,
+      color: C.textSoft,
+      align: 'center',
+      maxLines: 2,
+    });
+  }
 }
 
 function addRegulationFlowDiagram(slide: PptxGenJS.Slide, diagram: RegulationFlowDiagramSpec, accent: string, accent2: string) {
   const area = { x: 840, y: 330, w: 984, h: 400 };
   const pad = 14;
   const gap = 10;
-  const anchorH = 48;
-  const gridH = area.h - pad * 2 - anchorH - 14;
+  const anchorText = (diagram.anchor || '').trim();
+  const hasAnchor = Boolean(anchorText);
+  const anchorH = hasAnchor ? 48 : 0;
+  const gridH = area.h - pad * 2 - anchorH - (hasAnchor ? 14 : 0);
   const cardW = (area.w - pad * 2 - gap) / 2;
   const cardH = (gridH - gap) / 2;
   const gridX = area.x + pad;
   const gridY = area.y + pad;
   const anchorY = area.y + area.h - pad - anchorH;
-  const stages = diagram.stages.slice(0, 4);
+  const stages = diagram.stages.filter((s) => Boolean(s?.detail?.trim())).slice(0, 4);
   const positions = [
     { cardX: gridX, cardY: gridY },
     { cardX: gridX + cardW + gap, cardY: gridY },
@@ -1370,14 +1433,16 @@ function addRegulationFlowDiagram(slide: PptxGenJS.Slide, diagram: RegulationFlo
   if (stages.length > 3) addLine(slide, gridX + cardW + gap - 2, gridY + cardH + gap + cardH / 2, gridX + cardW + 2, gridY + cardH + gap + cardH / 2, accent, 1.3, 'solid', true);
   if (stages.length > 3) addLine(slide, gridX + cardW / 2, gridY + cardH + gap - 2, gridX + cardW / 2, gridY + cardH + 2, accent2, 1.3, 'dash', true);
 
-  addPanel(slide, area.x + pad, anchorY, area.w - pad * 2, anchorH, { fill: C.panel, transparency: 10, stroke: accent, strokeWidth: 1 });
-  addText(slide, diagram.anchor.toLocaleUpperCase('es-MX'), area.x + pad + 16, anchorY + 5, area.w - pad * 2 - 32, anchorH - 10, {
-    fontSize: pt(9),
-    bold: true,
-    color: C.textSoft,
-    align: 'center',
-    maxLines: 2,
-  });
+  if (hasAnchor) {
+    addPanel(slide, area.x + pad, anchorY, area.w - pad * 2, anchorH, { fill: C.panel, transparency: 10, stroke: accent, strokeWidth: 1 });
+    addText(slide, anchorText, area.x + pad + 16, anchorY + 5, area.w - pad * 2 - 32, anchorH - 10, {
+      fontSize: pt(9),
+      bold: true,
+      color: C.textSoft,
+      align: 'center',
+      maxLines: 2,
+    });
+  }
 }
 
 function addDiagram(slide: PptxGenJS.Slide, diagram: SacrintDiagramSpec, accent: string, accent2: string) {

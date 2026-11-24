@@ -183,6 +183,37 @@ describe('Invariante MCCEMS — 3 Bloques de Evaluación Formativa', () => {
       const totalMapped = blocks.reduce((acc, b) => acc + b.activities.length, 0);
       expect(totalMapped).toBe(16);
     });
+
+    it('usa Propósitos Formativos en 1.º a 4.º semestre (Fundamental y Ampliado) y reserva Progresiones para 5.º y 6.º', () => {
+      const makeSemContent = (semester: string | number, component = 'Curriculum Fundamental') =>
+        ({
+          sectionI: { component, semester },
+          sectionIV: {
+            activities: [
+              { name: 'Lógica matemática y razonamiento', hours: 8, corte: 1 },
+              { name: 'Sistemas de conteo', hours: 8, corte: 1 },
+              { name: 'Clasificación de números', hours: 8, corte: 1 },
+              { name: 'Razones y proporciones', hours: 12, corte: 2 },
+              { name: 'Potenciación y radicación', hours: 12, corte: 2 },
+              { name: 'Medición', hours: 12, corte: 3 },
+              { name: 'Cálculos combinados', hours: 12, corte: 3 },
+            ],
+          },
+        }) as unknown as GeneratedPlanningContent;
+
+      for (const sem of [1, '1er Semestre', 'Segundo Semestre', 3, '4°']) {
+        const blocks = resolveCurricularBlocks(makeSemContent(sem));
+        expect(blocks[0].title).toBe('Bloque 1 (Corte 1): Propósitos Formativos 1, 2 y 3');
+        expect(blocks[1].title).toBe('Bloque 2 (Corte 2): Propósitos Formativos 4 y 5');
+        expect(blocks[2].title).toBe('Bloque 3 (Corte 3): Propósitos Formativos 6 y 7');
+        expect(blocks.every((b) => !/Progresi/i.test(b.title))).toBe(true);
+      }
+
+      const sem5Blocks = resolveCurricularBlocks(makeSemContent('5°'));
+      expect(sem5Blocks[0].title).toBe('Bloque 1 (Corte 1): Progresiones 1, 2 y 3');
+      const sem6Blocks = resolveCurricularBlocks(makeSemContent('Sexto Semestre'));
+      expect(sem6Blocks[0].title).toBe('Bloque 1 (Corte 1): Progresiones 1, 2 y 3');
+    });
   });
 
   describe('generateCurricularBlockSessions', () => {

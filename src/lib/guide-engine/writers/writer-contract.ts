@@ -305,7 +305,14 @@ export function hasCompleteWorkedExampleClosure(
   if (!hasClosingMarker) return false;
   if (options?.requireNumeric) {
     const withoutStepLabels = clean.replace(/\bpaso\s*\d+\b\s*:?/gi, '');
-    return /[=]|\d/.test(withoutStepLabels);
+    const hasNumericOrEq = /[=]|\d/.test(withoutStepLabels);
+    // Lógica matemática y teoría de conjuntos (p. ej. Pensamiento Matemático I Bloque 1) validan con operadores formales o valores de verdad
+    const hasFormalLogicOrSetClosure =
+      /[→↔⇒⇔∧∨¬∈∉⊂⊆∪∩∅∀∃]/.test(withoutStepLabels) ||
+      /\(\s*[VF]\s*,\s*[VF]\s*\)|\b(?:tabla\s+de\s+verdad|tautolog[ií]a|contradicci[oó]n|contingencia|implicaci[oó]n\s+l[oó]gica|equivalencia\s+l[oó]gica|valor\s+de\s+verdad)\b/i.test(
+        withoutStepLabels
+      );
+    return hasNumericOrEq || hasFormalLogicOrSetClosure;
   }
   return clean.length >= 40;
 }

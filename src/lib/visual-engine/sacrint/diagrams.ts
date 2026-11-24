@@ -329,7 +329,7 @@ function firstSentence(value: string | null | undefined, max = 220): string {
   return safeCompleteDetail(value, max, '');
 }
 
-function detail(value: string | null | undefined, max = 220, fallback = 'Sin registro.'): string {
+function detail(value: string | null | undefined, max = 220, fallback = ''): string {
   const text = safeCompleteDetail(value, max, '');
   return text || fallback;
 }
@@ -612,12 +612,21 @@ function parseLinearFromText(text: string): ParsedLinearModel | null {
     };
   }
 
-  const statAvgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+)\s*=\s*(\d+(?:\.\d+)?)/);
-  if (statAvgMatch && /frecuencia|encuesta|muestra|promedio|media/i.test(normalized)) {
+  const statAvgMatch = normalized.match(
+    /(?<![\d/])(\d+(?:\.\d+)?)\s*\/\s*(\d+)\s*=\s*(\d+(?:\.\d+)?)(?!\s*\/|\s*[A-Za-z_])/
+  );
+  const isExplicitAverageContext =
+    /\b(?:promedio|media\s+aritm[eé]tica|x̄)\b/i.test(normalized) &&
+    !/\b(?:fracci[oó]n(?:es)?|equivalente|raz[oó]n(?:es)?|proporci[oó]n|regla\s+de\s+tres|reparto\s+proporcional|divisi[oó]n\s+exacta|porcentaje)\b/i.test(
+      normalized
+    );
+  if (statAvgMatch && isExplicitAverageContext) {
     const sumVal = Number(statAvgMatch[1]);
     const nVal = Number(statAvgMatch[2]);
     const meanVal = Number(statAvgMatch[3]);
-    if (nVal > 0 && meanVal > 0) {
+    const isConsistentQuotient =
+      nVal >= 2 && meanVal > 0 && Math.abs(sumVal / nVal - meanVal) <= 0.05 * Math.max(1, meanVal);
+    if (isConsistentQuotient) {
       return {
         slope: meanVal,
         intercept: 0,
@@ -1327,30 +1336,135 @@ function buildReactionDiagram(mission: MissionSection): ReactionDiagramSpec {
   };
 }
 
-function buildArgumentDiagram(mission: MissionSection): ArgumentDiagramSpec {
+function normalizedDiagramOverlap(a: string | undefined, b: string | undefined): number {
+  if (!a || !b) return 0;
+  const tok = (s: string) =>
+    new Set(
+      s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 3)
+    );
+  const ta = tok(a);
+  const tb = tok(b);
+  if (ta.size < 3 || tb.size < 3) return 0;
+  let shared = 0;
+  for (const w of ta) if (tb.has(w)) shared += 1;
+  return shared / Math.min(ta.size, tb.size);
+}
+
+function buildArgumentDiagram(mission: MissionSection, options: DiagramBuildOptions = {}): ArgumentDiagramSpec {
+  const session = options.session;
+  const allowFallback = options.allowMissionFallback !== false;
+  const cleanSessionField = (val?: string | null) =>
+    sanitizePedagogicalMetaPhrases(stripSessionLead(val || ''));
   const contrastList = mission.conceptZero?.contrastTable ?? [];
   const contrast = contrastList.find((c) => Boolean(c?.commonMisconception?.trim())) ?? contrastList[0];
-  const rawThesis = mission.sessionFocus || mission.conceptZero?.coreExplanation || mission.sessionTopic;
-  const thesisDetail = detail(extractDisciplinaryConceptPhrase(rawThesis) || rawThesis, 160);
+
+  const vMap = session?.sintesisVisual?.mapaConceptual;
+  const vCrit = cleanSessionField(vMap?.criterioDesarrollo);
+  const vDef = cleanSessionField(vMap?.definicionClave);
+  const vErr = cleanSessionField(vMap?.errorComun);
+  const vCorr = cleanSessionField(vMap?.correccionBreve);
+  const cleanSaberes = cleanSessionField(session?.saberesPrevios);
+  const cleanAplicacion = cleanSessionField(session?.aplicacion);
+  const cleanContenido = cleanSessionField(session?.contenido);
+  const nonQuestionSaberes = /^¿/.test(cleanSaberes) ? '' : cleanSaberes;
+  const contenidoSents = cleanContenido
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 24 && !/^¿/.test(s));
+
+  const rawThesis =
+    (!allowFallback && (mission.sessionTopic || session?.objetivo)) ||
+    mission.sessionFocus ||
+    mission.conceptZero?.coreExplanation ||
+    mission.sessionTopic;
+  const thesisDetail = detail(extractDisciplinaryConceptPhrase(rawThesis) || rawThesis, 120, '');
+  const objectionDetail = detail(vErr || contrast?.commonMisconception, 130, '');
+  const conclusionDetail = detail(
+    vCorr || contrast?.correctConcept || cleanAplicacion || mission.conceptZero?.solvedExample?.interpretation,
+    130,
+    ''
+  );
+
   const solvedPremises = (mission.conceptZero?.solvedExample?.solutionSteps ?? [])
     .map(clean)
     .filter(Boolean)
     .slice(0, 2);
-  const fallbackPremises = [
-    detail(mission.conceptZero?.physicalAnalogy, 135),
-    detail(contrast?.reasoning || mission.conceptZero?.coreExplanation, 135),
-  ];
-  const premiseDetails = [...solvedPremises, ...fallbackPremises].filter(Boolean).slice(0, 2);
-  const objectionDetail = detail(contrast?.commonMisconception, 160, '');
-  const conclusionDetail = detail(
-    contrast?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
-    160,
-    ''
-  );
+
+  // Priorizar premisas conceptuales distintas del ejemplo resuelto del panel izquierdo
+  // para evitar duplicación y evitar que pruneConceptualDiagram descarte ambas premisas.
+  const rawPremiseCandidates = !allowFallback && session
+    ? [
+        vCrit,
+        nonQuestionSaberes,
+        contenidoSents[1] || contenidoSents[0] || '',
+        cleanAplicacion,
+        vDef,
+        mission.conceptZero?.physicalAnalogy,
+        ...solvedPremises,
+      ]
+    : [
+        contrast?.reasoning,
+        mission.conceptZero?.physicalAnalogy,
+        ...solvedPremises,
+        mission.conceptZero?.coreExplanation,
+      ];
+
+  const compactSingleSentence = (raw: string | undefined, maxChars: number, maxWords: number): string => {
+    const cleaned = clean(raw);
+    if (!cleaned) return '';
+    const firstSent = splitSpanishSentences(cleaned)[0] || cleaned;
+    const base = detail(firstSent, maxChars, '') || firstSent;
+    const words = base.split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords && !hasDanglingEnding(base)) return base;
+    const fitted = fitPedagogicalText(base, {
+      maxChars,
+      maxWords,
+      role: 'concept',
+      ensurePeriod: true,
+    });
+    if (fitted && fitted.length >= 18 && !hasDanglingEnding(fitted) && fitted.split(/\s+/).filter(Boolean).length <= maxWords + 2) {
+      return fitted;
+    }
+    // Recorte seguro de cláusula subordinada final si la oración única sigue muy extensa
+    const trimmedClause = base
+      .replace(/,\s*(?:especialmente|particularmente|incluyendo|permitiendo|garantizando|asegurando|dejando|evitando|promoviendo|fomentando|normalizando|lo\s+que|como\s+la\s+falta)\b[^.?!]*([.?!]?)$/i, '.')
+      .replace(/\.\.+$/, '.')
+      .trim();
+    if (trimmedClause.length >= 20 && !hasDanglingEnding(trimmedClause) && trimmedClause.split(/\s+/).filter(Boolean).length <= maxWords + 2) {
+      return trimmedClause;
+    }
+    return words.length <= maxWords + 4 ? base : '';
+  };
+
+  const premiseDetails: string[] = [];
+  for (const raw of rawPremiseCandidates) {
+    const cand = compactSingleSentence(raw, 96, 14);
+    if (!cand || cand.length < 16) continue;
+    const dupAgainstFrame =
+      normalizedDiagramOverlap(cand, thesisDetail) >= 0.78 ||
+      normalizedDiagramOverlap(cand, objectionDetail) >= 0.75 ||
+      normalizedDiagramOverlap(cand, conclusionDetail) >= 0.75;
+    const dupAgainstPrev = premiseDetails.some((p) => normalizedDiagramOverlap(cand, p) >= 0.65);
+    if (dupAgainstFrame || dupAgainstPrev) continue;
+    premiseDetails.push(cand);
+    if (premiseDetails.length >= 2) break;
+  }
+  if (premiseDetails.length === 0) {
+    const fallbackFirst =
+      compactSingleSentence(vCrit || vDef || solvedPremises[0] || mission.conceptZero?.coreExplanation, 108, 16) ||
+      detail(vCrit || vDef || solvedPremises[0] || mission.conceptZero?.coreExplanation, 110, '');
+    if (fallbackFirst) premiseDetails.push(fallbackFirst);
+  }
 
   return {
     kind: 'argument',
-    available: Boolean(thesisDetail && conclusionDetail),
+    available: Boolean(thesisDetail && (premiseDetails.length > 0 || conclusionDetail)),
     thesis: { label: 'TESIS', detail: thesisDetail },
     premises: premiseDetails.map((premise, index) => ({
       label: `PREMISA ${index + 1}`,
@@ -1431,7 +1545,7 @@ function buildTimelineDiagram(mission: MissionSection): TimelineDiagramSpec {
     mission.title;
   return {
     kind: 'timeline',
-    available: events.length >= 3 && events.some((event) => event.detail !== 'Sin registro.'),
+    available: events.length >= 3 && events.some((event) => Boolean(event.detail)),
     events,
     span: detail(spanTopic, 80, ''),
   };
@@ -1544,13 +1658,108 @@ function buildSopFlowDiagram(mission: MissionSection): SopFlowDiagramSpec {
 
 const CREATIVE_PHASE_LABELS = ['DETONANTE', 'EXPLORACIÓN', 'OBRA', 'DIFUSIÓN'];
 
-function buildCreativeCycleDiagram(mission: MissionSection): CreativeCycleDiagramSpec {
-  const sources = [
-    firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.conceptZero?.coreExplanation, 110, ''),
-    detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110, ''),
-    detail(mission.youDoSection?.autonomousChallenge, 110, ''),
-  ];
+function buildDistinctSessionCycleSources(
+  mission: MissionSection,
+  options: DiagramBuildOptions = {}
+): { sources: string[]; isLessonGuide: boolean } {
+  const session = options.session;
+  const isLessonGuide = options.allowMissionFallback === false && Boolean(session);
+  if (!isLessonGuide || !session) {
+    return {
+      isLessonGuide: false,
+      sources: [
+        firstSentence(mission.phenomenonHook?.story, 110),
+        detail(mission.conceptZero?.coreExplanation, 110, ''),
+        detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110, ''),
+        detail(mission.youDoSection?.autonomousChallenge, 110, ''),
+      ],
+    };
+  }
+
+  const cleanField = (val?: string | null) =>
+    sanitizePedagogicalMetaPhrases(stripSessionLead(val || ''));
+  const vMap = session.sintesisVisual?.mapaConceptual;
+  const vCrit = cleanField(vMap?.criterioDesarrollo);
+  const vCorr = cleanField(vMap?.correccionBreve);
+  const vDef = cleanField(vMap?.definicionClave);
+  const vPlantea = cleanField(session.sintesisVisual?.ejemploBreve?.planteamiento);
+  const vConcl = cleanField(session.sintesisVisual?.ejemploBreve?.conclusion);
+  const rawMot = cleanField(session.motivacion);
+  const nonQuestionMot = /^¿/.test(rawMot) ? '' : rawMot;
+  const rawSaberes = cleanField(session.saberesPrevios);
+  const nonQuestionSaberes = /^¿/.test(rawSaberes) ? '' : rawSaberes;
+  const cleanProducto = cleanField(session.productoIntegrador);
+  const cleanPractica0 = cleanField(session.practica?.[0]?.enunciado);
+  const cleanAplicacion = cleanField(session.aplicacion);
+  const leftRefs = [
+    cleanField(session.sintesisVisual?.conceptoBreve),
+    vPlantea,
+    vConcl,
+  ].filter(Boolean);
+
+  const compactCycleNode = (raw: string | undefined): string => {
+    const cleaned = clean(raw);
+    if (!cleaned) return '';
+    // Tomar SIEMPRE solo la primera oración para impedir que párrafos de motivación de 60–80 palabras entren en una tarjeta.
+    const firstSent = splitSpanishSentences(cleaned)[0] || cleaned;
+    const base = detail(firstSent, 76, '') || firstSent;
+    const wc = (s: string) => s.split(/\s+/).filter(Boolean).length;
+    if (wc(base) <= 12 && !hasDanglingEnding(base)) return base;
+    const trimmedClause = base
+      .replace(/,\s*(?:especialmente|particularmente|incluyendo|permitiendo|garantizando|asegurando|dejando|evitando|promoviendo|fomentando|normalizando|lo\s+que|lo\s+cual|como\s+la\s+falta|pero\s+t[uú]\s+tienes|pero\s+cada\s+uno)\b[^.?!]*([.?!]?)$/i, '.')
+      .replace(/\s+(?:que\s+(?:afectan|limitan|reflejan|facilitan|promueven|vinculen|garantizan))\b[^.?!]*([.?!]?)$/i, '.')
+      .replace(/\.\.+$/, '.')
+      .trim();
+    if (trimmedClause.length >= 20 && !hasDanglingEnding(trimmedClause) && wc(trimmedClause) <= 13) {
+      return trimmedClause;
+    }
+    const fitted = fitPedagogicalText(base, {
+      maxChars: 76,
+      maxWords: 11,
+      role: 'concept',
+      ensurePeriod: true,
+    });
+    if (fitted && fitted.length >= 18 && !hasDanglingEnding(fitted) && wc(fitted) <= 13) {
+      return fitted;
+    }
+    return wc(base) <= 15 ? base : '';
+  };
+
+  const pickDistinct = (candidates: Array<string | undefined>, used: string[]): string => {
+    for (const raw of candidates) {
+      const cand = compactCycleNode(raw);
+      if (!cand || cand.length < 14) continue;
+      if (used.some((u) => normalizedDiagramOverlap(cand, u) >= 0.6)) continue;
+      if (leftRefs.some((r) => normalizedDiagramOverlap(cand, r) >= 0.72)) continue;
+      return cand;
+    }
+    for (const raw of candidates) {
+      const cand = compactCycleNode(raw);
+      if (cand && cand.length >= 14 && !used.some((u) => normalizedDiagramOverlap(cand, u) >= 0.7)) {
+        return cand;
+      }
+    }
+    return '';
+  };
+
+  const used: string[] = [];
+  const p1 = pickDistinct([nonQuestionMot, nonQuestionSaberes, firstSentence(session.contenido, 82)], used);
+  if (p1) used.push(p1);
+  const p2 = pickDistinct([vCrit, vDef, firstSentence(session.contenido, 82)], used);
+  if (p2) used.push(p2);
+  const p3 = pickDistinct([cleanProducto, cleanPractica0, cleanAplicacion], used);
+  if (p3) used.push(p3);
+  const p4 = pickDistinct([vCorr, cleanAplicacion, cleanProducto], used);
+  if (p4) used.push(p4);
+
+  return { isLessonGuide: true, sources: [p1, p2, p3, p4] };
+}
+
+function buildCreativeCycleDiagram(
+  mission: MissionSection,
+  options: DiagramBuildOptions = {}
+): CreativeCycleDiagramSpec {
+  const { sources, isLessonGuide } = buildDistinctSessionCycleSources(mission, options);
   const phases = sources.map((text, index) => ({
     label: CREATIVE_PHASE_LABELS[index] ?? `FASE ${index + 1}`,
     detail: text || '',
@@ -1560,23 +1769,24 @@ function buildCreativeCycleDiagram(mission: MissionSection): CreativeCycleDiagra
     kind: 'creative-cycle',
     available: phases.filter((phase) => Boolean(phase.detail)).length >= 2,
     phases,
-    statement: detail(
-      mission.conceptZero?.solvedExample?.interpretation || mission.conceptZero?.contrastTable?.[0]?.correctConcept,
-      140,
-      ''
-    ),
+    // En pizarrón docente (lesson-guide) omitir la franja inferior redundante para no duplicar conclusión/DIFUSIÓN ni inflar palabras.
+    statement: isLessonGuide
+      ? ''
+      : detail(
+          mission.conceptZero?.solvedExample?.interpretation || mission.conceptZero?.contrastTable?.[0]?.correctConcept,
+          140,
+          ''
+        ),
   };
 }
 
 const TRAINING_PHASE_LABELS = ['CALENTAMIENTO', 'ACTIVACIÓN', 'ESFUERZO', 'RECUPERACIÓN'];
 
-function buildTrainingCycleDiagram(mission: MissionSection): TrainingCycleDiagramSpec {
-  const sources = [
-    firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.conceptZero?.coreExplanation, 110, ''),
-    detail(mission.iDoSection?.stepByStepDemo || mission.weDoSection?.guidedPractice, 110, ''),
-    detail(mission.youDoSection?.autonomousChallenge, 110, ''),
-  ];
+function buildTrainingCycleDiagram(
+  mission: MissionSection,
+  options: DiagramBuildOptions = {}
+): TrainingCycleDiagramSpec {
+  const { sources, isLessonGuide } = buildDistinctSessionCycleSources(mission, options);
   const phases = sources.map((text, index) => ({
     label: TRAINING_PHASE_LABELS[index] ?? `FASE ${index + 1}`,
     detail: text || '',
@@ -1586,23 +1796,23 @@ function buildTrainingCycleDiagram(mission: MissionSection): TrainingCycleDiagra
     kind: 'training-cycle',
     available: phases.filter((phase) => Boolean(phase.detail)).length >= 2,
     phases,
-    principle: detail(
-      mission.conceptZero?.contrastTable?.[0]?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
-      140,
-      ''
-    ),
+    principle: isLessonGuide
+      ? ''
+      : detail(
+          mission.conceptZero?.contrastTable?.[0]?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
+          140,
+          ''
+        ),
   };
 }
 
 const REGULATION_STAGE_LABELS = ['EMOCIÓN', 'INTERPRETACIÓN', 'RESPUESTA', 'REGULACIÓN'];
 
-function buildRegulationFlowDiagram(mission: MissionSection): RegulationFlowDiagramSpec {
-  const sources = [
-    firstSentence(mission.phenomenonHook?.story, 110),
-    detail(mission.conceptZero?.coreExplanation, 110, ''),
-    detail(mission.weDoSection?.guidedPractice || mission.iDoSection?.stepByStepDemo, 110, ''),
-    detail(mission.youDoSection?.autonomousChallenge, 110, ''),
-  ];
+function buildRegulationFlowDiagram(
+  mission: MissionSection,
+  options: DiagramBuildOptions = {}
+): RegulationFlowDiagramSpec {
+  const { sources, isLessonGuide } = buildDistinctSessionCycleSources(mission, options);
   const stages = sources.map((text, index) => ({
     label: REGULATION_STAGE_LABELS[index] ?? `ETAPA ${index + 1}`,
     detail: text || '',
@@ -1612,11 +1822,13 @@ function buildRegulationFlowDiagram(mission: MissionSection): RegulationFlowDiag
     kind: 'regulation-flow',
     available: stages.filter((stage) => Boolean(stage.detail)).length >= 2,
     stages,
-    anchor: detail(
-      mission.conceptZero?.solvedExample?.interpretation || mission.metacognitiveTrafficLight?.green,
-      140,
-      ''
-    ),
+    anchor: isLessonGuide
+      ? ''
+      : detail(
+          mission.conceptZero?.solvedExample?.interpretation || mission.metacognitiveTrafficLight?.green,
+          140,
+          ''
+        ),
   };
 }
 
@@ -1840,6 +2052,7 @@ function toSessionScopedMission(
     const vConcept = cleanField(session.sintesisVisual?.conceptoBreve);
     const vDef = cleanField(vMap?.definicionClave);
     const vCrit = cleanField(vMap?.criterioDesarrollo);
+    const vErr = cleanField(vMap?.errorComun);
     const vCorr = cleanField(vMap?.correccionBreve);
     const vPlantea = cleanField(vEx?.planteamiento);
     const vSteps = (vEx?.pasos ?? []).map(cleanField).filter(Boolean);
@@ -1866,7 +2079,16 @@ function toSessionScopedMission(
       conceptZero: {
         physicalAnalogy: vDef || cleanSaberes,
         coreExplanation: vDef || vConcept || cleanContenido,
-        contrastTable: [],
+        contrastTable:
+          vErr || vCorr || vCrit
+            ? [
+                {
+                  commonMisconception: vErr,
+                  correctConcept: vCorr || vConcl || cleanAplicacion,
+                  reasoning: vCrit || vDef,
+                },
+              ]
+            : [],
         solvedExample: {
           problemStatement: cleanEjemplo,
           solutionSteps: vSteps.length >= 2 ? vSteps : sessionSteps,
@@ -2168,7 +2390,7 @@ export function buildSacrintDiagram(
         return buildReactionDiagram(effectiveMission);
       case 'argument-map':
       case 'rhetorical-map':
-        return buildArgumentDiagram(effectiveMission);
+        return buildArgumentDiagram(effectiveMission, options);
       case 'word-map':
         return buildLanguageDiagram(effectiveMission);
       case 'timeline':
@@ -2182,11 +2404,11 @@ export function buildSacrintDiagram(
       case 'sop-flow':
         return buildSopFlowDiagram(effectiveMission);
       case 'creative-cycle':
-        return buildCreativeCycleDiagram(effectiveMission);
+        return buildCreativeCycleDiagram(effectiveMission, options);
       case 'training-cycle':
-        return buildTrainingCycleDiagram(effectiveMission);
+        return buildTrainingCycleDiagram(effectiveMission, options);
       case 'regulation-flow':
-        return buildRegulationFlowDiagram(effectiveMission);
+        return buildRegulationFlowDiagram(effectiveMission, options);
       default:
         return buildConceptDiagram(effectiveMission);
     }

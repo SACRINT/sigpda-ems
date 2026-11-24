@@ -151,6 +151,9 @@ export function mapActivityIndexToBlockIndex(
  */
 export interface ResolveBlocksFallback extends ResolvableHoursPlanning {
   component?: string | null;
+  semester?: number | string | null;
+  modelType?: string | null;
+  model_type?: string | null;
 }
 
 const ORDINAL_CORTE_NAMES: Record<1 | 2 | 3, string> = {
@@ -252,6 +255,41 @@ export function resolveCurricularBlocks(
   const extracted = (fallback?.extractedData || fallback?.extracted_data || {}) as Record<string, unknown>;
   const componentRaw = s1?.component || fallback?.component || (typeof extracted.component === 'string' ? extracted.component : '') || '';
   const isLaboral = componentRaw.toLowerCase().includes('laboral');
+  const rawSemester =
+    fallback?.semester ??
+    s1?.semester ??
+    (s1 as { generalData?: { semester?: number | string } } | undefined)?.generalData?.semester ??
+    extracted.semester;
+  const parseSemesterNumber = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value !== 'string') return NaN;
+    const digits = value.replace(/[^\d]/g, '');
+    if (digits) return Number.parseInt(digits, 10);
+    const low = value.toLowerCase();
+    if (/\bprimer[oa]?\b/.test(low)) return 1;
+    if (/\bsegund[oa]?\b/.test(low)) return 2;
+    if (/\btercer[oa]?\b/.test(low)) return 3;
+    if (/\bcuart[oa]?\b/.test(low)) return 4;
+    if (/\bquint[oa]?\b/.test(low)) return 5;
+    if (/\bsext[oa]?\b/.test(low)) return 6;
+    return NaN;
+  };
+  const parsedSemester = parseSemesterNumber(rawSemester);
+  const explicitModel =
+    fallback?.modelType ||
+    fallback?.model_type ||
+    (s1 as { modelType?: string; model_type?: string } | undefined)?.modelType ||
+    (s1 as { modelType?: string; model_type?: string } | undefined)?.model_type ||
+    (typeof extracted.model_type === 'string' ? extracted.model_type : '');
+  const hasExplicitProgresionPrefix = activities.some((a) => /^\s*Progresi[oó]n\s*\d+/i.test(a.name || ''));
+  // Nomenclatura oficial MCCEMS: 1.º a 4.º semestre usan SIEMPRE "Propósitos Formativos"; 5.º y 6.º usan "Progresiones"; Laboral usa "Actividades Clave".
+  const isProgresiones =
+    !isLaboral &&
+    (Number.isFinite(parsedSemester)
+      ? parsedSemester >= 5
+      : explicitModel === 'progresiones' || hasExplicitProgresionPrefix);
+  const unitSingular = isLaboral ? 'Actividad Clave' : isProgresiones ? 'Progresión' : 'Propósito Formativo';
+  const unitPlural = isLaboral ? 'Actividades Clave' : isProgresiones ? 'Progresiones' : 'Propósitos Formativos';
   const subsystem =
     fallback?.subsystem ||
     s1?.subsystem ||
@@ -313,12 +351,12 @@ export function resolveCurricularBlocks(
       blockName = ORDINAL_CORTE_NAMES[corteNumber];
     } else if (acts.length === 1) {
       const cleaned = stripDuplicateBlockPrefix(acts[0].name || '');
-      blockName = cleaned || `${isLaboral ? 'Actividad Clave' : 'Progresión'} ${indices[0] + 1}`;
+      blockName = cleaned || `${unitSingular} ${indices[0] + 1}`;
     } else {
       const progNumbers = indices.length === 2
         ? `${indices[0] + 1} y ${indices[1] + 1}`
         : `${indices.slice(0, -1).map((i) => i + 1).join(', ')} y ${indices[indices.length - 1] + 1}`;
-      blockName = `${isLaboral ? 'Actividades Clave' : 'Progresiones'} ${progNumbers}`;
+      blockName = `${unitPlural} ${progNumbers}`;
     }
 
     const title = `Bloque ${corteNumber} (${corteLabel}): ${blockName}`;

@@ -254,6 +254,26 @@ describe('Prompts V2 — sintesisVisual y retrocompatibilidad', () => {
     ).toBe(false);
     expect(hasCompleteWorkedExampleClosure('Paso 1: analiza y concluye.')).toBe(false);
 
+    // Lógica proposicional y teoría de conjuntos (Pensamiento Matemático I Bloque 1):
+    // debe aprobar requireNumeric: true sin exigir ASCII "=" o dígitos.
+    expect(
+      hasCompleteWorkedExampleClosure(
+        'Planteamiento: Evalúa la implicación lógica p → q para los casos de entrega escolar.\n' +
+          'Paso 1: Identifica las proposiciones simples p y q y construye su tabla de verdad.\n' +
+          'Paso 2: Comprueba que cuando p es verdadero y q es falso, la implicación p → q toma valor de verdad falso.\n' +
+          'Conclusión: La proposición compuesta p → q es una contingencia y solo resulta falsa en la combinación (V, F).',
+        { requireNumeric: true }
+      )
+    ).toBe(true);
+    expect(
+      hasCompleteWorkedExampleClosure(
+        'Planteamiento: Determina si los conjuntos escolares A y B son disjuntos.\n' +
+          'Paso 1: Verifica la pertenencia de cada elemento mediante x ∈ A y x ∈ B.\n' +
+          'Conclusión: Como ningún estudiante pertenece a ambos talleres, la intersección A ∩ B resulta vacía (∅).',
+        { requireNumeric: true }
+      )
+    ).toBe(true);
+
     const longHumSession = makeSession({
       contenido: Array.from(
         { length: 3 },

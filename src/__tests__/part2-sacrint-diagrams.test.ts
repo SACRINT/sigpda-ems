@@ -168,4 +168,95 @@ describe('SACRINT Part 2 — Non-Fabricated Mathematical Diagrams', () => {
     expect(linearCostDiag.kind).toBe('linear');
     expect(linearCostDiag.available).toBe(true);
   });
+
+  it('NO genera modelos lineales falsos (x̄) a partir de proporciones o fracciones con el verbo "muestra"', () => {
+    const mathPack = resolveSacrintPack('Pensamiento Matemático I', 'BGE');
+
+    const proportionSession = makeSession({
+      objetivo: 'Resolver proporciones directas mediante regla de tres simple',
+      contenido: 'El ejemplo muestra cómo plantear la proporción 5/2 = 35/x para calcular ingredientes.',
+      ejemploResuelto:
+        'Planteamiento: Si 5 kg rinden para 2 lotes, plantea 5/2 = 35/x.\nPaso 1: Multiplica en cruz 5x = 70.\nConclusión: Se requieren 14 lotes.',
+    });
+    const propDiag = buildSacrintDiagram(mission, mathPack, { session: proportionSession, allowMissionFallback: false });
+    expect(propDiag.kind === 'linear' && propDiag.equation.includes('x̄ = 5/2 = 35')).toBe(false);
+
+    const fractionSession = makeSession({
+      objetivo: 'Calcular fracciones equivalentes y repartos exactos',
+      contenido: 'La tabla muestra el reparto en partes iguales mediante la fracción 300/4 = 75.',
+      ejemploResuelto: 'Planteamiento: Divide 300 entre 4 partes iguales: 300/4 = 75.\nConclusión: Cada porción equivale a 75.',
+    });
+    const fracDiag = buildSacrintDiagram(mission, mathPack, { session: fractionSession, allowMissionFallback: false });
+    expect(fracDiag.kind === 'linear' && fracDiag.equation.includes('x̄ = 300/4 = 75')).toBe(false);
+  });
+
+  it('construye mapa argumentativo con premisas y objeción reales sin placeholders "Sin registro."', () => {
+    const humPack = resolveSacrintPack('Pensamiento Filosófico y Humanidades I', 'BGE');
+    const session = makeSession({
+      objetivo: 'Distinguir la actitud filosófica del mito y del sentido común',
+      saberesPrevios: 'Las preguntas cotidianas sobre el origen del mundo suelen partir de relatos heredados.',
+      aplicacion: 'Analizar noticias comunitarias exigiendo razones verificables antes de aceptar afirmaciones.',
+      sintesisVisual: {
+        conceptoBreve: 'La filosofía cuestiona creencias aceptadas mediante examen racional y diálogo crítico.',
+        formulaOReglaClave: 'Asombro → Pregunta crítica → Razones',
+        mapaConceptual: {
+          definicionClave: 'El paso del mito al logos sustituye la tradición acrítica por argumentos examinables.',
+          criterioDesarrollo: 'Toda afirmación filosófica requiere premisas consistentes y apertura a la refutación.',
+          errorComun: 'Confundir la reflexión filosófica con opiniones personales sin respaldo lógico.',
+          correccionBreve: 'Fundamentar cada postura con razones claras y contrastar posibles objeciones.',
+        },
+        ejemploBreve: {
+          planteamiento: 'Un debate escolar discute si la costumbre basta para justificar una norma.',
+          pasos: [
+            'Identifica la creencia heredada que se da por sentada.',
+            'Formula preguntas críticas sobre sus consecuencias éticas.',
+          ],
+          conclusion: 'La norma solo se legitima si resiste el examen racional colectivo.',
+        },
+      },
+    });
+
+    const diag = buildSacrintDiagram(mission, humPack, { session, allowMissionFallback: false });
+    expect(diag.kind).toBe('argument');
+    expect(diag.available).toBe(true);
+    if (diag.kind === 'argument') {
+      expect(diag.premises.length).toBeGreaterThanOrEqual(1);
+      expect(diag.objection.detail).toContain('opiniones personales');
+      expect(JSON.stringify(diag)).not.toMatch(/Sin registro\.|Sin objeción registrada/i);
+    }
+  });
+
+  it('construye ciclo creativo sin duplicar el panel izquierdo y sin franja redundante en lesson-guide', () => {
+    const artPack = resolveSacrintPack('Actividades Artísticas y Culturales', 'BGE');
+    const session = makeSession({
+      objetivo: 'Explorar el ritmo corporal y la expresión escénica colectiva',
+      motivacion: 'Observar los sonidos cotidianos del patio escolar como pulso musical inicial.',
+      aplicacion: 'Presentar una secuencia rítmica breve durante la muestra cultural del plantel.',
+      productoIntegrador: 'Bitácora sonora con partitura gráfica de cuatro compases.',
+      sintesisVisual: {
+        conceptoBreve: 'El ritmo escénico coordina pulso, silencio y desplazamiento corporal en el espacio.',
+        formulaOReglaClave: 'Pulso + Silencio → Secuencia',
+        mapaConceptual: {
+          definicionClave: 'La composición rítmica organiza acentos y pausas con intención expresiva.',
+          criterioDesarrollo: 'Mantener un tempo estable escuchando las señales visuales del grupo.',
+          errorComun: 'Acelerar el pulso al introducir movimientos complejos.',
+          correccionBreve: 'Marcar el conteo base antes de incorporar variaciones corporales.',
+        },
+        ejemploBreve: {
+          planteamiento: 'El grupo ensaya una entrada escénica de ocho tiempos en semicírculo.',
+          pasos: ['Marca cuatro pulsos con palmas.', 'Alterna dos pausas con desplazamiento lateral.'],
+          conclusion: 'La secuencia mantiene cohesión visual y auditiva en todo el elenco.',
+        },
+      },
+    });
+
+    const diag = buildSacrintDiagram(mission, artPack, { session, allowMissionFallback: false });
+    expect(diag.kind).toBe('creative-cycle');
+    expect(diag.available).toBe(true);
+    if (diag.kind === 'creative-cycle') {
+      expect(diag.statement).toBe('');
+      expect(diag.phases.filter((p) => p.detail.trim().length > 0).length).toBeGreaterThanOrEqual(3);
+      expect(diag.phases[0]!.detail).not.toContain('ocho tiempos en semicírculo');
+    }
+  });
 });

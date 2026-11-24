@@ -174,6 +174,10 @@ export function scanEditorialDefects(text: string): Record<string, string[]> {
       'corrupt_title_paren',
       /(?:^|\n)\s*\((?:Ciencias\s+Naturales|Ciencias\s+Sociales|Matem[aá]ticas|Lengua)[^\n)]{0,40}\s*(?:\n|$)/i,
     ],
+    [
+      'argument_placeholder_leak',
+      /\bSin\s+registro\.|\bSin\s+objeci[oó]n\s+registrada\b/i,
+    ],
   ];
 
   for (const [key, re] of rules) {
@@ -748,6 +752,50 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
       }
       if (/3\s*a[ñn]os/i.test(allSlideText) && /\bsemestral\b/i.test(allSlideText) && /\b6\s*per[íi]odos\b/i.test(allSlideText)) {
         pushSlideFinding('exp_period_rate_mismatch', '3 años semestral inconsistente con 6 períodos');
+      }
+
+      const normPanel = (value: string) =>
+        value
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+      const leftPanelTexts = shapes
+        .filter((s) => s.hasText && s.x < slideWidthIn * 0.42 && s.y >= 1.2 && s.y <= 5.5 && s.text.trim().length >= 30)
+        .map((s) => new Set(normPanel(s.text)))
+        .filter((set) => set.size >= 4);
+      const rightPanelBoxes = shapes.filter(
+        (s) => s.hasText && s.x >= slideWidthIn * 0.43 && s.y >= 1.6 && s.y <= 5.5 && s.text.trim().length >= 30
+      );
+      let duplicatedRightNodes = 0;
+      for (const rBox of rightPanelBoxes) {
+        const rawTxt = rBox.text.trim();
+        const alphaWords = rawTxt.split(/\s+/).filter((w) => /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,}/.test(w));
+        const alphaOnly = rawTxt.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '');
+        if (
+          !/[·•]|\/\//.test(rawTxt) &&
+          alphaWords.length >= 8 &&
+          alphaOnly.length >= 36 &&
+          alphaOnly === alphaOnly.toLocaleUpperCase('es-MX')
+        ) {
+          pushSlideFinding('all_caps_sentence_banner', `Franja en mayúsculas sostenidas: "${rawTxt.slice(0, 80)}"`);
+        }
+        const rSet = new Set(normPanel(rawTxt));
+        if (rSet.size < 4) continue;
+        const isDup = leftPanelTexts.some((lSet) => {
+          let shared = 0;
+          for (const w of rSet) if (lSet.has(w)) shared += 1;
+          return shared / Math.min(rSet.size, lSet.size) >= 0.8;
+        });
+        if (isDup) duplicatedRightNodes += 1;
+      }
+      if (duplicatedRightNodes >= 2) {
+        pushSlideFinding(
+          'right_panel_duplicates_left',
+          `${duplicatedRightNodes} nodos del diagrama repiten contenido del panel izquierdo`
+        );
       }
     }
 

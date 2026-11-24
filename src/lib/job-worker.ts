@@ -101,6 +101,17 @@ function buildEvictionRetryDirective(error: unknown, errorMsg: string): string |
       'marcadores ([completar], [placeholder], [...]) o frases genéricas. Redacta todos los campos íntegros y específicos.'
     );
   }
+  if (error instanceof SessionDensityDeficiencyError) {
+    const summary = error.deficits
+      .slice(0, 4)
+      .map((d) => `S${d.session}: ${d.deficits.join('; ')}`)
+      .join(' | ')
+      .slice(0, 320);
+    return (
+      `CORRECCIÓN DE DENSIDAD Y CIERRE DE SESIONES: El intento anterior fue rechazado por incumplir requisitos estructurales (${summary}). ` +
+      'Cumple estrictamente la extensión mínima por campo, incluye "Paso 4: Conclusión:" o "Paso 4: Resultado:" con ecuación, valor numérico o expresión formal verificable (en matemáticas/ciencias), 2 prácticas con consigna explícita y sintesisVisual completo.'
+    );
+  }
   return undefined;
 }
 

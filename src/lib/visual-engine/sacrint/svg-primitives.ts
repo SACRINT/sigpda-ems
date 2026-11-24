@@ -530,6 +530,10 @@ export function argumentMap(
 
   parts.push(circle(x + width * 0.5, y + height * 0.46, Math.min(width, height) * 0.3, 'none', `stroke="${accent}" stroke-opacity="0.1" stroke-width="1" stroke-dasharray="3 8"`));
 
+  const validPremises = diagram.premises.filter((p) => Boolean(p?.detail?.trim())).slice(0, 2);
+  const hasObjection = Boolean(diagram.objection?.detail?.trim());
+  const fullRowW = width - pad * 2;
+
   parts.push(nodeCard(diagram.thesis, thesisX, thesisY, thesisW, thesisH, {
     accent,
     accent2,
@@ -537,38 +541,71 @@ export function argumentMap(
     border: accent,
     maxLines: 2,
   }));
-  parts.push(nodeCard(diagram.premises[0] ?? { label: 'PREMISA 1', detail: 'Sin registro.' }, leftPremiseX, premiseY, premiseW, premiseH, {
-    accent,
-    accent2,
-    compact,
-    maxLines: 2,
-  }));
-  parts.push(nodeCard(diagram.premises[1] ?? { label: 'PREMISA 2', detail: 'Sin registro.' }, rightPremiseX, premiseY, premiseW, premiseH, {
-    accent,
-    accent2,
-    compact,
-    maxLines: 2,
-  }));
-  parts.push(nodeCard(diagram.objection, objectionX, bottomY, bottomW, bottomH, {
-    accent,
-    accent2,
-    compact,
-    border: 'rgba(255,49,49,0.58)',
-    maxLines: 2,
-  }));
-  parts.push(nodeCard(diagram.conclusion, conclusionX, bottomY, bottomW, bottomH, {
-    accent,
-    accent2,
-    compact,
-    border: accent,
-    maxLines: 2,
-  }));
+  if (validPremises.length === 2) {
+    parts.push(nodeCard(validPremises[0]!, leftPremiseX, premiseY, premiseW, premiseH, {
+      accent,
+      accent2,
+      compact,
+      maxLines: 2,
+    }));
+    parts.push(nodeCard(validPremises[1]!, rightPremiseX, premiseY, premiseW, premiseH, {
+      accent,
+      accent2,
+      compact,
+      maxLines: 2,
+    }));
+  } else if (validPremises.length === 1) {
+    parts.push(nodeCard(validPremises[0]!, leftPremiseX, premiseY, fullRowW, premiseH, {
+      accent,
+      accent2,
+      compact,
+      maxLines: 2,
+    }));
+  }
+  if (hasObjection) {
+    parts.push(nodeCard(diagram.objection, objectionX, bottomY, bottomW, bottomH, {
+      accent,
+      accent2,
+      compact,
+      border: 'rgba(255,49,49,0.58)',
+      maxLines: 2,
+    }));
+    parts.push(nodeCard(diagram.conclusion, conclusionX, bottomY, bottomW, bottomH, {
+      accent,
+      accent2,
+      compact,
+      border: accent,
+      maxLines: 2,
+    }));
+  } else {
+    parts.push(nodeCard(diagram.conclusion, objectionX, bottomY, fullRowW, bottomH, {
+      accent,
+      accent2,
+      compact,
+      border: accent,
+      maxLines: 2,
+    }));
+  }
 
   const thesisBottom = thesisY + thesisH;
-  parts.push(diagramConnector(thesisX + thesisW * 0.32, thesisBottom, leftPremiseX + premiseW / 2, premiseY, accent2, { width: 1 }));
-  parts.push(diagramConnector(thesisX + thesisW * 0.68, thesisBottom, rightPremiseX + premiseW / 2, premiseY, accent2, { width: 1 }));
-  parts.push(diagramConnector(leftPremiseX + premiseW / 2, premiseY + premiseH, objectionX + bottomW / 2, bottomY, SACRINT.red, { width: 1, dash: '4 4' }));
-  parts.push(diagramConnector(rightPremiseX + premiseW / 2, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, { width: 1 }));
+  if (validPremises.length === 2) {
+    parts.push(diagramConnector(thesisX + thesisW * 0.32, thesisBottom, leftPremiseX + premiseW / 2, premiseY, accent2, { width: 1 }));
+    parts.push(diagramConnector(thesisX + thesisW * 0.68, thesisBottom, rightPremiseX + premiseW / 2, premiseY, accent2, { width: 1 }));
+    if (hasObjection) {
+      parts.push(diagramConnector(leftPremiseX + premiseW / 2, premiseY + premiseH, objectionX + bottomW / 2, bottomY, SACRINT.red, { width: 1, dash: '4 4' }));
+      parts.push(diagramConnector(rightPremiseX + premiseW / 2, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, { width: 1 }));
+    } else {
+      parts.push(diagramConnector(x + width / 2, premiseY + premiseH, x + width / 2, bottomY, accent, { width: 1 }));
+    }
+  } else if (validPremises.length === 1) {
+    parts.push(diagramConnector(x + width / 2, thesisBottom, x + width / 2, premiseY, accent2, { width: 1 }));
+    if (hasObjection) {
+      parts.push(diagramConnector(x + width * 0.35, premiseY + premiseH, objectionX + bottomW / 2, bottomY, SACRINT.red, { width: 1, dash: '4 4' }));
+      parts.push(diagramConnector(x + width * 0.65, premiseY + premiseH, conclusionX + bottomW / 2, bottomY, accent, { width: 1 }));
+    } else {
+      parts.push(diagramConnector(x + width / 2, premiseY + premiseH, x + width / 2, bottomY, accent, { width: 1 }));
+    }
+  }
 
   return parts.join('');
 }
@@ -915,11 +952,13 @@ export function creativeCycleDiagram(
   const { accent, accent2 } = diagramColors(options);
   const pad = compact ? 12 : 16;
   const gap = compact ? 8 : 12;
-  const phases = diagram.phases.slice(0, 4);
+  const phases = diagram.phases.filter((p) => Boolean(p?.detail?.trim())).slice(0, 4);
   const count = Math.max(1, phases.length);
-  const stripH = compact ? 44 : 56;
+  const statementText = (diagram.statement || '').trim();
+  const hasStrip = Boolean(statementText);
+  const stripH = hasStrip ? (compact ? 44 : 56) : 0;
   const cardW = (width - pad * 2 - gap * (count - 1)) / count;
-  const cardH = height - pad * 2 - stripH - 16;
+  const cardH = height - pad * 2 - stripH - (hasStrip ? 16 : 8);
   const cardY = y + pad;
   const stripY = y + height - pad - stripH;
   const parts: string[] = [];
@@ -941,14 +980,15 @@ export function creativeCycleDiagram(
     }
   });
 
-  parts.push(panel(x + pad, stripY, width - pad * 2, stripH, { fill: 'rgba(5,12,20,0.8)', radius: 10, stroke: accent, strokeWidth: 1 }));
-  parts.push(singleLine(uppercaseLabel(diagram.statement), x + width / 2, stripY + stripH / 2 + (compact ? 3 : 4), {
-    fill: SACRINT.textSoft,
-    fontSize: compact ? 8 : 9,
-    weight: 'semibold',
-    letterSpacing: 1,
-    anchor: 'middle',
-  }));
+  if (hasStrip) {
+    parts.push(panel(x + pad, stripY, width - pad * 2, stripH, { fill: 'rgba(5,12,20,0.8)', radius: 10, stroke: accent, strokeWidth: 1 }));
+    parts.push(singleLine(statementText, x + width / 2, stripY + stripH / 2 + (compact ? 3 : 4), {
+      fill: SACRINT.textSoft,
+      fontSize: compact ? 8 : 9,
+      weight: 'semibold',
+      anchor: 'middle',
+    }));
+  }
 
   return parts.join('');
 }
@@ -965,12 +1005,14 @@ export function trainingCycleDiagram(
   const { accent, accent2 } = diagramColors(options);
   const pad = compact ? 12 : 16;
   const gap = compact ? 8 : 12;
-  const phases = diagram.phases.slice(0, 4);
+  const phases = diagram.phases.filter((p) => Boolean(p?.detail?.trim())).slice(0, 4);
   const count = Math.max(1, phases.length);
-  const stripH = compact ? 42 : 52;
+  const principleText = (diagram.principle || '').trim();
+  const hasStrip = Boolean(principleText);
+  const stripH = hasStrip ? (compact ? 42 : 52) : 0;
   const returnGap = compact ? 16 : 22;
   const cardW = (width - pad * 2 - gap * (count - 1)) / count;
-  const cardH = height - pad * 2 - stripH - returnGap - 12;
+  const cardH = height - pad * 2 - stripH - returnGap - (hasStrip ? 12 : 4);
   const cardY = y + pad;
   const returnY = cardY + cardH + returnGap / 2;
   const stripY = y + height - pad - stripH;
@@ -997,14 +1039,15 @@ export function trainingCycleDiagram(
     parts.push(arrowHead(firstX, returnY, firstX, bottomY, accent2, 8));
   }
 
-  parts.push(panel(x + pad, stripY, width - pad * 2, stripH, { fill: 'rgba(5,12,20,0.8)', radius: 10, stroke: accent, strokeWidth: 1 }));
-  parts.push(singleLine(uppercaseLabel(diagram.principle), x + width / 2, stripY + stripH / 2 + (compact ? 3 : 4), {
-    fill: SACRINT.textSoft,
-    fontSize: compact ? 8 : 9,
-    weight: 'semibold',
-    letterSpacing: 1,
-    anchor: 'middle',
-  }));
+  if (hasStrip) {
+    parts.push(panel(x + pad, stripY, width - pad * 2, stripH, { fill: 'rgba(5,12,20,0.8)', radius: 10, stroke: accent, strokeWidth: 1 }));
+    parts.push(singleLine(principleText, x + width / 2, stripY + stripH / 2 + (compact ? 3 : 4), {
+      fill: SACRINT.textSoft,
+      fontSize: compact ? 8 : 9,
+      weight: 'semibold',
+      anchor: 'middle',
+    }));
+  }
 
   return parts.join('');
 }
@@ -1021,14 +1064,16 @@ export function regulationFlowDiagram(
   const { accent, accent2 } = diagramColors(options);
   const pad = compact ? 12 : 16;
   const gap = compact ? 8 : 12;
-  const anchorH = compact ? 42 : 52;
-  const gridH = height - pad * 2 - anchorH - 14;
+  const anchorText = (diagram.anchor || '').trim();
+  const hasAnchor = Boolean(anchorText);
+  const anchorH = hasAnchor ? (compact ? 42 : 52) : 0;
+  const gridH = height - pad * 2 - anchorH - (hasAnchor ? 14 : 0);
   const cardW = (width - pad * 2 - gap) / 2;
   const cardH = (gridH - gap) / 2;
   const gridX = x + pad;
   const gridY = y + pad;
   const anchorY = y + height - pad - anchorH;
-  const stages = diagram.stages.slice(0, 4);
+  const stages = diagram.stages.filter((s) => Boolean(s?.detail?.trim())).slice(0, 4);
   const positions = [
     { cardX: gridX, cardY: gridY },
     { cardX: gridX + cardW + gap, cardY: gridY },
@@ -1049,14 +1094,15 @@ export function regulationFlowDiagram(
   if (stages.length > 3) parts.push(diagramConnector(gridX + cardW + gap - 2, gridY + cardH + gap + cardH / 2, gridX + cardW + 2, gridY + cardH + gap + cardH / 2, accent, { width: 1.3 }));
   if (stages.length > 3) parts.push(diagramConnector(gridX + cardW / 2, gridY + cardH + gap - 2, gridX + cardW / 2, gridY + cardH + 2, accent2, { width: 1.3, dash: '4 4' }));
 
-  parts.push(panel(x + pad, anchorY, width - pad * 2, anchorH, { fill: 'rgba(5,12,20,0.8)', radius: 10, stroke: accent, strokeWidth: 1 }));
-  parts.push(singleLine(uppercaseLabel(diagram.anchor), x + width / 2, anchorY + anchorH / 2 + (compact ? 3 : 4), {
-    fill: SACRINT.textSoft,
-    fontSize: compact ? 8 : 9,
-    weight: 'semibold',
-    letterSpacing: 1,
-    anchor: 'middle',
-  }));
+  if (hasAnchor) {
+    parts.push(panel(x + pad, anchorY, width - pad * 2, anchorH, { fill: 'rgba(5,12,20,0.8)', radius: 10, stroke: accent, strokeWidth: 1 }));
+    parts.push(singleLine(anchorText, x + width / 2, anchorY + anchorH / 2 + (compact ? 3 : 4), {
+      fill: SACRINT.textSoft,
+      fontSize: compact ? 8 : 9,
+      weight: 'semibold',
+      anchor: 'middle',
+    }));
+  }
 
   return parts.join('');
 }

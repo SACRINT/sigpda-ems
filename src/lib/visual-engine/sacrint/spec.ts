@@ -1144,8 +1144,10 @@ function slideVisibleText(slide: SacrintSlide): string {
       add(slide.analogy);
     }
     add(slide.misconception);
+    // La fórmula / regla clave siempre se renderiza en la franja inferior del pizarrón 1/2,
+    // incluso cuando hay diagrama, por lo que debe contarse en el presupuesto real de palabras.
+    add(slide.formulas && slide.formulas.length > 0 ? slide.formulas[0] : slide.formula);
     if (!slide.isLessonGuide || !hasRenderedDiagram) {
-      add(slide.formulas && slide.formulas.length > 0 ? slide.formulas[0] : slide.formula);
       for (const item of slide.keyTakeaways ?? []) add(item);
     }
     if (slide.workedExample) {
@@ -2211,10 +2213,32 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
       return text;
     };
 
-    const compactDetailSafe = (text: string | undefined, minChars = 20): string => {
+    const compactDetailSafe = (text: string | undefined, minChars = 20, maxWords?: number): string => {
       if (!text) return '';
       const s1 = firstCompleteSentence(text, minChars) || text;
-      return trimGerundTail(s1, minChars) || s1;
+      let res = trimGerundTail(s1, minChars) || s1;
+      if (!maxWords) return res;
+      const wc = (s: string) => s.split(/\s+/).filter(Boolean).length;
+      if (wc(res) <= maxWords) return res;
+      const clauseCut = res
+        .replace(/,\s*(?:especialmente|particularmente|incluyendo|dejando|normalizando|lo\s+que|como\s+la\s+falta|donde\s+los|sin\s+considerar|bajo\s+criterios)\b[^.?!]*([.?!]?)$/i, '.')
+        .replace(/\s+(?:que\s+(?:fortalece|promueve|limita|afecta|facilita|vincula|garantiza|impide|refleja))\b[^.?!]*([.?!]?)$/i, '.')
+        .replace(/\.\.+$/, '.')
+        .trim();
+      if (clauseCut.length >= minChars && !hasDanglingEnding(clauseCut) && wc(clauseCut) < wc(res)) {
+        res = clauseCut;
+      }
+      if (wc(res) <= maxWords) return res;
+      const fitted = fitPedagogicalText(res, {
+        maxChars: Math.round(maxWords * 6.8),
+        maxWords,
+        role: 'concept',
+        ensurePeriod: true,
+      });
+      if (fitted && fitted.length >= minChars && !hasDanglingEnding(fitted) && wc(fitted) < wc(res)) {
+        return fitted;
+      }
+      return res;
     };
 
     const compactCenterDetail = (detail: string | undefined, fallbackTitle: string): string => {
@@ -2252,6 +2276,13 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
         )
         .trim();
       if (/^[a-záéíóúñ]/.test(clean)) clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+      // Separar oraciones pegadas tras cierre de paréntesis como "(7) Asegura..." cuando el paso excede 18 palabras
+      if (clean.split(/\s+/).length > 18 && /\)\s+[A-ZÁÉÍÓÚÑ]/.test(clean)) {
+        const beforeGlued = clean.split(/(?<=\))\s+(?=[A-ZÁÉÍÓÚÑ])/)[0]?.trim();
+        if (beforeGlued && beforeGlued.length >= 24 && !hasDanglingEnding(beforeGlued)) {
+          clean = `${beforeGlued.replace(/\.+$/, '')}.`;
+        }
+      }
       const sents = splitSpanishSentences(clean);
       if (sents.length >= 2 && clean.split(/\s+/).length > 16) {
         const key = sents.find((s) => /=/.test(s)) || sents.find((s) => /\d/.test(s)) || sents[0]!;
@@ -2343,29 +2374,118 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
             },
             context: { ...diagram.context, detail: maxNodes <= 3 ? '' : compactDetailSafe(diagram.context.detail, 18) },
           };
-        case 'argument':
+        case 'argument': {
+          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 12 : 14;
+          const nonRedundantPremises = diagram.premises
+            .filter((pr) => Boolean(pr.detail?.trim()) && !isRedundant(pr.detail))
+            .slice(0, maxNodes >= 3 ? 2 : 1)
+            .map((pr) => ({ ...pr, detail: compactDetailSafe(pr.detail, 18, maxW) }));
+          const keptPremises =
+            nonRedundantPremises.length > 0
+              ? nonRedundantPremises
+              : diagram.premises
+                  .filter((pr) => Boolean(pr.detail?.trim()))
+                  .slice(0, 1)
+                  .map((pr) => ({ ...pr, detail: compactDetailSafe(pr.detail, 18, maxW) }));
           return {
             ...diagram,
             thesis: { ...diagram.thesis, detail: compactCenterDetail(diagram.thesis.detail, slideTitle) },
-            premises: diagram.premises
-              .filter((pr) => !isRedundant(pr.detail))
-              .slice(0, Math.max(1, maxNodes - 1))
-              .map((pr) => ({ ...pr, detail: compactDetailSafe(pr.detail, 18) })),
-            objection: { ...diagram.objection, detail: maxNodes <= 3 ? '' : compactDetailSafe(diagram.objection.detail, 18) },
+            premises: keptPremises,
+            objection: {
+              ...diagram.objection,
+              detail: maxNodes <= 1 ? '' : compactDetailSafe(diagram.objection.detail, 18, maxW),
+            },
             conclusion: {
               ...diagram.conclusion,
-              detail: maxNodes <= 2 || isRedundant(diagram.conclusion.detail) ? '' : compactDetailSafe(diagram.conclusion.detail, 18),
+              detail: compactDetailSafe(diagram.conclusion.detail, 18, maxW),
             },
           };
+        }
         case 'sop-flow':
           return {
             ...diagram,
             steps: diagram.steps
               .filter((st) => !isRedundant(st.detail))
               .slice(0, maxNodes)
-              .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18) })),
+              .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18, 14) })),
             standard: maxNodes <= 3 ? '' : diagram.standard,
           };
+        case 'creative-cycle': {
+          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 11 : 12;
+          const filtered = diagram.phases
+            .filter((ph) => Boolean(ph.detail?.trim()) && !isRedundant(ph.detail))
+            .slice(0, Math.min(4, Math.max(2, maxNodes)))
+            .map((ph) => ({ ...ph, detail: compactDetailSafe(ph.detail, 18, maxW) }));
+          const kept =
+            filtered.length >= 2
+              ? filtered
+              : diagram.phases
+                  .filter((ph) => Boolean(ph.detail?.trim()))
+                  .slice(0, Math.min(3, Math.max(2, maxNodes)))
+                  .map((ph) => ({ ...ph, detail: compactDetailSafe(ph.detail, 18, maxW) }));
+          return {
+            ...diagram,
+            phases: kept,
+            statement: maxNodes <= 3 || isRedundant(diagram.statement) ? '' : compactDetailSafe(diagram.statement, 18, 10),
+          };
+        }
+        case 'training-cycle': {
+          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 11 : 12;
+          const filtered = diagram.phases
+            .filter((ph) => Boolean(ph.detail?.trim()) && !isRedundant(ph.detail))
+            .slice(0, Math.min(4, Math.max(2, maxNodes)))
+            .map((ph) => ({ ...ph, detail: compactDetailSafe(ph.detail, 18, maxW) }));
+          const kept =
+            filtered.length >= 2
+              ? filtered
+              : diagram.phases
+                  .filter((ph) => Boolean(ph.detail?.trim()))
+                  .slice(0, Math.min(3, Math.max(2, maxNodes)))
+                  .map((ph) => ({ ...ph, detail: compactDetailSafe(ph.detail, 18, maxW) }));
+          return {
+            ...diagram,
+            phases: kept,
+            principle: maxNodes <= 3 || isRedundant(diagram.principle) ? '' : compactDetailSafe(diagram.principle, 18, 10),
+          };
+        }
+        case 'regulation-flow': {
+          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 11 : 12;
+          const filtered = diagram.stages
+            .filter((st) => Boolean(st.detail?.trim()) && !isRedundant(st.detail))
+            .slice(0, Math.min(4, Math.max(2, maxNodes)))
+            .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18, maxW) }));
+          const kept =
+            filtered.length >= 2
+              ? filtered
+              : diagram.stages
+                  .filter((st) => Boolean(st.detail?.trim()))
+                  .slice(0, Math.min(3, Math.max(2, maxNodes)))
+                  .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18, maxW) }));
+          return {
+            ...diagram,
+            stages: kept,
+            anchor: maxNodes <= 3 || isRedundant(diagram.anchor) ? '' : compactDetailSafe(diagram.anchor, 18, 10),
+          };
+        }
+        case 'clinical-flow': {
+          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 12 : 13;
+          const filtered = diagram.stages
+            .filter((st) => Boolean(st.detail?.trim()) && !isRedundant(st.detail))
+            .slice(0, Math.min(4, Math.max(2, maxNodes)))
+            .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18, maxW) }));
+          const kept =
+            filtered.length >= 2
+              ? filtered
+              : diagram.stages
+                  .filter((st) => Boolean(st.detail?.trim()))
+                  .slice(0, Math.min(3, Math.max(2, maxNodes)))
+                  .map((st) => ({ ...st, detail: compactDetailSafe(st.detail, 18, maxW) }));
+          return {
+            ...diagram,
+            stages: kept,
+            note: maxNodes <= 3 || isRedundant(diagram.note) ? '' : compactDetailSafe(diagram.note, 18, 10),
+          };
+        }
         default:
           return diagram;
       }
@@ -2394,7 +2514,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : seventhConcept.workedExample,
     };
-    if (countSlideWords(eighthConcept) <= 184) return eighthConcept;
+    if (countSlideWords(eighthConcept) <= 160) return eighthConcept;
 
     eighthConcept = {
       ...eighthConcept,
@@ -2410,13 +2530,13 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : eighthConcept.workedExample,
     };
-    if (countSlideWords(eighthConcept) <= 186) return eighthConcept;
+    if (countSlideWords(eighthConcept) <= 172) return eighthConcept;
 
     const trimmedExp =
       eighthConcept.explanation.split(/\s+/).length > 20
         ? (() => {
             const m = eighthConcept.explanation.match(
-              /^(.{40,}?)\s+(?:para\s+(?:verificar|comprobar|determinar|identificar|analizar|evaluar|garantizar|asegurar|corroborar)|por\s+medio\s+de\s+la\s+aplicaci[oó]n)\b/i
+              /^(.{40,}?)(?:\s+(?:para\s+(?:verificar|comprobar|determinar|identificar|analizar|evaluar|garantizar|asegurar|corroborar|fortalecer|generar|promover|fomentar)|por\s+medio\s+de\s+la\s+aplicaci[oó]n|al\s+posibilitar\s+que)\b|,\s+(?:diferenci[aá]ndose|fortaleciendo|promoviendo|fomentando|generando|contribuyendo)\b)/i
             );
             if (m && m[1]) {
               const cand = `${m[1].replace(/[.,;:\s]+$/, '').trim()}.`;
@@ -2850,19 +2970,29 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
     };
     if (countSlideWords(ninth) <= 144) return ninth;
 
-    // Si aún supera 144 palabras de cuerpo (~188 en PPTX), compactar exclusivamente cláusulas accesorias
+    // Si aún supera 144 palabras (visible + 64 chrome), compactar exclusivamente cláusulas accesorias
     // en aplicación real y en el objetivo (manteniendo siempre infinitivo + objeto y actividades íntegras).
     const compactAppClause = (text: string | undefined): string | undefined => {
       if (!text) return text;
       const cut = text
-        .replace(/,\s*(?:afectando|garantizando|asegurando|permitiendo|integrando|validando|considerando)\b.*$/i, '.')
-        .replace(/\s+(?:y\s+las\s+validaciones\s+f[ií]sicas|dise[ñn]ad[oa]s?\s+para\s+tu\s+localidad|en\s+papel\s+bond)\b.*$/i, '.')
+        .replace(/,\s*(?:afectando|garantizando|asegurando|permitiendo|integrando|validando|considerando|relacionando|bas[aá]ndose|vinculando|reflejando|fomentando|promoviendo|mostrando)\b.*$/i, '.')
+        .replace(/\s+(?:que\s+ayude\s+a\s+|por\s+medio\s+de\s+una?\s+|mediante\s+una?\s+|y\s+las\s+validaciones\s+f[ií]sicas|dise[ñn]ad[oa]s?\s+para\s+tu\s+localidad|en\s+papel\s+bond)\b.*$/i, '.')
         .replace(/\.\.+$/, '.')
         .trim();
       return cut.length >= 36 && !hasDanglingEnding(cut) ? cut : text;
     };
 
-    return {
+    const compactLongObjective = (item: string): string => {
+      const normalized = normalizeLearningObjective(item, { title: ninth.title, maxWords: 8, strict: false }) || item;
+      if (normalized.split(/\s+/).filter(Boolean).length <= 12) return normalized;
+      const trimmed = normalized
+        .replace(/\s+(?:aplicando|analizando|utilizando|considerando|evaluando|mediante)\b.*$/i, '')
+        .replace(/[.,;:\s]+$/, '')
+        .trim();
+      return trimmed.length >= 24 && !hasDanglingEnding(trimmed) ? trimmed : normalized;
+    };
+
+    const tenth: SacrintPracticeSlide = {
       ...ninth,
       artifactStep: 'Registra el avance.',
       applicationText:
@@ -2874,12 +3004,103 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
         .map((c) => fitPreserving(c, 58, 9, 'general', 22) || c),
       objectiveBullets: (ninth.objectiveBullets ?? [])
         .slice(0, 1)
-        .map(
-          (item) =>
-            normalizeLearningObjective(item, { title: ninth.title, maxWords: 8, strict: false }) ||
-            item
-        ),
+        .map(compactLongObjective),
     };
+    // countSlideWords incluye +64 chrome (PPTX real añade ~44 chrome): > 202 equivale a > ~182 palabras reales en PPTX.
+    if (countSlideWords(tenth) <= 202) return tenth;
+
+    // Etapa 10 (solo si la diapositiva 2/2 aún excede el presupuesto duro de ~195 palabras en PPTX):
+    // compactar enunciados de actividades muy extensas preservando siempre la ecuación (=), verbo de tarea y ≥ 60 caracteres.
+    const compactVerboseActivity = (
+      statement: string,
+      original: string,
+      maxWords: number
+    ): string => {
+      const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+      if (wordCount(statement) <= maxWords) return statement;
+      const mustKeepEq = /=/.test(original);
+      const isValidCandidate = (cand: string): boolean => {
+        const cleanCand = cand.replace(/\s+/g, ' ').trim();
+        if (cleanCand.length < 60 || cleanCand.length >= statement.length) return false;
+        if (mustKeepEq && !/=/.test(cleanCand)) return false;
+        if (hasDanglingEnding(cleanCand)) return false;
+        return hasActivityTask(cleanCand) && isPublishablePedagogicalText(cleanCand, 'activity', original);
+      };
+
+      // 1) Descartar oraciones secundarias finales (reflexión/formato/caso alterno) mientras lo previo mantenga tarea y ecuación.
+      const sents = statement
+        .split(/(?<=[.?!])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      for (let end = sents.length - 1; end >= 1; end -= 1) {
+        const prefix = sents.slice(0, end).join(' ').trim();
+        if (isValidCandidate(prefix) && wordCount(prefix) <= maxWords + 4) {
+          return prefix;
+        }
+      }
+      if (sents.length >= 2) {
+        const withoutLast = sents.slice(0, -1).join(' ').trim();
+        if (isValidCandidate(withoutLast)) {
+          statement = withoutLast;
+          if (wordCount(statement) <= maxWords) return statement;
+        }
+      }
+
+      // 2) Quitar preámbulos narrativos extensos, incisos parentéticos o cláusulas accesorias finales preservando todos los datos y la consigna.
+      const stripPreamble = (s: string): string => {
+        const stripped = s
+          .replace(
+            /^(?:A\s+lo\s+largo\s+de|Durante\s+el\s+desarrollo\s+de|En\s+el\s+marco\s+de|Como\s+parte\s+de)\s+[^,]{15,95},\s+(?:(?:un|una)\s+estudiante\s+(?:mide|observa|registra)\s+que\s+)?/i,
+            ''
+          )
+          .trim();
+        return stripped ? `${stripped.charAt(0).toUpperCase()}${stripped.slice(1)}` : s;
+      };
+      const stripFillers = (s: string): string =>
+        s
+          .replace(/\s+(?:empleado\s+en\s+el\s+aula\s+experimental|por\s+medio\s+de\s+un\s+mecanismo\s+de\s+poleas|para\s+completar\s+la\s+elevaci[oó]n|a\s+lo\s+largo\s+del\s+recorrido|de\s+la\s+aplicaci[oó]n\s+tecnol[oó]gica|en\s+el\s+sistema|a\s+lo\s+largo\s+del\s+transcurso\s+del\s+d[ií]a\s+en\s+tu\s+entorno|desde\s+una\s+fuente\s+externa\s+hacia\s+el\s+sistema\s+del\s+recipiente)\b/gi, '')
+          .replace(/\s+,/g, ',')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
+
+      const clauseTrims = [
+        stripPreamble(statement),
+        stripFillers(stripPreamble(statement)),
+        statement.replace(/\s*\([^)]{18,}\)/g, '').replace(/\s{2,}/g, ' ').trim(),
+        statement
+          .replace(/;\s*(?:posteriormente|despu[eé]s|luego|finalmente|adem[aá]s|asimismo)\b[^.?!]*([.?!]?)$/i, '$1')
+          .replace(/,\s*(?:explicando|justificando|argumentando|considerando|indicando|asegurando|verificando|detallando|integrando|comparando)\b[^.?!]*([.?!]?)$/i, '$1')
+          .trim(),
+        statement
+          .replace(/\s+y\s+(?:escribe|redacta|detalla|explica|justifica|argumenta|describe|compara|reflexiona)\s+(?:brevemente|un\s+argumento|por\s+qu[eé]|c[oó]mo|en\s+un\s+p[aá]rrafo|en\s+tu\s+cuaderno)[^.?!]*([.?!]?)$/i, '$1')
+          .trim(),
+      ];
+      for (const rawCand of clauseTrims) {
+        const cand = /[.?!]$/.test(rawCand) ? rawCand : `${rawCand}.`;
+        if (isValidCandidate(cand)) {
+          statement = cand;
+          if (wordCount(statement) <= maxWords) return statement;
+        }
+      }
+      return statement;
+    };
+
+    let compactedPractice: SacrintPracticeSlide = tenth;
+    for (const targetActWords of [48, 40, 34]) {
+      if (countSlideWords(compactedPractice) <= 202) break;
+      compactedPractice = {
+        ...compactedPractice,
+        activities: (compactedPractice.activities ?? []).map((activity, idx) => ({
+          ...activity,
+          statement: compactVerboseActivity(
+            activity.statement,
+            (first.activities ?? [])[idx]?.statement ?? activity.statement,
+            targetActWords
+          ),
+        })),
+      };
+    }
+    return compactedPractice;
   }
 
   return slide;
@@ -3274,6 +3495,30 @@ function buildLessonGuideSlidesForSession(
         return {
           ...diagram,
           steps: diagram.steps.map((st) => ({ ...st, detail: paraphraseNodeDetail(st.detail) })),
+        };
+      case 'creative-cycle':
+        return {
+          ...diagram,
+          phases: diagram.phases.map((ph) => ({ ...ph, detail: paraphraseNodeDetail(ph.detail) })),
+          statement: diagram.statement ? paraphraseNodeDetail(diagram.statement) : '',
+        };
+      case 'training-cycle':
+        return {
+          ...diagram,
+          phases: diagram.phases.map((ph) => ({ ...ph, detail: paraphraseNodeDetail(ph.detail) })),
+          principle: diagram.principle ? paraphraseNodeDetail(diagram.principle) : '',
+        };
+      case 'regulation-flow':
+        return {
+          ...diagram,
+          stages: diagram.stages.map((st) => ({ ...st, detail: paraphraseNodeDetail(st.detail) })),
+          anchor: diagram.anchor ? paraphraseNodeDetail(diagram.anchor) : '',
+        };
+      case 'clinical-flow':
+        return {
+          ...diagram,
+          stages: diagram.stages.map((st) => ({ ...st, detail: paraphraseNodeDetail(st.detail) })),
+          note: diagram.note ? paraphraseNodeDetail(diagram.note) : '',
         };
       default:
         return diagram;
@@ -3763,6 +4008,30 @@ function sanitizeDiagramPostBudget(
         ...diagram,
         steps: diagram.steps.map((s) => ({ ...s, detail: fixNodeDetail(s.detail) })),
       };
+    case 'creative-cycle':
+      return {
+        ...diagram,
+        phases: diagram.phases.map((ph) => ({ ...ph, detail: fixNodeDetail(ph.detail) })),
+        statement: diagram.statement ? fixNodeDetail(diagram.statement) : '',
+      };
+    case 'training-cycle':
+      return {
+        ...diagram,
+        phases: diagram.phases.map((ph) => ({ ...ph, detail: fixNodeDetail(ph.detail) })),
+        principle: diagram.principle ? fixNodeDetail(diagram.principle) : '',
+      };
+    case 'regulation-flow':
+      return {
+        ...diagram,
+        stages: diagram.stages.map((st) => ({ ...st, detail: fixNodeDetail(st.detail) })),
+        anchor: diagram.anchor ? fixNodeDetail(diagram.anchor) : '',
+      };
+    case 'clinical-flow':
+      return {
+        ...diagram,
+        stages: diagram.stages.map((st) => ({ ...st, detail: fixNodeDetail(st.detail) })),
+        note: diagram.note ? fixNodeDetail(diagram.note) : '',
+      };
     default:
       return diagram;
   }
@@ -3843,10 +4112,29 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const coverSubtitleCleanRaw =
     mode === 'lesson-guide' ? stripLeadingSessionTag(coverSubtitleRaw) : coverSubtitleRaw;
 
+  const stripCoverMissionScaffolding = (raw: string): string => {
+    const cleaned = raw
+      .replace(/^(?:Fundamentaci[oó]n\s+y\s+Activaci[oó]n|Desarrollo\s+y\s+Aplicaci[oó]n|Cierre\s+y\s+S[ií]ntesis|Consolidaci[oó]n\s+y\s+Evaluaci[oó]n|An[aá]lisis\s+y\s+Modelizaci[oó]n|Transferencia\s+y\s+Cierre)\s*[—–\-:]\s*/i, '')
+      .replace(/\s*\((?:Ciencias\s+Naturales[^)]*|Ciencias\s+Sociales[^)]*|Pensamiento\s+Matem[aá]tico[^)]*|Lengua\s+y\s+Comunicaci[oó]n[^)]*|Cultura\s+Digital[^)]*|Humanidades[^)]*)\)/gi, '')
+      .replace(/(?:^|\s*[—–\-:]\s*)Sesi[oó]n\s+\d+\s*:[^—–\n]+(?=\s*[—–\-]|$)/gi, '')
+      .replace(/^\s*[—–\-:]\s*/, '')
+      .replace(/^(?:Exploraci[oó]n\s+Diagn[oó]stica(?:\s+y\s+Problematizaci[oó]n\s+Situada)?|Problematizaci[oó]n\s+Situada|Conceptualizaci[oó]n\s+y\s+Modelado|Aplicaci[oó]n\s+y\s+Transferencia|Evaluaci[oó]n\s+e\s+Integraci[oó]n)\s*[—–\-:]\s*/i, '')
+      .replace(/^Sesi[oó]n\s+\d+\s*:\s*/i, '')
+      .replace(/\s*[—–\-:]\s*Sesi[oó]n\s+\d+\s*$/i, '')
+      .replace(/\s*[—–\-]\s*[—–\-]\s*/g, ' — ')
+      .replace(/^\s*[—–\-:]\s*|\s*[—–\-:]\s*$/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return cleaned.length >= 12 ? cleaned : raw.trim();
+  };
+
   const rawCoverTitle =
     mode === 'lesson-guide'
-      ? preventSixGramTheoryOverlap(
-          meta.missionTitle.replace(/\s*[—–\-:]\s*Sesi[oó]n\s+\d+\s*$/i, '').trim() || meta.missionTitle,
+      ? paraphraseSixGramOverlap(
+          preventSixGramTheoryOverlap(
+            stripCoverMissionScaffolding(meta.missionTitle),
+            workbookTheorySources
+          ),
           workbookTheorySources
         )
       : meta.missionTitle;
@@ -3862,8 +4150,19 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
 
   const coverSubtitleFinal =
     mode === 'lesson-guide'
-      ? preventSixGramTheoryOverlap(sanitizePedagogicalMetaPhrases(coverSubtitleCleanRaw), workbookTheorySources)
+      ? paraphraseSixGramOverlap(
+          preventSixGramTheoryOverlap(
+            sanitizePedagogicalMetaPhrases(stripCoverMissionScaffolding(coverSubtitleCleanRaw)),
+            workbookTheorySources
+          ),
+          workbookTheorySources
+        )
       : coverSubtitleCleanRaw;
+
+  const coverSubjectLabel =
+    mode === 'lesson-guide' && meta.subjectName.length > 48 && /\.\s+/.test(meta.subjectName)
+      ? meta.subjectName.split(/\.\s+/)[0]!.trim()
+      : meta.subjectName;
 
   const cover: SacrintCoverSlide = {
     kind: 'cover',
@@ -3871,7 +4170,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
     title: coverTitle,
     subtitle: coverSubtitleFinal.toLowerCase() === coverTitle.toLowerCase() ? '' : coverSubtitleFinal,
     missionIndex: meta.missionNumber,
-    metaLine: `${meta.subjectName} · SEMESTRE ${meta.semester} · BLOQUE ${meta.blockNumber}`,
+    metaLine: `${coverSubjectLabel} · SEMESTRE ${meta.semester} · BLOQUE ${meta.blockNumber}`,
     facts,
     topicsCovered: topicsCovered.length > 0 ? topicsCovered : undefined,
     footerNote:

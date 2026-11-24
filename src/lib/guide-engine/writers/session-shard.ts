@@ -736,8 +736,16 @@ function buildFieldRepairPrompts(
               `    Texto actual de "contenido": ${JSON.stringify(plan.contenido ?? '')}`
           );
         } else if (field === 'ejemploResuelto') {
+          const needsClosureFix = report.deficits.some((d) => /no cierra con resultado/i.test(d));
+          const closureExtra = needsClosureFix
+            ? `\n    CORRECCIÓN DE CIERRE OBLIGATORIA: el ejemplo anterior fue rechazado por cierre incompleto. Termina con la línea literal "Paso 4: Conclusión:" o "Paso 4: Resultado:" con oración completa (sin preposiciones/artículos colgantes al final)${
+                thresholds.requireNumericExample
+                  ? ' e incluye explícitamente al menos una ecuación/igualdad (=), dato numérico o expresión lógica formal verificable (ej. p → q, V ∧ F = F, tabla de verdad)'
+                  : ''
+              }.`
+            : '';
           fieldInstructions.push(
-            `  * Campo a reparar "ejemploResuelto" (actual: ${wordCount(plan.ejemploResuelto)} palabras; objetivo obligatorio: 250 a 300 palabras en 5 bloques separados por "\\n": "Planteamiento:" 50–70 palabras, "Paso 1:" 40–55 palabras, "Paso 2:" 40–55 palabras, "Paso 3:" 40–55 palabras, y cierre LITERAL con "Paso 4: Conclusión:" o "Paso 4: Resultado:" de 30–45 palabras):\n` +
+            `  * Campo a reparar "ejemploResuelto" (actual: ${wordCount(plan.ejemploResuelto)} palabras; objetivo obligatorio: 250 a 300 palabras en 5 bloques separados por "\\n": "Planteamiento:" 50–70 palabras, "Paso 1:" 40–55 palabras, "Paso 2:" 40–55 palabras, "Paso 3:" 40–55 palabras, y cierre LITERAL con "Paso 4: Conclusión:" o "Paso 4: Resultado:" de 30–45 palabras):${closureExtra}\n` +
               `    Directiva disciplinar: ${adapter.workedExampleDirective}\n` +
               `    Texto actual de "ejemploResuelto": ${JSON.stringify(plan.ejemploResuelto ?? '')}`
           );
