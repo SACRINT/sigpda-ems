@@ -697,7 +697,12 @@ ${isTransitionSemester
      • Queda ESTRICTAMENTE PROHIBIDO colapsar o agrupar varias progresiones en un solo bloque o rango (ej. PROHIBIDO escribir "Progresión 3 a 7" o "Progresión 1 a 3").
      • En cada elemento i (1..${activitiesList.length}), el campo "name" DEBE ser COPIA VERBATIM ÍNTEGRA del texto oficial de la Progresión i tal como se listó arriba ("Progresión K: <texto oficial completo>"). PROHIBIDO resumir, parafrasear o truncar.
      • En cada elemento i de "sectionIV.activities", el campo "contenidoFormativo" DEBE incluir las Categorías (C1...), Subcategorías (S1...) y Metas (C1M1...) oficiales correspondientes a esa Progresión.`
-  : '   - Para asignaturas no laborales: Especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado en la secuencia.'
+  : !isLaboral
+    ? `   - MCCEMS 1.° a 4.° SEMESTRE (PROPÓSITOS FORMATIVOS Y CONTENIDOS TEMÁTICOS):
+     • ${activitiesList.length >= 3 ? `Esta UAC cuenta con ${activitiesList.length} Propósitos Formativos oficiales listados arriba. Tanto "sectionII.activities" como "sectionIV.activities" DEBEN contener EXACTAMENTE ${activitiesList.length} elementos individuales (1 bloque de secuencia por cada Propósito Formativo oficial, en orden 1 a ${activitiesList.length}).` : 'Tanto "sectionII.activities" como "sectionIV.activities" DEBEN contener AL MENOS 3 elementos individuales (mínimo 3 bloques de secuencia didáctica distribuidos entre Corte 1, Corte 2 y Corte 3).'}
+     • Queda ESTRICTAMENTE PROHIBIDO colapsar o agrupar todo el semestre en 1 o 2 bloques (el validador Anexo 12 USICAMM exige >= 3 bloques de secuencia en "sectionIV.activities").
+     • En cada elemento de "sectionIV.activities", especifica obligatoriamente el "contenidoFormativo" oficial exacto desarrollado, "hours", "methodology", "saberes" y las 3 fases ("apertura", "ejecucion", "conclusion").`
+    : ''
 }
    - Para Formación Laboral (BGE): Exige que el Desarrollo alcance Nivel 2 de complejidad técnica y el Cierre sea una simulación práctica evaluable con lista de cotejo/rúbrica.
    - Para Carrera Técnica (Bachillerato Tecnológico): Exige que el Desarrollo implemente prácticas de taller/laboratorio, simulación técnica y resolución de problemas profesionales reales con equipo o software correspondiente a la especialidad técnica.

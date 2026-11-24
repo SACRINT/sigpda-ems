@@ -70,4 +70,21 @@ describe('prompt-material-tokens — Integración de tokens de materiales en pro
     expect(prompt).not.toContain('(y en cualquier campo que liste materiales)');
     expect(SYSTEM_PROMPT).toContain('exclusivo para utilidadReal y garantiaDualOffline');
   });
+
+  it('MCCEMS 1° a 4° semestre no laboral exige >= 3 bloques individuales en sectionIV.activities', () => {
+    const extractedWith5 = {
+      ...minimalExtractedData,
+      activities: [
+        { order: 1, name: 'Propósito 1', hours: 10 },
+        { order: 2, name: 'Propósito 2', hours: 11 },
+        { order: 3, name: 'Propósito 3', hours: 11 },
+        { order: 4, name: 'Propósito 4', hours: 11 },
+        { order: 5, name: 'Propósito 5', hours: 11 },
+      ],
+    } as ExtractedPdfData;
+    const prompt = buildUserPrompt(extractedWith5, minimalContext, 1, 'fundamental');
+    expect(prompt).toContain('MCCEMS 1.° a 4.° SEMESTRE');
+    expect(prompt).toContain('EXACTAMENTE 5 elementos individuales');
+    expect(prompt).toContain('sectionIV.activities');
+  });
 });
