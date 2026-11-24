@@ -1,20 +1,63 @@
 import type { MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { SacrintPack } from './discipline-packs';
+import { cleanSacrintText, sanitizePedagogicalMetaPhrases } from './text/grammar-normalization';
+import { paraphraseSixGramOverlap } from './text/six-gram-overlap';
+import { finalizeVisibleText, fitPedagogicalText } from '@/lib/editorial/fitter/text-compactor';
 import {
-  cleanSacrintText,
-  paraphraseSixGramOverlap,
-  sanitizePedagogicalMetaPhrases,
-} from './content-distiller';
-import {
-  finalizeVisibleText,
-  fitPedagogicalText,
   hasDanglingEnding,
   isPublishablePedagogicalText,
   isTruncatedAgainstSource,
-  splitSpanishSentences,
-} from '@/lib/editorial/pedagogical-text-fitter';
+} from '@/lib/editorial/fitter/dangling-guards';
+import { splitSpanishSentences } from '@/lib/editorial/fitter/sentence-splitter';
 import { extractDisciplinaryConceptPhrase } from '@/lib/editorial/topic-title-resolver';
 import { classifyTopic, detectExponentialContext } from '@/lib/visual-engine/topic-classifier';
+import type {
+  ArgumentDiagramSpec,
+  BlockDiagramSpec,
+  ClinicalFlowDiagramSpec,
+  ConceptDiagramSpec,
+  CreativeCycleDiagramSpec,
+  DiagramBuildOptions,
+  ExponentialDiagramSpec,
+  GeometryDiagramSpec,
+  LanguageDiagramSpec,
+  LinearDiagramSpec,
+  QuadraticDiagramSpec,
+  ReactionDiagramSpec,
+  RegulationFlowDiagramSpec,
+  SacrintDiagramNode,
+  SacrintDiagramSpec,
+  SacrintVariable,
+  SopFlowDiagramSpec,
+  System2x2DiagramSpec,
+  SystemMapDiagramSpec,
+  TimelineDiagramSpec,
+  TrainingCycleDiagramSpec,
+} from './types';
+
+export type {
+  ArgumentDiagramSpec,
+  BlockDiagramSpec,
+  ClinicalFlowDiagramSpec,
+  ConceptDiagramSpec,
+  CreativeCycleDiagramSpec,
+  DiagramBuildOptions,
+  ExponentialDiagramSpec,
+  GeometryDiagramSpec,
+  LanguageDiagramSpec,
+  LinearDiagramSpec,
+  QuadraticDiagramSpec,
+  ReactionDiagramSpec,
+  RegulationFlowDiagramSpec,
+  SacrintDiagramNode,
+  SacrintDiagramSpec,
+  SacrintVariable,
+  SopFlowDiagramSpec,
+  System2x2DiagramSpec,
+  SystemMapDiagramSpec,
+  TimelineDiagramSpec,
+  TrainingCycleDiagramSpec,
+} from './types';
 
 /**
  * Valida que una fórmula o expresión no contenga variables de plantilla sin instanciar (c1, a2, b2, a1*x + b1*y, etc.).
@@ -28,219 +71,6 @@ export function isValidRenderableFormula(formula: string | null | undefined): bo
   if (/\ba[₁₂12]\s*\*\s*x\b|\bb[₁₂12]\s*\*\s*y\b/i.test(trimmed)) return false;
   if (/\bundefined\b|\bNaN\b|\$\{/i.test(trimmed)) return false;
   return true;
-}
-
-export interface SacrintVariable {
-  symbol: string;
-  label: string;
-  meaning: string;
-}
-
-export interface SacrintDiagramNode {
-  label: string;
-  detail: string;
-}
-
-export interface LinearDiagramSpec {
-  kind: 'linear';
-  available: boolean;
-  equation: string;
-  slope: number;
-  intercept: number;
-  domainMax: number;
-  rangeMax: number;
-  points: Array<{ x: number; y: number; label?: string }>;
-  xLabel: string;
-  yLabel: string;
-  targetY?: number;
-}
-
-export interface QuadraticDiagramSpec {
-  kind: 'quadratic';
-  available: boolean;
-  equation: string;
-  a: number;
-  b: number;
-  c: number;
-  vertexX: number;
-  vertexY: number;
-  roots: number[];
-  xMin: number;
-  xMax: number;
-  yMin: number;
-  yMax: number;
-  samples: Array<{ x: number; y: number }>;
-  xLabel: string;
-  yLabel: string;
-}
-
-export interface System2x2DiagramSpec {
-  kind: 'system-2x2';
-  available: boolean;
-  equation1: string;
-  equation2: string;
-  a1: number;
-  b1: number;
-  c1: number;
-  a2: number;
-  b2: number;
-  c2: number;
-  intersection: { x: number; y: number } | null;
-  xMin: number;
-  xMax: number;
-  yMin: number;
-  yMax: number;
-  xLabel: string;
-  yLabel: string;
-}
-
-export interface ExponentialDiagramSpec {
-  kind: 'exponential';
-  available: boolean;
-  equation: string;
-  principal: number;
-  rate: number;
-  periods: number;
-  simpleSeries: Array<{ t: number; value: number }>;
-  compoundSeries: Array<{ t: number; value: number }>;
-  yMax: number;
-  xLabel: string;
-  yLabel: string;
-  context?: 'population' | 'financial';
-}
-
-export interface GeometryDiagramSpec {
-  kind: 'geometry';
-  available: boolean;
-  variant: 'angles' | 'right-triangle' | 'polygon';
-  equation: string;
-  primaryLabel: string;
-  secondaryLabel: string;
-  highlights: SacrintDiagramNode[];
-}
-
-export interface ReactionDiagramSpec {
-  kind: 'reaction';
-  available: boolean;
-  equation: string;
-  reactants: SacrintDiagramNode[];
-  products: SacrintDiagramNode[];
-  condition: string;
-  note: string;
-}
-
-export interface ArgumentDiagramSpec {
-  kind: 'argument';
-  available: boolean;
-  thesis: SacrintDiagramNode;
-  premises: SacrintDiagramNode[];
-  objection: SacrintDiagramNode;
-  conclusion: SacrintDiagramNode;
-}
-
-export interface LanguageDiagramSpec {
-  kind: 'language';
-  available: boolean;
-  input: SacrintDiagramNode;
-  rule: SacrintDiagramNode;
-  output: SacrintDiagramNode;
-  context: SacrintDiagramNode;
-}
-
-export interface ConceptDiagramSpec {
-  kind: 'concept';
-  available: boolean;
-  center: SacrintDiagramNode;
-  nodes: SacrintDiagramNode[];
-}
-
-export interface TimelineDiagramSpec {
-  kind: 'timeline';
-  available: boolean;
-  events: SacrintDiagramNode[];
-  span: string;
-}
-
-export interface SystemMapDiagramSpec {
-  kind: 'system-map';
-  available: boolean;
-  center: SacrintDiagramNode;
-  components: SacrintDiagramNode[];
-  environment: SacrintDiagramNode;
-}
-
-export interface ClinicalFlowDiagramSpec {
-  kind: 'clinical-flow';
-  available: boolean;
-  stages: SacrintDiagramNode[];
-  note: string;
-}
-
-export interface BlockDiagramSpec {
-  kind: 'block-diagram';
-  available: boolean;
-  input: SacrintDiagramNode;
-  process: SacrintDiagramNode;
-  output: SacrintDiagramNode;
-  feedback: SacrintDiagramNode;
-}
-
-export interface SopFlowDiagramSpec {
-  kind: 'sop-flow';
-  available: boolean;
-  steps: SacrintDiagramNode[];
-  standard: string;
-}
-
-export interface CreativeCycleDiagramSpec {
-  kind: 'creative-cycle';
-  available: boolean;
-  phases: SacrintDiagramNode[];
-  statement: string;
-}
-
-export interface TrainingCycleDiagramSpec {
-  kind: 'training-cycle';
-  available: boolean;
-  phases: SacrintDiagramNode[];
-  principle: string;
-}
-
-export interface RegulationFlowDiagramSpec {
-  kind: 'regulation-flow';
-  available: boolean;
-  stages: SacrintDiagramNode[];
-  anchor: string;
-}
-
-export type SacrintDiagramSpec =
-  | LinearDiagramSpec
-  | QuadraticDiagramSpec
-  | System2x2DiagramSpec
-  | ExponentialDiagramSpec
-  | GeometryDiagramSpec
-  | ReactionDiagramSpec
-  | ArgumentDiagramSpec
-  | LanguageDiagramSpec
-  | ConceptDiagramSpec
-  | TimelineDiagramSpec
-  | SystemMapDiagramSpec
-  | ClinicalFlowDiagramSpec
-  | BlockDiagramSpec
-  | SopFlowDiagramSpec
-  | CreativeCycleDiagramSpec
-  | TrainingCycleDiagramSpec
-  | RegulationFlowDiagramSpec;
-
-interface DiagramBuildOptions {
-  xLabel?: string;
-  yLabel?: string;
-  session?: SessionPlan;
-  allowMissionFallback?: boolean;
-  /** Texto del ejemplo efectivamente mostrado en la lámina/infografía para garantizar 100% coherencia Ejemplo ↔ FIG. 01. */
-  preferredExampleText?: string;
-  /** Fuentes del libro para parafrasear nodos de diagramas no cuantitativos y evitar solapamiento 6-grama 08↔06. */
-  theorySources?: string[];
 }
 
 function clean(value: string | null | undefined): string {
@@ -3052,3 +2882,4 @@ export function stepLabelsForPack(pack: SacrintPack, contextText?: string): stri
       return ['EL FENÓMENO', 'EL CONCEPTO', 'LA PRÁCTICA', 'LA DECISIÓN'];
   }
 }
+

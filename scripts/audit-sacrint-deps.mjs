@@ -34,6 +34,9 @@ export function classifyLayer(relPosixPath) {
     relPosixPath === 'src/lib/visual-engine/sacrint/types.ts' ||
     relPosixPath.startsWith('src/lib/editorial/fitter/') ||
     relPosixPath === 'src/lib/visual-engine/sacrint/palette.ts' ||
+    relPosixPath === 'src/lib/visual-engine/sacrint/tokens.ts' ||
+    relPosixPath === 'src/lib/visual-engine/sacrint/visual-styles.ts' ||
+    relPosixPath === 'src/lib/visual-engine/sacrint/math-text.ts' ||
     relPosixPath === 'src/lib/visual-engine/sacrint/discipline-packs.ts' ||
     relPosixPath === 'src/lib/visual-engine/sacrint/topic-classifier.ts'
   ) {

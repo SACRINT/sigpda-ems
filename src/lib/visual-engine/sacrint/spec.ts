@@ -1,33 +1,35 @@
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 import { resolveSacrintPack, type SacrintPack } from './discipline-packs';
-import { resolveSacrintStyle, type SacrintVisualStyle } from './visual-styles';
-import type { SacrintThemeMode } from './tokens';
+import { resolveSacrintStyle } from './visual-styles';
+import {
+  cleanSacrintText,
+  GENERIC_CONCLUSION_RE,
+  isRubricOrBoilerplateLeak,
+  NUMERIC_ONLY_STEP_RE,
+  sanitizePedagogicalMetaPhrases,
+  stripTemplateLabels,
+  TEMPLATE_PHRASE_RE,
+} from './text/grammar-normalization';
+import {
+  enforceSixGramOverlap,
+  paraphraseSixGramOverlap,
+  preventSixGramTheoryOverlap,
+  sixGramOverlapRatio,
+} from './text/six-gram-overlap';
 import {
   cleanMissionTopicLine,
-  cleanSacrintText,
   distillConciseText,
-  distillLessonBundle,
-  distillStepPreservingMath,
   extractBulletSentences,
   extractChalkboardTopicTitle,
   extractCleanTopicTitle,
-  enforceSixGramOverlap,
+  normalizeLearningObjective,
+  validatePracticeActivity,
+} from './text/objective-and-activity-guards';
+import {
+  distillLessonBundle,
+  distillStepPreservingMath,
   extractConceptHighlights,
   extractWorkedExample,
-  GENERIC_CONCLUSION_RE,
-  isRubricOrBoilerplateLeak,
-  normalizeLearningObjective,
-  NUMERIC_ONLY_STEP_RE,
-  preventSixGramTheoryOverlap,
-  sanitizePedagogicalMetaPhrases,
-  sixGramOverlapRatio,
-  stripTemplateLabels,
-  TEMPLATE_PHRASE_RE,
-  validatePracticeActivity,
-  paraphraseSixGramOverlap,
-  type DistilledExample,
-  type DistilledLessonBundle,
-  type DistilledPracticeActivity,
 } from './content-distiller';
 import {
   buildDiagramVariables,
@@ -35,8 +37,6 @@ import {
   diagramFormula,
   diagramSubtitle,
   stepLabelsForPack,
-  type SacrintDiagramSpec,
-  type SacrintVariable,
 } from './diagrams';
 import { classifyTopic } from '@/lib/visual-engine/topic-classifier';
 import {
@@ -47,48 +47,70 @@ import {
   resolveInfographicConceptTitle,
   sanitizeWorkbookTocTitle,
 } from '@/lib/editorial/topic-title-resolver';
+import { finalizeVisibleText, fitPedagogicalText } from '@/lib/editorial/fitter/text-compactor';
 import {
-  finalizeVisibleText,
-  fitPedagogicalText,
   GENERIC_FILLER_RE,
   hasDanglingEnding,
   isPublishablePedagogicalText,
   isTruncatedAgainstSource,
   NODE_TRUNCATION_RE,
   repairDanglingEnding,
-  splitSpanishSentences,
-} from '@/lib/editorial/pedagogical-text-fitter';
+} from '@/lib/editorial/fitter/dangling-guards';
+import { splitSpanishSentences } from '@/lib/editorial/fitter/sentence-splitter';
 import {
   isValidRenderableFormula,
   normalizeEditorialText,
   normalizeSessionDescriptorTense,
 } from '@/lib/editorial/text-normalization';
+import {
+  LESSON_GUIDE_NO_SESSIONS_CODE,
+  LessonGuideNoSessionsError,
+  SACRINT_SLIDE_COUNT,
+  type ConceptFamily,
+  type ConceptManualDefinition,
+  type ConceptMapNode,
+  type DistilledLessonBundle,
+  type SacrintBuildOptions,
+  type SacrintChallengeSlide,
+  type SacrintClosingSlide,
+  type SacrintConceptSlide,
+  type SacrintCoverSlide,
+  type SacrintDeckMode,
+  type SacrintDeckSpec,
+  type SacrintDemoSlide,
+  type SacrintDiagramSpec,
+  type SacrintEvidenceSlide,
+  type SacrintFact,
+  type SacrintHookSlide,
+  type SacrintInfographicFormat,
+  type SacrintInfographicSpec,
+  type SacrintInfographicStep,
+  type SacrintInfographicTarget,
+  type SacrintMissionMeta,
+  type SacrintPracticeSlide,
+  type SacrintRubricItem,
+  type SacrintSlide,
+} from './types';
 
-export const LESSON_GUIDE_NO_SESSIONS_CODE = 'LESSON_GUIDE_NO_SESSIONS';
-
-export class LessonGuideNoSessionsError extends Error {
-  readonly code = LESSON_GUIDE_NO_SESSIONS_CODE;
-  readonly blockNumber: number;
-  readonly missionNumber: number;
-  readonly missionTitle: string;
-
-  constructor(blockNumber: number, missionNumber: number, missionTitle: string) {
-    super(
-      `[LESSON_GUIDE_NO_SESSIONS] La Misión ${missionNumber} (${missionTitle}) del Bloque ${blockNumber} no cuenta con sesiones (sessionPlans) para generar la guía expositiva de pizarrón.`
-    );
-    this.name = 'LessonGuideNoSessionsError';
-    this.blockNumber = blockNumber;
-    this.missionNumber = missionNumber;
-    this.missionTitle = missionTitle;
-  }
-}
+export {
+  LESSON_GUIDE_NO_SESSIONS_CODE,
+  LessonGuideNoSessionsError,
+  SACRINT_SLIDE_COUNT,
+};
 
 export type {
   ArgumentDiagramSpec,
   BlockDiagramSpec,
   ClinicalFlowDiagramSpec,
   ConceptDiagramSpec,
+  ConceptFamily,
+  ConceptManualDefinition,
+  ConceptManualSection,
+  ConceptMapNode,
   CreativeCycleDiagramSpec,
+  DistilledExample,
+  DistilledLessonBundle,
+  DistilledPracticeActivity,
   ExponentialDiagramSpec,
   GeometryDiagramSpec,
   LanguageDiagramSpec,
@@ -96,244 +118,36 @@ export type {
   QuadraticDiagramSpec,
   ReactionDiagramSpec,
   RegulationFlowDiagramSpec,
+  SacrintBuildOptions,
+  SacrintChallengeSlide,
+  SacrintClosingSlide,
+  SacrintConceptSlide,
+  SacrintCoverSlide,
+  SacrintDeckMode,
+  SacrintDeckSpec,
+  SacrintDemoSlide,
   SacrintDiagramNode,
   SacrintDiagramSpec,
+  SacrintEvidenceSlide,
+  SacrintFact,
+  SacrintHookSlide,
+  SacrintInfographicFormat,
+  SacrintInfographicSpec,
+  SacrintInfographicStep,
+  SacrintInfographicTarget,
+  SacrintMissionMeta,
+  SacrintPracticeSlide,
+  SacrintRubricItem,
+  SacrintSlide,
+  SacrintSlideKind,
+  SacrintTrafficLight,
   SacrintVariable,
   SopFlowDiagramSpec,
   System2x2DiagramSpec,
   SystemMapDiagramSpec,
   TimelineDiagramSpec,
   TrainingCycleDiagramSpec,
-} from './diagrams';
-
-export type { DistilledExample, DistilledPracticeActivity } from './content-distiller';
-
-export type SacrintSlideKind =
-  | 'cover'
-  | 'hook'
-  | 'concept'
-  | 'demo'
-  | 'practice'
-  | 'challenge'
-  | 'evidence'
-  | 'closing';
-
-export const SACRINT_SLIDE_COUNT = 8;
-
-export type SacrintInfographicFormat = 'wide' | 'letter';
-export type SacrintDeckMode = 'classroom' | 'full' | 'lesson-guide';
-
-export interface SacrintFact {
-  label: string;
-  value: string;
-}
-
-export interface SacrintTrafficLight {
-  green: string;
-  yellow: string;
-  red: string;
-}
-
-export interface SacrintMissionMeta {
-  subjectName: string;
-  blockName: string;
-  blockNumber: number;
-  semester: number;
-  missionNumber: number;
-  missionTitle: string;
-  sessions: string;
-  teacherName: string;
-  schoolName: string;
-  cct?: string;
-  paecProjectName?: string;
-  expectedSlideCount?: number;
-}
-
-interface SacrintSlideBase {
-  kind: SacrintSlideKind;
-  eyebrow: string;
-  title: string;
-  subtitle?: string;
-  missionIndex: number;
-  sessionNumber?: number | null;
-  isLessonGuide?: boolean;
-}
-
-export interface SacrintCoverSlide extends SacrintSlideBase {
-  kind: 'cover';
-  metaLine: string;
-  facts: SacrintFact[];
-  footerNote: string;
-  topicsCovered?: string[];
-}
-
-export interface SacrintHookSlide extends SacrintSlideBase {
-  kind: 'hook';
-  story: string;
-  question: string;
-  nodes: Array<{ label: string; detail: string }>;
-  facts: SacrintFact[];
-}
-
-export interface SacrintConceptSlide extends SacrintSlideBase {
-  kind: 'concept';
-  analogy: string;
-  explanation: string;
-  misconception: string;
-  formula: string;
-  variables: SacrintVariable[];
-  diagram: SacrintDiagramSpec;
-  facts: SacrintFact[];
-  activationNote?: string;
-  formulas?: string[];
-  keyTakeaways?: string[];
-  workedExample?: DistilledExample;
-}
-
-export interface SacrintDemoSlide extends SacrintSlideBase {
-  kind: 'demo';
-  demoText: string;
-  steps: string[];
-  problemStatement?: string;
-  interpretation?: string;
-  facts: SacrintFact[];
-}
-
-export interface SacrintPracticeSlide extends SacrintSlideBase {
-  kind: 'practice';
-  practiceText: string;
-  checkpoints: string[];
-  objectiveBullets?: string[];
-  evaluationCriteria?: string[];
-  hint?: string;
-  activities?: DistilledPracticeActivity[];
-  applicationText?: string;
-  artifactName?: string;
-  artifactStep?: string;
-  exitChecks?: string[];
-  facts: SacrintFact[];
-}
-
-export interface SacrintChallengeSlide extends SacrintSlideBase {
-  kind: 'challenge';
-  challengeText: string;
-  artifactName: string;
-  communityUtility: string;
-  phases: Array<{ title: string; hours: number }>;
-  applicationText?: string;
-  exitChecks?: string[];
-  facts: SacrintFact[];
-}
-
-export interface SacrintEvidenceSlide extends SacrintSlideBase {
-  kind: 'evidence';
-  checkpoint: string;
-  rubric: SacrintRubricItem[];
-  checklist: string[];
-  reflection: string;
-  facts: SacrintFact[];
-}
-
-export interface SacrintClosingSlide extends SacrintSlideBase {
-  kind: 'closing';
-  checkpoint: string;
-  criteria: string[];
-  trafficLight: SacrintTrafficLight;
-  reflection: string;
-  facts: SacrintFact[];
-}
-
-export type SacrintSlide =
-  | SacrintCoverSlide
-  | SacrintHookSlide
-  | SacrintConceptSlide
-  | SacrintDemoSlide
-  | SacrintPracticeSlide
-  | SacrintChallengeSlide
-  | SacrintEvidenceSlide
-  | SacrintClosingSlide;
-
-export interface SacrintDeckSpec {
-  meta: SacrintMissionMeta;
-  pack: SacrintPack;
-  style: SacrintVisualStyle;
-  mode?: SacrintDeckMode;
-  theme?: SacrintThemeMode;
-  slides: SacrintSlide[];
-}
-
-export interface SacrintInfographicStep {
-  number: number;
-  title: string;
-  body: string;
-}
-
-export interface SacrintRubricItem {
-  label: string;
-  weight?: number;
-}
-
-export interface ConceptMapNode {
-  concept: string;
-  relation: string;
-  detail: string;
-}
-
-export interface ConceptManualDefinition {
-  term: string;
-  definition: string;
-}
-
-export interface ConceptManualSection {
-  centralConcept: string;
-  conceptMap: ConceptMapNode[];
-  definitions: ConceptManualDefinition[];
-  usageGuidance: string[];
-  masteryChecklist: string[];
-}
-
-export interface SacrintInfographicSpec {
-  format: SacrintInfographicFormat;
-  theme?: SacrintThemeMode;
-  meta: SacrintMissionMeta;
-  pack: SacrintPack;
-  style: SacrintVisualStyle;
-  title: string;
-  topicTitle?: string;
-  subtitle: string;
-  claim: string;
-  formula: string;
-  formulasList?: string[];
-  keyConcepts?: string[];
-  conceptManual?: ConceptManualSection;
-  quickExample?: DistilledExample;
-  variables: SacrintVariable[];
-  diagram: SacrintDiagramSpec;
-  steps: SacrintInfographicStep[];
-  misconception: string;
-  misconceptionFix?: { error: string; correction: string };
-  applicationSummary?: string;
-  criteria: string[];
-  rubric: SacrintRubricItem[];
-  project: {
-    artifactName: string;
-    communityUtility: string;
-  };
-  facts: SacrintFact[];
-}
-
-export interface SacrintBuildOptions {
-  missionIndex?: number;
-  sessionIndex?: number;
-  xLabel?: string;
-  yLabel?: string;
-  mode?: SacrintDeckMode;
-  theme?: SacrintThemeMode;
-  /** Fuentes teóricas adicionales (p. ej. de otros bloques del mismo libro) para prevenir traslape de 6-gramas. */
-  extraTheorySources?: Array<string | null | undefined>;
-  /** Contador por compilación para diversificar errores comunes sin estado global de módulo. */
-  misconceptionTracker?: Map<string, number>;
-}
+} from './types';
 
 function splitLabeledItems(value: string | null | undefined, label: 'PASO' | 'Instrucción', max: number): string[] {
   const text = cleanSacrintText(value);
@@ -4637,16 +4451,6 @@ function isInfographicDiagramCoherent(
   return true;
 }
 
-export type ConceptFamily =
-  | 'angles'
-  | 'pythagoras'
-  | 'area-perimeter'
-  | 'congruence'
-  | 'linear'
-  | 'quadratic'
-  | 'exponential'
-  | 'statistics'
-  | 'other';
 
 function normalizeConceptFamilyText(value: string): string {
   return value
@@ -5105,17 +4909,7 @@ function selectCoherentFormula(title: string, candidates: string[]): string {
   return '';
 }
 
-export interface SacrintInfographicTarget {
-  missionIndex: number;
-  sessionIndex: number;
-  conceptKey: string;
-}
 
-/**
- * Selecciona una infografía por concepto/sesión distinto. Evita el error de
- * generar una sola lámina por misión tomando siempre `sessionPlans[0]`, que
- * omitía los conceptos de las sesiones 2..N y duplicaba títulos entre misiones.
- */
 export function selectInfographicTargets(workbook: ActiveWorkTextbook): SacrintInfographicTarget[] {
   const seen = new Set<string>();
   const targets: SacrintInfographicTarget[] = [];
@@ -5934,3 +5728,4 @@ export function validateSacrintContentIntegrity(
   }
   return issues;
 }
+
