@@ -544,8 +544,11 @@ export function normalizeEditorialText(
     .replace(/\^\s*\{\s*\\?circ\s*\}|\^\s*\\?circ\b/g, '°')
     .replace(/\^\{([^{}]+)\}/g, (_m, exp: string) => convertUnicodeScript(exp, SUPERSCRIPTS, '^'))
     .replace(/_\{([^{}]+)\}/g, (_m, sub: string) => convertUnicodeScript(sub, SUBSCRIPTS, '_'))
-    .replace(/([A-Za-z0-9)\]])\^([0-9ni])/g, (_m, base: string, ch: string) => `${base}${SUPERSCRIPTS[ch] || `^${ch}`}`)
-    .replace(/([A-Za-z0-9)\]])_([0-9ainexv])/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || `_${ch}`}`)
+    .replace(/([A-Za-z0-9)\]])\^([0-9ni])(?![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, (_m, base: string, ch: string) => `${base}${SUPERSCRIPTS[ch] || `^${ch}`}`)
+    .replace(
+      /(?<![A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{3})([A-Za-z0-9)\]])_([0-9ainexv])(?![A-Za-zÁÉÍÓÚÜÑáéíóúüñ_])/g,
+      (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || `_${ch}`}`
+    )
     .replace(/\b([ADΔM])_([xytsce0-9])\b/g, (_m, base: string, ch: string) => `${base}${SUBSCRIPTS[ch] || ch}`);
 
   // 6.9. Normalizar notación ASCII de raíz, subíndices crudos y superíndices partidos.

@@ -854,4 +854,29 @@ describe('SACRINT 08/09 — Gates de raíz: títulos, objetivos en infinitivo, a
     expect(ORPHAN_LIST_END_RE.test('Aplica el proceso algorítmico: 1.')).toBe(true);
     expect(ORPHAN_LIST_END_RE.test('Traza el triángulo en papel milimetrado con escala 1:100.')).toBe(false);
   });
+
+  it('validatePracticeActivity reconoce verbos imperativos de Taxonomía de Bloom (Define, Analiza, Sintetiza, Establece, Codifica, Reflexiona) sin debilitar rechazos de sustantivos o 3ª persona', () => {
+    const validBloomActivities = [
+      'Define el reto, propone una regla de uso para los equipos.',
+      'Analiza el algoritmo propuesto y depura las condiciones lógicas del ciclo.',
+      'Sintetiza los postulados éticos revisados y establece dos acuerdos de convivencia digital.',
+      'Reflexiona sobre el dilema comunitario y cuestiona los supuestos iniciales del caso.',
+      'Codifica la función de validación en pseudocódigo y esquematiza sus entradas y salidas.',
+    ];
+    for (const act of validBloomActivities) {
+      expect(validatePracticeActivity(act, '', { strict: false }).valid, `Debió aceptar: "${act}"`).toBe(true);
+    }
+
+    // Sigue rechazando oraciones descriptivas en 3ª persona con "define" o "propone" y sustantivos como "la estructura"
+    expect(
+      validatePracticeActivity(
+        'El reglamento define los horarios de acceso al laboratorio y establece el uso de credenciales.',
+        '',
+        { strict: false }
+      ).valid
+    ).toBe(false);
+    expect(
+      validatePracticeActivity("Usa la estructura 'There are' en tus ejemplos.", '', { strict: false }).valid
+    ).toBe(false);
+  });
 });

@@ -45,7 +45,6 @@ import {
   isEvaluationOrClosureObjective,
   isPaecProjectOrArtifactTitle,
   resolveInfographicConceptTitle,
-  SacrintContentError,
   sanitizeWorkbookTocTitle,
 } from '@/lib/editorial/topic-title-resolver';
 import {
@@ -3324,6 +3323,17 @@ function buildLessonGuideSlidesForSession(
         workbookTheorySources
       )
     : '';
+  const getSynthesizedFallbackObjective = (): string =>
+    normalizeLearningObjective(
+      `Analizar los criterios clave de ${fittedTopicTitle.toLowerCase()} en situaciones reales del entorno.`,
+      {
+        title: fittedTopicTitle,
+        maxWords: 15,
+        sessionNumber: bundle.sessionNumber,
+        field: 'objectiveBullets',
+        strict: false,
+      }
+    ) || 'Analizar los conceptos centrales de la sesión y fundamentar su aplicación práctica.';
   const validatedObjective =
     normalizeLearningObjective(paraphrasedObjectiveCandidate, {
       title: fittedTopicTitle,
@@ -3331,18 +3341,9 @@ function buildLessonGuideSlidesForSession(
       sessionNumber: bundle.sessionNumber,
       field: 'objectiveBullets',
       strict: false,
-    }) || normalizedBaseObjective;
-  if (!validatedObjective && rawSessionObjectiveForSlide.length >= 12) {
-    throw new SacrintContentError(
-      'SACRINT_OBJECTIVE_INVALID',
-      `No se pudo normalizar un objetivo en infinitivo válido para sesión ${bundle.sessionNumber ?? 'N/A'}`,
-      {
-        sessionNumber: bundle.sessionNumber,
-        field: 'objectiveBullets',
-        raw: rawSessionObjectiveForSlide,
-      }
-    );
-  }
+    }) ||
+    normalizedBaseObjective ||
+    (rawSessionObjectiveForSlide.length >= 12 ? getSynthesizedFallbackObjective() : null);
   const objectiveBullets = validatedObjective ? [validatedObjective] : [];
 
   const isLabOrWorkshopSubject = /qu[ií]m|biolog|f[ií]sica|ecolog|salud|laborat|taller|mec[aá]n|electr[oó]n|industrial|agropec/i.test(
@@ -3469,14 +3470,302 @@ function buildLessonGuideSlidesForSession(
   };
 
   const rawBudgetedConcept = finalCompact(enforceLessonGuideSlideBudget(conceptSlide), 130) as SacrintConceptSlide;
-  const budgetedConcept: SacrintConceptSlide =
+  const baseConceptExplanation = sanitizeMechanicalSlideCorruption(
     rawBudgetedConcept.explanation &&
-    rawBudgetedConcept.explanation.trim().length >= 55 &&
-    !isHeadlessAnaphoricStart(rawBudgetedConcept.explanation)
-      ? rawBudgetedConcept
-      : { ...rawBudgetedConcept, explanation: conceptSlide.explanation };
-  const budgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 136);
+      rawBudgetedConcept.explanation.trim().length >= 55 &&
+      !isHeadlessAnaphoricStart(rawBudgetedConcept.explanation) &&
+      !hasSlideIntegrityDefect(rawBudgetedConcept.explanation)
+      ? rawBudgetedConcept.explanation
+      : conceptSlide.explanation
+  );
+  const safeConceptTitle =
+    rawBudgetedConcept.title && !GENERIC_TITLE_BLACKLIST_RE.test(rawBudgetedConcept.title.trim())
+      ? sanitizeMechanicalSlideCorruption(rawBudgetedConcept.title)
+      : fittedTopicTitle && !GENERIC_TITLE_BLACKLIST_RE.test(fittedTopicTitle.trim())
+        ? fittedTopicTitle
+        : `Eje conceptual de la sesión ${sesLabel}`;
+
+  const rawWe = rawBudgetedConcept.workedExample ?? conceptSlide.workedExample;
+  const origWe = conceptSlide.workedExample;
+  let safeProblemStmt = sanitizeMechanicalSlideCorruption(rawWe?.problemStatement);
+  if (safeProblemStmt.length < 12 || !/[a-záéíóúñ]/i.test(safeProblemStmt) || hasSlideIntegrityDefect(safeProblemStmt)) {
+    const origProb = sanitizeMechanicalSlideCorruption(origWe?.problemStatement);
+    safeProblemStmt =
+      origProb.length >= 12 && /[a-záéíóúñ]/i.test(origProb) && !hasSlideIntegrityDefect(origProb)
+        ? origProb
+        : `Analiza un caso práctico sobre ${safeConceptTitle.toLowerCase()} aplicando los criterios de la sesión.`;
+  }
+  const isStepPublishable = (st: string): boolean =>
+    st.trim().length >= 8 && !hasSlideIntegrityDefect(st);
+  let safeSteps = (rawWe?.steps ?? [])
+    .map((st) => sanitizeMechanicalSlideCorruption(st))
+    .filter(isStepPublishable);
+  const hasSingleMultiEqStep =
+    safeSteps.length === 1 && ((safeSteps[0]?.match(/=/g)?.length ?? 0) >= 2);
+  if (safeSteps.length < 2 && !hasSingleMultiEqStep) {
+    const restoredSteps = (origWe?.steps ?? [])
+      .map((st) => sanitizeMechanicalSlideCorruption(st))
+      .filter(isStepPublishable)
+      .slice(0, 3);
+    if (restoredSteps.length >= 2 || (restoredSteps.length === 1 && (restoredSteps[0]?.match(/=/g)?.length ?? 0) >= 2)) {
+      safeSteps = restoredSteps;
+    } else {
+      const fallbackPool = [
+        ...safeSteps,
+        `Identifica las variables y condiciones relevantes del caso sobre ${safeConceptTitle.toLowerCase()}.`,
+        'Desarrolla el procedimiento aplicando los criterios disciplinares revisados en la sesión.',
+      ];
+      safeSteps = Array.from(new Set(fallbackPool.filter(isStepPublishable))).slice(0, 2);
+    }
+  }
+  let safeInterpretation = sanitizeMechanicalSlideCorruption(rawWe?.interpretation);
+  if (!safeInterpretation || hasSlideIntegrityDefect(safeInterpretation)) {
+    const origInterp = sanitizeMechanicalSlideCorruption(origWe?.interpretation);
+    safeInterpretation =
+      origInterp && !hasSlideIntegrityDefect(origInterp)
+        ? origInterp
+        : `El análisis fundamenta decisiones coherentes sobre ${safeConceptTitle.toLowerCase()} en el entorno.`;
+  }
+  const budgetedMisconception = sanitizeMechanicalSlideCorruption(rawBudgetedConcept.misconception);
+  const fallbackMisconception = sanitizeMechanicalSlideCorruption(conceptSlide.misconception);
+  const safeMisconception =
+    budgetedMisconception && !hasSlideIntegrityDefect(budgetedMisconception)
+      ? budgetedMisconception
+      : fallbackMisconception && !hasSlideIntegrityDefect(fallbackMisconception)
+        ? fallbackMisconception
+        : '';
+
+  const budgetedConcept: SacrintConceptSlide = {
+    ...rawBudgetedConcept,
+    title: safeConceptTitle,
+    explanation: !hasSlideIntegrityDefect(baseConceptExplanation)
+      ? baseConceptExplanation
+      : `Comprende los principios fundamentales de ${safeConceptTitle.toLowerCase()} y su relación con problemáticas reales del contexto.`,
+    misconception: safeMisconception,
+    workedExample: {
+      problemStatement: safeProblemStmt,
+      steps: safeSteps,
+      interpretation: safeInterpretation,
+    },
+    diagram: sanitizeDiagramPostBudget(rawBudgetedConcept.diagram, safeConceptTitle),
+  };
+
+  const rawBudgetedPractice = finalCompact(enforceLessonGuideSlideBudget(practiceSlide), 136) as SacrintPracticeSlide;
+  const safePracticeTitle =
+    rawBudgetedPractice.title && !GENERIC_TITLE_BLACKLIST_RE.test(rawBudgetedPractice.title.trim())
+      ? sanitizeMechanicalSlideCorruption(rawBudgetedPractice.title)
+      : safeConceptTitle;
+
+  const healedActivities = (rawBudgetedPractice.activities ?? []).map((act, idx) => {
+    let stmt = ensureActivityClosure(sanitizeMechanicalSlideCorruption(act.statement));
+    let hint = act.hint ? sanitizeMechanicalSlideCorruption(act.hint) : '';
+    if (hint && hasSlideIntegrityDefect(hint)) {
+      const preHint = sanitizeMechanicalSlideCorruption(slideActivities[idx]?.hint);
+      hint = preHint && !hasSlideIntegrityDefect(preHint) ? preHint : '';
+    }
+    if (hasSlideIntegrityDefect(stmt)) {
+      const preStmt = ensureActivityClosure(sanitizeMechanicalSlideCorruption(slideActivities[idx]?.statement));
+      if (preStmt && !hasSlideIntegrityDefect(preStmt)) stmt = preStmt;
+    }
+    let actCheck = validatePracticeActivity(stmt, hint || undefined, { strict: false });
+    if (actCheck.rescuedStatement && !hasSlideIntegrityDefect(actCheck.rescuedStatement)) {
+      stmt = ensureActivityClosure(actCheck.rescuedStatement);
+      hint = actCheck.updatedHint ?? '';
+      actCheck = validatePracticeActivity(stmt, hint || undefined, { strict: false });
+    }
+    if (!actCheck.valid) {
+      const preCandidate = ensureActivityClosure(sanitizeMechanicalSlideCorruption(slideActivities[idx]?.statement));
+      const preHint = sanitizeMechanicalSlideCorruption(slideActivities[idx]?.hint);
+      const preCheck = validatePracticeActivity(preCandidate, preHint || undefined, { strict: false });
+      if (preCheck.valid && !hasSlideIntegrityDefect(preCheck.rescuedStatement ?? preCandidate)) {
+        stmt = ensureActivityClosure(preCheck.rescuedStatement ?? preCandidate);
+        hint = preCheck.rescuedStatement ? (preCheck.updatedHint ?? '') : preHint;
+        actCheck = { valid: true };
+      }
+    }
+    if (!actCheck.valid) {
+      const rawEnunciado = ensureActivityClosure(
+        sanitizeMechanicalSlideCorruption(cleanSacrintText(session.practica?.[idx]?.enunciado || ''))
+      );
+      const rawPista = sanitizeMechanicalSlideCorruption(cleanSacrintText(session.practica?.[idx]?.pista || ''));
+      const rawCheck = validatePracticeActivity(rawEnunciado, rawPista || undefined, { strict: false });
+      if (rawCheck.valid && !hasSlideIntegrityDefect(rawCheck.rescuedStatement ?? rawEnunciado)) {
+        stmt = ensureActivityClosure(rawCheck.rescuedStatement ?? rawEnunciado);
+        hint = rawCheck.rescuedStatement ? (rawCheck.updatedHint ?? '') : rawPista;
+        actCheck = { valid: true };
+      }
+    }
+    if (!actCheck.valid || hasSlideIntegrityDefect(stmt)) {
+      const cleanBase = !hasSlideIntegrityDefect(stmt) && stmt.length >= 16
+        ? stmt.replace(/[.!?]+$/, '').trim()
+        : `Situación práctica sobre ${safePracticeTitle.toLowerCase()}`;
+      stmt = ensureActivityClosure(
+        `${cleanBase}. Analiza los datos planteados y redacta tu procedimiento y conclusión justificada.`
+      );
+    }
+    return {
+      ...act,
+      statement: stmt,
+      hint,
+    };
+  });
+
+  const healedObjectiveBullets = (rawBudgetedPractice.objectiveBullets ?? [])
+    .map((obj) => {
+      const cleanedObj = sanitizeMechanicalSlideCorruption(obj);
+      const validObj =
+        cleanedObj && !INCOHERENT_APLICAR_PREFIX_RE.test(cleanedObj)
+          ? normalizeLearningObjective(cleanedObj, { title: safePracticeTitle, strict: false })
+          : null;
+      if (validObj && !INCOHERENT_APLICAR_PREFIX_RE.test(validObj)) return validObj;
+      const fallbackFromValidated =
+        validatedObjective && !INCOHERENT_APLICAR_PREFIX_RE.test(validatedObjective)
+          ? normalizeLearningObjective(validatedObjective, { title: safePracticeTitle, maxWords: 15, strict: false })
+          : null;
+      if (fallbackFromValidated && !INCOHERENT_APLICAR_PREFIX_RE.test(fallbackFromValidated)) return fallbackFromValidated;
+      return (
+        normalizeLearningObjective(
+          `Analizar los criterios de ${safePracticeTitle.toLowerCase()} en situaciones reales del entorno.`,
+          { title: safePracticeTitle, maxWords: 15, strict: false }
+        ) || 'Analizar los conceptos centrales de la sesión y fundamentar su aplicación práctica.'
+      );
+    })
+    .filter(Boolean);
+
+  const safeAppText = sanitizeMechanicalSlideCorruption(rawBudgetedPractice.applicationText);
+  const safeArtStep = sanitizeMechanicalSlideCorruption(rawBudgetedPractice.artifactStep);
+  const budgetedPractice: SacrintPracticeSlide = {
+    ...rawBudgetedPractice,
+    title: safePracticeTitle,
+    activities: healedActivities,
+    objectiveBullets: healedObjectiveBullets,
+    applicationText:
+      safeAppText && !hasSlideIntegrityDefect(safeAppText)
+        ? safeAppText
+        : !hasSlideIntegrityDefect(guardedApplicationText)
+          ? sanitizeMechanicalSlideCorruption(guardedApplicationText)
+          : `Aplica ${safePracticeTitle.toLowerCase()} en una situación real de tu entorno y registra tus conclusiones.`,
+    artifactStep:
+      safeArtStep && !hasSlideIntegrityDefect(safeArtStep)
+        ? safeArtStep
+        : !hasSlideIntegrityDefect(safeArtifactStep)
+          ? sanitizeMechanicalSlideCorruption(safeArtifactStep)
+          : `Integra los resultados validados de esta sesión en ${(rawBudgetedPractice.artifactName || artifactName).replace(/\.+$/, '')}.`,
+  };
   return [budgetedConcept, budgetedPractice];
+}
+
+const MECHANICAL_SLIDE_CORRUPTION_FAST_RE =
+  /\bhacia\s+[a-záéíóúñ]{3,}(?:ar|er|ir)\b|\btal\s+tal\b|\bdicha\s+(?:funcionando|siendo|teniendo|haciendo|operando|trabajando)\b|\b(?:en\s+la|una|esta|esa|dicha)\s+expone\b|\bun\s+lado\s+al\s+de\b|\bmediante\s+forma\b|\ba\s+partir\.|\by\s+considera\.|\binstrumento\b|\b(?:una|la)\s+(?:largo|alto)\b|\?['"»”’]\?|\bestimar\s+objetos\b/i;
+
+const INCOHERENT_APLICAR_PREFIX_RE =
+  /^Aplicar\s+(?:(?:entre|sobre|hacia|desde|contra|bajo|seg[uú]n)\b|[a-záéíóúñ]{3,}(?:ar|er|ir)\b|[a-záéíóúñ]+(?:as|es)\s+(?:y\s+|con\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)|pulsera\b|texto\b|[a-záéíóúñ]+\s+(?:es|son)\s+)/i;
+
+function sanitizeMechanicalSlideCorruption(value: string | undefined): string {
+  if (!value) return '';
+  if (!MECHANICAL_SLIDE_CORRUPTION_FAST_RE.test(value)) return value.trim();
+  return value
+    .replace(/\bhacia\s+([a-záéíóúñ]{3,}(?:ar|er|ir))\b/gi, 'para $1')
+    .replace(/\btal\s+tal\b/gi, 'tal')
+    .replace(/\bdicha\s+(funcionando|siendo|teniendo|haciendo|operando|trabajando)\b/gi, 'continúa $1')
+    .replace(/\b(?:en\s+la|una|esta|esa|dicha)\s+expone\b/gi, 'se expone')
+    .replace(/\bun\s+lado\s+al\s+de\b/gi, 'un lado respecto al de')
+    .replace(/\bmediante\s+forma\b/gi, 'de forma')
+    .replace(/\ba\s+partir\.(?=["'\s,}\]]|$)/gi, '.')
+    .replace(/\by\s+considera\.(?=["'\s,}\]]|$)/gi, '.')
+    .replace(/\b(una|la|esta|esa|dicha)\s+instrumento\b/gi, (_m, det: string) => {
+      const map: Record<string, string> = { una: 'un', la: 'el', esta: 'este', esa: 'ese', dicha: 'dicho' };
+      const low = det.toLowerCase();
+      const repl = map[low] || 'un';
+      return /^[A-ZÁÉÍÓÚÑ]/.test(det) ? `${repl.charAt(0).toUpperCase()}${repl.slice(1)} instrumento` : `${repl} instrumento`;
+    })
+    .replace(/\binstrumento\s+(digital\s+|t[eé]cnico\s+)?preferida\b/gi, 'instrumento $1preferido')
+    .replace(/\b(una|la)\s+(largo|alto)\b/gi, (_m, det: string, noun: string) => {
+      const repl = det.toLowerCase() === 'una' ? 'un' : 'el';
+      return /^[A-Z]/.test(det) ? `${repl.charAt(0).toUpperCase()}${repl.slice(1)} ${noun}` : `${repl} ${noun}`;
+    })
+    .replace(/\?(['"»”’])\?/g, '$1?')
+    .replace(/\bestimar\s+objetos\b/gi, 'estimar dimensiones de objetos')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function hasSlideIntegrityDefect(value: string | undefined): boolean {
+  const clean = (value || '').trim();
+  if (!clean) return false;
+  return (
+    GENERIC_FILLER_RE.test(clean) ||
+    NODE_TRUNCATION_RE.test(clean) ||
+    TEMPLATE_PHRASE_RE.test(clean) ||
+    GENERIC_CONCLUSION_RE.test(clean) ||
+    NUMERIC_ONLY_STEP_RE.test(clean)
+  );
+}
+
+function sanitizeDiagramPostBudget(
+  diagram: SacrintDiagramSpec,
+  safeCenterFallback: string
+): SacrintDiagramSpec {
+  if (!diagram.available) return diagram;
+  const fixNodeDetail = (detail: string | undefined, isCenter = false): string => {
+    const cleaned = sanitizeMechanicalSlideCorruption(detail);
+    if (!cleaned) return isCenter ? safeCenterFallback : '';
+    if (hasSlideIntegrityDefect(cleaned) || (isCenter && OBJECTIVE_CENTER_VERB_RE.test(cleaned))) {
+      return isCenter ? safeCenterFallback : '';
+    }
+    return cleaned;
+  };
+  switch (diagram.kind) {
+    case 'concept':
+      return {
+        ...diagram,
+        center: { ...diagram.center, detail: fixNodeDetail(diagram.center.detail, true) },
+        nodes: diagram.nodes.map((n) => ({ ...n, detail: fixNodeDetail(n.detail) })),
+      };
+    case 'system-map':
+      return {
+        ...diagram,
+        center: { ...diagram.center, detail: fixNodeDetail(diagram.center.detail, true) },
+        components: diagram.components.map((c) => ({ ...c, detail: fixNodeDetail(c.detail) })),
+        environment: { ...diagram.environment, detail: fixNodeDetail(diagram.environment.detail) },
+      };
+    case 'block-diagram':
+      return {
+        ...diagram,
+        input: { ...diagram.input, detail: fixNodeDetail(diagram.input.detail) },
+        process: { ...diagram.process, detail: fixNodeDetail(diagram.process.detail) },
+        output: { ...diagram.output, detail: fixNodeDetail(diagram.output.detail) },
+        feedback: { ...diagram.feedback, detail: fixNodeDetail(diagram.feedback.detail) },
+      };
+    case 'timeline':
+      return {
+        ...diagram,
+        events: diagram.events.map((e) => ({ ...e, detail: fixNodeDetail(e.detail) })),
+      };
+    case 'language':
+      return {
+        ...diagram,
+        input: { ...diagram.input, detail: fixNodeDetail(diagram.input.detail) },
+        rule: { ...diagram.rule, detail: fixNodeDetail(diagram.rule.detail) },
+        output: { ...diagram.output, detail: fixNodeDetail(diagram.output.detail) },
+        context: { ...diagram.context, detail: fixNodeDetail(diagram.context.detail) },
+      };
+    case 'argument':
+      return {
+        ...diagram,
+        thesis: { ...diagram.thesis, detail: fixNodeDetail(diagram.thesis.detail, true) },
+        premises: diagram.premises.map((p) => ({ ...p, detail: fixNodeDetail(p.detail) })),
+        objection: { ...diagram.objection, detail: fixNodeDetail(diagram.objection.detail) },
+        conclusion: { ...diagram.conclusion, detail: fixNodeDetail(diagram.conclusion.detail) },
+      };
+    case 'sop-flow':
+      return {
+        ...diagram,
+        steps: diagram.steps.map((s) => ({ ...s, detail: fixNodeDetail(s.detail) })),
+      };
+    default:
+      return diagram;
+  }
 }
 
 export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintBuildOptions = {}): SacrintDeckSpec {
