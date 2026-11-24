@@ -2430,7 +2430,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           };
         }
         case 'training-cycle': {
-          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 11 : 12;
+          const maxW = maxNodes <= 1 ? 8 : maxNodes === 2 ? 9 : 10;
           const filtered = diagram.phases
             .filter((ph) => Boolean(ph.detail?.trim()) && !isRedundant(ph.detail))
             .slice(0, Math.min(4, Math.max(2, maxNodes)))
@@ -2449,7 +2449,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           };
         }
         case 'regulation-flow': {
-          const maxW = maxNodes <= 1 ? 10 : maxNodes === 2 ? 11 : 12;
+          const maxW = maxNodes <= 1 ? 8 : maxNodes === 2 ? 9 : 10;
           const filtered = diagram.stages
             .filter((st) => Boolean(st.detail?.trim()) && !isRedundant(st.detail))
             .slice(0, Math.min(4, Math.max(2, maxNodes)))
@@ -2514,7 +2514,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : seventhConcept.workedExample,
     };
-    if (countSlideWords(eighthConcept) <= 160) return eighthConcept;
+    if (countSlideWords(eighthConcept) <= 152) return eighthConcept;
 
     eighthConcept = {
       ...eighthConcept,
@@ -2530,7 +2530,7 @@ function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide {
           }
         : eighthConcept.workedExample,
     };
-    if (countSlideWords(eighthConcept) <= 172) return eighthConcept;
+    if (countSlideWords(eighthConcept) <= 164) return eighthConcept;
 
     const trimmedExp =
       eighthConcept.explanation.split(/\s+/).length > 20

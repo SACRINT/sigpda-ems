@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import JSZip from 'jszip';
 import { MATH_DEMO_WORKBOOK } from '@/lib/visual-engine/sacrint/fixtures/math-demo-workbook';
-import { buildSacrintDiagram, buildDiagramVariables, diagramFormula } from '@/lib/visual-engine/sacrint/diagrams';
+import { buildSacrintDiagram, buildDiagramVariables, diagramFormula, diagramModelLabel } from '@/lib/visual-engine/sacrint/diagrams';
 import { resolveSacrintPack } from '@/lib/visual-engine/sacrint/discipline-packs';
 import { buildSacrintDeck } from '@/lib/visual-engine/sacrint/spec';
 import { renderDeckSvgs } from '@/lib/visual-engine/sacrint/slide-renderer';
@@ -257,6 +257,143 @@ describe('SACRINT Part 2 — Non-Fabricated Mathematical Diagrams', () => {
       expect(diag.statement).toBe('');
       expect(diag.phases.filter((p) => p.detail.trim().length > 0).length).toBeGreaterThanOrEqual(3);
       expect(diag.phases[0]!.detail).not.toContain('ocho tiempos en semicírculo');
+    }
+  });
+
+  it('alinea etiqueta↔cuerpo en training-cycle (AFD): usa Ruta de práctica física en sesiones conceptuales y protocolo fisiológico solo si el texto lo contiene', () => {
+    const efiPack = resolveSacrintPack('Actividades Físicas y Deportivas', 'BGE');
+
+    const conceptualSession = makeSession({
+      objetivo: 'Analizar el juego como derecho humano e identificar barreras de exclusión deportiva',
+      motivacion: 'A menudo confundimos el juego con el deporte en los espacios recreativos.',
+      aplicacion: 'Observa tu plantel y registra acciones concretas para mejorar la inclusión deportiva.',
+      productoIntegrador: 'Bitácora diagnóstica de espacios recreativos comunitarios.',
+      sintesisVisual: {
+        conceptoBreve: 'El juego inclusivo garantiza la participación segura de todas las personas.',
+        formulaOReglaClave: 'Diagnóstico + Inclusión → Bienestar',
+        mapaConceptual: {
+          definicionClave: 'El derecho al juego promueve equidad corporal y prevención de riesgos.',
+          criterioDesarrollo: 'Relaciona las necesidades del grupo con criterios claros de inclusión deportiva.',
+          errorComun: 'Diseñar actividades físicas solo para estudiantes con alto rendimiento.',
+          correccionBreve: 'Adapta reglas y zonas de seguridad para incluir a todo el grupo.',
+        },
+        ejemploBreve: {
+          planteamiento: 'Un grupo adapta un juego de persecución en la cancha escolar.',
+          pasos: ['Identifica barreras de exclusión.', 'Incorpora zonas de descanso y relevos equitativos.'],
+          conclusion: 'La adaptación garantiza la participación saludable de todo el plantel.',
+        },
+      },
+    });
+
+    const conceptualDiag = buildSacrintDiagram(mission, efiPack, { session: conceptualSession, allowMissionFallback: false });
+    expect(conceptualDiag.kind).toBe('training-cycle');
+    expect(conceptualDiag.available).toBe(true);
+    if (conceptualDiag.kind === 'training-cycle') {
+      expect(conceptualDiag.phases.map((p) => p.label)).not.toContain('CALENTAMIENTO');
+      expect(conceptualDiag.phases[0]!.label).toBe('DIAGNÓSTICO');
+      expect(diagramModelLabel(conceptualDiag)).toBe('Práctica física');
+    }
+
+    const physicalSession = makeSession({
+      objetivo: 'Ejecutar un circuito motor regulando frecuencia cardíaca e intensidad física',
+      contenido:
+        'Inicia con un calentamiento de movilidad articular durante ocho minutos para preparar tendones y articulaciones. ' +
+        'Registra tu frecuencia basal en reposo antes de comenzar la activación cardiovascular progresiva. ' +
+        'Ejecuta el circuito motor de tres estaciones controlando el esfuerzo percibido con la escala de Borg entre niveles cuatro y siete. ' +
+        'Cierra la sesión con vuelta a la calma, estiramientos suaves e hidratación constante para favorecer la recuperación.',
+      sintesisVisual: {
+        conceptoBreve: 'El control del esfuerzo físico evita lesiones y optimiza la condición cardiovascular.',
+        formulaOReglaClave: 'FC Basal + Escala Borg → Seguridad',
+        mapaConceptual: {
+          definicionClave: 'Dosificar la carga motora protege el sistema cardiorrespiratorio.',
+          criterioDesarrollo: 'Monitorear pulso antes y después de cada bloque motor.',
+          errorComun: 'Saltar la preparación previa o superar el esfuerzo seguro.',
+          correccionBreve: 'Respetar tiempos de pausa y registro fisiológico.',
+        },
+        ejemploBreve: {
+          planteamiento: 'Un equipo realiza trote y saltos midiendo su pulso.',
+          pasos: ['Toma pulso en la muñeca durante 15 segundos.', 'Multiplica por cuatro para estimar latidos por minuto.'],
+          conclusion: 'El registro confirma que la intensidad se mantuvo en zona aeróbica segura.',
+        },
+      },
+    });
+
+    const physicalDiag = buildSacrintDiagram(mission, efiPack, { session: physicalSession, allowMissionFallback: false });
+    expect(physicalDiag.kind).toBe('training-cycle');
+    expect(physicalDiag.available).toBe(true);
+    if (physicalDiag.kind === 'training-cycle') {
+      expect(physicalDiag.phases.map((p) => p.label)).toEqual(['CALENTAMIENTO', 'ACTIVACIÓN', 'ESFUERZO', 'RECUPERACIÓN']);
+      expect(physicalDiag.phases[0]!.detail).toMatch(/calentamiento|movilidad/i);
+      expect(physicalDiag.phases[2]!.detail).toMatch(/circuito|esfuerzo|borg/i);
+      expect(physicalDiag.phases[3]!.detail).toMatch(/vuelta a la calma|estiramientos|recuperación/i);
+      expect(diagramModelLabel(physicalDiag)).toBe('Ciclo de entrenamiento');
+    }
+  });
+
+  it('alinea etiqueta↔cuerpo en regulation-flow (Socioemocional): evita etiquetar EMOCIÓN cuando la sesión no describe protocolo emocional explícito', () => {
+    const socioPack = resolveSacrintPack('Desarrollo Socioemocional', 'BGE');
+
+    const genericSession = makeSession({
+      objetivo: 'Establecer acuerdos de convivencia democrática en la comunidad escolar',
+      motivacion: 'En los espacios comunes del plantel surgen diferencias sobre el uso equitativo de horarios.',
+      aplicacion: 'Revisa las normas del aula y propón mejoras colaborativas con tu grupo.',
+      productoIntegrador: 'Carta de acuerdos grupales firmada por el equipo.',
+      sintesisVisual: {
+        conceptoBreve: 'La convivencia democrática se construye con diálogo respetuoso y normas claras.',
+        formulaOReglaClave: 'Diálogo + Escucha → Acuerdos',
+        mapaConceptual: {
+          definicionClave: 'Los acuerdos colectivos previenen conflictos y fortalecen la pertenencia.',
+          criterioDesarrollo: 'Escuchar todas las propuestas antes de someter un acuerdo a consenso.',
+          errorComun: 'Imponer reglas sin consultar las necesidades del grupo.',
+          correccionBreve: 'Integrar las distintas posturas en compromisos verificables.',
+        },
+        ejemploBreve: {
+          planteamiento: 'El grupo organiza turnos equitativos para la limpieza del aula.',
+          pasos: ['Escucha las propuestas de cada equipo.', 'Acuerda roles rotativos semanales.'],
+          conclusion: 'El acuerdo consensual mejora el clima escolar.',
+        },
+      },
+    });
+
+    const genericDiag = buildSacrintDiagram(mission, socioPack, { session: genericSession, allowMissionFallback: false });
+    expect(genericDiag.kind).toBe('regulation-flow');
+    expect(genericDiag.available).toBe(true);
+    if (genericDiag.kind === 'regulation-flow') {
+      expect(genericDiag.stages.map((s) => s.label)).not.toContain('EMOCIÓN');
+      expect(genericDiag.stages[0]!.label).toBe('SITUACIÓN');
+      expect(diagramModelLabel(genericDiag)).toBe('Ruta socioemocional');
+    }
+
+    const emotionalSession = makeSession({
+      objetivo: 'Aplicar estrategias de regulación emocional ante situaciones de estrés académico',
+      contenido:
+        'Reconoce la emoción de ansiedad o frustración cuando percibes saturación de tareas escolares. ' +
+        'Analiza tu interpretación y los pensamientos automáticos que intensifican la preocupación. ' +
+        'Elige una respuesta de comunicación asertiva en lugar de reaccionar impulsivamente con tu equipo. ' +
+        'Aplica respiración profunda y pausas breves para lograr regulación y equilibrio emocional sostenido.',
+      sintesisVisual: {
+        conceptoBreve: 'Nombrar lo que sentimos abre espacio para elegir conductas constructivas.',
+        formulaOReglaClave: 'Pausa + Conciencia → Autorregulación',
+        mapaConceptual: {
+          definicionClave: 'La gestión afectiva evita respuestas impulsivas ante presión escolar.',
+          criterioDesarrollo: 'Distinguir hechos objetivos de suposiciones catastróficas.',
+          errorComun: 'Reprimir el malestar hasta explotar frente a los demás.',
+          correccionBreve: 'Pedir un minuto de pausa antes de responder en conflicto.',
+        },
+        ejemploBreve: {
+          planteamiento: 'Un equipo discute antes de entregar su exposición.',
+          pasos: ['Detiene la discusión por treinta segundos.', 'Acuerda dividir las diapositivas pendientes.'],
+          conclusion: 'La pausa evita agresiones y permite concluir el trabajo a tiempo.',
+        },
+      },
+    });
+
+    const emotionalDiag = buildSacrintDiagram(mission, socioPack, { session: emotionalSession, allowMissionFallback: false });
+    expect(emotionalDiag.kind).toBe('regulation-flow');
+    expect(emotionalDiag.available).toBe(true);
+    if (emotionalDiag.kind === 'regulation-flow') {
+      expect(emotionalDiag.stages.map((s) => s.label)).toEqual(['EMOCIÓN', 'INTERPRETACIÓN', 'RESPUESTA', 'REGULACIÓN']);
+      expect(diagramModelLabel(emotionalDiag)).toBe('Flujo de regulación');
     }
   });
 });

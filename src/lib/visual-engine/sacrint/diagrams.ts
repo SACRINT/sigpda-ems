@@ -1702,27 +1702,29 @@ function buildDistinctSessionCycleSources(
     if (!cleaned) return '';
     // Tomar SIEMPRE solo la primera oración para impedir que párrafos de motivación de 60–80 palabras entren en una tarjeta.
     const firstSent = splitSpanishSentences(cleaned)[0] || cleaned;
-    const base = detail(firstSent, 76, '') || firstSent;
+    const base = detail(firstSent, 74, '') || firstSent;
     const wc = (s: string) => s.split(/\s+/).filter(Boolean).length;
-    if (wc(base) <= 12 && !hasDanglingEnding(base)) return base;
+    if (wc(base) <= 10 && !hasDanglingEnding(base)) return base;
     const trimmedClause = base
       .replace(/,\s*(?:especialmente|particularmente|incluyendo|permitiendo|garantizando|asegurando|dejando|evitando|promoviendo|fomentando|normalizando|lo\s+que|lo\s+cual|como\s+la\s+falta|pero\s+t[uú]\s+tienes|pero\s+cada\s+uno)\b[^.?!]*([.?!]?)$/i, '.')
-      .replace(/\s+(?:que\s+(?:afectan|limitan|reflejan|facilitan|promueven|vinculen|garantizan))\b[^.?!]*([.?!]?)$/i, '.')
+      .replace(/\s+(?:que\s+(?:afectan|limitan|reflejan|facilitan|promueven|vinculen|garantizan)|y\s+(?:documenta|ejec[uú]talo|eval[uú]a|verifica)\s+(?:el\s+proceso|a\s+lo\s+largo|la\s+inclusi[oó]n))\b[^.?!]*([.?!]?)$/i, '.')
+      .replace(/\s+(?:a\s+lo\s+largo\s+de\s+una\s+semana|a\s+lo\s+largo\s+de\s+seis\s+minutos|en\s+la\s+bit[aá]cora\s+de\s+trabajo)\b/gi, '')
       .replace(/\.\.+$/, '.')
       .trim();
-    if (trimmedClause.length >= 20 && !hasDanglingEnding(trimmedClause) && wc(trimmedClause) <= 13) {
-      return trimmedClause;
+    const withPeriod = trimmedClause && !/[.?!]$/.test(trimmedClause) ? `${trimmedClause}.` : trimmedClause;
+    if (withPeriod.length >= 20 && !hasDanglingEnding(withPeriod) && wc(withPeriod) <= 12) {
+      return withPeriod;
     }
     const fitted = fitPedagogicalText(base, {
-      maxChars: 76,
-      maxWords: 11,
+      maxChars: 72,
+      maxWords: 10,
       role: 'concept',
       ensurePeriod: true,
     });
-    if (fitted && fitted.length >= 18 && !hasDanglingEnding(fitted) && wc(fitted) <= 13) {
+    if (fitted && fitted.length >= 18 && !hasDanglingEnding(fitted) && wc(fitted) <= 12) {
       return fitted;
     }
-    return wc(base) <= 15 ? base : '';
+    return wc(base) <= 16 ? base : '';
   };
 
   const pickDistinct = (candidates: Array<string | undefined>, used: string[]): string => {
@@ -1781,12 +1783,162 @@ function buildCreativeCycleDiagram(
 }
 
 const TRAINING_PHASE_LABELS = ['CALENTAMIENTO', 'ACTIVACIÓN', 'ESFUERZO', 'RECUPERACIÓN'];
+const TRAINING_DIDACTIC_LABELS = ['DIAGNÓSTICO', 'CRITERIO', 'APLICACIÓN', 'MEJORA'];
+const REGULATION_STAGE_LABELS = ['EMOCIÓN', 'INTERPRETACIÓN', 'RESPUESTA', 'REGULACIÓN'];
+const REGULATION_DIDACTIC_LABELS = ['SITUACIÓN', 'ANÁLISIS', 'ACCIÓN', 'BIENESTAR'];
+
+type DomainStageRule = {
+  label: string;
+  match: RegExp;
+  reject?: RegExp;
+};
+
+const TRAINING_PROTOCOL_RULES: DomainStageRule[] = [
+  {
+    label: 'CALENTAMIENTO',
+    match: /\b(?:calentamiento|movilidad\s+articular|entrada\s+en\s+calor|estiramiento\s+din[aá]mico|preparaci[oó]n\s+articular)\b/i,
+  },
+  {
+    label: 'ACTIVACIÓN',
+    match: /\b(?:activaci[oó]n\s+(?:f[ií]sica|cardiovascular|muscular)|frecuencia\s+(?:card[ií]aca\s+)?basal|ppm\s+basal|pulso\s+basal|trote\s+suave)\b/i,
+  },
+  {
+    label: 'ESFUERZO',
+    match: /\b(?:circuito\s+motor|esfuerzo\s+(?:f[ií]sico|percibido)|intensidad|escala\s+de\s+borg|carga\s+f[ií]sica|series|repeticiones|ppm\s+finales)\b/i,
+    reject: /^(?:entrega|elabora|redacta|tu\s+producto)\b.*\b(?:reporte|matriz|bit[aá]cora|cuestionario)\b/i,
+  },
+  {
+    label: 'RECUPERACIÓN',
+    match: /\b(?:vuelta\s+a\s+la\s+calma|recuperaci[oó]n|estiramiento(?:s)?|hidrataci[oó]n|respiraci[oó]n\s+profunda|normalizaci[oó]n|enfriamiento)\b/i,
+  },
+];
+
+const REGULATION_PROTOCOL_RULES: DomainStageRule[] = [
+  {
+    label: 'EMOCIÓN',
+    match: /\b(?:emoci[oó]n|emociones|sentimient|estr[eé]s|ansiedad|enojo|ira|frustraci[oó]n|miedo|tristeza|alegr[ií]a|estado\s+de\s+[aá]nimo)\b/i,
+  },
+  {
+    label: 'INTERPRETACIÓN',
+    match: /\b(?:interpretaci[oó]n|interpreta|pensamient|creencia|valoraci[oó]n|percib|evaluaci[oó]n\s+cognitiva|juicio)\b/i,
+  },
+  {
+    label: 'RESPUESTA',
+    match: /\b(?:respuesta|reacci[oó]n|conducta|comunicaci[oó]n\s+asertiva|comportamiento|actuar\s+con)\b/i,
+    reject: /^(?:entrega|elabora|redacta|tu\s+producto)\b.*\b(?:reporte|matriz|bit[aá]cora|cuestionario|cartel)\b/i,
+  },
+  {
+    label: 'REGULACIÓN',
+    match: /\b(?:regulaci[oó]n|autocontrol|calma|respiraci[oó]n|equilibrio\s+emocional|bienestar\s+emocional|afrontamiento|manejo\s+emocional|pausa\s+activa)\b/i,
+  },
+];
+
+function tryExtractDomainAlignedNodes(
+  session: SessionPlan,
+  rules: DomainStageRule[]
+): SacrintDiagramNode[] | null {
+  const cleanField = (val?: string | null) =>
+    sanitizePedagogicalMetaPhrases(stripSessionLead(val || ''));
+  const vMap = session.sintesisVisual?.mapaConceptual;
+  const leftRefs = [
+    cleanField(session.sintesisVisual?.conceptoBreve),
+    cleanField(session.sintesisVisual?.ejemploBreve?.planteamiento),
+    cleanField(session.sintesisVisual?.ejemploBreve?.conclusion),
+    ...(session.sintesisVisual?.ejemploBreve?.pasos ?? []).map(cleanField),
+  ].filter(Boolean);
+
+  const rawPool = [
+    cleanField(session.contenido),
+    cleanField(session.aplicacion),
+    cleanField(vMap?.criterioDesarrollo),
+    cleanField(vMap?.correccionBreve),
+    cleanField(session.saberesPrevios),
+    cleanField(session.motivacion),
+  ]
+    .filter(Boolean)
+    .flatMap((block) => splitSpanishSentences(block))
+    .map((sent) => sent.trim())
+    .filter((sent) => sent.length >= 18 && !/^¿/.test(sent));
+
+  const compactMatch = (sent: string): string => {
+    const base = detail(sent, 96, '') || sent;
+    const wc = (s: string) => s.split(/\s+/).filter(Boolean).length;
+    if (wc(base) <= 14 && !hasDanglingEnding(base)) return base;
+    const trimmed = base
+      .replace(/\s+(?:para\s+(?:preparar|favorecer|garantizar|asegurar|mejorar|evitar)|entre\s+niveles|antes\s+de\s+comenzar)\b[^.?!]*([.?!]?)$/i, '.')
+      .replace(/\.\.+$/, '.')
+      .trim();
+    if (trimmed.length >= 20 && !hasDanglingEnding(trimmed) && wc(trimmed) <= 15) {
+      return trimmed;
+    }
+    const fitted = fitPedagogicalText(base, {
+      maxChars: 96,
+      maxWords: 15,
+      role: 'concept',
+      ensurePeriod: true,
+    });
+    if (fitted && fitted.length >= 18 && !hasDanglingEnding(fitted) && wc(fitted) <= 16) {
+      return fitted;
+    }
+    return wc(base) <= 22 ? base : '';
+  };
+
+  const used: string[] = [];
+  const matched: SacrintDiagramNode[] = [];
+  for (const rule of rules) {
+    let picked = '';
+    for (const rawSent of rawPool) {
+      if (!rule.match.test(rawSent)) continue;
+      if (rule.reject && rule.reject.test(rawSent)) continue;
+      const cand = compactMatch(rawSent);
+      if (!cand || cand.length < 16) continue;
+      // Revalidar que tras compactar el texto conserve la señal semántica de la etiqueta
+      if (!rule.match.test(cand)) continue;
+      if (rule.reject && rule.reject.test(cand)) continue;
+      if (used.some((u) => normalizedDiagramOverlap(cand, u) >= 0.6)) continue;
+      if (leftRefs.some((r) => normalizedDiagramOverlap(cand, r) >= 0.72)) continue;
+      picked = cand;
+      break;
+    }
+    if (picked) {
+      used.push(picked);
+      matched.push({ label: rule.label, detail: picked });
+    }
+  }
+  return matched.length >= 3 ? matched : null;
+}
 
 function buildTrainingCycleDiagram(
   mission: MissionSection,
   options: DiagramBuildOptions = {}
 ): TrainingCycleDiagramSpec {
-  const { sources, isLessonGuide } = buildDistinctSessionCycleSources(mission, options);
+  const isLessonGuide = options.allowMissionFallback === false && Boolean(options.session);
+  if (isLessonGuide && options.session) {
+    const aligned = tryExtractDomainAlignedNodes(options.session, TRAINING_PROTOCOL_RULES);
+    if (aligned) {
+      return {
+        kind: 'training-cycle',
+        available: true,
+        phases: aligned,
+        principle: '',
+      };
+    }
+    const { sources } = buildDistinctSessionCycleSources(mission, options);
+    const phases = sources
+      .map((text, index) => ({
+        label: TRAINING_DIDACTIC_LABELS[index] ?? `FASE ${index + 1}`,
+        detail: text || '',
+      }))
+      .filter((phase) => Boolean(phase.detail));
+    return {
+      kind: 'training-cycle',
+      available: phases.length >= 2,
+      phases,
+      principle: '',
+    };
+  }
+
+  const { sources } = buildDistinctSessionCycleSources(mission, options);
   const phases = sources.map((text, index) => ({
     label: TRAINING_PHASE_LABELS[index] ?? `FASE ${index + 1}`,
     detail: text || '',
@@ -1796,23 +1948,45 @@ function buildTrainingCycleDiagram(
     kind: 'training-cycle',
     available: phases.filter((phase) => Boolean(phase.detail)).length >= 2,
     phases,
-    principle: isLessonGuide
-      ? ''
-      : detail(
-          mission.conceptZero?.contrastTable?.[0]?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
-          140,
-          ''
-        ),
+    principle: detail(
+      mission.conceptZero?.contrastTable?.[0]?.correctConcept || mission.conceptZero?.solvedExample?.interpretation,
+      140,
+      ''
+    ),
   };
 }
-
-const REGULATION_STAGE_LABELS = ['EMOCIÓN', 'INTERPRETACIÓN', 'RESPUESTA', 'REGULACIÓN'];
 
 function buildRegulationFlowDiagram(
   mission: MissionSection,
   options: DiagramBuildOptions = {}
 ): RegulationFlowDiagramSpec {
-  const { sources, isLessonGuide } = buildDistinctSessionCycleSources(mission, options);
+  const isLessonGuide = options.allowMissionFallback === false && Boolean(options.session);
+  if (isLessonGuide && options.session) {
+    const aligned = tryExtractDomainAlignedNodes(options.session, REGULATION_PROTOCOL_RULES);
+    if (aligned) {
+      return {
+        kind: 'regulation-flow',
+        available: true,
+        stages: aligned,
+        anchor: '',
+      };
+    }
+    const { sources } = buildDistinctSessionCycleSources(mission, options);
+    const stages = sources
+      .map((text, index) => ({
+        label: REGULATION_DIDACTIC_LABELS[index] ?? `ETAPA ${index + 1}`,
+        detail: text || '',
+      }))
+      .filter((stage) => Boolean(stage.detail));
+    return {
+      kind: 'regulation-flow',
+      available: stages.length >= 2,
+      stages,
+      anchor: '',
+    };
+  }
+
+  const { sources } = buildDistinctSessionCycleSources(mission, options);
   const stages = sources.map((text, index) => ({
     label: REGULATION_STAGE_LABELS[index] ?? `ETAPA ${index + 1}`,
     detail: text || '',
@@ -1822,13 +1996,11 @@ function buildRegulationFlowDiagram(
     kind: 'regulation-flow',
     available: stages.filter((stage) => Boolean(stage.detail)).length >= 2,
     stages,
-    anchor: isLessonGuide
-      ? ''
-      : detail(
-          mission.conceptZero?.solvedExample?.interpretation || mission.metacognitiveTrafficLight?.green,
-          140,
-          ''
-        ),
+    anchor: detail(
+      mission.conceptZero?.solvedExample?.interpretation || mission.metacognitiveTrafficLight?.green,
+      140,
+      ''
+    ),
   };
 }
 
@@ -2649,20 +2821,26 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         { symbol: 'P', label: 'Difusión', meaning: safeVar(diagram.phases[3]?.detail, 76) },
       ];
     case 'training-cycle':
-      return [
-        { symbol: 'C', label: 'Calentamiento', meaning: safeVar(diagram.phases[0]?.detail, 76) },
-        { symbol: 'A', label: 'Activación', meaning: safeVar(diagram.phases[1]?.detail, 76) },
-        { symbol: 'E', label: 'Esfuerzo', meaning: safeVar(diagram.phases[2]?.detail, 76) },
-        { symbol: 'R', label: 'Recuperación', meaning: safeVar(diagram.phases[3]?.detail, 76) },
-      ];
+      return diagram.phases.slice(0, 4).map((phase, idx) => ({
+        symbol: (phase.label[0] || String(idx + 1)).toUpperCase(),
+        label: phase.label.charAt(0) + phase.label.slice(1).toLowerCase(),
+        meaning: safeVar(phase.detail, 76),
+      }));
     case 'regulation-flow':
-      return [
-        { symbol: 'E', label: 'Emoción', meaning: safeVar(diagram.stages[0]?.detail, 76) },
-        { symbol: 'I', label: 'Interpretación', meaning: safeVar(diagram.stages[1]?.detail, 76) },
-        { symbol: 'R', label: 'Respuesta', meaning: safeVar(diagram.stages[2]?.detail, 76) },
-        { symbol: 'A', label: 'Regulación', meaning: safeVar(diagram.anchor, 76) },
-      ];
+      return diagram.stages.slice(0, 4).map((stage, idx) => ({
+        symbol: (stage.label[0] || String(idx + 1)).toUpperCase(),
+        label: stage.label.charAt(0) + stage.label.slice(1).toLowerCase(),
+        meaning: safeVar(stage.detail, 76),
+      }));
   }
+}
+
+function isPhysicalTrainingProtocol(diagram: TrainingCycleDiagramSpec): boolean {
+  return diagram.phases.some((p) => p.label === 'CALENTAMIENTO' || p.label === 'ESFUERZO');
+}
+
+function isEmotionalRegulationProtocol(diagram: RegulationFlowDiagramSpec): boolean {
+  return diagram.stages.some((s) => s.label === 'EMOCIÓN' || s.label === 'REGULACIÓN');
 }
 
 export function diagramFormula(diagram: SacrintDiagramSpec): string {
@@ -2695,9 +2873,13 @@ export function diagramFormula(diagram: SacrintDiagramSpec): string {
     case 'creative-cycle':
       return 'DETONANTE → EXPLORACIÓN → OBRA → DIFUSIÓN';
     case 'training-cycle':
-      return 'CALENTAMIENTO → ESFUERZO → RECUPERACIÓN';
+      return isPhysicalTrainingProtocol(diagram)
+        ? 'CALENTAMIENTO → ESFUERZO → RECUPERACIÓN'
+        : 'DIAGNÓSTICO → CRITERIO → APLICACIÓN';
     case 'regulation-flow':
-      return 'EMOCIÓN → INTERPRETACIÓN → RESPUESTA';
+      return isEmotionalRegulationProtocol(diagram)
+        ? 'EMOCIÓN → INTERPRETACIÓN → RESPUESTA'
+        : 'SITUACIÓN → ANÁLISIS → ACCIÓN';
   }
 }
 
@@ -2736,9 +2918,9 @@ export function diagramModelLabel(diagram: SacrintDiagramSpec): string {
     case 'creative-cycle':
       return 'Ciclo creativo';
     case 'training-cycle':
-      return 'Ciclo de entrenamiento';
+      return isPhysicalTrainingProtocol(diagram) ? 'Ciclo de entrenamiento' : 'Práctica física';
     case 'regulation-flow':
-      return 'Flujo de regulación';
+      return isEmotionalRegulationProtocol(diagram) ? 'Flujo de regulación' : 'Ruta socioemocional';
   }
 }
 
@@ -2775,9 +2957,13 @@ export function diagramSubtitle(diagram: SacrintDiagramSpec): string {
     case 'creative-cycle':
       return 'Del detonante a la difusión';
     case 'training-cycle':
-      return 'Del calentamiento a la adaptación';
+      return isPhysicalTrainingProtocol(diagram)
+        ? 'Del calentamiento a la adaptación'
+        : 'Del diagnóstico a la mejora motriz';
     case 'regulation-flow':
-      return 'De la emoción a la regulación';
+      return isEmotionalRegulationProtocol(diagram)
+        ? 'De la emoción a la regulación'
+        : 'De la situación al bienestar';
   }
 }
 
@@ -2816,9 +3002,13 @@ export function diagramFooterLabel(diagram: SacrintDiagramSpec): string {
     case 'creative-cycle':
       return 'detonante · exploración · obra';
     case 'training-cycle':
-      return 'calentamiento · esfuerzo · recuperación';
+      return isPhysicalTrainingProtocol(diagram)
+        ? 'calentamiento · esfuerzo · recuperación'
+        : 'diagnóstico · criterio · aplicación';
     case 'regulation-flow':
-      return 'emoción · interpretación · regulación';
+      return isEmotionalRegulationProtocol(diagram)
+        ? 'emoción · interpretación · regulación'
+        : 'situación · análisis · bienestar';
   }
 }
 

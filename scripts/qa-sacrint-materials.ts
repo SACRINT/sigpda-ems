@@ -797,6 +797,57 @@ export async function auditPptxFile(filePath: string): Promise<PptxQaReport> {
           `${duplicatedRightNodes} nodos del diagrama repiten contenido del panel izquierdo`
         );
       }
+
+      // Guardia de coherencia semántica etiqueta↔cuerpo en diagramas de protocolo fisiológico / regulación emocional
+      const strictLabelDomainRules: Record<string, { require: RegExp; reject?: RegExp }> = {
+        CALENTAMIENTO: {
+          require: /\b(?:calentamiento|movilidad\s+articular|entrada\s+en\s+calor|estiramiento|preparaci[oó]n\s+(?:articular|f[ií]sica)|ppm\s+basal|frecuencia\s+basal)\b/i,
+        },
+        ESFUERZO: {
+          require: /\b(?:esfuerzo|circuito|intensidad|borg|frecuencia|pulso|ppm|serie|repetici|ejercicio|carga\s+f[ií]sica|resistencia|ritmo)\b/i,
+          reject: /^(?:entrega|elabora|redacta|tu\s+producto)\b.*\b(?:reporte|matriz|bit[aá]cora|cuestionario)\b/i,
+        },
+        'RECUPERACIÓN': {
+          require: /\b(?:recuperaci[oó]n|vuelta\s+a\s+la\s+calma|estiramiento|hidrataci[oó]n|respiraci[oó]n|descanso|normalizaci[oó]n|relajaci[oó]n|enfriamiento)\b/i,
+        },
+        'EMOCIÓN': {
+          require: /\b(?:emoci[oó]n|emociones|sentimient|sient[ea]s?|estr[eé]s|ansiedad|enojo|ira|frustraci[oó]n|miedo|tristeza|alegr[ií]a|estado\s+de\s+[aá]nimo)\b/i,
+        },
+        'REGULACIÓN': {
+          require: /\b(?:regulaci[oó]n|autocontrol|calma|respiraci[oó]n|equilibrio|bienestar|afrontamiento|manejo\s+emocional|pausa|asertiv)\b/i,
+        },
+      };
+      const rightLabelBoxes = shapes.filter(
+        (s) =>
+          s.hasText &&
+          s.x >= slideWidthIn * 0.43 &&
+          s.y >= 1.5 &&
+          s.y <= 5.5 &&
+          Object.prototype.hasOwnProperty.call(strictLabelDomainRules, s.text.trim().toLocaleUpperCase('es-MX'))
+      );
+      for (const lblBox of rightLabelBoxes) {
+        const lblKey = lblBox.text.trim().toLocaleUpperCase('es-MX');
+        const rule = strictLabelDomainRules[lblKey]!;
+        const bodyBox = shapes
+          .filter(
+            (s) =>
+              s !== lblBox &&
+              s.hasText &&
+              Math.abs(s.x - lblBox.x) <= 0.18 &&
+              s.y > lblBox.y + 0.03 &&
+              s.y <= lblBox.y + 0.45 &&
+              s.text.trim().length >= 12
+          )
+          .sort((a, b) => a.y - b.y)[0];
+        if (!bodyBox) continue;
+        const bodyTxt = bodyBox.text.trim();
+        if (!rule.require.test(bodyTxt) || (rule.reject && rule.reject.test(bodyTxt))) {
+          pushSlideFinding(
+            'diagram_label_body_mismatch',
+            `${lblKey} desalineado con cuerpo: "${bodyTxt.slice(0, 80)}"`
+          );
+        }
+      }
     }
 
     if (allSlideText.includes('PIZARRÓN DOCENTE (2/2)')) {
