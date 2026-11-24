@@ -562,14 +562,141 @@ export const SECOND_PERSON_TO_INFINITIVE_MAP: Record<string, string> = {
   valoraras: 'valorar',
   valorarás: 'valorar',
   verificas: 'verificar',
+  vinculas: 'vincular',
   visualizas: 'visualizar',
+  adquieres: 'adquirir',
+  acuerdas: 'acordar',
+  articulas: 'articular',
+  asumes: 'asumir',
+  atribuyes: 'atribuir',
+  categorizas: 'categorizar',
+  compones: 'componer',
+  compruebas: 'comprobar',
+  conceptualizas: 'conceptualizar',
+  concluyes: 'concluir',
+  conduces: 'conducir',
+  contextualizas: 'contextualizar',
+  contienes: 'contener',
+  contribuyes: 'contribuir',
+  criticas: 'criticar',
+  cuestionas: 'cuestionar',
+  debates: 'debatir',
+  defines: 'definir',
+  deliberas: 'deliberar',
+  dialogas: 'dialogar',
+  diriges: 'dirigir',
+  discutes: 'discutir',
+  dispones: 'disponer',
+  distribuyes: 'distribuir',
+  ejemplificas: 'ejemplificar',
+  eliges: 'elegir',
+  encuentras: 'encontrar',
+  enriqueces: 'enriquecer',
+  enuncias: 'enunciar',
+  escoges: 'escoger',
+  examinas: 'examinar',
+  excluyes: 'excluir',
+  exiges: 'exigir',
+  favoreces: 'favorecer',
+  filosofas: 'filosofar',
+  formalizas: 'formalizar',
+  fortaleces: 'fortalecer',
+  fundamentas: 'fundamentar',
+  fundamentaras: 'fundamentar',
+  fundamentarás: 'fundamentar',
+  incluyes: 'incluir',
+  infieres: 'inferir',
+  introduces: 'introducir',
+  jerarquizas: 'jerarquizar',
+  mantienes: 'mantener',
+  muestras: 'mostrar',
+  obtienes: 'obtener',
+  ofreces: 'ofrecer',
+  perteneces: 'pertenecer',
+  postulas: 'postular',
+  prefieres: 'preferir',
+  problematizas: 'problematizar',
+  propones: 'proponer',
+  proteges: 'proteger',
+  razonas: 'razonar',
+  recoges: 'recoger',
+  recuerdas: 'recordar',
+  reduces: 'reducir',
+  reproduces: 'reproducir',
+  requieres: 'requerir',
+  resumes: 'resumir',
+  reunes: 'reunir',
+  reúnes: 'reunir',
+  sostienes: 'sostener',
+  sugieres: 'sugerir',
+  supones: 'suponer',
+  sustituyes: 'sustituir',
+  transfieres: 'transferir',
+  unes: 'unir',
 };
+
+const IRREGULAR_SECOND_PERSON_FUTURES: Record<string, string> = {
+  haras: 'hacer',
+  harás: 'hacer',
+  diras: 'decir',
+  dirás: 'decir',
+  pondras: 'poner',
+  pondrás: 'poner',
+  propondras: 'proponer',
+  propondrás: 'proponer',
+  expondras: 'exponer',
+  expondrás: 'exponer',
+  compondras: 'componer',
+  compondrás: 'componer',
+  dispondras: 'disponer',
+  dispondrás: 'disponer',
+  supondras: 'suponer',
+  supondrás: 'suponer',
+  tendras: 'tener',
+  tendrás: 'tener',
+  obtendras: 'obtener',
+  obtendrás: 'obtener',
+  mantendras: 'mantener',
+  mantendrás: 'mantener',
+  sostendras: 'sostener',
+  sostendrás: 'sostener',
+  contendras: 'contener',
+  contendrás: 'contener',
+  vendras: 'venir',
+  vendrás: 'venir',
+  intervendras: 'intervenir',
+  intervendrás: 'intervenir',
+  prevendras: 'prevenir',
+  prevendrás: 'prevenir',
+  saldras: 'salir',
+  saldrás: 'salir',
+  sabras: 'saber',
+  sabrás: 'saber',
+  podras: 'poder',
+  podrás: 'poder',
+  querras: 'querer',
+  querrás: 'querer',
+  habras: 'haber',
+  habrás: 'haber',
+  valdras: 'valer',
+  valdrás: 'valer',
+  cabras: 'caber',
+  cabrás: 'caber',
+};
+
+const NON_FUTURE_UNACCENTED_PLURALS = new Set([
+  'caras', 'paras', 'varas', 'tiaras', 'claras', 'raras', 'peras', 'ceras', 'feras', 'eras', 'tiras', 'liras',
+]);
 
 const NON_VERB_AR_ER_IR_NOUNS = new Set([
   'lugar', 'pilar', 'taller', 'color', 'valor', 'motor', 'sensor', 'factor', 'sector', 'vector',
   'mayor', 'menor', 'mejor', 'peor', 'exterior', 'interior', 'superior', 'inferior', 'anterior',
-  'posterior', 'regular', 'circular', 'popular', 'escolar', 'familiar', 'particular', 'celular',
-  'solar', 'bipolar', 'singular', 'estandar', 'estándar', 'azucar', 'azúcar', 'caracter',
+  'posterior', 'circular', 'popular', 'escolar', 'familiar', 'particular', 'celular',
+  'solar', 'bipolar', 'singular', 'angular', 'molecular', 'muscular', 'vascular', 'ocular',
+  'secular', 'insular', 'peninsular', 'consular', 'capilar', 'axilar', 'maxilar', 'similar',
+  'estelar', 'preliminar', 'interdisciplinar', 'multidisciplinar', 'transdisciplinar', 'pulmonar',
+  'lunar', 'nuclear', 'peculiar', 'lineal',
+  'estandar', 'estándar', 'azucar', 'azúcar', 'caracter',
   'carácter', 'lider', 'líder', 'laser', 'láser', 'poster', 'póster', 'cluster', 'clúster',
   'dolar', 'dólar', 'folder', 'fólder', 'mar', 'par', 'bar', 'hogar', 'altar', 'azar', 'bazar',
   'calor', 'dolor', 'error', 'favor', 'honor', 'humor', 'labor', 'licor', 'mayor', 'menor',
@@ -598,8 +725,64 @@ export function isSpanishInfinitiveVerb(word: string): boolean {
   if (NON_VERB_AR_ER_IR_NOUNS.has(clean)) return false;
   if (!/(?:ar|er|ir)$/.test(clean)) return false;
   if (Object.values(SECOND_PERSON_TO_INFINITIVE_MAP).includes(clean)) return true;
-  // Verbos infinitivos regulares/estándar en español (excluir adjetivos en -ar como "lineal/angular/tabular" si no son verbo)
-  return /^[a-záéíóúñ]{2,}(?:ar|er|ir)$/.test(clean) && !/(?:ular|olar|ilar|elar|alar|inar|onar|unar|mental|tural|dural|poral|moral|coral|local|vocal|focal|total|vital|fatal|metal|final|penal|canal|banal|anual|usual|igual|actual|virtual|visual|manual|textual|factual|contextual)$/.test(clean);
+  return /^[a-záéíóúñ]{2,}(?:ar|er|ir)$/.test(clean);
+}
+
+/**
+ * Convierte cualquier verbo español conjugado en 2ª persona singular (futuro o presente académico)
+ * a su infinitivo correspondiente. Cubre el 100% de futuros regulares (-arás/-erás/-irás),
+ * futuros irregulares y sufijos verbales inequívocos de 1ª conjugación.
+ */
+function resolveSecondPersonVerbToInfinitive(
+  word: string,
+  options?: { isInitial?: boolean }
+): string | null {
+  const clean = word.toLowerCase().replace(/[^a-záéíóúñ]/g, '');
+  if (!clean) return null;
+
+  const finalize = (inf: string): string => {
+    if (inf === 'aplicar') {
+      return options?.isInitial ? 'emplear' : 'aplicar';
+    }
+    return inf;
+  };
+
+  if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, clean)) {
+    const mapped = SECOND_PERSON_TO_INFINITIVE_MAP[clean]!;
+    if (clean.startsWith('aplic')) {
+      return options?.isInitial ? 'emplear' : 'aplicar';
+    }
+    return mapped;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(IRREGULAR_SECOND_PERSON_FUTURES, clean)) {
+    return finalize(IRREGULAR_SECOND_PERSON_FUTURES[clean]!);
+  }
+
+  // Futuro regular con tilde: <infinitivo> + ás (ej. fundamentarás -> fundamentar, debatirás -> debatir, verás -> ver)
+  const accentedFut = clean.match(/^([a-záéíóúñ]+(?:ar|er|ir))ás$/);
+  if (accentedFut && isSpanishInfinitiveVerb(accentedFut[1]!)) {
+    return finalize(accentedFut[1]!);
+  }
+
+  // Futuro regular sin tilde de >= 3 letras de raíz (excluyendo plurales nominales cortos)
+  if (!NON_FUTURE_UNACCENTED_PLURALS.has(clean)) {
+    const unaccentedFut = clean.match(/^([a-záéíóúñ]{3,}(?:ar|er|ir))as$/);
+    if (unaccentedFut && isSpanishInfinitiveVerb(unaccentedFut[1]!)) {
+      return finalize(unaccentedFut[1]!);
+    }
+  }
+
+  // Presente regular 2ª persona con sufijo verbal académico inequívoco (-izas, -ificas, -cionas, -sionas)
+  const unambiguousPresent = clean.match(/^([a-záéíóúñ]{2,}(?:iz|ific|cion|sion))as$/);
+  if (unambiguousPresent) {
+    const candidate = `${unambiguousPresent[1]}ar`;
+    if (isSpanishInfinitiveVerb(candidate)) {
+      return finalize(candidate);
+    }
+  }
+
+  return null;
 }
 
 export interface NormalizeObjectiveContext extends SacrintContentErrorContext {
@@ -669,9 +852,9 @@ export function normalizeLearningObjective(
   const firstLower = firstWord.toLowerCase();
   const restAfterFirst = firstWordMatch[2]!;
 
-  if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, firstLower)) {
-    const inf = SECOND_PERSON_TO_INFINITIVE_MAP[firstLower]!;
-    text = `${inf.charAt(0).toUpperCase() + inf.slice(1)}${restAfterFirst}`;
+  const resolvedInitialInf = resolveSecondPersonVerbToInfinitive(firstLower, { isInitial: true });
+  if (resolvedInitialInf) {
+    text = `${resolvedInitialInf.charAt(0).toUpperCase() + resolvedInitialInf.slice(1)}${restAfterFirst}`;
   } else if (firstLower === 'aplicar') {
     // Prohibir prefijo mecánico "Aplicar <tema corto / frase incoherente>"
     const wordLen = text.split(/\s+/).filter(Boolean).length;
@@ -693,33 +876,19 @@ export function normalizeLearningObjective(
 
   // Normalizar verbos coordinados en 2ª persona dentro de la misma oración ("Identificar y aplicas..." -> "Identificar y aplicar...")
   text = text.replace(
-    /\b(y|e|,)\s+([a-záéíóúñ]{4,})\b/gi,
+    /\b(y|e|,)\s+([a-záéíóúñ]{3,})\b/gi,
     (full, conj: string, verb: string) => {
-      const vl = verb.toLowerCase();
-      if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, vl)) {
-        const mapped = SECOND_PERSON_TO_INFINITIVE_MAP[vl]!;
-        // En segunda posición tras "y/e" conservar "aplicar" es natural y no viola ^Aplicar
-        const safeMapped = vl.startsWith('aplic') ? 'aplicar' : mapped;
-        return `${conj} ${safeMapped}`;
-      }
-      const futMatch = vl.match(/^([a-záéíóúñ]{2,})(ar|er|ir)[aá]s$/);
-      if (futMatch) {
-        return `${conj} ${futMatch[1]}${futMatch[2]}`;
-      }
-      return full;
+      const mapped = resolveSecondPersonVerbToInfinitive(verb, { isInitial: false });
+      return mapped ? `${conj} ${mapped}` : full;
     }
   );
 
   // Si aún persiste un verbo futuro en 2ª persona en la cola ("... y ajustarás las tolerancias"), convertirlo
   text = text.replace(
-    /\b([a-záéíóúñ]{3,}(?:ar[aá]s|er[aá]s|ir[aá]s))\b/gi,
+    /\b([a-záéíóúñ]{2,}(?:ar[aá]s|er[aá]s|ir[aá]s)|har[aá]s|dir[aá]s|pondr[aá]s|propondr[aá]s|expondr[aá]s|tendr[aá]s|obtendr[aá]s|mantendr[aá]s|sostendr[aá]s|vendr[aá]s|saldr[aá]s|sabr[aá]s|podr[aá]s|querr[aá]s)\b/gi,
     (full, verb: string) => {
-      const vl = verb.toLowerCase();
-      if (Object.prototype.hasOwnProperty.call(SECOND_PERSON_TO_INFINITIVE_MAP, vl)) {
-        return SECOND_PERSON_TO_INFINITIVE_MAP[vl]!;
-      }
-      const futMatch = vl.match(/^([a-záéíóúñ]{2,})(ar|er|ir)[aá]s$/);
-      return futMatch ? `${futMatch[1]}${futMatch[2]}` : full;
+      const mapped = resolveSecondPersonVerbToInfinitive(verb, { isInitial: false });
+      return mapped || full;
     }
   );
 

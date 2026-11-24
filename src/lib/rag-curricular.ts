@@ -33,34 +33,51 @@ export interface RagContext {
  * Generate embedding vector for a text using Gemini
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  // Resolver la clave con el mismo pool/prioridad que el resto del pipeline
-  // (docente → tabla api_keys → env). Leer process.env.GEMINI_API_KEY directo
-  // provocaba 401 ACCESS_TOKEN_TYPE_UNSUPPORTED cuando esa variable estaba
-  // revocada, aun teniendo claves válidas en el pool.
-  const { resolveKey } = await import('./ai-provider/key-rotator');
-  const { apiKey } = await resolveKey('gemini');
+  // Rotar atómicamente sobre el pool de claves Gemini (tabla api_keys → env)
+  // para que una clave inválida/revocada (401/403) se registre y salte de inmediato
+  // a la siguiente clave activa sin romper la búsqueda semántica.
+  const { withKeyRotation } = await import('./ai-provider/key-rotator');
 
-  const res = await fetch(
-    `${API_CONFIG.gemini}/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: `models/${EMBEDDING_MODEL}`,
-        content: { parts: [{ text }] },
-        taskType: 'RETRIEVAL_DOCUMENT',
-        outputDimensionality: EMBEDDING_DIM,
-      }),
-    }
+  return withKeyRotation(
+    'gemini',
+    async (apiKey, _keyId, _round, meta) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), Math.min(meta.timeoutMs || 2200, 2500));
+      try {
+        const res = await fetch(
+          `${API_CONFIG.gemini}/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: `models/${EMBEDDING_MODEL}`,
+              content: { parts: [{ text }] },
+              taskType: 'RETRIEVAL_DOCUMENT',
+              outputDimensionality: EMBEDDING_DIM,
+            }),
+            signal: controller.signal,
+          }
+        );
+
+        if (!res.ok) {
+          const errText = await res.text();
+          const httpErr = new Error(`Embedding API error: ${res.status} - ${errText}`) as Error & {
+            status?: number;
+            statusCode?: number;
+          };
+          httpErr.status = res.status;
+          httpErr.statusCode = res.status;
+          throw httpErr;
+        }
+
+        const data = await res.json();
+        return data.embedding.values as number[];
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    { remainingBudgetMs: 2800, timeoutPerAttemptMs: 2200 }
   );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Embedding API error: ${res.status} - ${err}`);
-  }
-
-  const data = await res.json();
-  return data.embedding.values;
 }
 
 /**

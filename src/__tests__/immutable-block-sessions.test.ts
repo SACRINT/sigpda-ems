@@ -6,6 +6,8 @@ import {
 import { generateCurricularBlockSessions } from '@/lib/session-progression-engine';
 import { buildBlockBlueprint } from '@/lib/guide-engine/blueprint-architect-agent';
 import { buildUserPrompt } from '@/lib/prompts/build-prompt';
+import { enforceMinimumSecuenciaActivities } from '@/lib/planning/progresiones-enforcer';
+import { validateAnexo12 } from '@/lib/planning/anexo12-validator';
 import type { GeneratedPlanningContent, Planning } from '@/types/planning';
 
 describe('Regla inmortal de sesiones por bloque según horas semanales (6/12/18/24/30)', () => {
@@ -170,5 +172,104 @@ describe('Regla inmortal de sesiones por bloque según horas semanales (6/12/18/
 
     expect(blueprint.totalSessions).toBe(24);
     expect(blueprint.sessions).toHaveLength(24);
+  });
+
+  it('enforceMinimumSecuenciaActivities rescata un colapso de 1 actividad del LLM en 1.º-4.º semestre y aprueba iv_secuencia / iv_fases / iv_tres_saberes en Anexo 12', () => {
+    const collapsedContent: Record<string, unknown> = {
+      sectionI: {
+        uacName: 'Pensamiento Filosófico y Humanidades I',
+        subjectName: 'Pensamiento Filosófico y Humanidades I',
+        teacherName: 'Prof. Samuel',
+        schoolName: 'Bachillerato General Estatal',
+        cct: '21EBH0123A',
+        schoolZone: 'Zona 004',
+        municipality: 'Venustiano Carranza',
+        semester: 1,
+        component: 'fundamental',
+        subsystem: 'BGE',
+        groups: '1° A',
+        totalHours: 72,
+        totalHoursWeekly: 4,
+        applicationPeriod: 'Ciclo escolar 2026-2027',
+      },
+      sectionII: {
+        purpose: 'Desarrollar el ejercicio de filosofar y el diálogo argumentado en la comunidad.',
+        learningOutcomes: ['Formula preguntas filosóficas situadas.'],
+        retoSituado: {
+          verboInfinitivo: 'Construir',
+          contextoLocal: 'en Venustiano Carranza, Puebla',
+          problematicaReal: 'deterioro del diálogo comunitario juvenil',
+          propositoCurricular: 'mediante comunidades de indagación filosófica',
+        },
+      },
+      sectionIII: { productoIntegrador: 'Foro comunitario de diálogo filosófico' },
+      sectionIV: {
+        // Simula el fallo real donde Gemini devolvió solo 1 bloque colapsado en vez de >= 3
+        activities: [
+          {
+            name: 'Pensamiento Filosófico Integral',
+            hours: 72,
+            methodology: 'estudio_casos',
+            apertura: { activities: 'Exploración de saberes previos mediante preguntas detonadoras.' },
+            ejecucion: { activities: 'Análisis colaborativo de dilemas éticos cotidianos.' },
+            conclusion: { activities: 'Comunidad de diálogo y reflexión metacognitiva grupal.' },
+            saberes: {
+              saber: 'Conceptos filosóficos fundamentales',
+              saberHacer: 'Argumentación racional estructurada',
+              saberSer: 'Escucha activa y respeto dialógico',
+            },
+          },
+        ],
+      },
+      sectionV: {
+        evaluations: [
+          { type: 'Diagnóstica', moment: 'Inicio', agent: 'Autoevaluación', evidence: 'Cuestionario diagnóstico', instrument: 'Lista de cotejo', percentage: 10 },
+          { type: 'Formativa', moment: 'Desarrollo', agent: 'Coevaluación', evidence: 'Bitácora de argumentos', instrument: 'Rúbrica analítica', percentage: 50 },
+          { type: 'Sumativa', moment: 'Cierre', agent: 'Heteroevaluación', evidence: 'Foro filosófico', instrument: 'Rúbrica integradora', percentage: 40 },
+        ],
+        bitacora502030: {
+          criterioProceso50: 'Participación dialógica y problematización continua (50%)',
+          evidenciaColectiva20: 'Comunidad de diálogo escolar (20%)',
+          evidenciaIndividual30: 'Ensayo filosófico situado (30%)',
+          ticketSalidaPregunta: '¿Qué supuesto cuestionaste hoy?',
+        },
+      },
+      sectionVI: { studentMaterials: ['Cuaderno'], teacherMaterials: ['Guía didáctica'], references: ['SEP MCCEMS'] },
+    };
+
+    enforceMinimumSecuenciaActivities(
+      collapsedContent,
+      null,
+      {
+        uacName: 'Pensamiento Filosófico y Humanidades I',
+        totalHours: 72,
+        learningOutcome: 'Ejercita el filosofar.',
+        activities: [
+          { order: 1, name: 'Pensamiento Filosófico y Humanidades', hours: 15 },
+          { order: 2, name: 'Preguntas significativas sobre la vida', hours: 15 },
+          { order: 3, name: 'Análisis de la cotidianidad', hours: 14 },
+          { order: 4, name: 'Conocimiento, Ciencia y Verdad', hours: 14 },
+          { order: 5, name: 'Comunidades de diálogo', hours: 14 },
+        ],
+        evidences: ['Foro'],
+        parseConfidence: 'high',
+      },
+      {
+        uacName: 'Pensamiento Filosófico y Humanidades I',
+        semester: 1,
+        component: 'fundamental',
+        totalHours: 72,
+      }
+    );
+
+    const s4 = collapsedContent.sectionIV as { activities: Array<{ hours?: number; corte?: string }> };
+    s4.activities = enforceCanonicalCortesOnActivities(s4.activities, 4);
+
+    expect(s4.activities).toHaveLength(5);
+    const report = validateAnexo12(collapsedContent, { weeklyHours: 4, totalHours: 72 });
+    expect(report.criticalFailures).toBe(0);
+    expect(report.checks.find((c) => c.id === 'iv_secuencia')?.ok).toBe(true);
+    expect(report.checks.find((c) => c.id === 'iv_fases')?.ok).toBe(true);
+    expect(report.checks.find((c) => c.id === 'iv_tres_saberes')?.ok).toBe(true);
   });
 });

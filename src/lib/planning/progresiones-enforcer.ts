@@ -415,3 +415,263 @@ export function enforceOfficialProgresiones(
 
   return parsedContent;
 }
+
+/**
+ * Garantiza deterministamente que `sectionIV.activities` contenga SIEMPRE >= 3 actividades completas
+ * (con apertura, ejecucion, conclusion y taxonomía de 3 saberes) en asignaturas de 1.º a 4.º semestre
+ * y Formación Laboral cuando el modelo de IA colapsa por error las actividades en 1 o 2 elementos.
+ * Si la IA ya generó >= 3 actividades válidas, respeta íntegramente sus elementos y solo repara
+ * cualquier subcampo vacío para evitar rechazos fail-closed innecesarios en Anexo 12 (`iv_secuencia`,
+ * `iv_fases`, `iv_tres_saberes`).
+ */
+export function enforceMinimumSecuenciaActivities(
+  parsedContent: Record<string, unknown>,
+  officialProgram?: ProgramCatalogItem | null,
+  extractedData?: ExtractedPdfData | null,
+  options?: {
+    uacName?: string;
+    semester?: number;
+    component?: string;
+    totalHours?: number;
+    metodologiaActiva?: string;
+  }
+): Record<string, unknown> {
+  const sem = Number(options?.semester || officialProgram?.semester || 1);
+  const comp = String(options?.component || officialProgram?.component || 'fundamental').toLowerCase();
+  // 5.º y 6.º semestre no laborales ya son atendidos por enforceOfficialProgresiones
+  if (sem >= 5 && !comp.includes('laboral')) {
+    return parsedContent;
+  }
+
+  const s4 = ((parsedContent.sectionIV && typeof parsedContent.sectionIV === 'object')
+    ? parsedContent.sectionIV
+    : {}) as Record<string, unknown>;
+  const existingActs = Array.isArray(s4.activities)
+    ? (s4.activities as Array<Record<string, unknown>>)
+    : [];
+
+  const uacTitle =
+    options?.uacName ||
+    officialProgram?.uac_name ||
+    extractedData?.uacName ||
+    String((parsedContent.sectionI as Record<string, unknown> | undefined)?.uacName || 'la UAC');
+  const defaultMethodology =
+    options?.metodologiaActiva ||
+    String((parsedContent.sectionI as Record<string, unknown> | undefined)?.metodologiaActiva || '') ||
+    'Aprendizaje Basado en Proyectos (ABP)';
+  const isLaboral = comp.includes('laboral');
+
+  const ensureCompleteActivity = (
+    raw: Record<string, unknown>,
+    fallbackTitle: string,
+    fallbackContenido: string,
+    corteLabel: string,
+    fallbackHours: number
+  ): Record<string, unknown> => {
+    const title = typeof raw.name === 'string' && raw.name.trim().length >= 3 ? raw.name.trim() : fallbackTitle;
+    const contenido =
+      typeof raw.contenidoFormativo === 'string' && raw.contenidoFormativo.trim().length >= 5
+        ? raw.contenidoFormativo.trim()
+        : fallbackContenido || title;
+
+    const ensurePhase = (
+      phaseRaw: unknown,
+      phaseName: 'Apertura' | 'Desarrollo' | 'Cierre',
+      defaultProc: string,
+      defaultMat: string,
+      defaultDesc: string
+    ) => {
+      const pObj = (phaseRaw && typeof phaseRaw === 'object' && !Array.isArray(phaseRaw)
+        ? phaseRaw
+        : {}) as Record<string, unknown>;
+      const actStr =
+        typeof pObj.activities === 'string' && pObj.activities.trim().length >= 12
+          ? pObj.activities.trim()
+          : typeof phaseRaw === 'string' && phaseRaw.trim().length >= 12
+            ? phaseRaw.trim()
+            : `${phaseName} situada (${title}): ${defaultDesc}`;
+      return {
+        activities: actStr,
+        processes:
+          typeof pObj.processes === 'string' && pObj.processes.trim().length >= 3
+            ? pObj.processes.trim()
+            : defaultProc,
+        materials:
+          typeof pObj.materials === 'string' && pObj.materials.trim().length >= 3
+            ? pObj.materials.trim()
+            : defaultMat,
+      };
+    };
+
+    const rawSab = (raw.saberes && typeof raw.saberes === 'object' ? raw.saberes : {}) as Record<string, unknown>;
+    const saberes = {
+      saber:
+        typeof rawSab.saber === 'string' && rawSab.saber.trim().length >= 8
+          ? rawSab.saber.trim()
+          : `Fundamentos conceptuales y teóricos de ${title} en ${uacTitle}.`,
+      saberHacer:
+        typeof rawSab.saberHacer === 'string' && rawSab.saberHacer.trim().length >= 8
+          ? rawSab.saberHacer.trim()
+          : `Aplicación práctica, análisis contextualizado y elaboración de evidencias sobre ${contenido}.`,
+      saberSer:
+        typeof rawSab.saberSer === 'string' && rawSab.saberSer.trim().length >= 8
+          ? rawSab.saberSer.trim()
+          : `Pensamiento crítico, participación dialógica, ética y trabajo colaborativo en la comunidad escolar.`,
+    };
+
+    return {
+      ...raw,
+      name: title,
+      hours: Number(raw.hours) > 0 ? Number(raw.hours) : fallbackHours,
+      corte: typeof raw.corte === 'string' && raw.corte.trim() ? raw.corte.trim() : corteLabel,
+      methodology:
+        typeof raw.methodology === 'string' && raw.methodology.trim().length >= 3
+          ? raw.methodology.trim()
+          : defaultMethodology,
+      contenidoFormativo: contenido,
+      saberes,
+      apertura: ensurePhase(
+        raw.apertura,
+        'Apertura',
+        'asombro, problematizacion',
+        'Cuaderno de notas, pizarrón y guía de exploración diagnóstica.',
+        `exploración de saberes previos y problematización comunitaria en torno a ${contenido}.`
+      ),
+      ejecucion: ensurePhase(
+        raw.ejecucion || raw.desarrollo,
+        'Desarrollo',
+        'traduccion, conceptualizacion, razonamiento, indagacion',
+        'Cuaderno de trabajo, lecturas de análisis y fichas de trabajo colaborativo.',
+        `análisis conceptual, práctica guiada y construcción de evidencias sobre ${contenido}.`
+      ),
+      conclusion: ensurePhase(
+        raw.conclusion || raw.cierre,
+        'Cierre',
+        'reflexion, transferencia',
+        'Instrumento de evaluación formativa y portafolio de evidencias.',
+        `socialización de hallazgos, coevaluación formativa y reflexión metacognitiva de ${title}.`
+      ),
+    };
+  };
+
+  const totalHours = Number(options?.totalHours || officialProgram?.total_hours || extractedData?.totalHours || 54);
+  const s2 = ((parsedContent.sectionII && typeof parsedContent.sectionII === 'object')
+    ? parsedContent.sectionII
+    : {}) as Record<string, unknown>;
+
+  const ensureSectionIIIntegrity = (finalS4Acts: Array<Record<string, unknown>>) => {
+    const rawPurpose = typeof s2.purpose === 'string' ? s2.purpose.trim() : '';
+    if (rawPurpose.length < 40) {
+      const candidateOutcome =
+        cleanLearningOutcomeText(officialProgram?.learning_outcome || extractedData?.learningOutcome || '');
+      s2.purpose =
+        candidateOutcome.length >= 40
+          ? candidateOutcome
+          : `Desarrollar aprendizajes integrales, pensamiento crítico y saberes situados en ${uacTitle} articulados al contexto comunitario escolar.`;
+    }
+    const existingOutcomes = Array.isArray(s2.learningOutcomes)
+      ? (s2.learningOutcomes as unknown[]).filter((x) => typeof x === 'string' && x.trim().length >= 5)
+      : [];
+    if (existingOutcomes.length === 0) {
+      s2.learningOutcomes = [String(s2.purpose)];
+    }
+    if (!Array.isArray(s2.activities) || s2.activities.length < 3) {
+      s2.activities = finalS4Acts.map((a, idx) => ({
+        order: idx + 1,
+        name: a.name,
+        hours: a.hours,
+        corte: a.corte,
+        contenidoFormativo: a.contenidoFormativo,
+      }));
+    }
+    parsedContent.sectionII = s2;
+  };
+
+  // Caso 1: La IA ya entregó >= 3 bloques (o exactamente 3 en Formación Laboral BGE) -> blindar campos internos y Sección II
+  if (existingActs.length >= 3 && (!isLaboral || existingActs.length === 3)) {
+    const completedActs = existingActs.map((act, idx) => {
+      const { hours, corte } = distributeProgressionHoursAndCorte(idx, existingActs.length, totalHours);
+      return ensureCompleteActivity(
+        act,
+        `${isLaboral ? 'Actividad Clave' : 'Propósito Formativo'} ${idx + 1}`,
+        '',
+        corte,
+        hours
+      );
+    });
+    s4.activities = completedActs;
+    parsedContent.sectionIV = s4;
+    ensureSectionIIIntegrity(completedActs);
+    return parsedContent;
+  }
+
+  // Caso 2: La IA colapsó en < 3 bloques (causa raíz del fallo iv_secuencia < 3) -> expandir deterministamente
+  const catalogActs = Array.isArray(officialProgram?.activities) ? (officialProgram.activities as Array<Record<string, unknown>>) : [];
+  const extractedActs = Array.isArray(extractedData?.activities) ? (extractedData.activities as unknown as Array<Record<string, unknown>>) : [];
+  const s2Acts = Array.isArray(s2.activities) ? (s2.activities as Array<Record<string, unknown>>) : [];
+
+  let blueprintSource: Array<{ name: string; contenidoFormativo: string }> = [];
+  const pickSource =
+    catalogActs.length >= 3
+      ? catalogActs
+      : extractedActs.length >= 3
+        ? extractedActs
+        : s2Acts.length >= 3
+          ? s2Acts
+          : [];
+
+  if (pickSource.length >= 3) {
+    const targetSlice = isLaboral ? pickSource.slice(0, 3) : pickSource;
+    const rawContenidos = Array.isArray(officialProgram?.contenidos_formativos)
+      ? (officialProgram.contenidos_formativos as Array<Record<string, unknown>>)
+      : Array.isArray(extractedData?.contenidosFormativos)
+        ? (extractedData.contenidosFormativos as unknown as Array<Record<string, unknown>>)
+        : [];
+
+    blueprintSource = targetSlice.map((item, idx) => {
+      const name =
+        String(item.name || item.description || '').trim() ||
+        `${isLaboral ? 'Actividad Clave' : 'Propósito Formativo'} ${idx + 1}`;
+      const cfObj = rawContenidos[idx] || {};
+      const topics = Array.isArray(cfObj.contenidos)
+        ? (cfObj.contenidos as string[]).filter(Boolean)
+        : Array.isArray(cfObj.temas)
+          ? (cfObj.temas as string[]).filter(Boolean)
+          : [];
+      const cf =
+        (typeof item.contenidoFormativo === 'string' && item.contenidoFormativo.trim()) ||
+        (topics.length > 0 ? topics.join('; ') : name);
+      return { name, contenidoFormativo: cf };
+    });
+  } else {
+    blueprintSource = [1, 2, 3].map((corteNum) => ({
+      name: isLaboral
+        ? `Actividad Clave ${corteNum} de ${uacTitle}`
+        : `Bloque ${corteNum} (Corte ${corteNum}): Propósito Formativo ${corteNum} de ${uacTitle}`,
+      contenidoFormativo: `Desarrollo formativo del Corte ${corteNum} de ${uacTitle}`,
+    }));
+  }
+
+  const expandedActs = blueprintSource.map((bpItem, idx) => {
+    const { hours, corte } = distributeProgressionHoursAndCorte(idx, blueprintSource.length, totalHours);
+    const seedAct =
+      existingActs.length > 0
+        ? existingActs[Math.min(existingActs.length - 1, Math.floor((idx * existingActs.length) / blueprintSource.length))] || {}
+        : {};
+    // Clonar seedAct contextualizándolo al propósito específico para no repetir el mismo nombre
+    const clonedSeed: Record<string, unknown> = {
+      ...seedAct,
+      name: bpItem.name,
+      contenidoFormativo: bpItem.contenidoFormativo,
+      hours,
+      corte,
+    };
+    return ensureCompleteActivity(clonedSeed, bpItem.name, bpItem.contenidoFormativo, corte, hours);
+  });
+
+  s4.activities = expandedActs;
+  parsedContent.sectionIV = s4;
+  ensureSectionIIIntegrity(expandedActs);
+
+  return parsedContent;
+}

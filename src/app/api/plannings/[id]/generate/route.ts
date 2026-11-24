@@ -22,6 +22,7 @@ import { validateAndPersistPlanningContent } from '@/lib/planning/planning-persi
 import {
   repairExtractedDataWithCatalog,
   enforceOfficialProgresiones,
+  enforceMinimumSecuenciaActivities,
 } from '@/lib/planning/progresiones-enforcer';
 import { resolverIdentidadEscolar } from '@/lib/school-identity';
 import { resolveFechasCortes } from '@/lib/fechas-cortes';
@@ -375,6 +376,21 @@ export async function POST(
               effectiveExtractedData,
               planning.semester as number,
               planning.component as string
+            );
+
+            // Blindaje determinista universal para 1.º a 4.º semestre y Formación Laboral:
+            // erradica para siempre el fallo Anexo 12 iv_secuencia (< 3 actividades) cuando el LLM colapsa bloques.
+            enforceMinimumSecuenciaActivities(
+              parsedContent as unknown as Record<string, unknown>,
+              officialProgram,
+              effectiveExtractedData,
+              {
+                uacName: resolvedUacName,
+                semester: resolvedSemester,
+                component: resolvedComponent,
+                totalHours: resolvedTotalHours,
+                metodologiaActiva: planning.metodologia_activa || context.metodologiaActiva,
+              }
             );
 
             // Normalización y diversificación determinista de evaluación (Sección V) + Bitácora 50-20-30

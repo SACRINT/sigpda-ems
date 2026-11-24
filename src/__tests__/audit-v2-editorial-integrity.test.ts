@@ -684,6 +684,22 @@ describe('SACRINT 08/09 — Gates de raíz: títulos, objetivos en infinitivo, a
       ['Reflexionas sobre tus procesos de aprendizaje en la instalación de elementos.', /^Reflexionar\s+/],
       ['Aprendes a crear medios de diagnóstico booteables con MemTest86.', /^Crear\s+/],
       ['Aprenderás a preparar una memoria USB en formato FAT32 para BIOS.', /^Preparar\s+/],
+      [
+        'Fundamentarás teóricamente tu proyecto mediante el análisis de variables clave, resolviendo ejercicios que conectan los conceptos filosóficos.',
+        /^Fundamentar\s+teóricamente\s+tu\s+proyecto/i,
+      ],
+      [
+        'Cuestionarás los supuestos cotidianos de tu entorno y debatirás soluciones éticas con tu grupo.',
+        /^Cuestionar\s+los\s+supuestos/i,
+      ],
+      [
+        'Formular preguntas filosóficas sobre el conocimiento científico en tu comunidad escolar.',
+        /^Formular\s+preguntas/i,
+      ],
+      [
+        'Examinar los postulados éticos contemporáneos mediante comunidades de diálogo.',
+        /^Examinar\s+los\s+postulados/i,
+      ],
     ];
     for (const [raw, pattern] of conjugatedPairs) {
       const normalized = normalizeLearningObjective(raw, { title: 'Título distinto' });
