@@ -375,3 +375,72 @@ Fase A **debe** mostrar FAIL duros conocidos (es el objetivo, no un error):
 - WARN esperados: `progression` cruda histórica, FODA sin cruce, faltantes de fórmula/fuente, bullets <3.
 
 Tras B/C (generación) y C.5 (datos históricos), el QA debe quedar sin FAIL duro.
+
+---
+
+## 11. Registro de Ejecución y Cierre (Fases A → D)
+
+- **Estado:** **CERRADO Y VERIFICADO** (2026-11-24).
+- **Alcance ejecutado:** Fases A, B, C, C.5 y D (batches D1–D4) sobre PMC y PAEC. Horarios y Cartografía quedan diferidos para la siguiente iteración conforme a lo acordado.
+
+### 11.1 Historial de commits atómicos (`main`)
+
+| Fase | Commit | Descripción |
+|---|---|---|
+| **Fase A** | `8f4cad7e` | Motor SSoT `src/lib/qa/paec-pmc-semantic-qa.ts`, CLI solo-lectura `scripts/qa-paec-pmc.ts` (`npm run qa:paec-pmc`) y suite `paec-pmc-semantic-invariants.test.ts`. |
+| **Fase B** | `ea9cc214` | Fixes PMC: persistencia `effectiveFoda` + FODA cruzado `FO/DO/FA/DA`, fórmula F11 exacta de `reprobacion_meta` (con `bajas`), normalización canónica de categorías (`1/2/3/practica_docente/convivencia_paec`), fix regex de `pmc-meta-deduplicator`, endurecimiento `PMC-C3/C5/C8`, migración aditiva `pmc_projects.quality_audit JSONB` aplicada en Neon DB y gate de exportación HTTP 422 (solo FAIL duro; WARN en `X-Quality-Warnings-Count`). |
+| **Fase C** | `d764c75c` | Fixes PAEC: `plan-operativo-postprocessor.ts` (destilación `progression ≤280`, guard de paridad, nomenclatura MCCEMS por ciclo escolar, dedupe sin romper S16), endurecimiento `evaluateCriterio15/16`, gate de exportación HTTP 422 (solo FAIL duro), `paec-context.ts` con `operationalActivities[]` por Corte 1/2/3 vía `curricular-blocks.ts` + fix colisión romana (`II` vs `I`) + inyección multi-corte en `build-prompt.ts`, `StepContext.tsx` y `plannings/[id]/generate/route.ts`. |
+| **Fase C.5** | `cc28fdfe` | Script transaccional e idempotente `scripts/remediate-paec-pmc-historical.ts` (`--dry-run`, `--apply` con backup JSON, `--rollback`) ejecutado en Neon DB + arnés golden determinista `scripts/verify-paec-pmc-golden.ts` (`npm run test:paec-pmc-golden`) y `paec-pmc-golden.test.ts` (0 diffs). |
+| **Fase D · D1** | `894beb8a` | Descomposición de los 4 monolitos backend de PMC (`pmc-docx-generator`, `pmc-pdf-generator`, `pmc-docx-maestro-builder`, `pmc-partitioner`) con **0 diffs** en golden. |
+| **Fase D · D3** | `0c55c245` | Descomposición de los 4 monolitos backend de PAEC (`paec-pdf-generator`, `paec-docx-generator`, `paec-quality-gate`, `api/paec/[id]/generate-step/route.ts`) con **0 diffs** en golden. |
+| **Fase D · D2** | `dd1d4b7f` | Descomposición de los 2 monolitos UI de PMC (`PmcWizardClient`, `PmcMetasComplementarias`). |
+| **Test sync** | `c0a80fc0` | Actualización de 2 aserciones heredadas en `pmc-catalogo-criterios.test.ts` que esperaban `'2'` en lugar de la categoría canónica `'Gestión y administración escolar'` de Fase B. |
+| **Fase D · D4** | `243ca87c` | Descomposición del monolito UI de PAEC (`PaecWizardClient`), preservando `PaecWizardLegacy.tsx` intacto como fallback controlado por `NEXT_PUBLIC_FF_NEW_PAEC_WIZARD === 'false'`. |
+
+### 11.2 Hallazgo normativo MCCEMS verificado en BD (Paridad `Conciencia Histórica II`)
+
+Al auditar `paec_projects.fase2_mapeo` directamente en Neon DB durante Fase A y Fase C.5, se comprobó que en el currículo oficial MCCEMS:
+- `Conciencia Histórica I` corresponde a **4° semestre (par → Semestre B)**,
+- `Conciencia Histórica II. México Durante el Expansionismo Capitalista` corresponde a **5° semestre (impar → Semestre A)**,
+- `Conciencia Histórica III` corresponde a **6° semestre (par → Semestre B)** (idéntico patrón en `Taller de Ciencias I/II/III`).
+
+En consecuencia, las 6 filas de `Conciencia Histórica II` en `fase3_plan_operativo_a` (4 en *Eco-Cuenca* y 2 en *Comunidad Resiliente*) cumplen **100% paridad impar válida** (`0` violaciones reales de paridad en PAEC). Por ello **no fueron eliminadas ni movidas** en Fase C.5.
+
+### 11.3 Resultado de Remediación Histórica en Neon DB (Fase C.5)
+
+- **Respaldo pre-remediación:** generado automáticamente antes de la transacción (`--rollback` disponible).
+- **Idempotencia verificada:** segunda ejecución consecutiva con `--apply` reportó `0 proyectos requieren cambios`.
+- **Correcciones aplicadas en una sola transacción:**
+  1. **Supervisión Escolar 004:** `et_meta` `5 → 15` (`et_ant = 10`, inversión corregida); 5 categorías numéricas normalizadas; `foda.cruzado` (`FO/DO/FA/DA`) generado; `quality_audit` persistido (`95/100 EXCELENTE`).
+  2. **BGO “Moisés Sáenz Garza”:** `reprobacion_meta` `7.5 → 0` (F11 exacto con `reprobacion_ant = 0`, `bajas = 12.5%`); 4 categorías numéricas normalizadas; textos corruptos corregidos (`mi[0]` `"elevar al 4.4% la aprobación"` → `92.5%`, `mi[18]` `"del 3% al 7.5%"` → `0%`); `foda.cruzado` generado; `quality_audit` persistido (`95/100 EXCELENTE`).
+  3. **BGO “Héroes de la Patria”:** `reprobacion_meta` `11.9 → 6.6` (F11 exacto con `aprobacion_meta = 88.1%`, `bajas = 5.3%`); 16 categorías no canónicas (`1/2/3/practica_docente/convivencia_paec`) normalizadas con desempate por `tema`; `foda.cruzado` generado; `quality_audit` persistido (`95/100 EXCELENTE`).
+- **`npm run qa:paec-pmc` (post-remediación):** **PASS · 0 errores duros** en los 2 PAEC (Sem A y Sem B) y en los 3 PMC completados (código de salida `0`; solo WARN históricos documentados).
+
+### 11.4 Tabla Antes / Después de Monolitos (Fase D)
+
+| Módulo | Archivo (fachada / entrada) | LOC Antes | LOC Después | Submódulos extraídos (máx. LOC) |
+|---|---|---:|---:|---|
+| PMC UI | `src/app/[locale]/pmc/nuevo/PmcWizardClient.tsx` | 5,410 | **154** | `wizard/*` (10 archivos, máx. 882 LOC) |
+| PMC Backend | `src/lib/pmc-docx-generator.ts` | 2,256 | **106** | `src/lib/pmc/docx/*` (4 archivos, máx. 761 LOC) |
+| PMC UI | `src/app/[locale]/pmc/nuevo/PmcMetasComplementarias.tsx` | 2,203 | **159** | `metas-complementarias/*` (5 archivos, máx. 750 LOC) |
+| PMC Backend | `src/lib/pmc-pdf-generator.ts` | 1,204 | **54** | `src/lib/pmc/pdf/*` (3 archivos, máx. 647 LOC) |
+| PMC Backend | `src/lib/pmc/pmc-partitioner.ts` | 1,144 | **26** | `src/lib/pmc/partitioner/*` (3 archivos, máx. 584 LOC) |
+| PMC Backend | `src/lib/pmc-docx-maestro-builder.ts` | 1,112 | **134** | `src/lib/pmc/maestro/*` (3 archivos, máx. 422 LOC) |
+| PAEC UI | `src/app/[locale]/paec/nuevo/PaecWizardClient.tsx` | 3,839 | **71** | `wizard/*` (9 archivos, máx. 775 LOC) |
+| PAEC Backend | `src/lib/paec-pdf-generator.ts` | 2,394 | **88** | `src/lib/paec/pdf/*` (5 archivos, máx. 666 LOC) |
+| PAEC Backend | `src/lib/paec-docx-generator.ts` | 1,855 | **163** | `src/lib/paec/docx/*` (4 archivos, máx. 686 LOC) |
+| PAEC Backend | `src/lib/paec-quality-gate.ts` | 1,713 | **41** | `src/lib/paec/quality-gate/*` (5 archivos, máx. 607 LOC) |
+| PAEC API | `src/app/api/paec/[id]/generate-step/route.ts` | 1,047 | **270** | `src/lib/paec/step-handlers/*` (4 archivos, máx. 297 LOC) |
+| PAEC Legacy | `src/app/[locale]/paec/nuevo/legacy/PaecWizardLegacy.tsx` | 4,079 | 4,079 | **Preservado sin cambios** (fallback activo bajo `NEXT_PUBLIC_FF_NEW_PAEC_WIZARD === 'false'`) |
+
+### 11.5 Verificación Integral de Cierre
+
+- `npx tsc --noEmit`: **0 errores**.
+- `npx eslint --max-warnings=0`: **0 advertencias** en todos los archivos tocados y extraídos.
+- `npm run qa:paec-pmc`: **PASS (exit 0 · 0 FAIL duros)** sobre Neon DB real.
+- `npm run test:paec-pmc-golden`: **PASS · 0 diffs** (`PMC(docx=5625w, maestro=2809w, pdf=16p, gate=94%) · PAEC(docx=5793w, pdf=35p, gate=83%)`).
+- `npm run test:sacrint-golden`: **PASS · 0 diffs** (`fixtures=12 | diffs=0 | qaFailures=0`).
+- `npm run audit:sacrint-deps`: **PASS** (`files=55 | cycles=0 | layerViolations=0 | barrelViolations=0`).
+- Auditoría de ciclos y tamaño PAEC/PMC: **PASS** (`files=93 | cycles=0 | files>=1000LOC=0` excluyendo `legacy/`).
+- `npm run test:isolation`: **OK** (`309 archivos unitarios sin acceso directo a Neon`).
+- Regla inmutable de sesiones por bloque (`6/12/18/24/30`): intacta, sin modificaciones.
