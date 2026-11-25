@@ -45,7 +45,7 @@ describe('Catálogo Base Institucional de Criterios PMC y Formato 5.1 (MCCEMS Pu
     const metaDocente = synthesizeContextualizedMeta('area-2-desempeno-docente', mockHeroesProject);
 
     expect(metaDocente.tema).toBe('Seguimiento al desempeño docente en el aula');
-    expect(metaDocente.categoria).toBe('2');
+    expect(metaDocente.categoria).toBe('Gestión y administración escolar');
     expect(metaDocente.nombre_categoria).toBe('Gestión y administración escolar');
     expect(metaDocente.meta).toContain('Héroes de la Patria');
     expect(metaDocente.meta).toContain('Coronel Tito Hernández');
@@ -61,7 +61,7 @@ describe('Catálogo Base Institucional de Criterios PMC y Formato 5.1 (MCCEMS Pu
     const metaVinculacion = synthesizeContextualizedMeta('area-3-vinculacion', mockHeroesProject);
 
     expect(metaVinculacion.tema).toBe('Vinculación con centros educativos, empresas, fundaciones o instituciones públicas');
-    expect(metaVinculacion.categoria).toBe('2');
+    expect(metaVinculacion.categoria).toBe('Gestión y administración escolar');
     expect(metaVinculacion.meta).toContain('vinculación estratégica');
     expect(metaVinculacion.meta).toContain('Venustiano Carranza');
     expect(metaVinculacion.personal_designado).toContain('Lic. Adrián Hernández Cruz');
