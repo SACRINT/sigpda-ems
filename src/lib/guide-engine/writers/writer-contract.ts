@@ -129,6 +129,14 @@ export interface WriterInput {
    * Callback incremental llamado cada vez que se completa un paquete de sesiones en sharding.
    */
   onPartialSessionPlans?: (plans: SessionPlan[]) => void | Promise<void>;
+  /**
+   * Narrativa JSON ya validada para esta misión en un intento previo (evita regenerarla en reintentos).
+   */
+  cachedNarrativeRaw?: string;
+  /**
+   * Callback incremental llamado al completar la narrativa de la misión antes de esperar sessionPlans.
+   */
+  onPartialNarrative?: (rawNarrativeJson: string) => void | Promise<void>;
 }
 
 /**
@@ -284,7 +292,7 @@ export function ensureCuratedResourceList(
 export function hasExplicitPracticeTask(text: string): boolean {
   return (
     /[?¿]/.test(text) ||
-    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|contrasta|clasifica|distingue|selecciona|ordena|organiza|extrae|resume|formula|prop[oó]n|integra|revisa|corrige|escribe|reescribe|sustenta|fundamenta|localiza|reconoce|transforma|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica|completa|traduce|conjuga|subraya|elige|responde|contesta|investiga|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|registra|documenta|ejecuta|prueba|repara|limpia|inspecciona|dibuja|traza|grafica|tabula|debate|valora|concluye|enumera|enlista|ejemplifica|demuestra|convierte|empareja|observa|anota|complete|write|rewrite|fill|match|choose|select|translate|read|answer|identify|describe|explain|analyze|compare|contrast|classify|create|correct|conjugate|underline|circle|practice|order|arrange|calculate|determine|solve|justify|discuss|list|label|convert|change|form)\b/i.test(
+    /\b(?:calcula|determina|encuentra|plantea|resuelve|soluciona|precisa|halla|despeja|verifica|comprueba|eval[uú]a|explica|analiza|compara|contrasta|clasifica|distingue|selecciona|ordena|organiza|extrae|resume|formula|prop[oó]n|propone|integra|revisa|corrige|escribe|reescribe|sustenta|fundamenta|localiza|reconoce|transforma|identifica|modela|estima|proyecta|dise[ñn]a|elabora|construye|arma|aplica|multiplica|divide|suma|resta|iguala|sustituye|lee|se[ñn]ala|redacta|argumenta|defiende|sintetiza|interpreta|reflexiona|describe|relaciona|justifica|completa|traduce|conjuga|subraya|elige|responde|contesta|investiga|diagnostica|instala|configura|actualiza|reemplaza|conecta|mide|registra|documenta|ejecuta|prueba|repara|limpia|inspecciona|dibuja|traza|grafica|tabula|debate|valora|concluye|enumera|enlista|ejemplifica|demuestra|convierte|empareja|observa|anota|prepara|incluye|presenta|exp[oó]n|expone|cuestiona|problematiza|dialoga|escucha|recopila|recaba|re[uú]ne|crea|produce|graba|entrevista|comparte|expresa|explora|define|promueve|reconstruye|deconstruye|indaga|esboza|bosqueja|estructura|articula|enuncia|discute|delibera|pondera|examina|comenta|ilustra|representa|escenifica|dramatiza|narra|relata|refuta|postula|desarrolla|imagina|asume|practica|ejercita|genera|simula|mapea|planifica|planea|coordina|utiliza|emplea|esquematiza|jerarquiza|categoriza|corrobora|consulta|busca|complete|write|rewrite|fill|match|choose|select|translate|read|answer|identify|describe|explain|analyze|compare|contrast|classify|create|correct|conjugate|underline|circle|practice|order|arrange|calculate|determine|solve|justify|discuss|list|label|convert|change|form|prepare|present|include|draft|design|build|develop)\b/i.test(
       text
     )
   );

@@ -240,21 +240,24 @@ Redacta la Misión Práctica (${discipline.practiceSpaceLabel}) Y las ${sessionC
     const remainingBudgetMs = resolveRemainingBudgetMs(input.budgetDeadlineMs);
     const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
     shardedPromise?.catch(() => undefined);
-    const rawResponse = await runScheduled(input.scheduler, 'lab:narrative', () =>
-      generateWithRotation(
-        effectiveSystemInstruction,
-        effectivePrompt,
-        input.planning.teacherId,
-        false,
-        {
-          jsonMode: true,
-          maxTokens: narrativeMaxTokens,
-          timeoutMs: narrativeTimeoutMs,
-          remainingBudgetMs,
-          signal: input.signal,
-        }
-      )
-    );
+    const hasCachedNarrative = Boolean(useSharding && input.cachedNarrativeRaw);
+    const rawResponse = hasCachedNarrative
+      ? input.cachedNarrativeRaw!
+      : await runScheduled(input.scheduler, 'lab:narrative', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            effectivePrompt,
+            input.planning.teacherId,
+            false,
+            {
+              jsonMode: true,
+              maxTokens: narrativeMaxTokens,
+              timeoutMs: narrativeTimeoutMs,
+              remainingBudgetMs,
+              signal: input.signal,
+            }
+          )
+        );
     let parsed = robustJsonParse(rawResponse);
 
     // Validación de extensión mínima y cobertura total de sesiones (MEJORA 1)
@@ -264,7 +267,7 @@ Redacta la Misión Práctica (${discipline.practiceSpaceLabel}) Y las ${sessionC
     const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
     const missingPlans = !useSharding && planCount < coveredSessions.length;
 
-    if (stepCount < 5 || missingPlans) {
+    if (!hasCachedNarrative && (stepCount < 5 || missingPlans)) {
       attempt = 2;
       logger.warn(
         `[LabWriter] autonomousChallenge=${stepCount} pasos (<5: ${stepCount < 5}) o sessionPlans=${planCount}/${coveredSessions.length}. Reintentando con instrucción estricta...`
@@ -328,6 +331,14 @@ Redacta la Misión Práctica (${discipline.practiceSpaceLabel}) Y las ${sessionC
         } catch (retryErr) {
           logger.warn('[LabWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
         }
+      }
+    }
+
+    if (useSharding && !hasCachedNarrative && input.onPartialNarrative) {
+      try {
+        await input.onPartialNarrative(JSON.stringify(parsed));
+      } catch {
+        /* checkpoint incremental best-effort */
       }
     }
 

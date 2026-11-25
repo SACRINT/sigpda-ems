@@ -72,8 +72,18 @@ const GEMINI_FALLBACKS: Record<string, readonly string[]> = {
   'gemini-3.5-flash-lite': ['gemini-3.1-flash-lite', 'gemini-3.8-flash'],
 };
 
+// Failover rápido por cuota 429 entre modelos Flash-Lite con cuotas por modelo independientes.
+const GEMINI_QUOTA_FALLBACKS: Record<string, readonly string[]> = {
+  'gemini-3.1-flash-lite': ['gemini-3.5-flash-lite'],
+  'gemini-3.5-flash-lite': ['gemini-3.1-flash-lite'],
+};
+
 function getGeminiFallbacks(model: string): readonly string[] {
   return GEMINI_FALLBACKS[model] ?? [];
+}
+
+function getGeminiQuotaFallbacks(model: string): readonly string[] {
+  return GEMINI_QUOTA_FALLBACKS[model] ?? [];
 }
 
 // ── Read active provider config from DB ──────────────────────────────────────
@@ -158,13 +168,17 @@ export async function getAIProvider(isPremium = false): Promise<AIProvider> {
   };
 }
 
-// Circuit breaker en memoria para no repetir el par de llamadas 503 al modelo
-// primario en cada request. Las llaves NO se penalizan en DB por un 503.
+// Circuit breakers en memoria para no repetir ráfagas fallidas al modelo primario:
+// - 503: las llaves NO se penalizan en DB; degrada a 3.5-flash-lite -> 3.8-flash por 60s.
+// - 429 (cuota por modelo): degrada al par Flash-Lite con cuota independiente por 60s.
 const PRIMARY_503_CIRCUIT_MS = 60_000;
+const PRIMARY_429_CIRCUIT_MS = 60_000;
 const primary503CircuitUntilByModel = new Map<string, number>();
+const primary429CircuitUntilByModel = new Map<string, number>();
 
 export function __resetPrimary503CircuitForTests(): void {
   primary503CircuitUntilByModel.clear();
+  primary429CircuitUntilByModel.clear();
 }
 
 function isGemini503FallbackEligible(err: unknown): boolean {
@@ -193,6 +207,27 @@ function isGemini503FallbackEligible(err: unknown): boolean {
   );
 }
 
+function isGemini429FallbackEligible(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { name?: string; status?: number; statusCode?: number; message?: string };
+  const msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
+  if (
+    msg.includes('presupuesto de tiempo') ||
+    msg.includes('aborted') ||
+    msg.includes('no hay claves')
+  ) {
+    return false;
+  }
+  if (e.name === 'AiCooldownExhaustedError') {
+    return /cuota 429|enfriamiento por cuota|429|resource_exhausted/i.test(msg);
+  }
+  return (
+    e.status === 429 ||
+    e.statusCode === 429 ||
+    /cuota 429|resource_exhausted/i.test(msg)
+  );
+}
+
 /**
  * Generates text with automatic atomic key rotation on quota / 503 errors.
  * Dynamically wires deadlines, attempt timeouts, and structured output.
@@ -218,7 +253,11 @@ export async function generateWithRotation(
   const startedAt = Date.now();
   const primaryRemaining = options?.remainingBudgetMs;
 
-  const runWithModel = (targetModel: string, budgetMs?: number) =>
+  const runWithModel = (
+    targetModel: string,
+    budgetMs?: number,
+    rotatorOverrides?: { ignoreTransientCooldown?: boolean }
+  ) =>
     withKeyRotation(
       provider,
       async (apiKey, _keyId, _round, meta: AttemptMetadata) => {
@@ -234,14 +273,19 @@ export async function generateWithRotation(
         remainingBudgetMs: budgetMs,
         timeoutPerAttemptMs: options?.timeoutMs ?? 60000,
         signal: options?.signal,
+        ignoreTransientCooldown: rotatorOverrides?.ignoreTransientCooldown,
       }
     );
 
   const geminiFallbacks = provider === 'gemini' ? getGeminiFallbacks(model) : [];
+  const geminiQuotaFallbacks = provider === 'gemini' ? getGeminiQuotaFallbacks(model) : [];
   const isPrimaryGeminiModel = geminiFallbacks.length > 0;
   const primaryCircuitOpen =
     isPrimaryGeminiModel &&
     Date.now() < (primary503CircuitUntilByModel.get(model) ?? 0);
+  const primary429CircuitOpen =
+    geminiQuotaFallbacks.length > 0 &&
+    Date.now() < (primary429CircuitUntilByModel.get(model) ?? 0);
 
   const runWithFallbacks = async (budgetMs?: number): Promise<string> => {
     let lastError: unknown;
@@ -272,6 +316,39 @@ export async function generateWithRotation(
     );
   };
 
+  const runWithQuotaFallbacks = async (budgetMs?: number): Promise<string> => {
+    let lastError: unknown;
+    let remaining = budgetMs;
+
+    for (const quotaModel of geminiQuotaFallbacks) {
+      if (options?.signal?.aborted) {
+        throw options.signal.reason instanceof Error
+          ? options.signal.reason
+          : new DOMException('Generation aborted', 'AbortError');
+      }
+      if (remaining !== undefined && remaining <= 15_000) break;
+
+      try {
+        logger.warn(
+          `[ai-provider] Cuota 429 agotada en ${model}; usando failover automático a ${quotaModel} (cuota independiente por modelo).`
+        );
+        return await runWithModel(quotaModel, remaining, { ignoreTransientCooldown: true });
+      } catch (fallbackErr) {
+        lastError = fallbackErr;
+        if (!isGemini429FallbackEligible(fallbackErr) && !isGemini503FallbackEligible(fallbackErr)) {
+          throw fallbackErr;
+        }
+        const elapsed = Date.now() - startedAt;
+        remaining = primaryRemaining !== undefined ? primaryRemaining - elapsed : undefined;
+      }
+    }
+
+    if (lastError) throw lastError;
+    throw new AiCooldownExhaustedError(
+      `No quedó presupuesto para ejecutar failover por cuota 429 desde ${model}.`
+    );
+  };
+
   if (primaryCircuitOpen) {
     if (
       options?.signal?.aborted ||
@@ -287,29 +364,55 @@ export async function generateWithRotation(
     return runWithFallbacks(primaryRemaining);
   }
 
+  if (
+    primary429CircuitOpen &&
+    !options?.signal?.aborted &&
+    (primaryRemaining === undefined || primaryRemaining > 15_000)
+  ) {
+    logger.warn(
+      `[ai-provider] Circuito 429 abierto para ${model}; enrutando directo al modelo Flash-Lite de respaldo.`
+    );
+    return runWithQuotaFallbacks(primaryRemaining);
+  }
+
   try {
     const result = await runWithModel(model, primaryRemaining);
-    if (isPrimaryGeminiModel) primary503CircuitUntilByModel.delete(model);
+    if (isPrimaryGeminiModel) {
+      primary503CircuitUntilByModel.delete(model);
+      primary429CircuitUntilByModel.delete(model);
+    }
     return result;
   } catch (err) {
     const elapsed = Date.now() - startedAt;
     const remainingAfterPrimary =
       primaryRemaining !== undefined ? primaryRemaining - elapsed : undefined;
-    const canFallback =
+    const hasBudgetForFallback =
+      remainingAfterPrimary === undefined || remainingAfterPrimary > 15_000;
+
+    if (
       isPrimaryGeminiModel &&
       !options?.signal?.aborted &&
-      isGemini503FallbackEligible(err) &&
-      (remainingAfterPrimary === undefined || remainingAfterPrimary > 15_000);
-
-    if (!canFallback) {
-      throw err;
+      hasBudgetForFallback &&
+      isGemini503FallbackEligible(err)
+    ) {
+      primary503CircuitUntilByModel.set(model, Date.now() + PRIMARY_503_CIRCUIT_MS);
+      logger.warn(
+        `[ai-provider] Fast-fail HTTP 503 en ${model}; ejecutando fallback automático.`
+      );
+      return runWithFallbacks(remainingAfterPrimary);
     }
 
-    primary503CircuitUntilByModel.set(model, Date.now() + PRIMARY_503_CIRCUIT_MS);
-    logger.warn(
-      `[ai-provider] Fast-fail HTTP 503 en ${model}; ejecutando fallback automático.`
-    );
-    return runWithFallbacks(remainingAfterPrimary);
+    if (
+      geminiQuotaFallbacks.length > 0 &&
+      !options?.signal?.aborted &&
+      hasBudgetForFallback &&
+      isGemini429FallbackEligible(err)
+    ) {
+      primary429CircuitUntilByModel.set(model, Date.now() + PRIMARY_429_CIRCUIT_MS);
+      return runWithQuotaFallbacks(remainingAfterPrimary);
+    }
+
+    throw err;
   }
 }
 

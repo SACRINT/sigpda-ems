@@ -136,6 +136,8 @@ export interface OrchestratorOptions {
   previousWriterOutputs?: WriterOutput[];
   /** Planes de sesión parciales guardados por paquete antes de completar un redactor. */
   previousPartialSessionPlans?: Partial<Record<WriterOutput['type'], SessionPlan[]>>;
+  /** Narrativas JSON ya completadas por redactor en un intento previo (evita repetir llamadas). */
+  previousPartialNarratives?: Partial<Record<WriterOutput['type'], string>>;
   /** Directivas correctivas por redactor tras evicción (p. ej. términos ajenos o placeholders). */
   retryDirectivesByWriter?: Partial<Record<WriterOutput['type'], string>>;
   /** Persiste el avance tras cada redactor, reintento o expansión. */
@@ -144,6 +146,11 @@ export interface OrchestratorOptions {
   onPartialSessionPlansCheckpoint?: (
     writerType: WriterOutput['type'],
     plans: SessionPlan[]
+  ) => void | Promise<void>;
+  /** Persiste la narrativa JSON validada de un redactor antes de concluir sus sesiones. */
+  onPartialNarrativeCheckpoint?: (
+    writerType: WriterOutput['type'],
+    rawNarrativeJson: string
   ) => void | Promise<void>;
 }
 
@@ -453,6 +460,10 @@ export async function generateBlockWorkTextbook(
     cachedSessionPlans: options.previousPartialSessionPlans?.[writerType],
     onPartialSessionPlans: options.onPartialSessionPlansCheckpoint
       ? (plans) => options.onPartialSessionPlansCheckpoint!(writerType, plans)
+      : undefined,
+    cachedNarrativeRaw: options.previousPartialNarratives?.[writerType],
+    onPartialNarrative: options.onPartialNarrativeCheckpoint
+      ? (rawNarrativeJson) => options.onPartialNarrativeCheckpoint!(writerType, rawNarrativeJson)
       : undefined,
   });
 

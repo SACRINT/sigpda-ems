@@ -42,12 +42,14 @@ const MAX_CHECKPOINT_REQUEUES = 8;
 
 type MissionWriterType = WriterOutput['type'];
 type PartialSessionPlansMap = Partial<Record<MissionWriterType, SessionPlan[]>>;
+type PartialNarrativesMap = Partial<Record<MissionWriterType, string>>;
 
 type RetryDirectivesMap = Partial<Record<MissionWriterType, string>>;
 
 interface JobCheckpoint {
   writerOutputs: WriterOutput[];
   partialSessionPlans?: PartialSessionPlansMap;
+  partialNarratives?: PartialNarrativesMap;
   retryDirectivesByWriter?: RetryDirectivesMap;
   attempts: number;
   updatedAt: string;
@@ -66,6 +68,11 @@ function readCheckpoint(result: unknown): JobCheckpoint | null {
     rawPartials && typeof rawPartials === 'object' && !Array.isArray(rawPartials)
       ? (rawPartials as PartialSessionPlansMap)
       : undefined;
+  const rawNarratives = candidate.partialNarratives;
+  const partialNarratives =
+    rawNarratives && typeof rawNarratives === 'object' && !Array.isArray(rawNarratives)
+      ? (rawNarratives as PartialNarrativesMap)
+      : undefined;
   const rawDirectives = candidate.retryDirectivesByWriter;
   const retryDirectivesByWriter =
     rawDirectives && typeof rawDirectives === 'object' && !Array.isArray(rawDirectives)
@@ -74,6 +81,7 @@ function readCheckpoint(result: unknown): JobCheckpoint | null {
   return {
     writerOutputs: candidate.writerOutputs as WriterOutput[],
     ...(partialSessionPlans ? { partialSessionPlans } : {}),
+    ...(partialNarratives ? { partialNarratives } : {}),
     ...(retryDirectivesByWriter ? { retryDirectivesByWriter } : {}),
     attempts: candidate.attempts,
     updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : new Date().toISOString(),
@@ -118,6 +126,11 @@ function buildEvictionRetryDirective(error: unknown, errorMsg: string): string |
 function hasAnyPartialSessionPlans(partials?: PartialSessionPlansMap): boolean {
   if (!partials) return false;
   return Object.values(partials).some((plans) => Array.isArray(plans) && plans.length > 0);
+}
+
+function hasAnyPartialNarratives(narratives?: PartialNarrativesMap): boolean {
+  if (!narratives) return false;
+  return Object.values(narratives).some((raw) => typeof raw === 'string' && raw.trim().length > 0);
 }
 
 export function isTransientJobError(error: unknown): boolean {
@@ -467,6 +480,9 @@ export async function processGenerationJob(
         const nextPartials: PartialSessionPlansMap = {
           ...(checkpointState.partialSessionPlans ?? {}),
         };
+        const nextNarratives: PartialNarrativesMap = {
+          ...(checkpointState.partialNarratives ?? {}),
+        };
         const nextDirectives: RetryDirectivesMap = {
           ...(checkpointState.retryDirectivesByWriter ?? {}),
         };
@@ -474,12 +490,14 @@ export async function processGenerationJob(
           if (w?.type) {
             mergedByType.set(w.type, w);
             delete nextPartials[w.type];
+            delete nextNarratives[w.type];
             delete nextDirectives[w.type];
           }
         }
         checkpointState = {
           writerOutputs: Array.from(mergedByType.values()),
           ...(Object.keys(nextPartials).length > 0 ? { partialSessionPlans: nextPartials } : {}),
+          ...(Object.keys(nextNarratives).length > 0 ? { partialNarratives: nextNarratives } : {}),
           ...(Object.keys(nextDirectives).length > 0 ? { retryDirectivesByWriter: nextDirectives } : {}),
           attempts: checkpointState.attempts,
           updatedAt: new Date().toISOString(),
@@ -511,6 +529,44 @@ export async function processGenerationJob(
         checkpointState = {
           writerOutputs: checkpointState.writerOutputs,
           partialSessionPlans: nextPartials,
+          ...(checkpointState.partialNarratives
+            ? { partialNarratives: checkpointState.partialNarratives }
+            : {}),
+          ...(checkpointState.retryDirectivesByWriter
+            ? { retryDirectivesByWriter: checkpointState.retryDirectivesByWriter }
+            : {}),
+          attempts: checkpointState.attempts,
+          updatedAt: new Date().toISOString(),
+          ...(checkpointState.expandOnly ? { expandOnly: true } : {}),
+        };
+        await saveGenerationJobCheckpoint(
+          jobId,
+          checkpointState as unknown as Record<string, unknown>,
+          leaseId
+        );
+      });
+    return checkpointQueue;
+  };
+
+  const persistPartialNarrative = (
+    writerType: MissionWriterType,
+    rawNarrativeJson: string
+  ): Promise<void> => {
+    checkpointQueue = checkpointQueue
+      .catch(() => undefined)
+      .then(async () => {
+        if (leaseLost) return;
+        if (checkpointState.writerOutputs.some((w) => w.type === writerType)) return;
+        const nextNarratives: PartialNarrativesMap = {
+          ...(checkpointState.partialNarratives ?? {}),
+          [writerType]: rawNarrativeJson,
+        };
+        checkpointState = {
+          writerOutputs: checkpointState.writerOutputs,
+          ...(checkpointState.partialSessionPlans
+            ? { partialSessionPlans: checkpointState.partialSessionPlans }
+            : {}),
+          partialNarratives: nextNarratives,
           ...(checkpointState.retryDirectivesByWriter
             ? { retryDirectivesByWriter: checkpointState.retryDirectivesByWriter }
             : {}),
@@ -544,9 +600,11 @@ export async function processGenerationJob(
         expandOnly: checkpointState.expandOnly === true,
         previousWriterOutputs,
         previousPartialSessionPlans: checkpointState.partialSessionPlans,
+        previousPartialNarratives: checkpointState.partialNarratives,
         retryDirectivesByWriter: checkpointState.retryDirectivesByWriter,
         onCheckpoint: persistCheckpoint,
         onPartialSessionPlansCheckpoint: persistPartialSessionPlans,
+        onPartialNarrativeCheckpoint: persistPartialNarrative,
       }
     );
 
@@ -607,7 +665,8 @@ export async function processGenerationJob(
     const transientError = isTransientJobError(error);
     const hasProgress =
       checkpointState.writerOutputs.length > 0 ||
-      hasAnyPartialSessionPlans(checkpointState.partialSessionPlans);
+      hasAnyPartialSessionPlans(checkpointState.partialSessionPlans) ||
+      hasAnyPartialNarratives(checkpointState.partialNarratives);
     const canResume =
       (hasProgress || transientError) &&
       checkpointState.attempts + 1 < MAX_CHECKPOINT_REQUEUES;
@@ -617,6 +676,9 @@ export async function processGenerationJob(
       const nextPartials = checkpointState.partialSessionPlans
         ? { ...checkpointState.partialSessionPlans }
         : undefined;
+      const nextNarratives = checkpointState.partialNarratives
+        ? { ...checkpointState.partialNarratives }
+        : undefined;
       const nextDirectives: RetryDirectivesMap = {
         ...(checkpointState.retryDirectivesByWriter ?? {}),
       };
@@ -625,7 +687,8 @@ export async function processGenerationJob(
         (writersToKeep.length >= 4 ||
           error instanceof SessionDensityDeficiencyError ||
           error instanceof GenericContentError ||
-          hasAnyPartialSessionPlans(nextPartials));
+          hasAnyPartialSessionPlans(nextPartials) ||
+          hasAnyPartialNarratives(nextNarratives));
       const recovery = shouldResolveRecovery
         ? resolvePostRedactionRecoveryPlan(
             error,
@@ -648,6 +711,9 @@ export async function processGenerationJob(
             if (nextPartials) {
               delete nextPartials[t];
             }
+            if (nextNarratives) {
+              delete nextNarratives[t];
+            }
             if (retryDirective) {
               nextDirectives[t] = retryDirective;
             }
@@ -655,11 +721,20 @@ export async function processGenerationJob(
           logger.warn(
             `[job-worker] Error de validación/contenido detectado en job ${jobId}; descartando redactor(es) '${recovery.evictedTypes.join(', ')}' del checkpoint para forzar regeneración fresca en el reintento.`
           );
-        } else if (nextPartials && writersToKeep.length < 4) {
+        } else if ((nextPartials || nextNarratives) && writersToKeep.length < 4) {
           const completedTypes = new Set(writersToKeep.map((w) => w.type));
-          for (const key of Object.keys(nextPartials) as MissionWriterType[]) {
-            if (!completedTypes.has(key)) {
-              delete nextPartials[key];
+          if (nextPartials) {
+            for (const key of Object.keys(nextPartials) as MissionWriterType[]) {
+              if (!completedTypes.has(key)) {
+                delete nextPartials[key];
+              }
+            }
+          }
+          if (nextNarratives) {
+            for (const key of Object.keys(nextNarratives) as MissionWriterType[]) {
+              if (!completedTypes.has(key)) {
+                delete nextNarratives[key];
+              }
             }
           }
           logger.warn(
@@ -687,6 +762,9 @@ export async function processGenerationJob(
         writerOutputs: writersToKeep,
         ...(nextPartials && Object.keys(nextPartials).length > 0
           ? { partialSessionPlans: nextPartials }
+          : {}),
+        ...(nextNarratives && Object.keys(nextNarratives).length > 0
+          ? { partialNarratives: nextNarratives }
           : {}),
         ...(Object.keys(nextDirectives).length > 0
           ? { retryDirectivesByWriter: nextDirectives }

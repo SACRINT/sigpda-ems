@@ -526,4 +526,42 @@ describe('generateShardedSessionPlans — fail-closed V2.1 (Tarea 1)', () => {
       nowSpy.mockRestore();
     }
   });
+
+  it('acepta verbos imperativos de Humanidades en hasExplicitPracticeTask y tolerancia editorial del 15% en ejemploResuelto solo cuando la sesión ya cumple volumen y estructura', async () => {
+    const { hasExplicitPracticeTask } = await import(
+      '@/lib/guide-engine/writers/writer-contract'
+    );
+    const { classifyDeficientFields } = await import(
+      '@/lib/guide-engine/writers/session-shard'
+    );
+
+    // Verbo real rechazado previamente en Pensamiento Filosófico y Humanidades II (S23)
+    expect(
+      hasExplicitPracticeTask(
+        'Prepara un guion de tres minutos para defender tu propuesta sobre la equidad de género en los espacios recreativos. Incluye una tesis central y dos argumentos respaldados.'
+      )
+    ).toBe(true);
+    expect(hasExplicitPracticeTask('Cuestiona los supuestos éticos del dilema comunitario.')).toBe(true);
+    // Sigue rechazando enunciados puramente descriptivos sin consigna
+    expect(hasExplicitPracticeTask('El presupuesto total del taller comunitario es de 2,500 pesos.')).toBe(false);
+
+    const thresholds = densityThresholdsFor(1120, false, true);
+    expect(thresholds.minEjemploWords).toBe(220);
+
+    // 200 palabras con 4 pasos y cierre válido en una sesión >= 1002 palabras -> aprobado (margen >= 187w)
+    const ejemplo200 = `Planteamiento: ${words(40)}\nPaso 1: ${words(38)}\nPaso 2: ${words(38)}\nPaso 3: ${words(38)}\nPaso 4: Conclusión: ${words(36)}.`;
+    const planWithinMargin = goodPlan(2, {
+      ejemploResuelto: ejemplo200,
+    }) as unknown as Parameters<typeof evaluateSessionPlanDensity>[0];
+    expect(evaluateSessionPlanDensity(planWithinMargin, thresholds).ok).toBe(true);
+    expect(classifyDeficientFields(planWithinMargin, thresholds)).toEqual([]);
+
+    // 165 palabras (< 187w) sigue siendo rechazado incluso si el plan suma > 1002 palabras
+    const ejemplo165 = `Planteamiento: ${words(30)}\nPaso 1: ${words(30)}\nPaso 2: ${words(30)}\nPaso 3: ${words(30)}\nPaso 4: Conclusión: ${words(30)}.`;
+    const planTooShort = goodPlan(2, {
+      ejemploResuelto: ejemplo165,
+    }) as unknown as Parameters<typeof evaluateSessionPlanDensity>[0];
+    expect(evaluateSessionPlanDensity(planTooShort, thresholds).ok).toBe(false);
+    expect(classifyDeficientFields(planTooShort, thresholds)).toEqual(['ejemploResuelto']);
+  });
 });

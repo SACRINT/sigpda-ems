@@ -803,4 +803,67 @@ describe('Resiliencia Integral: Status Backoff, Job Worker 24 Sesiones, Sharding
     expect(nextCheckpoint.retryDirectivesByWriter?.project).toContain('colado de losa');
     expect(nextCheckpoint.retryDirectivesByWriter?.project).toContain('varilla corrugada');
   });
+
+  it('preserva partialNarratives en reencolado por cuota 429 y limpia la narrativa cacheada si el redactor es evictado por contenido', async () => {
+    const cachedNarrative = JSON.stringify({ phenomenonStory: 'Historia válida', coreExplanation: 'Explicación completa' });
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 1,
+        status: 'running',
+        result: { writerOutputs: [], attempts: 0, updatedAt: new Date().toISOString() },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+
+    mockGenerateBlockWorkTextbook.mockImplementationOnce(
+      async (
+        _planningId: string,
+        _blockIndex: number,
+        opts: {
+          onPartialNarrativeCheckpoint?: (t: WriterOutput['type'], raw: string) => Promise<void>;
+        }
+      ) => {
+        await opts.onPartialNarrativeCheckpoint?.('foundation', cachedNarrative);
+        throw new AiCooldownExhaustedError(
+          'Todas las 14 claves de "gemini" devolvieron cuota 429 en la Vuelta 1 (restan 30s).'
+        );
+      }
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    expect(mockRequeueGenerationJob).toHaveBeenCalledTimes(1);
+    const [, transientCheckpoint] = mockRequeueGenerationJob.mock.calls[0];
+    expect(transientCheckpoint.partialNarratives?.foundation).toBe(cachedNarrative);
+
+    // En un error de contenido no transitorio sobre foundation, la narrativa cacheada debe descartarse
+    vi.clearAllMocks();
+    const { GenericContentError } = await import('@/lib/guide-engine/quality/no-generic-content');
+    mockGetGenerationJobById
+      .mockResolvedValueOnce({
+        id: jobId,
+        planning_id: planningId,
+        teacher_id: teacherId,
+        block_index: 1,
+        status: 'running',
+        result: {
+          writerOutputs: [],
+          partialNarratives: { foundation: cachedNarrative, lab: cachedNarrative },
+          attempts: 1,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .mockResolvedValueOnce({ id: jobId, status: 'pending' });
+    mockGenerateBlockWorkTextbook.mockRejectedValueOnce(
+      new GenericContentError('FoundationWriter · Misión 1', [
+        { path: 'root.coreExplanation', signature: 'placeholder', label: 'Marcador', excerpt: '[completar]' },
+      ])
+    );
+
+    await processGenerationJob(jobId, leaseId);
+    const [, evictedCheckpoint] = mockRequeueGenerationJob.mock.calls[0];
+    expect(evictedCheckpoint.partialNarratives?.foundation).toBeUndefined();
+    expect(evictedCheckpoint.partialNarratives?.lab).toBe(cachedNarrative);
+  });
 });

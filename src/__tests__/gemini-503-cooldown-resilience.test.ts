@@ -106,10 +106,11 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
           Array.isArray(values[2]) ? (values[2] as string[]) : []
         );
         const nowMs = Date.now();
+        const enforceCooldown = query.includes("INTERVAL '45 seconds'");
         const available = poolKeys
           .filter((k) => {
             if (!k.is_active || excludedIds.has(k.id)) return false;
-            if (!k.last_error_at) return true;
+            if (!enforceCooldown || !k.last_error_at) return true;
             return nowMs - new Date(k.last_error_at).getTime() >= 45_000;
           })
           .sort((a, b) => {
@@ -153,6 +154,15 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
         const row = poolKeys.find((k) => k.id === keyId);
         if (row) {
           row.error_count += 1;
+          row.last_error_at = new Date().toISOString();
+        }
+        return Promise.resolve([]);
+      }
+
+      if (query.includes('SET last_error_at = NOW()')) {
+        const keyId = values[0] as string;
+        const row = poolKeys.find((k) => k.id === keyId);
+        if (row) {
           row.last_error_at = new Date().toISOString();
         }
         return Promise.resolve([]);
@@ -266,5 +276,34 @@ describe('Resiliencia de Gemini 503 Fast-Fail y Espera de Cooldown por Presupues
 
     expect(result).toBe('{"ok":true,"recovered":true}');
     expect(geminiInstances).toHaveLength(1);
+  });
+
+  it('ante cuota 429 agotada en todas las llaves de gemini-3.1-flash-lite, hace failover automático a gemini-3.5-flash-lite y abre circuito 429 por 60s', async () => {
+    mockGeminiGenerate.mockImplementation(async (_apiKey: string, model: string) => {
+      if (model === 'gemini-3.1-flash-lite') {
+        const err = new Error('HTTP 429: RESOURCE_EXHAUSTED quota exceeded') as Error & {
+          status?: number;
+        };
+        err.status = 429;
+        throw err;
+      }
+      return '{"ok":true,"quotaFailover":true}';
+    });
+
+    const first = await generateWithRotation('SYS', 'USER', undefined, false, {
+      remainingBudgetMs: 180_000,
+    });
+    expect(first).toBe('{"ok":true,"quotaFailover":true}');
+    // Probó las 8 llaves en 3.1-flash-lite y luego resolvió en el primer intento de 3.5-flash-lite
+    expect(geminiInstances.filter((g) => g.model === 'gemini-3.1-flash-lite')).toHaveLength(8);
+    expect(geminiInstances.filter((g) => g.model === 'gemini-3.5-flash-lite')).toHaveLength(1);
+
+    // Segunda llamada dentro de la ventana de 60s: enruta directo a 3.5-flash-lite sin re-martillar 3.1
+    geminiInstances.length = 0;
+    const second = await generateWithRotation('SYS', 'USER', undefined, false, {
+      remainingBudgetMs: 180_000,
+    });
+    expect(second).toBe('{"ok":true,"quotaFailover":true}');
+    expect(geminiInstances.map((g) => g.model)).toEqual(['gemini-3.5-flash-lite']);
   });
 });

@@ -207,6 +207,8 @@ export interface ClaimOptions {
   waitAttempts?: number;
   signal?: AbortSignal;
   requirePool?: boolean;
+  /** Permite reclamar claves aunque tengan cooldown transitorio reciente (usado en failover a otro modelo Gemini con cuota independiente). */
+  ignoreTransientCooldown?: boolean;
 }
 
 /**
@@ -246,30 +248,54 @@ export async function claimApiKey(
       ? Array.from(options.excludeKeyIds)
       : [];
 
-    const rows = await db`
-      WITH candidate AS (
-        SELECT id
-        FROM api_keys
-        WHERE provider = ${provider}
-          AND is_active = true
-          AND (last_error_at IS NULL OR last_error_at < NOW() - INTERVAL '45 seconds')
-          AND (
-            ${excludedList.length === 0}::boolean
-            OR NOT (id = ANY(${excludedList}::uuid[]))
+    const rows = options?.ignoreTransientCooldown
+      ? await db`
+          WITH candidate AS (
+            SELECT id
+            FROM api_keys
+            WHERE provider = ${provider}
+              AND is_active = true
+              AND (
+                ${excludedList.length === 0}::boolean
+                OR NOT (id = ANY(${excludedList}::uuid[]))
+              )
+            ORDER BY last_used_at ASC NULLS FIRST, usage_count ASC, priority ASC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
           )
-        ORDER BY last_used_at ASC NULLS FIRST, usage_count ASC, priority ASC
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-      )
-      UPDATE api_keys
-      SET last_used_at = NOW()
-      FROM candidate
-      WHERE api_keys.id = candidate.id
-      RETURNING api_keys.id, api_keys.label, api_keys.provider, api_keys.model_default,
-                api_keys.key_encrypted, api_keys.key_preview, api_keys.is_active,
-                api_keys.priority, api_keys.usage_count, api_keys.error_count,
-                api_keys.last_used_at, api_keys.last_error_at;
-    `;
+          UPDATE api_keys
+          SET last_used_at = NOW()
+          FROM candidate
+          WHERE api_keys.id = candidate.id
+          RETURNING api_keys.id, api_keys.label, api_keys.provider, api_keys.model_default,
+                    api_keys.key_encrypted, api_keys.key_preview, api_keys.is_active,
+                    api_keys.priority, api_keys.usage_count, api_keys.error_count,
+                    api_keys.last_used_at, api_keys.last_error_at;
+        `
+      : await db`
+          WITH candidate AS (
+            SELECT id
+            FROM api_keys
+            WHERE provider = ${provider}
+              AND is_active = true
+              AND (last_error_at IS NULL OR last_error_at < NOW() - INTERVAL '45 seconds')
+              AND (
+                ${excludedList.length === 0}::boolean
+                OR NOT (id = ANY(${excludedList}::uuid[]))
+              )
+            ORDER BY last_used_at ASC NULLS FIRST, usage_count ASC, priority ASC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+          )
+          UPDATE api_keys
+          SET last_used_at = NOW()
+          FROM candidate
+          WHERE api_keys.id = candidate.id
+          RETURNING api_keys.id, api_keys.label, api_keys.provider, api_keys.model_default,
+                    api_keys.key_encrypted, api_keys.key_preview, api_keys.is_active,
+                    api_keys.priority, api_keys.usage_count, api_keys.error_count,
+                    api_keys.last_used_at, api_keys.last_error_at;
+        `;
 
     if (rows && rows.length > 0) {
       const record = rows[0] as ApiKeyRecord;
@@ -506,12 +532,15 @@ export async function withKeyRotation<T>(
     remainingBudgetMs?: number;
     timeoutPerAttemptMs?: number;
     signal?: AbortSignal;
+    ignoreTransientCooldown?: boolean;
   } | string
 ): Promise<T> {
   const teacherId = typeof options === 'string' ? options : options?.teacherId;
   const remainingBudgetMs = typeof options === 'object' ? options?.remainingBudgetMs : undefined;
   const timeoutPerAttemptMs = typeof options === 'object' ? options?.timeoutPerAttemptMs : undefined;
   const signal = typeof options === 'object' ? options?.signal : undefined;
+  const ignoreTransientCooldown =
+    typeof options === 'object' ? options?.ignoreTransientCooldown : undefined;
 
   throwIfAborted(signal);
 
@@ -568,6 +597,7 @@ export async function withKeyRotation<T>(
         excludeEnv,
         maxWaitMs: maxCooldownWaitMs,
         signal,
+        ignoreTransientCooldown,
       });
     } catch (claimErr) {
       if (claimErr instanceof Error && (claimErr.name === 'AbortError' || claimErr.message.toLowerCase().includes('aborted'))) {

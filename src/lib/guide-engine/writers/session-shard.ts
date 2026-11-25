@@ -167,8 +167,30 @@ export function validateVisualSynthesisDeficits(plan: SessionPlan): string[] {
   return issues;
 }
 
+/**
+ * Tolerancia editorial acotada (15%) sobre `ejemploResuelto` únicamente cuando la sesión ya
+ * cumple el volumen total mínimo y el ejemplo tiene todos los pasos y cierre verificable.
+ * Evita tormentas de reparación (y saturación de cuota IA) por variaciones menores (p. ej. 201–214 vs 220 palabras)
+ * en asignaturas cualitativas/humanísticas sin relajar el piso para ejemplos cortos o incompletos.
+ */
+const EJEMPLO_EDITORIAL_TOLERANCE_RATIO = 0.85;
+
+function effectiveMinEjemploWords(
+  plan: SessionPlan,
+  t: DensityThresholds,
+  steps: number,
+  hasClosure: boolean,
+  totalWords: number
+): number {
+  if (steps >= t.minEjemploSteps && hasClosure && totalWords >= t.minTotalWords) {
+    return Math.round(t.minEjemploWords * EJEMPLO_EDITORIAL_TOLERANCE_RATIO);
+  }
+  return t.minEjemploWords;
+}
+
 export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThresholds): DensityReport {
   const deficits: string[] = [];
+  const words = countSessionPlanWords(plan);
   const contenidoWords = wordCount(plan.contenido);
   const explicitParagraphs = (plan.contenido || '')
     .split(/\n\s*\n/)
@@ -187,13 +209,17 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
   }
   const ejemploWords = wordCount(plan.ejemploResuelto);
   const steps = (plan.ejemploResuelto || '').match(/Paso\s*\d+/gi)?.length ?? 0;
-  if (ejemploWords < t.minEjemploWords) {
-    deficits.push(`ejemploResuelto tiene ${ejemploWords} palabras (mínimo ${t.minEjemploWords})`);
+  const hasClosure = hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '', {
+    requireNumeric: t.requireNumericExample,
+  });
+  const minEjemploEffective = effectiveMinEjemploWords(plan, t, steps, hasClosure, words);
+  if (ejemploWords < minEjemploEffective) {
+    deficits.push(`ejemploResuelto tiene ${ejemploWords} palabras (mínimo ${minEjemploEffective})`);
   }
   if (steps < t.minEjemploSteps) {
     deficits.push(`ejemploResuelto tiene ${steps} pasos numerados (mínimo ${t.minEjemploSteps})`);
   }
-  if (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '', { requireNumeric: t.requireNumericExample })) {
+  if (!hasClosure) {
     deficits.push('ejemploResuelto no cierra con resultado, ecuación o conclusión verificable');
   }
   const practica = plan.practica || [];
@@ -210,7 +236,6 @@ export function evaluateSessionPlanDensity(plan: SessionPlan, t: DensityThreshol
   if (t.requireVisualSynthesis) {
     deficits.push(...validateVisualSynthesisDeficits(plan));
   }
-  const words = countSessionPlanWords(plan);
   if (words < t.minTotalWords) {
     deficits.push(`el plan suma ${words} palabras (mínimo ${t.minTotalWords})`);
   }
@@ -538,10 +563,20 @@ function evaluateContenidoFieldDeficits(plan: SessionPlan, t: DensityThresholds)
 
 function evaluateEjemploFieldDeficits(plan: SessionPlan, t: DensityThresholds): number {
   let count = 0;
-  if (wordCount(plan.ejemploResuelto) < t.minEjemploWords) count++;
   const steps = (plan.ejemploResuelto || '').match(/Paso\s*\d+/gi)?.length ?? 0;
+  const hasClosure = hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '', {
+    requireNumeric: t.requireNumericExample,
+  });
+  const minEjemploEffective = effectiveMinEjemploWords(
+    plan,
+    t,
+    steps,
+    hasClosure,
+    countSessionPlanWords(plan)
+  );
+  if (wordCount(plan.ejemploResuelto) < minEjemploEffective) count++;
   if (steps < t.minEjemploSteps) count++;
-  if (!hasCompleteWorkedExampleClosure(plan.ejemploResuelto || '', { requireNumeric: t.requireNumericExample })) {
+  if (!hasClosure) {
     count++;
   }
   return count;

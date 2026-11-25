@@ -424,21 +424,24 @@ Genera los instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesio
     const remainingBudgetMs = resolveRemainingBudgetMs(input.budgetDeadlineMs);
     const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
     shardedPromise?.catch(() => undefined);
-    const rawResponse = await runScheduled(input.scheduler, 'evaluation:narrative', () =>
-      generateWithRotation(
-        effectiveSystemInstruction,
-        effectivePrompt,
-        input.planning.teacherId,
-        false,
-        {
-          jsonMode: true,
-          maxTokens: narrativeMaxTokens,
-          timeoutMs: narrativeTimeoutMs,
-          remainingBudgetMs,
-          signal: input.signal,
-        }
-      )
-    );
+    const hasCachedNarrative = Boolean(useSharding && input.cachedNarrativeRaw);
+    const rawResponse = hasCachedNarrative
+      ? input.cachedNarrativeRaw!
+      : await runScheduled(input.scheduler, 'evaluation:narrative', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            effectivePrompt,
+            input.planning.teacherId,
+            false,
+            {
+              jsonMode: true,
+              maxTokens: narrativeMaxTokens,
+              timeoutMs: narrativeTimeoutMs,
+              remainingBudgetMs,
+              signal: input.signal,
+            }
+          )
+        );
     let parsed = robustJsonParse(rawResponse);
 
     // Validación de estructura + cobertura total de sesiones (Fase A)
@@ -448,7 +451,7 @@ Genera los instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesio
     const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
     const missingPlans = !useSharding && planCount < coveredSessions.length;
 
-    if (!has3Levels || !allHave2Exercises || missingPlans) {
+    if (!hasCachedNarrative && (!has3Levels || !allHave2Exercises || missingPlans)) {
       attempt = 2;
       logger.warn(
         `[EvaluationWriter] tieredExercises=${tiers.length} niveles (3 requeridos) o sessionPlans=${planCount}/${coveredSessions.length}. Reintentando con instrucción estricta...`
@@ -491,6 +494,14 @@ Genera los instrumentos oficiales de evaluación NEM Y las ${sessionCount} sesio
         }
       } catch (retryErr) {
         logger.warn('[EvaluationWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
+      }
+    }
+
+    if (useSharding && !hasCachedNarrative && input.onPartialNarrative) {
+      try {
+        await input.onPartialNarrative(JSON.stringify(parsed));
+      } catch {
+        /* checkpoint incremental best-effort */
       }
     }
 

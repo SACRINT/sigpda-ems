@@ -273,28 +273,31 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
     const remainingBudgetMs = resolveRemainingBudgetMs(input.budgetDeadlineMs);
     const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
     shardedPromise?.catch(() => undefined);
-    const rawResponse = await runScheduled(input.scheduler, 'project:narrative', () =>
-      generateWithRotation(
-        effectiveSystemInstruction,
-        effectivePrompt,
-        input.planning.teacherId,
-        false,
-        {
-          jsonMode: true,
-          maxTokens: narrativeMaxTokens,
-          timeoutMs: narrativeTimeoutMs,
-          remainingBudgetMs,
-          signal: input.signal,
-        }
-      )
-    );
+    const hasCachedNarrative = Boolean(useSharding && input.cachedNarrativeRaw);
+    const rawResponse = hasCachedNarrative
+      ? input.cachedNarrativeRaw!
+      : await runScheduled(input.scheduler, 'project:narrative', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            effectivePrompt,
+            input.planning.teacherId,
+            false,
+            {
+              jsonMode: true,
+              maxTokens: narrativeMaxTokens,
+              timeoutMs: narrativeTimeoutMs,
+              remainingBudgetMs,
+              signal: input.signal,
+            }
+          )
+        );
     let parsed = robustJsonParse(rawResponse);
 
     // Validación de extensión mínima + cobertura total de sesiones (Fase A)
     const objCount = Array.isArray(parsed.learningObjectives) ? parsed.learningObjectives.length : 0;
     const planCount = Array.isArray(parsed.sessionPlans) ? parsed.sessionPlans.length : 0;
     const missingPlans = !useSharding && planCount < coveredSessions.length;
-    if (objCount < 3 || missingPlans) {
+    if (!hasCachedNarrative && (objCount < 3 || missingPlans)) {
       attempt = 2;
       logger.warn(
         `[ProjectWriter] learningObjectives=${objCount} (<3: ${objCount < 3}) o sessionPlans=${planCount}/${coveredSessions.length}. Reintentando con instrucción estricta...`
@@ -353,6 +356,14 @@ Redacta la Misión del Proyecto, el Desarrollo del Producto o Evidencia Y las ${
         } catch (retryErr) {
           logger.warn('[ProjectWriter] Error en reintento, preservando primera respuesta:', { error: String(retryErr) });
         }
+      }
+    }
+
+    if (useSharding && !hasCachedNarrative && input.onPartialNarrative) {
+      try {
+        await input.onPartialNarrative(JSON.stringify(parsed));
+      } catch {
+        /* checkpoint incremental best-effort */
       }
     }
 

@@ -226,27 +226,30 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
     const remainingBudgetMs = resolveRemainingBudgetMs(input.budgetDeadlineMs);
     const shardedPromise = useSharding ? generateShardedSessionPlans(shardCtx) : null;
     shardedPromise?.catch(() => undefined);
-    const rawResponse = await runScheduled(input.scheduler, 'foundation:narrative', () =>
-      generateWithRotation(
-        effectiveSystemInstruction,
-        effectivePrompt,
-        input.planning.teacherId,
-        false,
-        {
-          jsonMode: true,
-          maxTokens: narrativeMaxTokens,
-          timeoutMs: narrativeTimeoutMs,
-          remainingBudgetMs,
-          signal: input.signal,
-        }
-      )
-    );
+    const hasCachedNarrative = Boolean(useSharding && input.cachedNarrativeRaw);
+    const rawResponse = hasCachedNarrative
+      ? input.cachedNarrativeRaw!
+      : await runScheduled(input.scheduler, 'foundation:narrative', () =>
+          generateWithRotation(
+            effectiveSystemInstruction,
+            effectivePrompt,
+            input.planning.teacherId,
+            false,
+            {
+              jsonMode: true,
+              maxTokens: narrativeMaxTokens,
+              timeoutMs: narrativeTimeoutMs,
+              remainingBudgetMs,
+              signal: input.signal,
+            }
+          )
+        );
     let parsed = robustJsonParse(rawResponse);
 
     // Validación de extensión mínima calibrada según el presupuesto
     const coreWords = (parsed.coreExplanation || '').split(/\s+/).filter(Boolean).length;
     const minCoreWords = Math.min(400, Math.max(150, Math.round(coreTarget * 0.5)));
-    if (coreWords < minCoreWords) {
+    if (!hasCachedNarrative && coreWords < minCoreWords) {
       attempt = 2;
       logger.warn(`[FoundationWriter] coreExplanation tiene solo ${coreWords} palabras (< ${minCoreWords}). Reintentando con instrucción estricta...`);
       try {
@@ -316,6 +319,14 @@ Redacta la Misión de Fundamentación e Intuición completa con máxima profundi
           'balanza de precisión analítica'
         );
         parsed = robustJsonParse(sanitized);
+      }
+    }
+
+    if (useSharding && !hasCachedNarrative && input.onPartialNarrative) {
+      try {
+        await input.onPartialNarrative(JSON.stringify(parsed));
+      } catch {
+        /* checkpoint incremental best-effort */
       }
     }
 
