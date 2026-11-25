@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeacherByEmail, getPaecProjectById, mapRawPaecProject } from '@/lib/db';
 import { generatePaecDocx } from '@/lib/paec-docx-generator';
-import type { PaecProject } from '@/types/paec';
+import { auditPaecPlan } from '@/lib/qa/paec-pmc-semantic-qa';
 import { SCHOOL_YEAR } from '@/lib/config';
 import { logger } from '@/lib/logger';
 
@@ -35,6 +35,42 @@ export async function GET(
       );
     }
 
+    // Gate de exportación Q3: HTTP 422 solo en FAIL duro; WARN se registra y permite descarga con aviso
+    const mapeoCatalog = (project.fase2Mapeo ?? []).map((m) => ({
+      uacName: m.uacName,
+      semester: Number(m.semester),
+      component: '',
+    }));
+    const hardFails: string[] = [];
+    const warns: string[] = [];
+    const rowsA = project.fase3PlanOperativoA ?? project.fase2PlanOperativo?.semestreA ?? [];
+    const rowsB = project.fase3PlanOperativoB ?? project.fase2PlanOperativo?.semestreB ?? [];
+    if (rowsA.length > 0) {
+      const qaA = auditPaecPlan(rowsA, mapeoCatalog, { parity: 1, cicloEscolar: SCHOOL_YEAR, strict: false });
+      hardFails.push(...qaA.fails.map((f) => `[Sem A] ${f}`));
+      warns.push(...qaA.warns.map((w) => `[Sem A] ${w}`));
+    }
+    if (rowsB.length > 0) {
+      const qaB = auditPaecPlan(rowsB, mapeoCatalog, { parity: 0, cicloEscolar: SCHOOL_YEAR, strict: false });
+      hardFails.push(...qaB.fails.map((f) => `[Sem B] ${f}`));
+      warns.push(...qaB.warns.map((w) => `[Sem B] ${w}`));
+    }
+    if (hardFails.length > 0) {
+      logger.warn(`[PAEC DOCX Export] Bloqueado por FAIL duro en QA semántico (${id}):`, { fails: hardFails });
+      return NextResponse.json(
+        {
+          error: 'El proyecto PAEC presenta defectos críticos en el Plan Operativo que bloquean la exportación.',
+          code: 'PAEC_SEMANTIC_QA_FAILED',
+          fails: hardFails,
+          warns,
+        },
+        { status: 422 }
+      );
+    }
+    if (warns.length > 0) {
+      logger.warn(`[PAEC DOCX Export] Descarga permitida con ${warns.length} advertencia(s) (${id}).`);
+    }
+
     const docxBuffer = await generatePaecDocx(project, teacher.name);
 
     const safeProjName = project.projectName
@@ -48,6 +84,7 @@ export async function GET(
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': docxBuffer.byteLength.toString(),
+        'X-Quality-Warnings-Count': String(warns.length),
       },
     });
   } catch (error) {

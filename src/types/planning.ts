@@ -94,7 +94,8 @@ export interface TeacherContext {
   paecProjectName?: string;      // Nombre del proyecto PAEC/PEC
   paecObjective?: string;        // Objetivo general del proyecto
   paecProblem: string;           // Problemática comunitaria (requerido)
-  paecOperationalActivity?: PaecOperationalActivity | null; // Actividad del plan operativo
+  paecOperationalActivity?: PaecOperationalActivity | null; // Actividad principal del plan operativo
+  paecOperationalActivities?: Array<PaecOperationalActivity & { corte?: 1 | 2 | 3 }>; // Trayectoria completa por corte
   usePaecActivity?: boolean;     // Switch para respetar e integrar la actividad del PAEC
   schoolResources?: string;      // Recursos del plantel
   studentContext: string;        // Caracterización de estudiantes

@@ -118,8 +118,14 @@ export function sixGramOverlap(a: string, b: string, n = 6): number {
   return shared / A.size;
 }
 
-export function isLaboralComponent(component = ''): boolean {
-  return /laboral|competencias_laborales|capacitaci[oó]n|t[eé]cnic/i.test(component);
+export function isLaboralComponent(component = '', uacName = ''): boolean {
+  if (/laboral|competencias_laborales|capacitaci[oó]n|t[eé]cnic/i.test(component)) return true;
+  if (!component && uacName) {
+    return /^(?:Elabora|Emplea|Establece|Opera|Aplica|Instala|Configura|Dise[nñ]a|Produce|Prepara|Administra|Gestiona|Desarrolla|Mantiene|Diagnostica|Construye|Maneja|Controla|Realiza|Ejecuta|Programa|Repara|Supervisa|Utiliza|Verifica|Integra)\s+[a-záéíóúñ]/u.test(
+      uacName.trim()
+    );
+  }
+  return false;
 }
 
 /**
@@ -132,9 +138,10 @@ export function isLaboralComponent(component = ''): boolean {
 export function resolveExpectedMccemsLabel(
   semester: number,
   component = '',
-  cicloEscolar = ''
+  cicloEscolar = '',
+  uacName = ''
 ): 'Actividad Clave' | 'Propósito Formativo' | 'Progresión' {
-  if (isLaboralComponent(component)) return 'Actividad Clave';
+  if (isLaboralComponent(component, uacName)) return 'Actividad Clave';
   const startYearMatch = String(cicloEscolar || '').match(/(20\d{2})/);
   const startYear = startYearMatch ? Number(startYearMatch[1]) : 2026;
   if (startYear >= 2027) return 'Propósito Formativo';
@@ -357,7 +364,7 @@ export function auditPaecPlan(
     }
 
     if (resolvedSem !== null && prog) {
-      const expected = resolveExpectedMccemsLabel(resolvedSem, meta?.component ?? '', cicloEscolar);
+      const expected = resolveExpectedMccemsLabel(resolvedSem, meta?.component ?? '', cicloEscolar, uac);
       const progLower = prog.toLowerCase();
       const matchesExpected =
         expected === 'Actividad Clave'

@@ -16,12 +16,14 @@ import { sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import { isActivityAnotherSubjectName } from '@/lib/paec-subject-matching';
+import { mapActivityIndexToBlockIndex } from '@/lib/curricular-blocks';
 
 export interface PaecLinkedActivity {
   asignatura: string;
   actividad: string;
   semana?: string;
   fase?: string;
+  corte?: 1 | 2 | 3;
   estrategiaDidactica?: string;
   propositoFormativo?: string;
   progresion?: string;
@@ -42,6 +44,8 @@ export interface PaecLinkedContext {
   uacTopic?: string;
   uacLinking?: string;
   operationalActivity?: PaecLinkedActivity | null;
+  /** Trayectoria completa de actividades PAEC asignadas a esta UAC, ordenadas por semana y mapeadas a Corte 1/2/3 */
+  operationalActivities?: PaecLinkedActivity[];
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -80,17 +84,32 @@ function cleanUacToken(s: string): string {
     .trim();
 }
 
+function extractNormalizedLevelNumber(s: string): string | null {
+  const clean = normalizeUnicode(s).toLowerCase().replace(/⟦[^⟧]*⟧/g, '');
+  const m = clean.match(/\b(vi|iv|v|iii|ii|i|[1-6])\b(?:\s*[:.\-–].*)?$/i);
+  if (!m) return null;
+  const map: Record<string, string> = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6' };
+  return map[m[1]] ?? m[1];
+}
+
 /**
  * Coincidencia robusta de UAC: ambos lados no vacíos.
  * Tolera diferencias en stopwords ("de", "del"), acentos, mayúsculas,
  * puntuación y numerales romanos vs arábigos (ej: "Taller Pensamiento Variacional I" vs
- * "Taller de Pensamiento Variacional I").
+ * "Taller de Pensamiento Variacional I"), pero impide colisiones entre niveles distintos
+ * (ej. "Conciencia Histórica II" NUNCA coincide con "Conciencia Histórica I").
  * Nunca coincide con vacío.
  */
 export function uacMatches(a: string, b: string): boolean {
   const x = normalizeUnicode(a).toLowerCase().replace(/\s+/g, ' ').trim();
   const y = normalizeUnicode(b).toLowerCase().replace(/\s+/g, ' ').trim();
   if (!x || !y) return false;
+
+  // Guard de nivel romano/arábigo: si ambos especifican nivel, deben coincidir exactamente
+  const lvlA = extractNormalizedLevelNumber(a);
+  const lvlB = extractNormalizedLevelNumber(b);
+  if (lvlA && lvlB && lvlA !== lvlB) return false;
+
   if (x === y || x.includes(y) || y.includes(x)) return true;
 
   const cleanX = cleanUacToken(a);
@@ -116,19 +135,55 @@ function formatWeek(week: string): string | undefined {
   return /^\d/.test(week) ? `Semana ${week}` : week;
 }
 
+function extractWeekNumber(week?: string): number {
+  const m = String(week ?? '').match(/\d+/);
+  return m ? Number(m[0]) : 99;
+}
+
 /**
- * Busca en las filas del plan operativo la actividad de la UAC dada.
- * Solo devuelve filas con actividad no vacía (no fabrica vínculos).
+ * Deriva el Corte oficial (1, 2 o 3) de una actividad PAEC usando el SSoT `mapActivityIndexToBlockIndex`
+ * de `curricular-blocks.ts` a partir del número de Propósito/Progresión/Actividad Clave citado
+ * (sin rangos hardcodeados de semana), con respaldo por Fase del PEC (Fase 1/4 -> Corte 1,
+ * Fase 2/5 -> Corte 2, Fase 3/6 -> Corte 3).
  */
-export function matchOperationalActivity(
+export function resolvePaecActivityCorte(
+  activity: { progresion?: string; propositoFormativo?: string; fase?: string },
+  totalCurricularActivities = 8
+): 1 | 2 | 3 | undefined {
+  const progText = activity.propositoFormativo || activity.progresion || '';
+  const numMatch = progText.match(/(?:Prop[oó]sito\s+Formativo|Progresi[oó]n(?:\s+de\s+Aprendizaje)?|Actividad\s+Clave)\s*(\d+)/i);
+  if (numMatch?.[1]) {
+    const idx0 = Math.max(0, Number(numMatch[1]) - 1);
+    const total = Math.max(totalCurricularActivities, idx0 + 1);
+    return (mapActivityIndexToBlockIndex(idx0, total) + 1) as 1 | 2 | 3;
+  }
+  const faseMatch = String(activity.fase ?? '').match(/fase\s*(\d+)/i);
+  if (faseMatch?.[1]) {
+    const f = Number(faseMatch[1]);
+    if (f === 1 || f === 4) return 1;
+    if (f === 2 || f === 5) return 2;
+    if (f === 3 || f === 6) return 3;
+  }
+  return undefined;
+}
+
+/**
+ * Devuelve TODAS las actividades del plan operativo asignadas a la UAC dada,
+ * deduplicadas, ordenadas por semana y mapeadas a Corte 1/2/3 vía `curricular-blocks.ts`.
+ */
+export function matchOperationalActivities(
   planRows: JsonRecord[],
-  targetUac: string
-): PaecLinkedActivity | null {
-  if (!normalizeUnicode(targetUac).trim()) return null;
+  targetUac: string,
+  options?: { totalCurricularActivities?: number }
+): PaecLinkedActivity[] {
+  if (!normalizeUnicode(targetUac).trim()) return [];
 
   const subjectNames = planRows
     .map((row) => firstStr(row, ['uac', 'asignatura', 'uacName']))
     .filter(Boolean);
+
+  const seen = new Set<string>();
+  const matched: PaecLinkedActivity[] = [];
 
   for (const row of planRows) {
     const asignatura = firstStr(row, ['uac', 'asignatura', 'uacName']);
@@ -136,22 +191,46 @@ export function matchOperationalActivity(
     if (!actividad || !asignatura) continue;
     const normAsig = normalizeUnicode(asignatura).toLowerCase().trim();
     const normAct = normalizeUnicode(actividad).toLowerCase().trim();
-    // Descartar filas de ruido donde la actividad es idéntica o equivalente al nombre de la asignatura
     if (normAct === normAsig || uacMatches(actividad, asignatura) || !uacMatches(asignatura, targetUac)) continue;
-    // Descartar extracciones donde la "actividad" es en realidad el nombre de otra asignatura del PAEC
     if (isActivityAnotherSubjectName(actividad, subjectNames)) continue;
-    return {
+
+    const semana = formatWeek(firstStr(row, ['week', 'semana', 'periodo']));
+    const dedupeKey = `${normAct}::${semana ?? ''}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const fase = firstStr(row, ['phase', 'fase']) || undefined;
+    const propositoFormativo = firstStr(row, ['propositoFormativo']) || undefined;
+    const progresion = firstStr(row, ['progression', 'progresion']) || undefined;
+
+    matched.push({
       asignatura,
       actividad,
-      semana: formatWeek(firstStr(row, ['week', 'semana', 'periodo'])),
-      fase: firstStr(row, ['phase', 'fase']) || undefined,
+      semana,
+      fase,
+      corte: resolvePaecActivityCorte(
+        { progresion, propositoFormativo, fase },
+        options?.totalCurricularActivities
+      ),
       estrategiaDidactica: firstStr(row, ['strategy', 'estrategiaDidactica']) || undefined,
-      propositoFormativo: firstStr(row, ['propositoFormativo']) || undefined,
-      progresion: firstStr(row, ['progression', 'progresion']) || undefined,
+      propositoFormativo,
+      progresion,
       isPrescheduled: true,
-    };
+    });
   }
-  return null;
+
+  return matched.sort((a, b) => extractWeekNumber(a.semana) - extractWeekNumber(b.semana));
+}
+
+/**
+ * Busca en las filas del plan operativo la primera actividad de la UAC dada (retrocompatible).
+ * Solo devuelve filas con actividad no vacía (no fabrica vínculos).
+ */
+export function matchOperationalActivity(
+  planRows: JsonRecord[],
+  targetUac: string
+): PaecLinkedActivity | null {
+  return matchOperationalActivities(planRows, targetUac)[0] ?? null;
 }
 
 /**
@@ -184,6 +263,7 @@ export async function loadPaecContext(
     semester?: number;
     uacName?: string;
     teacherId?: string;
+    totalCurricularActivities?: number;
   }
 ): Promise<PaecLinkedContext> {
   const cleanCct = (cct || '').trim().toUpperCase();
@@ -255,12 +335,24 @@ export async function loadPaecContext(
     const { uacTopic, uacLinking } = matchCurricularMapping(p.fase2_mapeo, targetUac, options?.semester);
 
     // 2. Plan operativo (Pasos 6 y 7 del PAEC; también formato legado fase2)
-    const planRows = [
-      ...flattenPlanOperativo(p.fase2_plan_operativo),
-      ...flattenPlanOperativo(p.fase3_plan_operativo_a),
-      ...flattenPlanOperativo(p.fase3_plan_operativo_b),
-    ];
-    const operationalActivity = matchOperationalActivity(planRows, targetUac);
+    // Prioriza el semestre correspondiente a la paridad solicitada (1/3/5 -> Sem A, 2/4/6 -> Sem B)
+    // y cae a respaldo en los demás bloques solo si no hay coincidencia en la paridad primaria.
+    const rowsA = flattenPlanOperativo(p.fase3_plan_operativo_a);
+    const rowsB = flattenPlanOperativo(p.fase3_plan_operativo_b);
+    const rowsLegacy = flattenPlanOperativo(p.fase2_plan_operativo);
+
+    let operationalActivities: PaecLinkedActivity[] = [];
+    const matchOpts = options?.totalCurricularActivities
+      ? { totalCurricularActivities: options.totalCurricularActivities }
+      : undefined;
+    if (typeof options?.semester === 'number' && options.semester >= 1 && options.semester <= 6) {
+      const primaryRows = options.semester % 2 === 1 ? rowsA : rowsB;
+      operationalActivities = matchOperationalActivities(primaryRows, targetUac, matchOpts);
+    }
+    if (operationalActivities.length === 0) {
+      operationalActivities = matchOperationalActivities([...rowsLegacy, ...rowsA, ...rowsB], targetUac, matchOpts);
+    }
+    const operationalActivity = operationalActivities[0] ?? null;
 
     return {
       found: true,
@@ -276,6 +368,7 @@ export async function loadPaecContext(
       uacTopic,
       uacLinking,
       operationalActivity,
+      operationalActivities,
     };
   } catch (error) {
     logger.warn('Error al cargar contexto PAEC desde base de datos:', error);

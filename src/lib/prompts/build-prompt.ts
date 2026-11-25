@@ -628,10 +628,19 @@ Problemática Comunitaria Central detectada en el PAEC:
 ${context.paecProblem}
 
 ${context.usePaecActivity !== false && context.paecOperationalActivity?.actividad ? `ACTIVIDAD ACORDADA EN EL PLAN OPERATIVO DEL PAEC PARA ESTA ASIGNATURA (${context.paecOperationalActivity.isPrescheduled ? 'ACUERDO OFICIAL DEL CONSEJO TÉCNICO ESCOLAR' : 'ACTIVIDAD CAPTURADA POR EL DOCENTE'}):
-• Actividad asignada: "${context.paecOperationalActivity.actividad}"
+• Actividad principal asignada: "${context.paecOperationalActivity.actividad}"
 ${context.paecOperationalActivity.semana ? `• Semana / Fase programada: ${context.paecOperationalActivity.semana}${context.paecOperationalActivity.fase ? ` (${context.paecOperationalActivity.fase})` : ''}` : ''}
 ${context.paecOperationalActivity.estrategiaDidactica ? `• Estrategia didáctica propuesta: ${context.paecOperationalActivity.estrategiaDidactica}` : ''}
-${(context.paecOperationalActivity.propositoFormativo || context.paecOperationalActivity.progresion) ? `• Propósito formativo / Progresión: ${context.paecOperationalActivity.propositoFormativo || context.paecOperationalActivity.progresion}` : ''}
+${(context.paecOperationalActivity.propositoFormativo || context.paecOperationalActivity.progresion) ? `• Propósito formativo / Progresión: ${context.paecOperationalActivity.propositoFormativo || context.paecOperationalActivity.progresion}` : ''}${
+  Array.isArray(context.paecOperationalActivities) && context.paecOperationalActivities.length > 1
+    ? `\n• Trayectoria completa PAEC por corte para esta UAC (${context.paecOperationalActivities.length} actividades):\n${context.paecOperationalActivities
+        .map(
+          (act, i) =>
+            `  ${i + 1}. ${act.corte ? `[Corte ${act.corte}] ` : ''}${act.semana ? `(${act.semana}) ` : ''}${act.actividad}${act.estrategiaDidactica ? ` — Estrategia: ${act.estrategiaDidactica}` : ''}`
+        )
+        .join('\n')}`
+    : ''
+}
 
 INSTRUCCIONES OBLIGATORIAS PARA ESTA ACTIVIDAD:
 1. SECCIÓN III (Transversalidad, PAEC y Producto Integrador):

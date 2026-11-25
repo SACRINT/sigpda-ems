@@ -14,6 +14,7 @@ import type {
   PaecInformeSupervision,
   PlanOperativoData,
 } from '@/types/paec';
+import { auditPaecPlan } from '@/lib/qa/paec-pmc-semantic-qa';
 
 /**
  * ============================================================================
@@ -851,6 +852,10 @@ export function evaluateCriterio15(
 ): PaecAuditCriterion {
   const rows = planA || planOperativoLegacy?.semestreA || [];
   const info = inspectPlanOperativoSemestre(rows);
+  const semantic = rows.length > 0 ? auditPaecPlan(rows, [], { parity: 1, strict: false }) : null;
+  const hardSemanticFails = semantic
+    ? semantic.fails.filter((f) => !f.startsWith('semanas sin actividad') && !f.includes('columna'))
+    : [];
 
   let score = 1;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
@@ -858,14 +863,23 @@ export function evaluateCriterio15(
   let evidenceFound = `0 actividades registradas en Semestre A.`;
 
   if (info.totalRows >= 16 && info.weeksCount >= 14 && info.has8Cols) {
-    score = 4;
-    status = 'pass';
-    feedback = 'Plan Operativo Semestre A completo: 16 semanas cubiertas y las 8 columnas normativas pobladas al 100%.';
-    evidenceFound = `${info.totalRows} actividades distribuidas en ${info.weeksCount} semanas; 8 columnas completas.`;
+    if (hardSemanticFails.length > 0) {
+      score = 2;
+      status = 'warning';
+      feedback = `Plan Operativo Semestre A completo en forma, pero con ${hardSemanticFails.length} defecto(s) semántico(s) duro(s): ${hardSemanticFails.slice(0, 2).join('; ')}.`;
+      evidenceFound = `${info.totalRows} actividades en ${info.weeksCount} semanas; ${hardSemanticFails.length} FAIL semánticos.`;
+    } else {
+      score = 4;
+      status = 'pass';
+      feedback = 'Plan Operativo Semestre A completo: 16 semanas cubiertas, 8 columnas pobladas y 0 defectos semánticos duros.';
+      evidenceFound = `${info.totalRows} actividades distribuidas en ${info.weeksCount} semanas; 8 columnas completas; 0 duplicados no-S16 ni placeholders.`;
+    }
   } else if (info.totalRows >= 12 && info.weeksCount >= 10) {
-    score = 3;
-    status = 'pass';
-    feedback = 'Plan Operativo Semestre A amplio. Se recomienda verificar que todas las semanas del 1 al 16 tengan actividades explícitas.';
+    score = hardSemanticFails.length > 0 ? 2 : 3;
+    status = hardSemanticFails.length > 0 ? 'warning' : 'pass';
+    feedback = hardSemanticFails.length > 0
+      ? `Plan Operativo Semestre A parcial con defectos semánticos: ${hardSemanticFails[0]}.`
+      : 'Plan Operativo Semestre A amplio. Se recomienda verificar que todas las semanas del 1 al 16 tengan actividades explícitas.';
     evidenceFound = `${info.totalRows} actividades en ${info.weeksCount} semanas registradas.`;
   } else if (info.totalRows >= 6) {
     score = 2;
@@ -892,6 +906,10 @@ export function evaluateCriterio16(
 ): PaecAuditCriterion {
   const rows = planB || planOperativoLegacy?.semestreB || [];
   const info = inspectPlanOperativoSemestre(rows);
+  const semantic = rows.length > 0 ? auditPaecPlan(rows, [], { parity: 0, strict: false }) : null;
+  const hardSemanticFails = semantic
+    ? semantic.fails.filter((f) => !f.startsWith('semanas sin actividad') && !f.includes('columna'))
+    : [];
 
   let score = 1;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
@@ -899,14 +917,23 @@ export function evaluateCriterio16(
   let evidenceFound = `0 actividades registradas en Semestre B.`;
 
   if (info.totalRows >= 16 && info.weeksCount >= 14 && info.has8Cols) {
-    score = 4;
-    status = 'pass';
-    feedback = 'Plan Operativo Semestre B completo: 16 semanas cubiertas y las 8 columnas normativas pobladas al 100%.';
-    evidenceFound = `${info.totalRows} actividades en ${info.weeksCount} semanas; 8 columnas estructuradas.`;
+    if (hardSemanticFails.length > 0) {
+      score = 2;
+      status = 'warning';
+      feedback = `Plan Operativo Semestre B completo en forma, pero con ${hardSemanticFails.length} defecto(s) semántico(s) duro(s): ${hardSemanticFails.slice(0, 2).join('; ')}.`;
+      evidenceFound = `${info.totalRows} actividades en ${info.weeksCount} semanas; ${hardSemanticFails.length} FAIL semánticos.`;
+    } else {
+      score = 4;
+      status = 'pass';
+      feedback = 'Plan Operativo Semestre B completo: 16 semanas cubiertas, 8 columnas estructuradas y 0 defectos semánticos duros.';
+      evidenceFound = `${info.totalRows} actividades en ${info.weeksCount} semanas; 8 columnas completas; 0 duplicados no-S16 ni placeholders.`;
+    }
   } else if (info.totalRows >= 12 && info.weeksCount >= 10) {
-    score = 3;
-    status = 'pass';
-    feedback = 'Plan Operativo Semestre B adecuado. Se recomienda afinar el instrumento de evaluación en las semanas intermedias.';
+    score = hardSemanticFails.length > 0 ? 2 : 3;
+    status = hardSemanticFails.length > 0 ? 'warning' : 'pass';
+    feedback = hardSemanticFails.length > 0
+      ? `Plan Operativo Semestre B parcial con defectos semánticos: ${hardSemanticFails[0]}.`
+      : 'Plan Operativo Semestre B adecuado. Se recomienda afinar el instrumento de evaluación en las semanas intermedias.';
     evidenceFound = `${info.totalRows} actividades en ${info.weeksCount} semanas registradas.`;
   } else if (info.totalRows >= 6) {
     score = 2;

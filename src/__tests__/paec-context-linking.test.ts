@@ -14,6 +14,7 @@ import {
   uacMatches,
   flattenPlanOperativo,
   matchOperationalActivity,
+  matchOperationalActivities,
   matchCurricularMapping,
   loadPaecContext,
 } from '@/lib/paec-context';
@@ -41,6 +42,25 @@ describe('H-322 — uacMatches', () => {
     expect(uacMatches('Dibujo Técnico I', 'Dibujo Tecnico 1')).toBe(true);
     expect(uacMatches('⟦T08·R01·C01⟧ Dibujo Técnico I', 'Dibujo Técnico I')).toBe(true);
     expect(uacMatches('Química II', 'Quimica 2')).toBe(true);
+  });
+  it('nunca empareja niveles romanos distintos (ej. II vs I)', () => {
+    expect(uacMatches('Conciencia Histórica II', 'Conciencia Histórica I')).toBe(false);
+    expect(uacMatches('Ciencias Sociales II', 'Ciencias Sociales I')).toBe(false);
+    expect(uacMatches('Pensamiento Matemático III', 'Pensamiento Matemático II')).toBe(false);
+  });
+});
+
+describe('Fase C — matchOperationalActivities (trayectoria completa por corte vía curricular-blocks)', () => {
+  it('devuelve todas las actividades ordenadas por semana y mapeadas a Corte 1/2/3', () => {
+    const rows = [
+      rowReal('Pensamiento Matemático I', 'Evaluación final comunitaria', { week: '16', phase: 'Fase 3', progression: 'Propósito Formativo 7: Modela.' }),
+      rowReal('Pensamiento Matemático I', 'Diagnóstico inicial con encuestas', { week: '2', phase: 'Fase 1', progression: 'Propósito Formativo 1: Clasifica.' }),
+      rowReal('Pensamiento Matemático I', 'Diseño de modelo de costos', { week: '8', phase: 'Fase 2', progression: 'Propósito Formativo 4: Calcula.' }),
+    ];
+    const acts = matchOperationalActivities(rows, 'Pensamiento Matemático I', { totalCurricularActivities: 7 });
+    expect(acts).toHaveLength(3);
+    expect(acts.map((a) => a.semana)).toEqual(['Semana 2', 'Semana 8', 'Semana 16']);
+    expect(acts.map((a) => a.corte)).toEqual([1, 2, 3]);
   });
 });
 

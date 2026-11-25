@@ -16,11 +16,16 @@ export async function GET(request: NextRequest) {
     const cct = searchParams.get('cct') || teacher?.cct || '';
     const semester = searchParams.get('semester') ? Number(searchParams.get('semester')) : undefined;
     const uacName = searchParams.get('uac') || undefined;
+    const totalActivitiesParam = searchParams.get('totalActivities');
+    const totalCurricularActivities = totalActivitiesParam && Number.isFinite(Number(totalActivitiesParam))
+      ? Number(totalActivitiesParam)
+      : undefined;
 
     const context = await loadPaecContext(cct, {
       semester,
       uacName,
       teacherId: teacher?.id,
+      totalCurricularActivities,
     });
 
     return NextResponse.json(context);

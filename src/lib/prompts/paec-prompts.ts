@@ -309,10 +309,11 @@ ${cycleType === 'A' ? 'Semestre A: 1.°, 3.° y 5.° Semestre' : cycleType === '
 
 REGLAS CURRICULARES INQUEBRANTABLES:
 1. COBERTURA TOTAL: Genera una fila para CADA UAC del mapeo previo, sin omitir ninguna asignatura.
-2. NOMENCLATURA NORMATIVA ESTRICTA (NOM-MCCEMS):
-   - Para Fundamental Semestres 1.º a 4.º: Cita exclusivamente "Propósito Formativo [N]: [descripción del propósito]" y "Contenidos clave: [temas]". (PROHIBIDO usar la palabra "Progresiones" en 1° a 4° fundamental).
-   - Para Fundamental Semestres 5.º y 6.º: Cita "Progresión de Aprendizaje [N]: [descripción de la progresión]".
+2. NOMENCLATURA NORMATIVA ESTRICTA (NOM-MCCEMS — DEPENDIENTE DEL CICLO ESCOLAR ${SCHOOL_YEAR}):
+   - Para Fundamental Semestres 1.º a 4.º (y TODOS los semestres fundamentales a partir del ciclo 2027-2028): Cita exclusivamente "Propósito Formativo [N]: [descripción destilada]". (PROHIBIDO usar la palabra "Progresiones" en 1°–4° o en ciclos 2027-2028+).
+   - Para Fundamental Semestres 5.º y 6.º (únicamente en ciclos anteriores a 2027-2028): Cita "Progresión de Aprendizaje [N]: [descripción destilada]".
    - Para Formación Laboral (semestres 2.º a 6.º): Cita exclusivamente "Actividad Clave [N]: [descripción]" y "Saberes asociados". (En formación laboral NO se usan propósitos ni progresiones).
+   - BREVEDAD OBLIGATORIA: Destila el propósito/progresión en máximo 240 caracteres; PROHIBIDO volcar listas crudas "[Contenidos: ...]".
 3. FASES DEL PROYECTO: Señala con exactitud en cuáles de las 6 fases interviene la UAC (ej. "Fase 1 y Fase 2").
 4. JUSTIFICACIÓN CURRICULAR: Explica el mecanismo pedagógico mediante el cual los aprendizajes de la UAC resuelven una necesidad técnica o social del PEC.
 
@@ -369,7 +370,7 @@ DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA MCCEMS CRITERIO 15):
    - phase: Fase 1, Fase 2 o Fase 3.
    - activity: Actividad práctica, situada y formativa con metodologías activas (ABP, ApS, STEAM, Design Thinking).
    - uac: Nombre EXACTO de la UAC según la lista autorizada.
-   - progression: Cita formal de "Propósito Formativo [N]" (1°-4° fundamental), "Progresión [N]" (5°-6° fundamental) o "Actividad Clave [N]" (Formación Laboral).
+   - progression: Cita destilada (máximo 240 caracteres, SIN volcar "[Contenidos: ...]" crudos) de "Propósito Formativo [N]" (1°-4° fundamental, o 1°-6° en ciclos 2027-2028+), "Progresión [N]" (5°-6° fundamental solo ciclos <2027-2028) o "Actividad Clave [N]" (Formación Laboral).
    - strategy: Metodología activa empleada (ej. Aprendizaje Basado en Proyectos, Aprendizaje-Servicio, Estudio de Caso).
    - week: Semana de ejecución programada ("Semana 1", "Semana 2", ..., "Semana 16").
    - responsibles: Estudiantes del semestre y Docente Titular de la UAC.
@@ -437,7 +438,7 @@ DIRECTRICES OPERATIVAS DE EXCELENCIA (RÚBRICA MCCEMS CRITERIO 15):
    - phase: Fase 4, Fase 5 o Fase 6.
    - activity: Despliegue territorial, instalación en la comunidad, pruebas de funcionamiento, campañas de concientización y evaluación de impacto.
    - uac: Nombre EXACTO de la UAC según la lista autorizada.
-   - progression: Cita formal de "Propósito Formativo [N]" (1°-4° fundamental), "Progresión [N]" (5°-6° fundamental) o "Actividad Clave [N]" (Formación Laboral).
+   - progression: Cita destilada (máximo 240 caracteres, SIN volcar "[Contenidos: ...]" crudos) de "Propósito Formativo [N]" (1°-4° fundamental, o 1°-6° en ciclos 2027-2028+), "Progresión [N]" (5°-6° fundamental solo ciclos <2027-2028) o "Actividad Clave [N]" (Formación Laboral).
    - strategy: Metodología activa empleada (ABP, ApS, STEAM, Design Thinking).
    - week: Semana de ejecución programada ("Semana 1", "Semana 2", ..., "Semana 16").
    - responsibles: Estudiantes del semestre y Docente Titular de la UAC.

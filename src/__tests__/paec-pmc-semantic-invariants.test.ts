@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
+import { distillPaecProgression, sanitizePaecOperationalPlan } from '@/lib/paec/plan-operativo-postprocessor';
+import { evaluateCriterio15 } from '@/lib/paec-quality-gate';
 import { computePmcIndicatorValues } from '@/lib/pmc-indicator-calculator';
 import { ensureCrossFoda } from '@/lib/pmc/pmc-foda-synthesizer';
 import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
@@ -278,6 +280,54 @@ describe('PAEC / PMC Semantic QA Invariants (Fase A)', () => {
       const audit = calculateGlobalPmcScore({ id: 'test-1', ...invertedPmc } as unknown as PmcProject);
       const c3 = audit.criteria.find((c) => c.id === 'PMC-C3');
       expect(c3?.status).toBe('fail');
+    });
+
+    it('distills PAEC progression, guards parity, preserves S16 closing, and penalizes C15 on duplicates (Fase C)', () => {
+      const distilled = distillPaecProgression(
+        'Progresión 2: Analiza problemáticas ambientales locales. [Contenidos: agua, suelo, residuos sólidos, normativa municipal, análisis de cuenca hidrográfica y gestión sustentable].',
+        { semester: 1, component: 'fundamental', cicloEscolar: '2026-2027' }
+      );
+      expect(distilled).toMatch(/^Propósito Formativo 2:/);
+      expect(distilled).not.toContain('Contenidos:');
+      expect(distilled.length).toBeLessThanOrEqual(280);
+
+      const rawRows = [
+        ...make16WeekPaecPlan(),
+        // Leaked sem-2 UAC into Semestre A
+        {
+          phase: 'Fase 1',
+          activity: 'Diseño y aplicación de entrevistas comunitarias para diagnóstico inicial de salud.',
+          uac: 'Ciencias Sociales II',
+          progression: 'Propósito Formativo 1: Analiza.',
+          strategy: 'ApS',
+          week: 'Semana 3',
+          responsibles: 'Estudiantes',
+          evaluationInstrument: 'Rúbrica',
+        },
+        // Shared Semana 16 closing row (must be preserved!)
+        {
+          phase: 'Fase 3',
+          activity: 'Feria comunitaria y entrega del Manual Técnico de Transferencia con evaluación final de resultados.',
+          uac: 'Pensamiento Matemático III',
+          progression: 'Propósito Formativo 4: Evalúa.',
+          strategy: 'ABP',
+          week: 'Semana 16',
+          responsibles: 'Estudiantes',
+          evaluationInstrument: 'Rúbrica final',
+        },
+      ];
+      const sanitized = sanitizePaecOperationalPlan(rawRows as never, SAMPLE_CATALOG, {
+        parity: 1,
+        cicloEscolar: '2026-2027',
+      });
+      expect(sanitized.droppedParityCount).toBe(1);
+      expect(sanitized.rows.filter((r) => /semana 16/i.test(r.week))).toHaveLength(2);
+
+      // C15 must NOT give 4/4 if there is a non-S16 exact duplicate
+      const dupPlan = make16WeekPaecPlan();
+      dupPlan.push({ ...dupPlan[2], week: 'Semana 4' });
+      const c15 = evaluateCriterio15(dupPlan as never);
+      expect(c15.score).toBeLessThan(4);
     });
   });
 });

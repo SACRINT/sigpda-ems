@@ -29,6 +29,7 @@ import { resolveFechasCortes } from '@/lib/fechas-cortes';
 import { diversificarInstrumentosEvaluacion } from '@/lib/catalogo-instrumentos';
 import { resolveSemesterWeeks, resolveSessionsPerBlock, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
 import { enforceCanonicalCortesOnActivities } from '@/lib/curricular-blocks';
+import { loadPaecContext } from '@/lib/paec-context';
 import { isTechnologicalSubsystem } from '@/lib/subsystem-config';
 import { ensureRetoSituadoCalidad } from '@/lib/planning-evaluator';
 import {
@@ -117,6 +118,30 @@ export async function POST(
       planning.semester as number,
       planning.component as string
     );
+
+    // Fase C: Hidratar trayectoria completa por Corte 1/2/3 del PAEC institucional si existe CCT
+    if (
+      context.usePaecActivity !== false &&
+      (!context.paecOperationalActivities || context.paecOperationalActivities.length === 0) &&
+      context.cct
+    ) {
+      try {
+        const paecCtx = await loadPaecContext(context.cct, {
+          semester: Number(planning.semester) || undefined,
+          uacName: planning.uac_name || effectiveExtractedData.uacName,
+          teacherId: teacher?.id,
+          totalCurricularActivities: effectiveExtractedData.activities?.length || undefined,
+        });
+        if (paecCtx.found && paecCtx.operationalActivities && paecCtx.operationalActivities.length > 0) {
+          context.paecOperationalActivities = paecCtx.operationalActivities;
+          if (!context.paecOperationalActivity && paecCtx.operationalActivity) {
+            context.paecOperationalActivity = paecCtx.operationalActivity;
+          }
+        }
+      } catch (paecHydrateErr) {
+        logger.warn('[generate] No se pudo hidratar trayectoria PAEC por corte:', paecHydrateErr);
+      }
+    }
 
     // 2. Si es FFE optativa o semestre 5/6, consultar continuidad
     let continuityInfo = null;

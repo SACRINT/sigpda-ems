@@ -55,6 +55,12 @@ import { z } from 'zod';
 import { MapeoRow, PlanOperativoRow, DetalleCurricularRow, UniqueUacItem, SchoolType, GroupTrackConfig } from '@/types/paec';
 import { consolidarUacsUnicasPlantel } from '@/lib/escuela-grupos';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
+import {
+  distillPaecProgression,
+  isLikelyLaboralUac,
+  sanitizePaecOperationalPlan,
+} from '@/lib/paec/plan-operativo-postprocessor';
+import { SCHOOL_YEAR } from '@/lib/config';
 
 type LegacyPlanOperativo = { semestreA?: PlanOperativoRow[]; semestreB?: PlanOperativoRow[] };
 
@@ -525,14 +531,28 @@ export async function POST(
           throw new Error(`Fallo al generar el Plan Semestre A: ${failedChunks.map((f) => `Bloque ${f.block} (${f.error})`).join(', ')}`);
         }
 
+        // Fase C: Post-procesado determinista (paridad impar, dedupe excluyendo Sem 16, destilación progression y MCCEMS)
+        const catalogMetaA = mapeo.map((m) => ({
+          uacName: m.uacName,
+          semester: Number(m.semester),
+          component: isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental',
+        }));
+        const sanitizedA = sanitizePaecOperationalPlan(allRowsSemA, catalogMetaA, {
+          parity: 1,
+          cicloEscolar: SCHOOL_YEAR,
+        });
+        logger.info(
+          `[PAEC-Step6] Post-procesado Semestre A: ${sanitizedA.rows.length} filas (paridad descartada=${sanitizedA.droppedParityCount}, dedupe=${sanitizedA.droppedDuplicateCount}, progression destiladas=${sanitizedA.distilledProgressionCount}).`
+        );
+
         // Sincronizar también con la estructura legacy fase2_plan_operativo
         const existingSemB = project.fase3_plan_operativo_b || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreB || [];
         await updatePaecProjectStep(id, teacher.id, 6, 'fase2_plan_operativo', {
-          semestreA: allRowsSemA,
+          semestreA: sanitizedA.rows,
           semestreB: existingSemB,
         });
 
-        stepResultData = allRowsSemA;
+        stepResultData = sanitizedA.rows;
         break;
       }
 
@@ -653,14 +673,28 @@ export async function POST(
           throw new Error(`Fallo al generar el Plan Semestre B: ${failedChunks.map((f) => `Bloque ${f.block} (${f.error})`).join(', ')}`);
         }
 
+        // Fase C: Post-procesado determinista (paridad par, dedupe excluyendo Sem 16, destilación progression y MCCEMS)
+        const catalogMetaB = mapeo.map((m) => ({
+          uacName: m.uacName,
+          semester: Number(m.semester),
+          component: isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental',
+        }));
+        const sanitizedB = sanitizePaecOperationalPlan(allRowsSemB, catalogMetaB, {
+          parity: 0,
+          cicloEscolar: SCHOOL_YEAR,
+        });
+        logger.info(
+          `[PAEC-Step7] Post-procesado Semestre B: ${sanitizedB.rows.length} filas (paridad descartada=${sanitizedB.droppedParityCount}, dedupe=${sanitizedB.droppedDuplicateCount}, progression destiladas=${sanitizedB.distilledProgressionCount}).`
+        );
+
         // Sincronizar también con la estructura legacy fase2_plan_operativo
         const existingSemA = project.fase3_plan_operativo_a || (project.fase2_plan_operativo as LegacyPlanOperativo | undefined)?.semestreA || [];
         await updatePaecProjectStep(id, teacher.id, 7, 'fase2_plan_operativo', {
           semestreA: existingSemA,
-          semestreB: allRowsSemB,
+          semestreB: sanitizedB.rows,
         });
 
-        stepResultData = allRowsSemB;
+        stepResultData = sanitizedB.rows;
         break;
       }
 
@@ -976,6 +1010,19 @@ export async function POST(
       }
 
       parsedJson = parseResult.data as object;
+    }
+
+    // Fase C: Destilar progressionsOrPurposes en Paso 5 (Detalle Curricular)
+    if (step === 5 && Array.isArray(parsedJson)) {
+      parsedJson = (parsedJson as DetalleCurricularRow[]).map((row) => ({
+        ...row,
+        progressionsOrPurposes: distillPaecProgression(row.progressionsOrPurposes, {
+          semester: Number(row.semester),
+          component: isLikelyLaboralUac(row.uacName) ? 'competencias_laborales' : 'fundamental',
+          cicloEscolar: SCHOOL_YEAR,
+          maxChars: 340,
+        }),
+      }));
     }
 
     // Persistir el resultado definitivo en la BD Neon

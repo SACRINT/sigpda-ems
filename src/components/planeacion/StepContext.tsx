@@ -66,6 +66,7 @@ export default function StepContext({
     paecObjective: initialContext?.paecObjective || '',
     paecProblem: initialContext?.paecProblem || '',
     paecOperationalActivity: initialContext?.paecOperationalActivity || null,
+    paecOperationalActivities: initialContext?.paecOperationalActivities || undefined,
     usePaecActivity: initialContext?.usePaecActivity !== false,
     schoolResources: initialContext?.schoolResources || '',
     studentContext: initialContext?.studentContext || '',
@@ -83,7 +84,7 @@ export default function StepContext({
   });
 
   const [paecLoading, setPaecLoading] = useState(false);
-  const [paecSuccess, setPaecSuccess] = useState<boolean>(() => Boolean(initialContext?.paecProblem || initialContext?.paecProjectName));
+  const [, setPaecSuccess] = useState<boolean>(() => Boolean(initialContext?.paecProblem || initialContext?.paecProjectName));
   const [paecPrecargedFromDb, setPaecPrecargedFromDb] = useState(false);
   const [paecError, setPaecError] = useState<string | null>(null);
   const [isSuggestedProblem, setIsSuggestedProblem] = useState<boolean | null>(null);
@@ -124,7 +125,10 @@ export default function StepContext({
             try {
               const uac = (extractedData as { uacName?: string })?.uacName || '';
               const sem = (extractedData as { semester?: number })?.semester;
-              const pRes = await fetch(`/api/paec/context?cct=${encodeURIComponent(profile.cct)}&uac=${encodeURIComponent(uac)}${sem ? `&semester=${sem}` : ''}`);
+              const totalActs = Array.isArray(extractedData.activities) ? extractedData.activities.length : 0;
+              const pRes = await fetch(
+                `/api/paec/context?cct=${encodeURIComponent(profile.cct)}&uac=${encodeURIComponent(uac)}${sem ? `&semester=${sem}` : ''}${totalActs > 0 ? `&totalActivities=${totalActs}` : ''}`
+              );
               if (pRes.ok) {
                 const pData = await pRes.json();
                 if (pData.found) {
@@ -137,6 +141,10 @@ export default function StepContext({
                     schoolName: prev.schoolName || pData.schoolName || profile.school_name || '',
                     municipality: prev.municipality || pData.municipality || profile.municipality || '',
                     paecOperationalActivity: pData.operationalActivity || prev.paecOperationalActivity,
+                    paecOperationalActivities:
+                      Array.isArray(pData.operationalActivities) && pData.operationalActivities.length > 0
+                        ? pData.operationalActivities
+                        : prev.paecOperationalActivities,
                     usePaecActivity: Boolean(pData.operationalActivity),
                   }));
                   if (pData.operationalActivity) {
