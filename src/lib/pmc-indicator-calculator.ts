@@ -6,6 +6,7 @@
 
 import type { PmcIndicadoresAcademicos, PmcStatisticalContext } from '@/types/pmc';
 import { isRealNumeric } from './numeric-guard';
+import { computeRecommendedReprobacionMeta, resolveBajasPercentage } from './qa/paec-pmc-semantic-qa';
 
 export { isRealNumeric };
 export type { PmcIndicadoresAcademicos, PmcStatisticalContext };
@@ -112,7 +113,13 @@ export function computePmcIndicatorValues(
       repVarStr = 'Reducción Progresiva';
     }
   } else if (apMeta !== undefined) {
-    const derivedRep = Math.max(0, 100 - Number(apMeta));
+    const bajasPct = resolveBajasPercentage(ind);
+    const derivedRep =
+      computeRecommendedReprobacionMeta({
+        aprobacionMeta: Number(apMeta),
+        reprobacionAnt: repAnt !== undefined ? Number(repAnt) : undefined,
+        bajasPct,
+      }) ?? Math.max(0, 100 - Number(apMeta));
     repMetaStr = `${derivedRep.toFixed(1)}%`;
     repVarStr = 'Reducción Progresiva';
   }

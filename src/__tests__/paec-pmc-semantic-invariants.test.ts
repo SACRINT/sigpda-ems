@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
+import { computePmcIndicatorValues } from '@/lib/pmc-indicator-calculator';
+import { ensureCrossFoda } from '@/lib/pmc/pmc-foda-synthesizer';
+import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
+import type { PmcProject } from '@/types/pmc';
 import {
   auditPaecPlan,
   auditPmcProject,
@@ -241,6 +246,38 @@ describe('PAEC / PMC Semantic QA Invariants (Fase A)', () => {
       expect(detectCrossFodaPresence(pmc)).toEqual({ fo: true, do: true, fa: true, da: true });
       const meta = ((pmc.plan_accion as Record<string, unknown>).metas_institucionales as Record<string, unknown>[])[0];
       expect(isMetaCreaaCompliant(meta)).toBe(true);
+    });
+
+    it('normalizes numeric codes 1/2/3 and legacy keys practica_docente/convivencia_paec cleanly (Fase B)', () => {
+      expect(normalizePmcCategoria('1')).toBe('Desarrollo académico y aprendizaje');
+      expect(normalizePmcCategoria('2')).toBe('Gestión y administración escolar');
+      expect(normalizePmcCategoria('3')).toBe('Desarrollo socioemocional y prevención de la violencia en la escuela');
+      expect(normalizePmcCategoria('practica_docente', 'Formación y actualización docente')).toBe('Desarrollo académico y aprendizaje');
+      expect(normalizePmcCategoria('practica_docente', 'Seguimiento al desempeño docente en el aula')).toBe('Gestión y administración escolar');
+      expect(normalizePmcCategoria('convivencia_paec', 'Estrategias sobre violencia')).toBe('Desarrollo socioemocional y prevención de la violencia en la escuela');
+    });
+
+    it('synthesizes FO/DO/FA/DA cross-FODA and prevents inverted reprobacion_meta in calculator & gate (Fase B)', () => {
+      const enriched = ensureCrossFoda({ fortalezas: '• Docentes comprometidos' }, { schoolName: 'BGO Test', locality: 'Puebla' });
+      expect(enriched.cruzado?.fo).toContain('FO');
+      expect(enriched.cruzado?.do).toContain('DO');
+      expect(enriched.cruzado?.fa).toContain('FA');
+      expect(enriched.cruzado?.da).toContain('DA');
+
+      const computed = computePmcIndicatorValues({
+        aprobacion_ant: 87.5,
+        aprobacion_meta: 92.5,
+        reprobacion_ant: 0,
+        porcentajes: { aprobados: 87.5, reprobados: 0, bajas: 12.5 },
+      });
+      expect(computed.reprobacion.meta).toBe('0.0%');
+
+      const invertedPmc = makeValidPmc();
+      (invertedPmc.indicadores_academicos as Record<string, unknown>).reprobacion_ant = 11.6;
+      (invertedPmc.indicadores_academicos as Record<string, unknown>).reprobacion_meta = 11.9;
+      const audit = calculateGlobalPmcScore({ id: 'test-1', ...invertedPmc } as unknown as PmcProject);
+      const c3 = audit.criteria.find((c) => c.id === 'PMC-C3');
+      expect(c3?.status).toBe('fail');
     });
   });
 });

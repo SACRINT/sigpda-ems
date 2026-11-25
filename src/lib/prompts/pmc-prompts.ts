@@ -195,7 +195,7 @@ Genera un objeto JSON con exactamente las siguientes 5 secciones que integran ar
 1. "presentacion": (Texto de presentación institucional del PMC, 2-3 párrafos. Responde a qué se ha logrado y qué se quiere lograr con el PMC, fundamentando el artículo 3° constitucional, la política CREAA de Puebla y el MCCEMS 2025).
 2. "contexto": (Narrativa profunda del contexto territorial, sociocultural y geográfico del plantel, respondiendo a la situación del plantel en servicios y entorno donde viven los ${matriculaReal} estudiantes).
 3. "analisis_indicadores": (Análisis cuantitativo e interpretativo de los datos reales del Formato 911 y F11: abandono del ${abandonoReal}%, eficiencia terminal del ${eficienciaReal}%, aprovechamiento promedio de ${promedioF11}, detallando la situación académica del plantel y comparación con la media de la zona escolar).
-4. "sintesis_foda": (Síntesis cruzada de los cuadrantes FODA en 2 párrafos que responde a: ¿Cuáles son las fortalezas y áreas de oportunidad identificadas?, integrando cómo las fortalezas mitigarán las debilidades y amenazas del entorno).
+4. "sintesis_foda": (Síntesis cruzada de los cuadrantes FODA en 2-3 párrafos que responde a: ¿Cuáles son las fortalezas y áreas de oportunidad identificadas?, explicitando OBLIGATORIAMENTE los 4 cruces estratégicos etiquetados: **FO (Fortalezas–Oportunidades)**, **DO (Debilidades–Oportunidades)**, **FA (Fortalezas–Amenazas)** y **DA (Debilidades–Amenazas)**).
 5. "priorizacion": (Narrativa de priorización estratégica para el ciclo escolar 2026-2027 que responde a: ¿Qué requiere el plantel para lograrlo?, justificando la intervención en las 3 categorías CREAA y las 4 áreas de atención obligatorias del PMC).
 
 PROHIBICIÓN ESTRICTA: NUNCA utilices expresiones genéricas o de plantilla como "Asignatura 1", "Asignatura 4", "Docente X" o "Profesor Y". Si no se indican asignaturas específicas en el diagnóstico, refiérete con rigor a los Recursos Sociocognitivos del MCCEMS (Pensamiento Matemático, Lengua y Comunicación, Conciencia Histórica, Cultura Digital).
@@ -210,7 +210,8 @@ export function buildPmcPlanAccionPrompt(
   project: PmcProject,
   statisticalContext?: PmcStatisticalContext,
   libraryContext?: string,
-  normativaContext?: NormativaArticuloPromptItem[] | string | null
+  normativaContext?: NormativaArticuloPromptItem[] | string | null,
+  maxStaff = 35
 ): string {
   const indic = parseJson<PmcIndicadoresAcademicos>(project.indicadores_academicos);
   const diagnosticoGenerado = parseJson<Record<string, string>>(project.diagnostico_generado);
@@ -295,8 +296,9 @@ export function buildPmcPlanAccionPrompt(
     staffData = [];
   }
 
+  const safeStaffCap = Math.min(Math.max(1, maxStaff), 60);
   const staffList = staffData.length > 0
-    ? staffData.slice(0, 35).map((s) => {
+    ? staffData.slice(0, safeStaffCap).map((s) => {
         const metasInfo = Array.isArray(s?.metas_individuales) && s.metas_individuales.length > 0
           ? s.metas_individuales
               .filter(Boolean)
@@ -407,7 +409,7 @@ Estructura de respuesta en JSON:
 {
   "metas_institucionales": [
     {
-      "categoria": "1",
+      "categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
       "nombre_categoria": "Desarrollo académico y aprendizaje | Gestión y administración escolar | Desarrollo socioemocional y prevención de la violencia en la escuela",
       "tema": "Tema o ámbito oficial específico (ej. Formación y actualización docente, Propuestas pedagógicas, Seguimiento al desempeño docente en el aula, etc.)",
       "diagnostico_meta": "Hallazgo específico de rezago en F11 / FODA que justifica esta meta",

@@ -357,7 +357,11 @@ export function applyIndicatorPrecedence<T extends PmcMetaInstitucional>(
         }
       } else if (/al\s+0%|a\s+0%|en\s+un\s+0%/i.test(text)) {
         updated.meta = text.replace(/al\s+0%|a\s+0%|en\s+un\s+0%/gi, `al ${target}%`);
-      } else if (!text.includes(`${target}%`) && /\bal\s+\d+(?:\.\d+)?%/i.test(text)) {
+      } else if (
+        !text.includes(`${target}%`) &&
+        !isAprobacionGoal(updated) &&
+        /\bal\s+\d+(?:\.\d+)?%/i.test(text)
+      ) {
         updated.meta = text.replace(/\bal\s+\d+(?:\.\d+)?%/i, `al ${target}%`);
       }
 
@@ -393,7 +397,11 @@ export function applyIndicatorPrecedence<T extends PmcMetaInstitucional>(
         if (currentTargetVal !== target) {
           updated.meta = text.replace(rangeMatch[0], `${rangeMatch[1]}${target}%`);
         }
-      } else if (!text.includes(`${target}%`) && /\bal\s+\d+(?:\.\d+)?%/i.test(text)) {
+      } else if (
+        !text.includes(`${target}%`) &&
+        !isAbandonoGoal(updated) &&
+        /\bal\s+\d+(?:\.\d+)?%/i.test(text)
+      ) {
         updated.meta = text.replace(/\bal\s+\d+(?:\.\d+)?%/i, `al ${target}%`);
       }
     }
@@ -409,7 +417,12 @@ export function applyIndicatorPrecedence<T extends PmcMetaInstitucional>(
         if (currentTargetVal !== target) {
           updated.meta = text.replace(rangeMatch[0], `${rangeMatch[1]}${target}%`);
         }
-      } else if (!text.includes(`${target}%`) && /\bal\s+\d+(?:\.\d+)?%/i.test(text)) {
+      } else if (
+        !text.includes(`${target}%`) &&
+        !isAprobacionGoal(updated) &&
+        !isAbandonoGoal(updated) &&
+        /\bal\s+\d+(?:\.\d+)?%/i.test(text)
+      ) {
         updated.meta = text.replace(/\bal\s+\d+(?:\.\d+)?%/i, `al ${target}%`);
       }
     }

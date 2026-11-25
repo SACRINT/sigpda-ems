@@ -16,10 +16,12 @@ import { derivePersonalMetasFromStaff, StaffMember } from '@/lib/pmc/staff-recon
 import {
   assertNoForbiddenTerms,
   buildForbiddenTermsCorrectiveDirective,
+  calculateGlobalPmcScore,
 } from '@/lib/pmc-quality-gate';
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
 import { synthesizeContextualizedMeta } from '@/lib/constants/pmc-catalogo-criterios';
-import { synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
+import { normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
+import { ensureCrossFoda, synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
 import { correctInvertedMetricGoals } from '@/lib/pmc/plan-element-normalizer';
 import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcMetaInstitucional, PmcFodaData } from '@/types/pmc';
 import { z } from 'zod';
@@ -346,10 +348,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         logger.warn('[pmc-generate] RAG omitido por timeout/fallo (fail-open):', { message: (err as Error).message });
       }
 
-      // Auto-síntesis y enriquecimiento de FODA si está vacío o incompleto (H-FODA-AUTO)
+      // Auto-síntesis y enriquecimiento de FODA (incluyendo cruces FO/DO/FA/DA)
       const currentFoda = parseJson<PmcFodaData>(project.foda);
       const fodaNeedsSynthesis = !currentFoda.fortalezas || currentFoda.fortalezas.trim().length < 15;
-      const effectiveFoda = fodaNeedsSynthesis
+      const baseFoda = fodaNeedsSynthesis
         ? synthesizeSituatedFoda({
             schoolName: project.school_name,
             schoolCct: project.school_cct,
@@ -361,7 +363,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             diagnosticoComunidad: project.diagnostico_comunidad,
             promediosPorAsignatura: promediosAsig,
           })
-        : currentFoda;
+        : ensureCrossFoda(currentFoda, {
+            schoolName: project.school_name,
+            locality: project.locality,
+            municipality: project.municipality,
+          });
+      const effectiveFoda = baseFoda;
+      const fodaChanged = fodaNeedsSynthesis || !currentFoda.cruzado?.fo || !currentFoda.cruzado?.da;
 
       const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
       const basePrompt = buildPmcDiagnosticoPrompt(
@@ -470,10 +478,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         return NextResponse.json(diagViolation.body, { status: diagViolation.status });
       }
 
+      const diagQualityAudit = calculateGlobalPmcScore({
+        ...(project as unknown as PmcProject),
+        diagnostico_generado: parsedDiag,
+        foda: fodaChanged ? effectiveFoda : currentFoda,
+      });
+
       const [updated] = await db`
         UPDATE pmc_projects
         SET diagnostico_generado = ${JSON.stringify(parsedDiag)},
-            foda = CASE WHEN ${fodaNeedsSynthesis} THEN ${JSON.stringify(currentFoda)}::jsonb ELSE foda END,
+            foda = CASE WHEN ${fodaChanged} THEN ${JSON.stringify(effectiveFoda)}::jsonb ELSE foda END,
+            quality_audit = ${JSON.stringify(diagQualityAudit)}::jsonb,
             current_step = GREATEST(current_step, 3),
             updated_at = ${now}
         WHERE id = ${id}
@@ -576,7 +591,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         project as unknown as PmcProject,
         statisticalContext,
         libraryContext,
-        normativaDocs
+        normativaDocs,
+        Math.min(MAX_STAFF, 60)
       );
       const knowledgeContext = await getInstitutionalContext('pmc', { contextId: `pmc:${id}` });
       const prompt = [basePrompt, knowledgeContext.block, ragBlock].filter(Boolean).join('\n\n');
@@ -657,11 +673,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         project as unknown as PmcProject
       );
 
-      // Corrección determinista de errores de inversión métrica (ej. Meta 19: del 3% al 7.5% -> del 7.5% al 3%)
+      // Corrección determinista de errores de inversión métrica + normalización estricta a las 3 categorías canónicas DGB
       parsedPlan.metas_institucionales = parsedPlan.metas_institucionales.map((m) => {
         const metricFix = correctInvertedMetricGoals(m.meta);
+        const canonicalCat = normalizePmcCategoria(m.categoria || m.nombre_categoria, m.tema);
         return {
           ...m,
+          categoria: canonicalCat,
+          nombre_categoria: canonicalCat,
           meta: metricFix.text,
           linea_base: (metricFix.wasCorrected && metricFix.detectedBaseline) ? metricFix.detectedBaseline : m.linea_base,
         };
@@ -672,7 +691,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         staffList,
         project.ciclo_escolar || '2026-2027',
         parsedPlan.metas_personales
-      );
+      ).map((mp) => {
+        const mpRec = mp as unknown as Record<string, unknown>;
+        if (!mpRec.categoria) return mp;
+        return {
+          ...mp,
+          categoria: normalizePmcCategoria(String(mpRec.categoria), String(mpRec.tema ?? '')),
+        };
+      });
 
       // Verificación final previa a DB por si metas_personales tuviera alguna contaminación
       const finalViolation = assertNoForbiddenTerms(parsedPlan, 'plan de acción');
@@ -683,9 +709,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         return NextResponse.json(finalViolation.body, { status: finalViolation.status });
       }
 
+      const planQualityAudit = calculateGlobalPmcScore({
+        ...(project as unknown as PmcProject),
+        plan_accion: parsedPlan,
+      });
+
       const [updated] = await db`
         UPDATE pmc_projects
         SET plan_accion = ${JSON.stringify(parsedPlan)},
+            quality_audit = ${JSON.stringify(planQualityAudit)}::jsonb,
             current_step = GREATEST(current_step, 4),
             updated_at = ${now}
         WHERE id = ${id}
@@ -693,7 +725,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         RETURNING *
       `;
       await logActivity({ teacherEmail: teacher.email, action: 'generate_pmc_plan_accion', entityType: 'pmc', entityId: id, success: true });
-      const responsePayload = { success: true, step, plan_accion: parsedPlan, project: updated };
+      const responsePayload = { success: true, step, plan_accion: parsedPlan, quality_audit: planQualityAudit, project: updated };
       if (idempotencyKey) {
         await createIdempotencyKey(
           idempotencyKey,

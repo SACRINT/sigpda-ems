@@ -65,12 +65,64 @@ export const PMC_CATEGORIAS_OFICIALES: readonly PmcCategoriaOficial[] = [
 export const PMC_NOMBRES_CATEGORIAS = PMC_CATEGORIAS_OFICIALES.map(c => c.nombre);
 
 /**
- * Normaliza cualquier variante, etiqueta legacy o texto desalineado a la
+ * Normaliza cualquier variante, código numérico ('1'|'2'|'3'), etiqueta legacy
+ * ('practica_docente', 'convivencia_paec', etc.) o texto desalineado a la
  * Categoría Oficial correspondiente de los Lineamientos del PMC.
+ * Acepta `tema` opcional como desempate semántico para llaves ambiguas.
  */
-export function normalizePmcCategoria(rawCategoria: string | undefined | null): string {
-  if (!rawCategoria) return PMC_CATEGORIAS_OFICIALES[0].nombre;
-  const clean = rawCategoria.trim().toLowerCase();
+export function normalizePmcCategoria(
+  rawCategoria: string | undefined | null,
+  tema?: string | undefined | null
+): string {
+  const clean = (rawCategoria ?? '').trim().toLowerCase();
+  const cleanTema = (tema ?? '').trim().toLowerCase();
+
+  // 1. Códigos numéricos explícitos (evita que '2' y '3' caigan al fallback de Cat 1)
+  if (clean === '1' || /^cat(?:egor[ií]a)?\s*1\b/.test(clean)) {
+    return 'Desarrollo académico y aprendizaje';
+  }
+  if (clean === '2' || /^cat(?:egor[ií]a)?\s*2\b/.test(clean)) {
+    return 'Gestión y administración escolar';
+  }
+  if (clean === '3' || /^cat(?:egor[ií]a)?\s*3\b/.test(clean)) {
+    return 'Desarrollo socioemocional y prevención de la violencia en la escuela';
+  }
+
+  // 2. Llaves legacy del modal de metas complementarias (con desempate por tema oficial)
+  if (clean === 'practica_docente') {
+    if (/desempe[nñ]o\s+docente|observaci[oó]n\s+(?:de\s+|en\s+el\s+)?aula|visitas?\s+[aá]ulicas?/i.test(cleanTema)) {
+      return 'Gestión y administración escolar';
+    }
+    return 'Desarrollo académico y aprendizaje';
+  }
+  if (clean === 'convivencia_paec') {
+    if (
+      /proyecto\s+escolar\s+comunitario|\bpec\b|\bpaec\b/i.test(cleanTema) &&
+      !/violencia|paz|convivencia|socioemocional|orientaci[oó]n/i.test(cleanTema)
+    ) {
+      return 'Desarrollo académico y aprendizaje';
+    }
+    return 'Desarrollo socioemocional y prevención de la violencia en la escuela';
+  }
+  if (clean === 'aprovechamiento') {
+    return 'Desarrollo académico y aprendizaje';
+  }
+  if (clean === 'infraestructura') {
+    return 'Gestión y administración escolar';
+  }
+
+  if (!clean) {
+    // Desempate por tema cuando la categoría viene vacía
+    if (cleanTema) {
+      if (/desempe[nñ]o\s+docente|vinculaci[oó]n|egresados|equipamiento|infraestructura|gesti[oó]n/i.test(cleanTema)) {
+        return 'Gestión y administración escolar';
+      }
+      if (/violencia|paz|convivencia|socioemocional|orientaci[oó]n\s+educativa/i.test(cleanTema)) {
+        return 'Desarrollo socioemocional y prevención de la violencia en la escuela';
+      }
+    }
+    return PMC_CATEGORIAS_OFICIALES[0].nombre;
+  }
 
   // Limpiar prefijos comunes como "categoría:", "categoría 1:", etc.
   const sinPrefijo = clean.replace(/^(categor[ií]a\s*\d*\s*[:\-–]\s*)/i, '').trim();
@@ -118,6 +170,16 @@ export function normalizePmcCategoria(rawCategoria: string | undefined | null): 
     c => c.nombre.toLowerCase() === clean || c.nombre.toLowerCase() === sinPrefijo
   );
   if (exactMatch) return exactMatch.nombre;
+
+  // Desempate por tema antes del fallback
+  if (cleanTema) {
+    if (/desempe[nñ]o\s+docente|vinculaci[oó]n|egresados|equipamiento|infraestructura|gesti[oó]n/i.test(cleanTema)) {
+      return 'Gestión y administración escolar';
+    }
+    if (/violencia|paz|convivencia|socioemocional|orientaci[oó]n\s+educativa/i.test(cleanTema)) {
+      return 'Desarrollo socioemocional y prevención de la violencia en la escuela';
+    }
+  }
 
   // Fallback por defecto a Categoría 1
   return 'Desarrollo académico y aprendizaje';

@@ -14,7 +14,7 @@
 
 import { PMC_NOMBRES_CATEGORIAS, normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
 import { uacMatches } from '@/lib/paec-context';
-import { findForbiddenPlatformTerms } from '@/lib/pmc-quality-gate';
+import { findForbiddenPlatformTerms } from '@/lib/qa/forbidden-terms';
 
 export const PLACEHOLDER_RE =
   /\b(sin registro|lorem|ipsum|tbd|n\/a|pendiente de definir|por definir)\b|\[POR DEFINIR/i;

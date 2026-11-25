@@ -10,6 +10,7 @@ import {
   type PmcCatalogoMetaItem,
 } from '@/lib/pmc-docx-maestro-builder';
 import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
+import { auditPmcProject, type PmcProjectLike } from '@/lib/qa/paec-pmc-semantic-qa';
 import { logger } from '@/lib/logger';
 export const runtime = 'nodejs';
 
@@ -39,6 +40,26 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
     if (!project) {
       return new NextResponse('Proyecto no encontrado', { status: 404 });
+    }
+
+    // Gate de exportación Q3: HTTP 422 solo en FAIL duro; WARN se registra y permite descarga con aviso
+    const semanticQa = auditPmcProject(project as unknown as PmcProjectLike, { strict: false });
+    if (!semanticQa.passed) {
+      logger.warn(`[PMC DOCX Export] Bloqueado por FAIL duro en QA semántico (${id}):`, { fails: semanticQa.fails });
+      return NextResponse.json(
+        {
+          error: 'El PMC presenta errores críticos que bloquean la descarga oficial.',
+          code: 'PMC_SEMANTIC_QA_FAILED',
+          fails: semanticQa.fails,
+          warns: semanticQa.warns,
+        },
+        { status: 422 }
+      );
+    }
+    if (semanticQa.warns.length > 0) {
+      logger.warn(`[PMC DOCX Export] Descarga permitida con ${semanticQa.warns.length} advertencia(s) (${id}):`, {
+        warns: semanticQa.warns.slice(0, 10),
+      });
     }
 
     const isMaestro = _request.nextUrl.searchParams.get('maestro') === 'true';
@@ -93,6 +114,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
           'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
           'Content-Length': String(uint8.byteLength),
           'X-Document-Type': 'PMC_MAESTRO_OFICIAL_5_2',
+          'X-Quality-Warnings-Count': String(semanticQa.warns.length),
         },
       });
     }
@@ -116,6 +138,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         'Content-Length': String(uint8.byteLength),
         'X-Quality-Score': String(audit.percentage),
         'X-Quality-Status': audit.overallStatus,
+        'X-Quality-Warnings-Count': String(semanticQa.warns.length),
       },
     });
   } catch (error) {

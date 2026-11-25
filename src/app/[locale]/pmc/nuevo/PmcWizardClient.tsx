@@ -11,6 +11,7 @@ import {
   normalizePmcCategoria,
 } from '@/lib/constants/pmc-categorias';
 import { toRealNumber } from '@/lib/numeric-guard';
+import { computeRecommendedReprobacionMeta, resolveBajasPercentage } from '@/lib/qa/paec-pmc-semantic-qa';
 import { computeCoverage } from '@/lib/coverage-core';
 import { reconcilePmcStaff, derivePersonalMetasFromStaff, normalizeStaffName } from '@/lib/pmc/staff-reconciler';
 import {
@@ -1233,9 +1234,21 @@ interface EditablePlanElement {
             : (aprobAnt !== undefined && !isNaN(aprobAnt)
                 ? Math.min(100, Math.round((aprobAnt + 5) * 10) / 10)
                 : undefined);
+          const bajasPctF11 = resolveBajasPercentage({
+            ...(p as unknown as Record<string, unknown>),
+            porcentajes: json.data?.porcentajes ?? p.porcentajes,
+            bajas: json.data?.bajas ?? p.bajas,
+            totalAlumnosF11: json.data?.totalAlumnos ?? p.totalAlumnosF11 ?? p.matricula,
+            aprobacion_ant: aprobAnt,
+            reprobacion_ant: reprobAnt,
+          });
           const reprobMeta = p.reprobacion_meta !== undefined && p.metas_confirmadas
             ? p.reprobacion_meta
-            : (aprobMeta !== undefined ? Math.max(0, Math.round((100 - aprobMeta) * 10) / 10) : (reprobAnt !== undefined && !isNaN(reprobAnt) ? Math.max(0, Math.round((reprobAnt - 5) * 10) / 10) : undefined));
+            : computeRecommendedReprobacionMeta({
+                aprobacionMeta: aprobMeta,
+                reprobacionAnt: reprobAnt,
+                bajasPct: bajasPctF11,
+              });
 
           const nowIso = new Date().toISOString();
           const newCalc: Record<string, PmcAuditCalculationEntry> = { ...(p._calc || {}) };
@@ -1677,9 +1690,14 @@ interface EditablePlanElement {
       ? indicadores.aprobacion_meta
       : (aprobAnt !== undefined ? Math.min(100, Math.round((aprobAnt + 5) * 10) / 10) : undefined);
 
+    const bajasPctResolved = resolveBajasPercentage(indicadores as unknown as Record<string, unknown>);
     const finalReprobMeta = indicadores.reprobacion_meta !== undefined
       ? indicadores.reprobacion_meta
-      : (finalAprobMeta !== undefined ? Math.max(0, Math.round((100 - finalAprobMeta) * 10) / 10) : (reprobAnt !== undefined ? Math.max(0, Math.round((reprobAnt - 5) * 10) / 10) : undefined));
+      : computeRecommendedReprobacionMeta({
+          aprobacionMeta: finalAprobMeta,
+          reprobacionAnt: reprobAnt,
+          bajasPct: bajasPctResolved,
+        });
 
     const finalEtMeta = indicadores.et_meta !== undefined
       ? indicadores.et_meta
@@ -1704,7 +1722,12 @@ interface EditablePlanElement {
     if (finalReprobMeta !== undefined) {
       newCalc.reprobacion_meta = {
         valor: finalReprobMeta,
-        formula: `max(0, 100 - ${finalAprobMeta ?? 'N/D'})`,
+        formula:
+          reprobAnt === 0
+            ? '0 (reprobación actual es 0%)'
+            : bajasPctResolved !== undefined && finalAprobMeta !== undefined
+              ? `min(${reprobAnt ?? 'N/D'}, max(0, 100 - ${finalAprobMeta} - ${bajasPctResolved}))`
+              : `min(${reprobAnt ?? 'N/D'}, max(0, 100 - ${finalAprobMeta ?? 'N/D'}))`,
         fuentes: ['F11', 'meta_sugerida'],
         fecha: nowIso,
       };

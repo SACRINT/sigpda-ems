@@ -131,11 +131,19 @@ export interface PmcStatisticalContext {
   parsedAt: string;
 }
 
+export interface PmcFodaCruzado {
+  fo?: string;
+  do?: string;
+  fa?: string;
+  da?: string;
+}
+
 export interface PmcFodaData {
   fortalezas?: string;
   oportunidades?: string;
   debilidades?: string;
   amenazas?: string;
+  cruzado?: PmcFodaCruzado;
 }
 
 export interface PmcCategoriaPriorizada {
@@ -212,6 +220,7 @@ export interface PmcProject {
   diagnostico_generado?: PmcDiagnosticoGenerado | unknown;
   plan_accion?: PmcPlanAccion | unknown;
   statistical_context?: PmcStatisticalContext;
+  quality_audit?: PmcQualityAudit | null;
   current_step?: number;
   status?: string;
   created_at?: string;

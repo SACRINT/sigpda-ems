@@ -786,7 +786,7 @@ export function synthesizeContextualizedMeta(
   const justificacionFinal = replacePlaceholders(item.diagnostico_justificacion);
 
   return {
-    categoria: item.categoriaNumero,
+    categoria: item.categoria,
     nombre_categoria: item.categoria,
     tema: item.nombre,
     meta: metaFinal,

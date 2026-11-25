@@ -11,7 +11,7 @@
  * 4. El diagnóstico territorial y necesidades reales de infraestructura y personal.
  */
 
-import type { PmcFodaData, PmcIndicadoresAcademicos } from '@/types/pmc';
+import type { PmcFodaCruzado, PmcFodaData, PmcIndicadoresAcademicos } from '@/types/pmc';
 import { cleanPmcPlaceholders } from './plan-element-normalizer';
 
 export interface PmcFodaSynthesizerParams {
@@ -79,8 +79,6 @@ export function synthesizeSituatedFoda(params: PmcFodaSynthesizerParams): PmcFod
     totalStaff,
     rawFoda,
     paecFoda,
-    indicadores,
-    diagnosticoComunidad,
     promediosPorAsignatura,
   } = params;
 
@@ -165,10 +163,70 @@ export function synthesizeSituatedFoda(params: PmcFodaSynthesizerParams): PmcFod
     );
   }
 
-  return {
+  const baseFoda: PmcFodaData = {
     fortalezas: formatBulletList(fortalezasItems),
     oportunidades: formatBulletList(oportunidadesItems),
     debilidades: formatBulletList(debilidadesItems),
     amenazas: formatBulletList(amenazasItems),
+    cruzado: rawFoda?.cruzado,
+  };
+
+  return ensureCrossFoda(baseFoda, {
+    schoolName,
+    locality,
+    municipality,
+    criticasStr,
+  });
+}
+
+/**
+ * Garantiza los 4 cruces estratégicos FO / DO / FA / DA a partir de los cuadrantes reales del plantel.
+ */
+export function ensureCrossFoda(
+  foda: PmcFodaData,
+  context: {
+    schoolName?: string | null;
+    locality?: string | null;
+    municipality?: string | null;
+    criticasStr?: string;
+  } = {}
+): PmcFodaData {
+  const loc = context.locality || context.municipality || 'la comunidad';
+  const school = context.schoolName || 'el plantel';
+  const existing: PmcFodaCruzado = foda.cruzado || {};
+  const firstOf = (raw: unknown, fallback: string): string => {
+    const items = toCleanBulletList(raw);
+    return items[0] ? items[0].replace(/\.$/, '') : fallback;
+  };
+
+  const f1 = firstOf(foda.fortalezas, 'el trabajo colegiado de la planta docente');
+  const o1 = firstOf(foda.oportunidades, 'la vinculación con instituciones y autoridades locales');
+  const d1 = context.criticasStr
+    ? `el rezago en ${context.criticasStr}`
+    : firstOf(foda.debilidades, 'el rezago académico acumulado de ingreso');
+  const a1 = firstOf(foda.amenazas, `los factores socioeconómicos y de traslado en ${loc}`);
+
+  const cruzado: PmcFodaCruzado = {
+    fo:
+      existing.fo && existing.fo.trim().length >= 20
+        ? existing.fo.trim()
+        : `Estrategia FO (Ofensiva): Potenciar ${f1.toLowerCase()} junto con ${o1.toLowerCase()} para consolidar proyectos transversales PAEC y elevar el logro académico en ${school}.`,
+    do:
+      existing.do && existing.do.trim().length >= 20
+        ? existing.do.trim()
+        : `Estrategia DO (Reorientación): Aprovechar ${o1.toLowerCase()} para atender ${d1.toLowerCase()} mediante asesorías focalizadas y acompañamiento interinstitucional.`,
+    fa:
+      existing.fa && existing.fa.trim().length >= 20
+        ? existing.fa.trim()
+        : `Estrategia FA (Defensiva): Movilizar ${f1.toLowerCase()} como sistema de alertas tempranas y contención socioemocional frente a ${a1.toLowerCase()}.`,
+    da:
+      existing.da && existing.da.trim().length >= 20
+        ? existing.da.trim()
+        : `Estrategia DA (Supervivencia): Establecer protocolos de nivelación continua y comunicación directa con familias de ${loc} para evitar que ${d1.toLowerCase()} combinada con ${a1.toLowerCase()} derive en abandono escolar.`,
+  };
+
+  return {
+    ...foda,
+    cruzado,
   };
 }

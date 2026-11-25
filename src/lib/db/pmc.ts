@@ -43,6 +43,7 @@ export function mapRawPmcProject(raw: Record<string, unknown> | null | undefined
     diagnostico_generado: raw.diagnostico_generado ?? undefined,
     plan_accion: raw.plan_accion ?? undefined,
     statistical_context: raw.statistical_context as PmcProject['statistical_context'],
+    quality_audit: (raw.quality_audit ?? undefined) as PmcQualityAudit | undefined,
     current_step: typeof raw.current_step === 'number' ? raw.current_step : 1,
     status: (raw.status as string) || 'draft',
     created_at: raw.created_at ? String(raw.created_at) : undefined,

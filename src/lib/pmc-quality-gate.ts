@@ -21,6 +21,19 @@ import type {
 } from '@/types/pmc';
 import { toRealNumber, isRealNumeric } from './numeric-guard';
 import { computeCoverage } from './coverage-core';
+import { PMC_NOMBRES_CATEGORIAS } from './constants/pmc-categorias';
+import {
+  FORBIDDEN_PLATFORM_TERMS_REGEX,
+  findForbiddenPlatformTerms,
+} from './qa/forbidden-terms';
+import {
+  detectCrossFodaPresence,
+  isMetaCreaaCompliant,
+  normalizeQaText,
+  PMC_QA_THRESHOLDS,
+} from './qa/paec-pmc-semantic-qa';
+
+export { FORBIDDEN_PLATFORM_TERMS_REGEX, findForbiddenPlatformTerms };
 
 export const PMC_DIMENSIONS = {
   DIM1: 'Dimensión 1: Identificación y Organización Escolar',
@@ -52,33 +65,7 @@ export const PMC_DOC_FACING_FIELDS = [
 
 export type PmcDocFacingField = (typeof PMC_DOC_FACING_FIELDS)[number];
 
-// ── Guard Determinista de Términos Prohibidos ──────────────────────────────
-export const FORBIDDEN_PLATFORM_TERMS_REGEX = /SIGPDA[\s-]?EMS|\bSIGPDA\b/i;
-
-export function findForbiddenPlatformTerms(data: unknown): string[] {
-  const matches: string[] = [];
-  const regex = new RegExp(FORBIDDEN_PLATFORM_TERMS_REGEX.source, 'gi');
-
-  function traverse(value: unknown) {
-    if (typeof value === 'string') {
-      const found = value.match(regex);
-      if (found) {
-        matches.push(...found);
-      }
-    } else if (Array.isArray(value)) {
-      for (const item of value) {
-        traverse(item);
-      }
-    } else if (value && typeof value === 'object') {
-      for (const val of Object.values(value as Record<string, unknown>)) {
-        traverse(val);
-      }
-    }
-  }
-
-  traverse(data);
-  return matches;
-}
+// ── Guard Determinista de Términos Prohibidos (SSoT en ./qa/forbidden-terms) ──
 
 export function containsForbiddenPlatformTerms(data: unknown): boolean {
   return findForbiddenPlatformTerms(data).length > 0;
@@ -208,14 +195,38 @@ function evalC3_Indicadores(p: PmcProject): PmcAuditCriterion {
   const hasTargets = hasNumber(ind.aprobacion_meta) && hasNumber(ind.abandono_meta);
 
   const ap = toRealNumber(ind.aprobacion_ant);
+  const apMeta = toRealNumber(ind.aprobacion_meta);
   const rep = toRealNumber(ind.reprobacion_ant);
+  const repMeta = toRealNumber(ind.reprobacion_meta);
+  const ab = toRealNumber(ind.abandono_ant);
+  const abMeta = toRealNumber(ind.abandono_meta);
+  const et = toRealNumber(ind.et_ant);
+  const etMeta = toRealNumber(ind.et_meta);
+
   const sumaInvalida = ap !== undefined && rep !== undefined && (ap + rep > 100.1);
+  const inversions: string[] = [];
+  if (ap !== undefined && apMeta !== undefined && apMeta < ap) {
+    inversions.push(`aprobación (${ap}% → ${apMeta}%)`);
+  }
+  if (rep !== undefined && repMeta !== undefined && repMeta > rep) {
+    inversions.push(`reprobación (${rep}% → ${repMeta}%)`);
+  }
+  if (ab !== undefined && abMeta !== undefined && abMeta > ab) {
+    inversions.push(`abandono (${ab}% → ${abMeta}%)`);
+  }
+  if (et !== undefined && etMeta !== undefined && etMeta < et) {
+    inversions.push(`eficiencia terminal (${et}% → ${etMeta}%)`);
+  }
 
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'Sin indicadores cuantitativos de rendimiento escolar.';
 
-  if (countMetrics >= 5 && hasTargets) {
+  if (inversions.length > 0) {
+    score = 3;
+    status = 'fail';
+    feedback = `Metas académicas con inversión direccional (empeoran el indicador): ${inversions.join(', ')}.`;
+  } else if (countMetrics >= 5 && hasTargets) {
     if (sumaInvalida) {
       score = 7;
       status = 'warning';
@@ -223,7 +234,7 @@ function evalC3_Indicadores(p: PmcProject): PmcAuditCriterion {
     } else {
       score = 10;
       status = 'pass';
-      feedback = 'Indicadores históricos de aprobación, deserción y matrícula completos con metas cuantificables.';
+      feedback = 'Indicadores históricos de aprobación, deserción y matrícula completos con metas cuantificables y dirección coherente.';
     }
   } else if (countMetrics >= 3) {
     score = sumaInvalida ? 4 : 6;
@@ -237,13 +248,13 @@ function evalC3_Indicadores(p: PmcProject): PmcAuditCriterion {
     id: 'PMC-C3',
     dimension: PMC_DIMENSIONS.DIM2,
     name: 'Indicadores Académicos y Línea Base',
-    description: 'Valora matrícula, índices históricos de aprobación, reprobación, abandono y eficiencia terminal con metas.',
+    description: 'Valora matrícula, índices históricos de aprobación, reprobación, abandono y eficiencia terminal con metas direccionalmente coherentes.',
     weight: 10,
     maxScore: 10,
     score,
     status,
     feedback,
-    evidenceFound: `${countMetrics}/5 indicadores históricos registrados. Metas proyectadas: ${hasTargets ? 'Sí' : 'No'}.${sumaInvalida ? ' (Invariante excedida: aprobación + reprobación > 100%)' : ''}`,
+    evidenceFound: `${countMetrics}/5 indicadores históricos registrados. Metas proyectadas: ${hasTargets ? 'Sí' : 'No'}.${sumaInvalida ? ' (Invariante excedida: aprobación + reprobación > 100%)' : ''}${inversions.length > 0 ? ` (Inversiones: ${inversions.join('; ')})` : ''}`,
   };
 }
 
@@ -286,15 +297,21 @@ function evalC5_Foda(p: PmcProject): PmcAuditCriterion {
   const d = hasText(foda.debilidades, 15);
   const a = hasText(foda.amenazas, 15);
   const count = [f, o, d, a].filter(Boolean).length;
+  const cross = detectCrossFodaPresence(p as unknown as Record<string, unknown>);
+  const crossCount = [cross.fo, cross.do, cross.fa, cross.da].filter(Boolean).length;
 
   let score = 0;
   let status: 'pass' | 'warning' | 'fail' = 'fail';
   let feedback = 'Matriz FODA incompleta o ausente.';
 
-  if (count === 4) {
+  if (count === 4 && crossCount === 4) {
     score = 10;
     status = 'pass';
-    feedback = 'Matriz FODA integral con los cuatro cuadrantes desarrollados con sustancia técnica.';
+    feedback = 'Matriz FODA integral con los 4 cuadrantes y análisis cruzado estratégico (FO, DO, FA y DA).';
+  } else if (count === 4) {
+    score = 8;
+    status = 'pass';
+    feedback = `Los 4 cuadrantes FODA están desarrollados (${crossCount}/4 cruces FO-DO-FA-DA detectados). Conviene explicitar todos los cruces estratégicos.`;
   } else if (count >= 2) {
     score = 5;
     status = 'warning';
@@ -304,14 +321,14 @@ function evalC5_Foda(p: PmcProject): PmcAuditCriterion {
   return {
     id: 'PMC-C5',
     dimension: PMC_DIMENSIONS.DIM3,
-    name: 'Matriz Situacional FODA',
-    description: 'Verifica el análisis de factores internos (F/D) y externos (O/A) de la institución.',
+    name: 'Matriz Situacional FODA y Cruces FO-DO-FA-DA',
+    description: 'Verifica el análisis de factores internos (F/D), externos (O/A) y cruces estratégicos FO-DO-FA-DA.',
     weight: 10,
     maxScore: 10,
     score,
     status,
     feedback,
-    evidenceFound: `${count}/4 cuadrantes FODA debidamente redactados.`,
+    evidenceFound: `${count}/4 cuadrantes FODA redactados; ${crossCount}/4 cruces FO-DO-FA-DA presentes.`,
   };
 }
 
@@ -420,21 +437,8 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
   const metas = (Array.isArray(plan.metas_institucionales) ? plan.metas_institucionales : []);
   const count = metas.length;
 
-  const VERB_REGEX = /^(aumentar|incrementar|reducir|disminuir|elevar|consolidar|fortalecer|mejorar|lograr|garantizar|promover|atender|desarrollar|implementar)/i;
-  const PERCENT_REGEX = /[0-9]+(\.[0-9]+)?%|[0-9]+\s*(alumnos|estudiantes|puntos)/i;
-  const POBLACION_REGEX = /(alumnos?|estudiantes?|jóvenes|comunidad|docentes?|plantel)/i;
-  const ESTRATEGIA_REGEX = /(mediante|a través de|implementando|desarrollando|articulando|con base en|con apoyo)/i;
-  const PERIODO_REGEX = /(ciclo|2026|2027|semestre|escolar|puebla|término)/i;
-
-  const creaaCompliant = metas.filter(m => {
-    const text = m.meta || '';
-    const hasVerb = VERB_REGEX.test(text.trim());
-    const hasNum = PERCENT_REGEX.test(text);
-    const hasPoblacion = POBLACION_REGEX.test(text);
-    const hasEstrategia = ESTRATEGIA_REGEX.test(text) || (hasText(m.estrategia, 20));
-    const hasPeriodo = PERIODO_REGEX.test(text) || (hasText(m.periodo_fin, 3));
-    return hasVerb && hasNum && hasPoblacion && hasEstrategia && hasPeriodo;
-  }).length;
+  const creaaCompliant = metas.filter(m => isMetaCreaaCompliant(m as unknown as Record<string, unknown>)).length;
+  const creaaRatio = count > 0 ? creaaCompliant / count : 0;
 
   const validMetas = metas.filter(m =>
     hasText(m.meta, 15) &&
@@ -442,6 +446,12 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
     hasText(m.entregable, 5)
   ).length;
 
+  const nonCanonicalCats = metas.filter(m => {
+    const raw = String(m.categoria ?? '').trim();
+    return raw.length > 0 && !PMC_NOMBRES_CATEGORIAS.includes(raw);
+  }).length;
+
+  const duplicateMetas = count - new Set(metas.map(m => normalizeQaText(String(m.meta ?? '')))).size;
   const forbiddenInMetas = findForbiddenPlatformTerms(metas);
 
   let score = 0;
@@ -452,14 +462,26 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
     score = 0;
     status = 'fail';
     feedback = 'Metas institucionales contienen menciones prohibidas a plataformas privadas (SIGPDA/SIGPDA-EMS). Deben reformularse con instancias educativas oficiales.';
-  } else if (count >= 2 && validMetas >= 2 && creaaCompliant >= 1) {
+  } else if (
+    count >= 2 &&
+    validMetas >= count * 0.85 &&
+    creaaRatio >= PMC_QA_THRESHOLDS.creaaMinRatio &&
+    nonCanonicalCats === 0 &&
+    duplicateMetas === 0
+  ) {
     score = 14;
     status = 'pass';
-    feedback = `Metas institucionales formuladas con fórmula oficial CREAA ([VERBO] + [%] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]) y entregables verificables.`;
+    feedback = `Metas institucionales formuladas con fórmula oficial CREAA (${Math.round(creaaRatio * 100)}% ≥ 85%), categorías canónicas DGB y cero duplicados.`;
   } else if (count >= 2 && validMetas >= 2) {
-    score = 8;
+    score = nonCanonicalCats > 0 || duplicateMetas > 0 ? 7 : 9;
     status = 'warning';
-    feedback = 'Metas institucionales completas pero sin cumplimiento estricto de la fórmula oficial CREAA ([VERBO] + [%] + [POBLACIÓN] + [ESTRATEGIA] + [PERIODO Y TERRITORIO]).';
+    const reasons: string[] = [];
+    if (creaaRatio < PMC_QA_THRESHOLDS.creaaMinRatio) {
+      reasons.push(`cumplimiento CREAA ${Math.round(creaaRatio * 100)}% (< 85%)`);
+    }
+    if (nonCanonicalCats > 0) reasons.push(`${nonCanonicalCats} categorías no canónicas`);
+    if (duplicateMetas > 0) reasons.push(`${duplicateMetas} metas duplicadas`);
+    feedback = `Metas institucionales completas pero con observaciones de calidad semántica: ${reasons.join(', ')}.`;
   } else if (count >= 1) {
     score = 6;
     status = 'warning';
@@ -470,13 +492,13 @@ function evalC8_MetasInstitucionales(p: PmcProject): PmcAuditCriterion {
     id: 'PMC-C8',
     dimension: PMC_DIMENSIONS.DIM4,
     name: 'Metas Institucionales CREAA y Entregables Técnicos',
-    description: 'Valora la formulación de metas con la fórmula sintáctica CREAA, estrategias situadas y productos verificables.',
+    description: 'Valora la formulación de metas con la fórmula sintáctica CREAA (>=85%), categorías canónicas DGB, estrategias situadas y productos verificables.',
     weight: 14,
     maxScore: 14,
     score,
     status,
     feedback,
-    evidenceFound: `${count} metas institucionales registradas (${validMetas} con ficha técnica completa, ${creaaCompliant} con fórmula CREAA estricta).`,
+    evidenceFound: `${count} metas institucionales (${validMetas} completas, ${creaaCompliant}/${count} CREAA [${Math.round(creaaRatio * 100)}%], ${nonCanonicalCats} cat. no canónicas, ${duplicateMetas} duplicadas).`,
   };
 }
 
