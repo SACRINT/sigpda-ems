@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "pmc": {
+    "semanticQaPassed": true,
+    "semanticFails": [],
+    "semanticWarns": [
+      "diagnóstico.priorizacion ausente o corto (191 < 200 chars)"
+    ],
+    "qualityGatePercentage": 94,
+    "qualityGateStatus": "EXCELENTE",
+    "criteriaSnapshot": [
+      {
+        "id": "PMC-C1",
+        "status": "pass",
+        "score": 8
+      },
+      {
+        "id": "PMC-C2",
+        "status": "pass",
+        "score": 8
+      },
+      {
+        "id": "PMC-C3",
+        "status": "pass",
+        "score": 10
+      },
+      {
+        "id": "PMC-C4",
+        "status": "warning",
+        "score": 5
+      },
+      {
+        "id": "PMC-C5",
+        "status": "pass",
+        "score": 10
+      },
+      {
+        "id": "PMC-C6",
+        "status": "warning",
+        "score": 6
+      },
+      {
+        "id": "PMC-C7",
+        "status": "pass",
+        "score": 8
+      },
+      {
+        "id": "PMC-C8",
+        "status": "pass",
+        "score": 14
+      },
+      {
+        "id": "PMC-C9",
+        "status": "pass",
+        "score": 10
+      },
+      {
+        "id": "PMC-C10",
+        "status": "pass",
+        "score": 14
+      },
+      {
+        "id": "PMC-C11",
+        "status": "pass",
+        "score": 10
+      }
+    ],
+    "docx": {
+      "paragraphCount": 675,
+      "tableCount": 26,
+      "wordCount": 5625,
+      "semanticHash": "4a85b5edc9ec36541f0fc3fc2dc2e37392f09eba1b37f57ce7d9c7f97ed03725"
+    },
+    "docxMaestro": {
+      "paragraphCount": 236,
+      "tableCount": 8,
+      "wordCount": 2809,
+      "semanticHash": "d0d0bff12346fa6a4321b35915a7b44c8ce6222749c7ad11974e3de9163312da"
+    },
+    "pdf": {
+      "pageCount": 16,
+      "normalizedLength": 227432,
+      "semanticHash": "f214f412363e6a5bd46a4d6aff599ec5c70caa38a5f918110379d647c722b9f1"
+    }
+  },
+  "paec": {
+    "semAPassed": true,
+    "semAFails": [],
+    "semBPassed": true,
+    "semBFails": [],
+    "qualityGateScore": 83,
+    "qualityGateStatus": "aprobado",
+    "criteriaSnapshot": [
+      {
+        "id": 1,
+        "status": "warning",
+        "score": 2
+      },
+      {
+        "id": 2,
+        "status": "pass",
+        "score": 3
+      },
+      {
+        "id": 3,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 4,
+        "status": "pass",
+        "score": 3
+      },
+      {
+        "id": 5,
+        "status": "warning",
+        "score": 2
+      },
+      {
+        "id": 6,
+        "status": "warning",
+        "score": 2
+      },
+      {
+        "id": 7,
+        "status": "warning",
+        "score": 2
+      },
+      {
+        "id": 8,
+        "status": "warning",
+        "score": 2
+      },
+      {
+        "id": 9,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 10,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 11,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 12,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 13,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 14,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 15,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 16,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 17,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 18,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 19,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 20,
+        "status": "pass",
+        "score": 4
+      },
+      {
+        "id": 21,
+        "status": "warning",
+        "score": 2
+      },
+      {
+        "id": 22,
+        "status": "pass",
+        "score": 3
+      },
+      {
+        "id": 23,
+        "status": "pass",
+        "score": 3
+      }
+    ],
+    "docx": {
+      "paragraphCount": 791,
+      "tableCount": 30,
+      "wordCount": 5793,
+      "semanticHash": "b98b81d5fb5dd6f92136abdb0eeff06216091fceb059dc4495075fb196b812f2"
+    },
+    "pdf": {
+      "pageCount": 35,
+      "normalizedLength": 365250,
+      "semanticHash": "a31b7f64e589ac83a4fd01913fc9d5ac202f94a2f6f40501828fbf24a0bc6817"
+    }
+  }
+}
