@@ -13,6 +13,7 @@
     "test:keywords": "npx tsx scripts/audit-recommender-keywords.ts",
     "test:sacrint-golden": "npx tsx scripts/verify-sacrint-golden.ts",
     "audit:sacrint-deps": "node scripts/audit-sacrint-deps.mjs",
+    "qa:paec-pmc": "npx tsx scripts/qa-paec-pmc.ts",
     "audit:contamination": "npx tsx scripts/audit-cross-contamination.ts",
     "archive:duplicates": "npx tsx scripts/archive-duplicate-plannings.ts",
     "test:watch": "vitest",
