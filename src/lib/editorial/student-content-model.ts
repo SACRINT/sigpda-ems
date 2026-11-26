@@ -12,9 +12,17 @@
 
 import { z } from 'zod';
 import type { SessionPlan } from '@/types/work-textbook';
-import { stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
+import {
+  parseMaterialTokens,
+  parseMaterialTokensWithFallback,
+  stripMaterialTokensDeep,
+} from '@/lib/materials/material-tokens';
 import { formatSolvedExampleBlocks } from '@/lib/editorial/text-normalization';
 import { composeSessionHeading } from '@/lib/editorial/topic-title-resolver';
+import {
+  EditorialDisciplinaryUiSchema,
+  type EditorialDisciplinaryUi,
+} from '@/lib/editorial/disciplinary-ui';
 
 // ============================================================================
 // 1. Tipos e Interfaces Fundamentales
@@ -83,6 +91,7 @@ export interface StudentChapter {
   zonaEscolar: string;
   subsecretaria?: string;
   editorialSubtitle?: string;
+  disciplinaUi?: EditorialDisciplinaryUi;
   sesiones: StudentSession[];
 }
 
@@ -149,6 +158,7 @@ export const StudentChapterSchema = z.object({
   zonaEscolar: z.string().min(3),
   subsecretaria: z.string().optional(),
   editorialSubtitle: z.string().optional(),
+  disciplinaUi: EditorialDisciplinaryUiSchema.optional(),
   sesiones: z.array(StudentSessionSchema).min(1, 'El capítulo debe contener sesiones'),
 }).superRefine((chapter, ctx) => {
   // Invariante Load-Bearing anti-F11: continuidad estricta 1..N sin omisiones ni desorden
@@ -432,13 +442,96 @@ function tituloDeSesion(numero: number, objetivo: unknown): string {
   return `${(espacio > 40 ? corte.slice(0, espacio) : corte).trim()}…`;
 }
 
+const SIDENOTE_MAX_CHARS = 220;
+
+function trimToWordBoundary(text: string, maxChars: number): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= maxChars) return clean;
+  const slice = clean.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(' ');
+  return `${(lastSpace > 40 ? slice.slice(0, lastSpace) : slice).trim()}…`;
+}
+
+/**
+ * Extrae el primer material físico válido del catálogo ANTES de limpiar tokens `[[material:slug]]`.
+ * Usa el schema real `SpotMaterial`: `{ nombre, archivo, pie?, anchoCm? }` apuntando al PNG verificado.
+ */
+function extractSessionMaterialSpot(
+  rawPlan: SessionPlan,
+  uacName?: string,
+): SpotMaterial | undefined {
+  const combinedText = [
+    rawPlan.motivacion,
+    rawPlan.contenido,
+    rawPlan.ejemploResuelto,
+    rawPlan.aplicacion,
+    rawPlan.productoIntegrador,
+    ...(Array.isArray(rawPlan.practica) ? rawPlan.practica.map((p) => p.enunciado) : []),
+  ]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    .join('\n');
+
+  if (!combinedText) return undefined;
+
+  const explicit = parseMaterialTokens(combinedText).find((m) => m.exists && m.item);
+  const resolved =
+    explicit ??
+    parseMaterialTokensWithFallback(combinedText, uacName ? { uacName } : undefined).find(
+      (m) => m.exists && m.item,
+    );
+
+  if (!resolved?.item) return undefined;
+
+  return {
+    nombre: resolved.item.name,
+    archivo: `${resolved.item.slug}.png`,
+    pie: resolved.item.name,
+    anchoCm: 3.6,
+  };
+}
+
+/**
+ * Construye una nota marginal didáctica sin costo adicional de IA:
+ * prioridad 1) `sintesisVisual.mapaConceptual.definicionClave`,
+ * prioridad 2) `sintesisVisual.conceptoBreve` / `formulaOReglaClave`,
+ * prioridad 3) primer bloque `definicion` de contenido o primera oración de `saberesPrevios`.
+ */
+function extractSessionSidenote(
+  cleanPlan: SessionPlan,
+  contenido: ContenidoBloque[],
+): string | undefined {
+  const candidates: Array<string | undefined> = [
+    cleanPlan.sintesisVisual?.mapaConceptual?.definicionClave,
+    cleanPlan.sintesisVisual?.conceptoBreve,
+    cleanPlan.sintesisVisual?.formulaOReglaClave,
+    contenido.find((b) => b.tipo === 'definicion' && b.texto && b.texto.trim().length >= 15)?.texto,
+    typeof cleanPlan.saberesPrevios === 'string'
+      ? cleanPlan.saberesPrevios.split(/(?<=[.!?])\s+/)[0]
+      : undefined,
+  ];
+
+  for (const raw of candidates) {
+    if (typeof raw !== 'string') continue;
+    const normalized = raw.replace(/\s+/g, ' ').trim();
+    if (normalized.length >= 15) {
+      return trimToWordBoundary(normalized, SIDENOTE_MAX_CHARS);
+    }
+  }
+  return undefined;
+}
+
 export function adaptSessionPlanToStudentSession(
   plan: SessionPlan,
   tituloPersonalizado?: string,
+  options?: { uacName?: string },
 ): StudentSession {
+  // Fase 1: extraer `materialSpot` (schema real { nombre, archivo, pie, anchoCm })
+  // ANTES de despojar los tokens [[material:...]] del texto del estudiante.
+  const materialSpot = extractSessionMaterialSpot(plan, options?.uacName);
   plan = stripMaterialTokensDeep(plan);
   const contenido = parseContenidoToBloques(plan.contenido);
   const ejemploResuelto = parseEjemploResuelto(plan.ejemploResuelto);
+  const sidenote = extractSessionSidenote(plan, contenido);
 
   return {
     numero: plan.sessionNumber,
@@ -462,6 +555,8 @@ export function adaptSessionPlanToStudentSession(
         | 'web'
         | 'lectura',
     })),
+    ...(materialSpot ? { materialSpot } : {}),
+    ...(sidenote ? { sidenote } : {}),
     productoIntegrador: plan.productoIntegrador,
   };
 }

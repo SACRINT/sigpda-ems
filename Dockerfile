@@ -3,7 +3,7 @@
 #
 # Características de Producción:
 # - Base: Node.js 22 LTS (Debian Bookworm Slim).
-# - Binario Typst: Versión fijada v0.13.0 (x86_64 musl estático oficial, Apache-2.0).
+# - Binario Typst: Versión fijada v0.15.1 (x86_64 musl estático oficial, Apache-2.0; soporte nativo WebP >= 0.14).
 # - Fuentes canónicas abiertas (SIL OFL):
 #   * Liberation Sans (métricamente compatible con Arial).
 #   * Inter (diseño editorial de alta legibilidad).
@@ -16,7 +16,7 @@ FROM node:22-bookworm-slim AS runtime
 # Variables de entorno
 ENV NODE_ENV=production \
     PORT=8080 \
-    TYPST_VERSION=0.13.0 \
+    TYPST_VERSION=0.15.1 \
     FONTS_DIR=/app/fonts \
     TEMPLATES_DIR=/app/templates \
     PUBLIC_DIR=/app/public

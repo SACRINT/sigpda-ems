@@ -50,6 +50,7 @@ export interface ComposedStudentSessions {
  * 1..N para cumplir el invariante anti-F11 (continuidad estricta).
  */
 export function composeStudentSessionsFromWorkbooks(rawPlanning: {
+  uac_name?: string | null;
   workbooks_json?: Record<string, { current?: { missions?: unknown[] } } | null> | null;
 }): ComposedStudentSessions {
   const workbooks = rawPlanning.workbooks_json;
@@ -102,7 +103,11 @@ export function composeStudentSessionsFromWorkbooks(rawPlanning: {
     }
 
     try {
-      const parsed = StudentSessionSchema.safeParse(adaptSessionPlanToStudentSession(prepared));
+      const parsed = StudentSessionSchema.safeParse(
+        adaptSessionPlanToStudentSession(prepared, undefined, {
+          uacName: rawPlanning.uac_name || undefined,
+        }),
+      );
       if (parsed.success) {
         validSessions.push(parsed.data);
       } else {

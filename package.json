@@ -18,7 +18,9 @@
     "audit:contamination": "npx tsx scripts/audit-cross-contamination.ts",
     "archive:duplicates": "npx tsx scripts/archive-duplicate-plannings.ts",
     "test:watch": "vitest",
-    "seed:catalogo": "node --env-file=.env.local scripts/seed-catalogo-metas.ts"
+    "seed:catalogo": "node --env-file=.env.local scripts/seed-catalogo-metas.ts",
+    "editorial:sync-template": "node scripts/sync-editorial-template.mjs",
+    "editorial:deploy": "fly deploy --config worker-editorial/fly.toml --dockerfile Dockerfile"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",

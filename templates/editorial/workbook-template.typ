@@ -23,6 +23,23 @@
 #let c-teal-bg = rgb("f0fdfa")      // Fondo para ejemplo resuelto
 #let c-purple-bg = rgb("faf5ff")    // Fondo para práctica autónoma
 
+// Helpers disciplinares dinámicos (Fase 1: elimina textos matemáticos hardcodeados)
+#let resolve-ui-label(chapter, key, fallback) = {
+  if "disciplinaUi" in chapter and chapter.disciplinaUi != none and "labels" in chapter.disciplinaUi and key in chapter.disciplinaUi.labels and chapter.disciplinaUi.labels.at(key) != none {
+    chapter.disciplinaUi.labels.at(key)
+  } else {
+    fallback
+  }
+}
+
+#let resolve-ui-color(chapter, key, fallback) = {
+  if "disciplinaUi" in chapter and chapter.disciplinaUi != none and "palette" in chapter.disciplinaUi and key in chapter.disciplinaUi.palette and chapter.disciplinaUi.palette.at(key) != none {
+    rgb(chapter.disciplinaUi.palette.at(key))
+  } else {
+    fallback
+  }
+}
+
 // ============================================================================
 // Cajas Pedagógicas y Componentes de Retícula (En modo Markup)
 // ============================================================================
@@ -242,10 +259,18 @@
 // ============================================================================
 #let render-session-item(s, chapter) = {
   let content = [
+  #let ui-primary = resolve-ui-color(chapter, "primary", c-primary)
+  #let ui-accent = resolve-ui-color(chapter, "accent", c-accent)
+  #let ui-teal = resolve-ui-color(chapter, "teal", c-teal)
+  #let ui-teal-bg = resolve-ui-color(chapter, "tealBg", c-teal-bg)
+  #let lbl-concept = resolve-ui-label(chapter, "conceptHeading", "Conceptos Fundamentales y Desarrollo Teórico")
+  #let lbl-example = resolve-ui-label(chapter, "exampleHeading", "Ejemplo Resuelto Paso a Paso")
+  #let lbl-sidenote = resolve-ui-label(chapter, "sidenoteTitle", "Glosario Clave")
+
   #metadata((sessionNum: s.numero, title: s.titulo)) <rendered-session>
   // Encabezado de Sesión (Full Width)
   #block(
-    fill: c-primary,
+    fill: ui-primary,
     radius: 4pt,
     inset: (x: 12pt, y: 5pt),
     width: 100%,
@@ -255,10 +280,10 @@
         gutter: 10pt,
         align(horizon)[
           #rect(
-            fill: c-accent,
+            fill: ui-accent,
             radius: 3pt,
             inset: (x: 6pt, y: 3pt),
-            [#text(fill: c-primary, weight: "bold", size: 10.9pt)[SESIÓN #s.numero]]
+            [#text(fill: ui-primary, weight: "bold", size: 10.9pt)[SESIÓN #s.numero]]
           )
         ],
         align(horizon)[
@@ -305,8 +330,8 @@
       #v(4pt)
 
       // 2. Fundamentación Teórica / Contenido Real
-      #text(fill: c-primary, weight: "bold", size: 9.3pt)[
-        Conceptos Fundamentales y Modelado Matemático
+      #text(fill: ui-primary, weight: "bold", size: 9.3pt)[
+        #lbl-concept
       ]
       #v(1.5pt)
 
@@ -368,7 +393,7 @@
       ]
 
       #if "sidenote" in s and s.sidenote != none and s.sidenote != "" [
-        #marginal-sidenote(s.sidenote)
+        #marginal-sidenote(title: lbl-sidenote, s.sidenote)
       ]
 
       #if "recursos" in s and s.recursos != none and s.recursos.len() > 0 [
@@ -381,9 +406,9 @@
 
   // 3. Ejemplo Resuelto Paso a Paso (Callout Ancho)
   #callout-box(
-    title: "Ejemplo Resuelto con Números: Paso a Paso",
-    bg-color: c-teal-bg,
-    border-color: c-teal,
+    title: lbl-example,
+    bg-color: ui-teal-bg,
+    border-color: ui-teal,
     [
       #text(weight: "bold", size: 9.3pt)[#s.ejemploResuelto.enunciado]
       #v(1.5pt)
@@ -574,8 +599,8 @@
         Este cuaderno de trabajo ha sido diseñado para que tú construyas tu conocimiento de forma autónoma. Cada sesión contiene:
         - *Objetivo*: La meta concreta de aprendizaje que alcanzarás.
         - *Punto de partida*: Un reto real de tu comunidad en el estado de Puebla (PAEC) para conectar la teoría con tu realidad.
-        - *Teoría clara*: Fórmulas, definiciones rigurosas y explicaciones sin tecnicismos innecesarios.
-        - *Ejemplo resuelto paso a paso*: Procedimientos numéricos explícitos para que veas exactamente cómo se aplican las fórmulas.
+        - *Teoría clara*: #resolve-ui-label(chapter, "methodologyTheoryBullet", "Conceptos clave, definiciones rigurosas y explicaciones claras sin tecnicismos innecesarios.")
+        - *Ejemplo resuelto paso a paso*: #resolve-ui-label(chapter, "methodologyExampleBullet", "Casos y procedimientos aplicados paso a paso para observar el criterio en contexto.")
         - *Ponte a prueba*: Ejercicios con pistas estratégicas para que desarrolles tu razonamiento sin frustrarte.
         - *Conexión con tu vida y autoevaluación*: Preguntas de reflexión para verificar lo aprendido antes de avanzar.
       ]

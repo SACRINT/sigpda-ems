@@ -368,12 +368,26 @@ function handleRequest(req, res) {
     if (req.method === 'HEAD') {
       return res.end();
     }
+    let fontsLoaded = [];
+    try {
+      if (fs.existsSync(FONTS_DIR)) {
+        fontsLoaded = fs
+          .readdirSync(FONTS_DIR)
+          .filter((f) => /\.(ttf|otf)$/i.test(f))
+          .sort();
+      }
+    } catch {
+      fontsLoaded = [];
+    }
     return res.end(
       JSON.stringify({
         status: 'ok',
         service: 'sigpda-editorial-worker',
         typstVersion,
         templateVersion: getTemplateVersion(),
+        fontsDir: FONTS_DIR,
+        fontsCount: fontsLoaded.length,
+        fontsLoaded,
         uptimeSeconds: Math.round(process.uptime()),
         timestamp: new Date().toISOString(),
       }),

@@ -41,6 +41,7 @@ import {
   StudentChapterSchema,
 } from '@/lib/editorial/student-content-model';
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
+import { resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
 import { sanitizeDocFilename } from '@/lib/document-branding';
 import {
@@ -356,8 +357,9 @@ export async function POST(
           ? `Bloques ${composed.blocksPresent.map((n) => n + 1).join(', ')}`
           : `Bloque ${firstBlock + 1}`;
 
+      const resolvedUacName = rawPlanning.uac_name || 'Pensamiento Matemático';
       chapter = StudentChapterSchema.parse({
-        uac: rawPlanning.uac_name || 'Pensamiento Matemático',
+        uac: resolvedUacName,
         bloque: bloqueEtiqueta,
         editorialSubtitle: 'Alineado al MCCEMS y Proyectos Aula Escuela Comunidad (PAEC)',
         semestre: String(rawPlanning.semester || '2'),
@@ -365,6 +367,7 @@ export async function POST(
         plantel,
         cct,
         zonaEscolar: formatZonaEscolar(schoolIdentity.schoolZone),
+        disciplinaUi: resolveEditorialDisciplinaryUi(resolvedUacName),
         sesiones: composed.sessions,
       });
     }

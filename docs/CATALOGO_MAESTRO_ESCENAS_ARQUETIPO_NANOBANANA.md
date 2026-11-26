@@ -19,16 +19,29 @@
 | **Capa 3 (existente)** | **Diagramas SVG técnicos deterministas** | `src/lib/visual-engine/visual-dispatcher.ts` | Gráficas matemáticas, vectores, circuitos, ciclos, líneas de tiempo (vector puro en Typst). |
 | **Capa 4 (respaldo)** | **Fotografía Openverse CC** | Descarga bajo demanda / caché | Solo cuando una UAC requiera fotografía documental hiperespecífica. |
 
-### Estrategia realista de deduplicación (**por bloque**, no por libro de 72 sesiones)
-- Un libro semestral tiene **72 sesiones** (3 bloques × 24 sesiones); con 68 escenas totales es matemáticamente imposible imponer deduplicación estricta por sesión en todo el semestre.
-- **Regla implementada en `scene-allocator.ts` (Fase 2):**
-  - **Deduplicación estricta por bloque/capítulo:** ningún bloque repite la misma escena hero entre su portada, sus 4 misiones y sus apoyos de `08`/`09`.
-  - **Rotación entre Bloques 1, 2 y 3 del semestre:** Bloque 1 abre con `01-portada`, Bloque 2 con `02-concepto` y Bloque 3 con `04-comunidad` (reservando `03-practica` para la sección de taller/práctica e infografías `09`), logrando **0 repeticiones de portadas de bloque en todo el semestre**.
+### Estrategia realista de slots y deduplicación (**0 repeticiones en el mismo rol**)
+- Un libro semestral tiene **72 sesiones** (3 bloques × 24 sesiones) y cada bloque tiene **1 portada + 4 misiones + apoyos `08`/`09`** (≥ 5 slots). Con **4 arquetipos por dominio** (`17 × 4 = 68` escenas) no se afirma "0 repeticiones absolutas en todo el bloque", sino una **matriz determinista de slots con 0 repeticiones en el mismo rol** (y distinto encuadre/crop cuando un arquetipo se reutiliza en un rol distinto):
+
+| Rol / Slot | Asignación por defecto (`scene-allocator.ts`) | Regla de no-repetición |
+|---|---|---|
+| **Portada Bloque 1** | `01-portada` (16:9 completo) | **0 repeticiones en rol portada de bloque en todo el semestre** |
+| **Portada Bloque 2** | `02-concepto` (16:9 completo) | **0 repeticiones en rol portada de bloque en todo el semestre** |
+| **Portada Bloque 3** | `04-comunidad` (16:9 completo) | **0 repeticiones en rol portada de bloque en todo el semestre** |
+| **Misión 1 (Concepto Cero)** | `02-concepto` (encuadre banda superior) | **0 repeticiones entre las 4 misiones dentro del mismo bloque** |
+| **Misión 2 (Yo Hago)** | `03-practica` (crop editorial horizontal) | **0 repeticiones entre las 4 misiones dentro del mismo bloque** |
+| **Misión 3 (Nosotros Hacemos)** | `01-portada` (crop detalle distinto) | **0 repeticiones entre las 4 misiones dentro del mismo bloque** |
+| **Misión 4 (Tú Haces / Proyecto)** | `04-comunidad` (encuadre completo) | **0 repeticiones entre las 4 misiones dentro del mismo bloque** |
+| **Entregable `08` (Presentaciones)** | `01-portada` (hero) + `02-concepto` (teoría) | Prioridad a `overrides/` si existen escenas por UAC |
+| **Entregable `09` (Infografías)** | `03-practica` (formato vertical `4:5` dedicado) | Prioridad a `overrides/` si existen escenas por UAC |
+
+- Si para una UAC prioritaria se agregan variantes adicionales en `public/images/escenas/overrides/` (versionadas en Git, optimizadas `.webp < 500 KB` y empaquetadas automáticamente en el contenedor mediante `COPY public/images ./public/images`), el asignador las consume con prioridad antes de los 4 arquetipos del dominio.
 
 ---
 
-## 2. Estándar de Producción (Nano Banana / Gemini Image)
+## 2. Estándar de Producción (Nano Banana / Gemini Image) y Gates Técnicos
 
+- **Autorización y seguridad (`AGENTS.md:10-17`):** Gemini es el único proveedor de IA autorizado del proyecto. Los lotes 1–3 son producidos offline como activos estáticos `.webp` por el equipo con Gemini / Nano Banana (sin agregar proveedores externos al runtime ni claves hardcodeadas); si en el futuro se automatiza mediante script offline, deberá leer exclusivamente `process.env.GEMINI_API_KEY` o la tabla `api_keys` (`provider='gemini'`).
+- **Gate duro `.webp` en Typst (CUMPLIDO):** Verificado empíricamente con `typst 0.15.1` local (`GATE_WEBP: PASS`). Dado que Typst añadió soporte nativo de `.webp` a partir de v0.14.0 y el `Dockerfile` estaba fijado en `0.13.0`, **en Fase 1 se actualiza `Dockerfile` a `TYPST_VERSION=0.15.1`** (alineación 1:1 local/producción) antes de incorporar las imágenes del Lote 1.
 - **Modelo recomendado:** Gemini Image / Nano Banana vigente (mayor fidelidad editorial sin artefactos de texto).
 - **Los 4 arquetipos por dominio y sus dimensiones exactas:**
   - `01-portada` — **16:9 · 1600 × 900 px** (WebP calidad 88, `< 500 KB`): portada de bloque / diapositiva hero `08`.
@@ -67,10 +80,10 @@ STRICT NEGATIVE / PROHIBIDO: absolutamente CERO texto, CERO letras, CERO número
 
 | Lote | Dominios incluidos | Escenas | Impacto inmediato |
 |---|---|---:|---|
-| **Lote 1 (Prioridad Máxima)** | Dominios 01, 02, 03, 04, 07, 08 (tronco común Fundamental) | **24** | Cubre ~75–80 % de tus planeaciones actuales de 1.° a 4.° semestre. |
-| **Lote 2 (Prioridad Alta)** | Dominios 05, 09, 11, 12, 13, 17 (Inglés, Cultura Digital, Ampliado y General) | **24** | Completa 100 % del Currículum Fundamental + Currículum Ampliado. |
-| **Lote 3 (Especializado y Laboral)** | Dominios 06, 10, 14, 15, 16 (Formación Laboral, Dibujo Técnico, Lenguas adicionales) | **20** | Cubre todas las capacitaciones laborales, BT y materias extendidas. |
-| **Total** | **17 dominios `DisciplinaryDomainId`** | **68** | **100 % de las 400+ UACs MCCEMS sin escenas genéricas.** |
+| **Lote 1 (Prioridad Máxima)** | Dominios 01, 02, 03, 04, 07, 08 (tronco común Fundamental) | **24** | 6 dominios troncales del Currículum Fundamental (Matemáticas, Física, Química/Biología, Lengua/Literatura, Historia/Sociales y Humanidades/Filosofía). |
+| **Lote 2 (Prioridad Alta)** | Dominios 05, 09, 11, 12, 13, 17 (Inglés, Cultura Digital, Ampliado y General) | **24** | Completa el resto del Currículum Fundamental, Currículum Ampliado y respaldo interdisciplinario. |
+| **Lote 3 (Especializado y Laboral)** | Dominios 06, 10, 14, 15, 16 (Formación Laboral, Dibujo Técnico, Lenguas adicionales) | **20** | Cubre capacitaciones laborales, BT y materias extendidas especializadas. |
+| **Total** | **17 dominios `DisciplinaryDomainId`** | **68** | **Cobertura del 100 % de las 400+ UACs MCCEMS mediante arquetipos disciplinares compartidos (con `overrides/` opcionales por UAC).** |
 
 ---
 
