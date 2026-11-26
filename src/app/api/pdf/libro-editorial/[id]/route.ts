@@ -42,6 +42,7 @@ import {
 } from '@/lib/editorial/student-content-model';
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
 import { resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui';
+import { allocateEditorialSceneOnDisk } from '@/lib/visual-engine/scene-allocator';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
 import { sanitizeDocFilename } from '@/lib/document-branding';
 import {
@@ -358,6 +359,11 @@ export async function POST(
           : `Bloque ${firstBlock + 1}`;
 
       const resolvedUacName = rawPlanning.uac_name || 'Pensamiento Matemático';
+      const coverScene = allocateEditorialSceneOnDisk({
+        uacName: resolvedUacName,
+        blockNumber: firstBlock + 1,
+        role: 'block_cover',
+      });
       chapter = StudentChapterSchema.parse({
         uac: resolvedUacName,
         bloque: bloqueEtiqueta,
@@ -368,6 +374,7 @@ export async function POST(
         cct,
         zonaEscolar: formatZonaEscolar(schoolIdentity.schoolZone),
         disciplinaUi: resolveEditorialDisciplinaryUi(resolvedUacName),
+        ...(coverScene ? { coverScene } : {}),
         sesiones: composed.sessions,
       });
     }

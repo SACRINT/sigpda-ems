@@ -3,7 +3,7 @@
 #
 # Características de Producción:
 # - Base: Node.js 22 LTS (Debian Bookworm Slim).
-# - Binario Typst: Versión fijada v0.15.1 (x86_64 musl estático oficial, Apache-2.0; soporte nativo WebP >= 0.14).
+# - Binario Typst: Versión fijada v0.15.1 (x86_64 musl estático oficial, Apache-2.0; soporte nativo WebP añadido en v0.15.1).
 # - Fuentes canónicas abiertas (SIL OFL):
 #   * Liberation Sans (métricamente compatible con Arial).
 #   * Inter (diseño editorial de alta legibilidad).

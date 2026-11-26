@@ -20,6 +20,7 @@ import {
 import { formatSolvedExampleBlocks } from '@/lib/editorial/text-normalization';
 import { composeSessionHeading } from '@/lib/editorial/topic-title-resolver';
 import {
+  DISCIPLINARY_DOMAIN_IDS,
   EditorialDisciplinaryUiSchema,
   type EditorialDisciplinaryUi,
 } from '@/lib/editorial/disciplinary-ui';
@@ -59,10 +60,34 @@ export interface RecursoItem {
 
 export interface SpotMaterial {
   nombre: string;
-  archivo: string; // ej. "abaco.png" en public/images/materiales/
+  archivo: string; // ej. "abaco.png" o "escena.webp" en public/images/materiales/
   pie?: string;
   anchoCm?: number; // Máximo permitido: 4.2 cm (>= 300 DPI a 512x512)
 }
+
+export const EditorialSceneSchema = z.object({
+  id: z.string().min(3),
+  domainId: z.enum(DISCIPLINARY_DOMAIN_IDS),
+  archetype: z.enum(['portada', 'concepto', 'practica', 'comunidad']),
+  role: z.enum([
+    'block_cover',
+    'mission_1',
+    'mission_2',
+    'mission_3',
+    'mission_4',
+    'slides_hero',
+    'slides_concept',
+    'infographic_activity',
+  ]),
+  crop: z.enum(['full', 'top_band', 'horizontal_editorial', 'detail_right']),
+  relativePath: z
+    .string()
+    .regex(/^\/images\/escenas\/.+\.(webp|png)$/i, 'La escena editorial debe ser .webp o .png bajo /images/escenas/'),
+  alt: z.string().min(5),
+  aspectRatio: z.enum(['16:9', '4:5']),
+});
+
+export type EditorialScene = z.infer<typeof EditorialSceneSchema>;
 
 export interface StudentSession {
   numero: number;
@@ -92,6 +117,7 @@ export interface StudentChapter {
   subsecretaria?: string;
   editorialSubtitle?: string;
   disciplinaUi?: EditorialDisciplinaryUi;
+  coverScene?: EditorialScene;
   sesiones: StudentSession[];
 }
 
@@ -126,7 +152,7 @@ export const RecursoItemSchema = z.object({
 
 export const SpotMaterialSchema = z.object({
   nombre: z.string(),
-  archivo: z.string().regex(/\.png$/i, 'El asset debe ser un archivo .png'),
+  archivo: z.string().regex(/\.(png|webp)$/i, 'El asset debe ser un archivo .png o .webp'),
   pie: z.string().optional(),
   anchoCm: z.number().max(4.2, 'El ancho del asset spot no puede superar 4.2 cm (>= 300 DPI)').optional(),
 });
@@ -159,6 +185,7 @@ export const StudentChapterSchema = z.object({
   subsecretaria: z.string().optional(),
   editorialSubtitle: z.string().optional(),
   disciplinaUi: EditorialDisciplinaryUiSchema.optional(),
+  coverScene: EditorialSceneSchema.optional(),
   sesiones: z.array(StudentSessionSchema).min(1, 'El capítulo debe contener sesiones'),
 }).superRefine((chapter, ctx) => {
   // Invariante Load-Bearing anti-F11: continuidad estricta 1..N sin omisiones ni desorden

@@ -140,10 +140,14 @@
 // Portada Escolar Institucional
 // ============================================================================
 #let render-institutional-cover(chapter) = [
+  #let has-cover-scene = "coverScene" in chapter and chapter.coverScene != none
+  #let cover-primary = resolve-ui-color(chapter, "primary", c-primary)
+  #let cover-accent = resolve-ui-color(chapter, "accent", c-accent)
+  #let cover-assets-root = if "assetsRoot" in chapter and chapter.assetsRoot != none { chapter.assetsRoot } else { "/public" }
   #page(
     header: none,
     footer: none,
-    margin: (x: 2.2cm, top: 2.5cm, bottom: 2.5cm),
+    margin: (x: 2.2cm, top: 2.2cm, bottom: 2.2cm),
     [
       // Franja superior institucional
       #grid(
@@ -155,7 +159,7 @@
           #text(fill: c-slate-muted, size: 7.5pt)[
             SUBSECRETARÍA DE EDUCACIÓN MEDIA SUPERIOR · DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA
           ]\
-          #text(fill: c-primary, weight: "bold", size: 7.5pt)[
+          #text(fill: cover-primary, weight: "bold", size: 7.5pt)[
             #chapter.zonaEscolar
           ]
         ],
@@ -169,38 +173,50 @@
         ]
       )
 
-      #v(2.5cm)
+      #v(if has-cover-scene { 1.0cm } else { 2.5cm })
 
       // Barra decorativa tricolor
       #grid(
         columns: (3fr, 2fr, 1fr),
-        rect(fill: c-primary, height: 4pt, width: 100%),
+        rect(fill: cover-primary, height: 4pt, width: 100%),
         rect(fill: c-secondary, height: 4pt, width: 100%),
-        rect(fill: c-accent, height: 4pt, width: 100%)
+        rect(fill: cover-accent, height: 4pt, width: 100%)
       )
 
-      #v(1.2cm)
+      #v(if has-cover-scene { 0.8cm } else { 1.2cm })
 
       // Identificación de la Materia
-      #text(fill: c-accent.darken(10%), weight: "bold", size: 12pt, tracking: 1.5pt)[
+      #text(fill: cover-accent.darken(10%), weight: "bold", size: 12pt, tracking: 1.5pt)[
         LIBRO DE TEXTO PARA EL ESTUDIANTE · CUADERNO DE APRENDIZAJE AUTÓNOMO
       ]
-      #v(0.4cm)
-      #text(fill: c-primary, weight: "bold", size: 26pt)[
+      #v(0.35cm)
+      #text(fill: cover-primary, weight: "bold", size: 25pt)[
         #chapter.uac
       ]
-      #v(0.4cm)
+      #v(0.35cm)
       #if "editorialSubtitle" in chapter and chapter.editorialSubtitle != none [
-        #text(fill: c-secondary, weight: "medium", size: 14pt)[
+        #text(fill: c-secondary, weight: "medium", size: 13.5pt)[
           #chapter.editorialSubtitle
         ]\
       ]
       #v(0.2cm)
-      #text(fill: c-slate-dark, weight: "bold", size: 13pt)[
+      #text(fill: c-slate-dark, weight: "bold", size: 12.5pt)[
         #chapter.bloque
       ]
 
-      #v(2.0cm)
+      #if has-cover-scene [
+        #v(0.7cm)
+        #block(
+          width: 100%,
+          radius: 6pt,
+          clip: true,
+          stroke: 0.75pt + c-border,
+          [#image(cover-assets-root + chapter.coverScene.relativePath, width: 100%, height: 5.8cm, fit: "cover")]
+        )
+        #v(0.7cm)
+      ] else [
+        #v(2.0cm)
+      ]
 
       // Ficha Técnica Escolar
       #rect(

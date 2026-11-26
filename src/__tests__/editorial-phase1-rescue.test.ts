@@ -9,7 +9,7 @@
  *    antes de `stripMaterialTokensDeep`, y `sidenote` desde `sintesisVisual.mapaConceptual.definicionClave`
  *    (más fallback determinista sin tokens extra de IA).
  * 3. `GET /health` del worker incluye fuentes cargadas (`fontsDir`, `fontsCount`, `fontsLoaded`).
- * 4. Gate duro `.webp`: `Dockerfile` fija `TYPST_VERSION >= 0.14` (`0.15.1`) y `typst` compila `.webp`.
+ * 4. Gate duro `.webp`: `Dockerfile` fija `TYPST_VERSION >= 0.15.1` y `typst` compila `.webp`.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -221,12 +221,16 @@ describe('Fase 1 — Rescate del Libro Editorial (Anti-hardcode, Spot/Sidenote, 
     expect(Array.isArray(body.fontsLoaded)).toBe(true);
   });
 
-  it('cumple gate duro .webp: Dockerfile >= Typst 0.14 (0.15.1) y Typst local compila .webp a PDF válido', async () => {
+  it('cumple gate duro .webp: Dockerfile >= Typst 0.15.1 y Typst local compila .webp a PDF válido', async () => {
     const dockerfile = fs.readFileSync(path.join(process.cwd(), 'Dockerfile'), 'utf8');
     const verMatch = dockerfile.match(/TYPST_VERSION=(\d+)\.(\d+)\.(\d+)/);
     expect(verMatch).not.toBeNull();
+    const major = Number(verMatch![1]);
     const minor = Number(verMatch![2]);
-    expect(minor).toBeGreaterThanOrEqual(14);
+    const patch = Number(verMatch![3]);
+    const meetsWebpMinVersion =
+      major > 0 || minor > 15 || (minor === 15 && patch >= 1);
+    expect(meetsWebpMinVersion).toBe(true);
 
     const typstBin = resolveTypstBinary();
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigpda-webp-gate-'));

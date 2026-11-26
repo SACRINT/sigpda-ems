@@ -14,6 +14,7 @@ import {
 } from '@/lib/editorial/topic-title-resolver';
 import { resolveSacrintPack, type SacrintPack } from '../discipline-packs';
 import { resolveSacrintStyle } from '../visual-styles';
+import { resolveSacrintInfographicEditorialScene } from '../../scene-allocator';
 import type {
   ConceptManualDefinition,
   ConceptMapNode,
@@ -887,12 +888,15 @@ export function buildSacrintInfographic(
     sanitizeField(project?.communityUtility, '', 110, 16)
   );
 
+  const editorialScene = resolveSacrintInfographicEditorialScene(meta.subjectName, meta.blockNumber);
+
   const spec: SacrintInfographicSpec = {
     format,
     theme: options.theme ?? 'light',
     meta,
     pack,
     style: resolveSacrintStyle(pack.id),
+    ...(editorialScene ? { editorialScene } : {}),
     title: cleanTitle,
     topicTitle: cleanTitle,
     subtitle: `${meta.subjectName} · BLOQUE ${meta.blockNumber} · MISIÓN ${String(meta.missionNumber).padStart(2, '0')}`,

@@ -30,6 +30,11 @@ import fs from 'fs';
 import path from 'path';
 import { detectCatalogMaterials } from '@/lib/materials/auto-tokenize';
 import { getMaterial, getMaterialImagePaths } from '@/lib/materials/materials-catalog';
+import {
+  allocateEditorialSceneOnDisk,
+  missionIndexToSceneRole,
+  type AllocatedEditorialScene,
+} from './scene-allocator';
 
 export interface ResolveVisualOptions {
   planningId?: string;
@@ -44,7 +49,7 @@ export interface ResolveVisualOptions {
 }
 
 export interface ResolvedVisual {
-  type: 'vector_svg' | 'openverse_media' | 'material_png';
+  type: 'vector_svg' | 'openverse_media' | 'material_png' | 'editorial_scene';
   svg?: string;
   annotations?: VisualResult['annotations'];
   mediaAsset?: ImageAsset;
@@ -52,6 +57,36 @@ export interface ResolvedVisual {
   materialSlug?: string;
   materialAltText?: string;
   materialPngPath?: string;
+  scene?: AllocatedEditorialScene;
+  sceneWebpPath?: string;
+}
+
+/**
+ * Resuelve la escena contextual `.webp` (Capa 1 editorial) asignada a una misión
+ * del bloque siguiendo la matriz de roles de `scene-allocator.ts`.
+ * Devuelve `null` si aún no existe el `.webp` (ni override ni fallback general) en disco.
+ */
+export function resolveEditorialSceneForMission(options: {
+  uacName: string;
+  blockIndex: number;
+  missionIndex: number;
+  publicDir?: string;
+  overrideSlug?: string;
+}): ResolvedVisual | null {
+  const scene = allocateEditorialSceneOnDisk({
+    uacName: options.uacName,
+    blockNumber: options.blockIndex + 1,
+    role: missionIndexToSceneRole(options.missionIndex),
+    publicDir: options.publicDir,
+    overrideSlug: options.overrideSlug,
+  });
+  if (!scene) return null;
+  return {
+    type: 'editorial_scene',
+    caption: scene.alt,
+    scene,
+    sceneWebpPath: scene.relativePath,
+  };
 }
 
 function materialPngFileExists(slug: string): boolean {
@@ -385,6 +420,16 @@ export async function resolveVisualForMission(
   // 3. Despachar gráfico sintético determinístico de Capa 0
   const vectorResult = dispatchVisual(uacName, missionTitle, contextText, missionIndex);
   if (!vectorResult) {
+    // 3.5 Fallback a escena editorial contextual (.webp) si existe en disco y no se ha usado
+    const sceneVisual = resolveEditorialSceneForMission({
+      uacName,
+      blockIndex,
+      missionIndex,
+    });
+    if (sceneVisual?.scene && !options.usedAssetIds?.has(`scene:${sceneVisual.scene.id}`)) {
+      options.usedAssetIds?.add(`scene:${sceneVisual.scene.id}`);
+      return sceneVisual;
+    }
     return null;
   }
 

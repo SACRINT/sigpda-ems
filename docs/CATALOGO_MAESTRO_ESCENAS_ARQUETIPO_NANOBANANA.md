@@ -41,7 +41,7 @@
 ## 2. Estándar de Producción (Nano Banana / Gemini Image) y Gates Técnicos
 
 - **Autorización y seguridad (`AGENTS.md:10-17`):** Gemini es el único proveedor de IA autorizado del proyecto. Los lotes 1–3 son producidos offline como activos estáticos `.webp` por el equipo con Gemini / Nano Banana (sin agregar proveedores externos al runtime ni claves hardcodeadas); si en el futuro se automatiza mediante script offline, deberá leer exclusivamente `process.env.GEMINI_API_KEY` o la tabla `api_keys` (`provider='gemini'`).
-- **Gate duro `.webp` en Typst (CUMPLIDO):** Verificado empíricamente con `typst 0.15.1` local (`GATE_WEBP: PASS`). Dado que Typst añadió soporte nativo de `.webp` a partir de v0.14.0 y el `Dockerfile` estaba fijado en `0.13.0`, **en Fase 1 se actualiza `Dockerfile` a `TYPST_VERSION=0.15.1`** (alineación 1:1 local/producción) antes de incorporar las imágenes del Lote 1.
+- **Gate duro `.webp` en Typst (CUMPLIDO):** Verificado empíricamente con `typst 0.15.1` local (`GATE_WEBP: PASS`). Dado que Typst añadió soporte nativo de `.webp` en **v0.15.1** y el `Dockerfile` estaba fijado en `0.13.0`, **en Fase 1 se actualizó `Dockerfile` a `TYPST_VERSION=0.15.1`** (gate estricto `>= 0.15.1`, alineación 1:1 local/producción) antes de incorporar las imágenes del Lote 1.
 - **Modelo recomendado:** Gemini Image / Nano Banana vigente (mayor fidelidad editorial sin artefactos de texto).
 - **Los 4 arquetipos por dominio y sus dimensiones exactas:**
   - `01-portada` — **16:9 · 1600 × 900 px** (WebP calidad 88, `< 500 KB`): portada de bloque / diapositiva hero `08`.

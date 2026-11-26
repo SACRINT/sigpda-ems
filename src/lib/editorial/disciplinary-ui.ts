@@ -13,8 +13,28 @@ import {
   type DisciplinaryDomainId,
 } from '@/lib/prompts/disciplinary-adapters';
 
+export const DISCIPLINARY_DOMAIN_IDS = [
+  'pensamiento_matematico',
+  'ciencias_fisica_ingenieria',
+  'ciencias_quimica_biologia_ambiental',
+  'lengua_comunicacion_literatura',
+  'lengua_extranjera_ingles',
+  'lengua_extranjera_general',
+  'conciencia_historica_ciencias_sociales',
+  'humanidades_filosofia_logica_etica',
+  'cultura_digital_programacion_ti',
+  'dibujo_tecnico_diseno_arquitectura',
+  'actividades_fisicas_deportivas_salud',
+  'artes_educacion_artistica_cultural',
+  'socioemocional_tutoria_educacion_integral',
+  'formacion_laboral_servicios_gestion_turismo',
+  'formacion_laboral_salud_clinica',
+  'formacion_laboral_industrial_agro_salud',
+  'indagacion_interdisciplinaria_general',
+] as const satisfies readonly DisciplinaryDomainId[];
+
 export const EditorialDisciplinaryUiSchema = z.object({
-  domainId: z.string(),
+  domainId: z.enum(DISCIPLINARY_DOMAIN_IDS),
   palette: z.object({
     primary: z.string().regex(/^[0-9a-fA-F]{6}$/),
     accent: z.string().regex(/^[0-9a-fA-F]{6}$/),

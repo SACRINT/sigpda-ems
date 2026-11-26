@@ -12,6 +12,7 @@ import {
 } from '@/lib/editorial/topic-title-resolver';
 import { resolveSacrintPack, type SacrintPack } from '../discipline-packs';
 import { resolveSacrintStyle } from '../visual-styles';
+import { resolveSacrintDeckEditorialScenes } from '../../scene-allocator';
 import {
   LessonGuideNoSessionsError,
   type SacrintBuildOptions,
@@ -1265,12 +1266,23 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const allSlides: SacrintSlide[] = [cover, hook, concept, demo, practice, challenge, evidence, closing];
   const slides = mode === 'classroom' ? [hook, concept, demo, challenge] : allSlides;
 
+  const deckScenes = resolveSacrintDeckEditorialScenes(meta.subjectName, meta.blockNumber);
+  const hasDeckScenes = Boolean(deckScenes.hero || deckScenes.concept);
+
   return {
     meta,
     pack,
     style: resolveSacrintStyle(pack.id),
     mode,
     theme: options.theme ?? 'dark',
+    ...(hasDeckScenes
+      ? {
+          editorialScenes: {
+            ...(deckScenes.hero ? { hero: deckScenes.hero } : {}),
+            ...(deckScenes.concept ? { concept: deckScenes.concept } : {}),
+          },
+        }
+      : {}),
     slides,
   };
 }

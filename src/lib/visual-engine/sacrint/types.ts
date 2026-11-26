@@ -8,6 +8,7 @@ import type { SacrintContentErrorContext } from '@/lib/editorial/topic-title-res
 import type { SacrintPack } from './discipline-packs';
 import type { SacrintVisualStyle } from './visual-styles';
 import type { SacrintThemeMode } from './tokens';
+import type { AllocatedEditorialScene } from '../scene-allocator';
 
 export interface SacrintVariable {
   symbol: string;
@@ -448,6 +449,10 @@ export interface SacrintDeckSpec {
   style: SacrintVisualStyle;
   mode?: SacrintDeckMode;
   theme?: SacrintThemeMode;
+  editorialScenes?: {
+    hero?: AllocatedEditorialScene;
+    concept?: AllocatedEditorialScene;
+  };
   slides: SacrintSlide[];
 }
 
@@ -487,6 +492,7 @@ export interface SacrintInfographicSpec {
   meta: SacrintMissionMeta;
   pack: SacrintPack;
   style: SacrintVisualStyle;
+  editorialScene?: AllocatedEditorialScene;
   title: string;
   topicTitle?: string;
   subtitle: string;
