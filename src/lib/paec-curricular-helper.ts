@@ -17,6 +17,7 @@
 
 import type { PaecCatalogItem } from '@/lib/db/programs-catalog';
 import { normalizeContenidos } from '@/lib/text-utils';
+import { logger } from '@/lib/logger';
 
 /**
  * Normaliza nombres de UAC para comparación insensible a mayúsculas, acentos y variantes textuales (H-05).
@@ -108,8 +109,44 @@ export function matchCurricularContent(
   );
   if (partial) return partial;
 
-  // 3. Coincidencia por nombre sin restricción estricta de semestre (ej. laboral multianual)
-  return catalog.find((c) => normalizeUacName(c.uac_name) === normTarget);
+  // 3. Coincidencia por nombre sin restricción estricta de semestre (solo misma paridad o laboral multianual)
+  const crossSem = catalog.find((c) => normalizeUacName(c.uac_name) === normTarget);
+  if (crossSem && crossSem.semester !== semester) {
+    const sameParity = crossSem.semester % 2 === semester % 2;
+    const isLaboral = /laboral|profesional|capacitaci/i.test(crossSem.component || '');
+    if (!sameParity && !isLaboral) {
+      logger.warn('[PAEC-Curricular] Descartando fallback cross-semestre con distinta paridad', {
+        uacName,
+        requestedSemester: semester,
+        matchedSemester: crossSem.semester,
+        matchedComponent: crossSem.component,
+      });
+      return undefined;
+    }
+    logger.warn('[PAEC-Curricular] Usando fallback cross-semestre en matchCurricularContent', {
+      uacName,
+      requestedSemester: semester,
+      matchedSemester: crossSem.semester,
+      matchedComponent: crossSem.component,
+    });
+  }
+  return crossSem;
+}
+
+/**
+ * Resuelve el componente curricular de una UAC dando precedencia autoritativa al catálogo oficial
+ * sobre el valor devuelto por el LLM.
+ */
+export function resolveAuthoritativeUacComponent(
+  catalogComponent?: string | null,
+  llmComponent?: string | null,
+  fallbackComponent?: string
+): string | undefined {
+  const fromCatalog = catalogComponent?.trim();
+  if (fromCatalog) return fromCatalog;
+  const fromLlm = llmComponent?.trim();
+  if (fromLlm) return fromLlm;
+  return fallbackComponent;
 }
 
 /**

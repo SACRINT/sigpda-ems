@@ -141,8 +141,8 @@ export async function handlePaecSteps6To7(ctx: PaecStepHandlerContext): Promise<
             uacName: m.uacName,
             semester: Number(m.semester),
             component:
-              m.component ||
               catMatch?.component ||
+              m.component ||
               (isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental'),
           };
         });
@@ -283,8 +283,8 @@ export async function handlePaecSteps6To7(ctx: PaecStepHandlerContext): Promise<
             uacName: m.uacName,
             semester: Number(m.semester),
             component:
-              m.component ||
               catMatch?.component ||
+              m.component ||
               (isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental'),
           };
         });

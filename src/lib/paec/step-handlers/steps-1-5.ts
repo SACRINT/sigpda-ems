@@ -8,7 +8,7 @@ import {
   type PaecAcademicBaseline,
 } from '@/lib/prompts/paec-prompts';
 import { getZoneContextForSchool } from '@/lib/zone-sync-service';
-import { formatCurricularCatalogForPrompt, matchCurricularContent } from '@/lib/paec-curricular-helper';
+import { formatCurricularCatalogForPrompt, matchCurricularContent, resolveAuthoritativeUacComponent } from '@/lib/paec-curricular-helper';
 import { generateWithRotation } from '@/lib/ai-provider';
 import { logger } from '@/lib/logger';
 import { parseAIResponse } from '@/lib/ai-response-parser';
@@ -172,7 +172,7 @@ export async function handlePaecSteps1To5(ctx: PaecStepHandlerContext): Promise<
               const catMatch = matchCurricularContent(row.uacName, Number(row.semester), allUacs);
               return {
                 ...row,
-                component: row.component || catMatch?.component || undefined,
+                component: resolveAuthoritativeUacComponent(catMatch?.component, row.component),
               };
             });
             allMapeoRows.push(...enrichedChunkRows);

@@ -21,7 +21,7 @@ import {
 import { deduplicateMetasInstitucionales } from '@/lib/pmc-meta-deduplicator';
 import { synthesizeContextualizedMeta } from '@/lib/constants/pmc-catalogo-criterios';
 import { normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
-import { ensureCrossFoda, synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
+import { ensureCrossFoda, hasPmcFodaChanged, synthesizeSituatedFoda } from '@/lib/pmc/pmc-foda-synthesizer';
 import { correctInvertedMetricGoals } from '@/lib/pmc/plan-element-normalizer';
 import type { PmcProject, PmcStatisticalContext, PmcIndicadoresAcademicos, PmcMetaInstitucional, PmcFodaData } from '@/types/pmc';
 import { z } from 'zod';
@@ -371,7 +371,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const effectiveFoda = baseFoda;
       const fodaChanged =
         fodaNeedsSynthesis ||
-        JSON.stringify(effectiveFoda) !== JSON.stringify(currentFoda);
+        hasPmcFodaChanged(currentFoda, effectiveFoda);
 
       const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
       const basePrompt = buildPmcDiagnosticoPrompt(

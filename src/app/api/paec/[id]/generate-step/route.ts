@@ -7,7 +7,7 @@ import {
   updatePaecProjectStep,
   updatePaecQualityAudit,
 } from '@/lib/db';
-import { matchCurricularContent } from '@/lib/paec-curricular-helper';
+import { matchCurricularContent, resolveAuthoritativeUacComponent } from '@/lib/paec-curricular-helper';
 import {
   validatePaecStepResult,
   calculateGlobalPaecScore,
@@ -194,11 +194,10 @@ export async function POST(
       const step3Semesters = project.cycle_type === 'A' ? [1, 3, 5] : project.cycle_type === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
       const allUacsStep3 = await getProgramsCatalogForPaec(step3Semesters);
       parsedJson = (parsedJson as MapeoRow[]).map((row) => {
-        if (row.component) return row;
         const catMatch = matchCurricularContent(row.uacName, Number(row.semester), allUacsStep3);
         return {
           ...row,
-          component: catMatch?.component || undefined,
+          component: resolveAuthoritativeUacComponent(catMatch?.component, row.component),
         };
       });
     }

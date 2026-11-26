@@ -230,3 +230,24 @@ export function ensureCrossFoda(
     cruzado,
   };
 }
+
+/**
+ * Comparación canónica por campos de dos matrices FODA (insensible al orden de claves
+ * y a propiedades auxiliares). Permite decidir de forma determinista si el FODA cambió.
+ */
+export function hasPmcFodaChanged(
+  prev: PmcFodaData | null | undefined,
+  next: PmcFodaData | null | undefined
+): boolean {
+  const pick = (f: PmcFodaData | null | undefined) => ({
+    fortalezas: (f?.fortalezas ?? '').trim(),
+    oportunidades: (f?.oportunidades ?? '').trim(),
+    debilidades: (f?.debilidades ?? '').trim(),
+    amenazas: (f?.amenazas ?? '').trim(),
+    fo: (f?.cruzado?.fo ?? '').trim(),
+    do: (f?.cruzado?.do ?? '').trim(),
+    fa: (f?.cruzado?.fa ?? '').trim(),
+    da: (f?.cruzado?.da ?? '').trim(),
+  });
+  return JSON.stringify(pick(prev)) !== JSON.stringify(pick(next));
+}

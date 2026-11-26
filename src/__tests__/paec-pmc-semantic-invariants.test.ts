@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
 import { distillPaecProgression, sanitizePaecOperationalPlan } from '@/lib/paec/plan-operativo-postprocessor';
-import { evaluateCriterio15, evaluateCriterio16 } from '@/lib/paec-quality-gate';
+import { calculateGlobalPaecScore, evaluateCriterio15, evaluateCriterio16 } from '@/lib/paec-quality-gate';
+import { matchCurricularContent, resolveAuthoritativeUacComponent } from '@/lib/paec-curricular-helper';
 import { computePmcIndicatorValues } from '@/lib/pmc-indicator-calculator';
-import { ensureCrossFoda } from '@/lib/pmc/pmc-foda-synthesizer';
+import { ensureCrossFoda, hasPmcFodaChanged } from '@/lib/pmc/pmc-foda-synthesizer';
 import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
 import type { PmcProject } from '@/types/pmc';
 import {
@@ -359,13 +360,80 @@ describe('PAEC / PMC Semantic QA Invariants (Fase A)', () => {
       expect(c15Leaked.score).toBeLessThan(4);
       expect(c15Leaked.feedback).toMatch(/paridad rota/i);
 
-      const leakedSemB = make16WeekPaecPlan().map((r) => ({
+      const cleanSemB = make16WeekPaecPlan().map((r) => ({
         ...r,
-        uac: r.week === 'Semana 3' ? 'Ciencias Sociales I' : 'Ciencias Sociales II',
+        uac: 'Ciencias Sociales II',
+      }));
+      const c16Clean = evaluateCriterio16(cleanSemB as never, null, SAMPLE_CATALOG, '2026-2027');
+      expect(c16Clean.score).toBe(4);
+
+      const leakedSemB = cleanSemB.map((r) => ({
+        ...r,
+        uac: r.week === 'Semana 3' ? 'Ciencias Sociales I' : r.uac,
       }));
       const c16Leaked = evaluateCriterio16(leakedSemB as never, null, SAMPLE_CATALOG, '2026-2027');
       expect(c16Leaked.score).toBeLessThan(4);
       expect(c16Leaked.feedback).toMatch(/paridad rota/i);
+
+      // Integración calculateGlobalPaecScore: usa fase2_mapeo para C15/C16 y sin mapeo cae al comportamiento legacy
+      const globalWithMapeo = calculateGlobalPaecScore({
+        fase2_mapeo: [
+          { uacName: 'Ciencias Sociales I', semester: 1, component: 'fundamental' } as never,
+          { uacName: 'Ciencias Sociales II', semester: 2, component: 'fundamental' } as never,
+          { uacName: 'Pensamiento Matemático III', semester: 3, component: 'fundamental' } as never,
+          { uacName: 'Conciencia Histórica II', semester: 5, component: 'fundamental' } as never,
+        ],
+        fase3_plan_operativo_a: leakedSemA as never,
+        fase3_plan_operativo_b: cleanSemB as never,
+        ciclo_escolar: '2026-2027',
+      });
+      const globalC15 = globalWithMapeo.criterios.find((c) => c.id === 15);
+      const globalC16 = globalWithMapeo.criterios.find((c) => c.id === 16);
+      expect(globalC15?.score).toBeLessThan(4);
+      expect(globalC15?.feedback).toMatch(/paridad rota/i);
+      expect(globalC16?.score).toBe(4);
+
+      const globalWithoutMapeo = calculateGlobalPaecScore({
+        fase3_plan_operativo_a: leakedSemA as never,
+        fase3_plan_operativo_b: cleanSemB as never,
+        ciclo_escolar: '2026-2027',
+      });
+      expect(globalWithoutMapeo.criterios.find((c) => c.id === 15)?.score).toBe(4);
+    });
+
+    it('enforces authoritative catalog precedence for component (C1), key-order-insensitive FODA diff (C2), and parity-safe cross-semester fallback (C4)', () => {
+      // C1: catálogo oficial gana sobre component alucinado por LLM
+      expect(resolveAuthoritativeUacComponent('competencias_laborales', 'fundamental')).toBe('competencias_laborales');
+      expect(resolveAuthoritativeUacComponent(undefined, 'fundamental')).toBe('fundamental');
+
+      // C2: mismo FODA con distinto orden de claves => hasPmcFodaChanged === false; cambio en do/fa => true
+      const fodaA = {
+        fortalezas: '• A',
+        oportunidades: '• B',
+        debilidades: '• C',
+        amenazas: '• D',
+        cruzado: { fo: 'FO1', do: 'DO1', fa: 'FA1', da: 'DA1' },
+      };
+      const fodaReordered = {
+        amenazas: '• D',
+        debilidades: '• C',
+        oportunidades: '• B',
+        fortalezas: '• A',
+        cruzado: { da: 'DA1', fa: 'FA1', do: 'DO1', fo: 'FO1' },
+      };
+      expect(hasPmcFodaChanged(fodaA, fodaReordered)).toBe(false);
+      expect(hasPmcFodaChanged(fodaA, { ...fodaA, cruzado: { ...fodaA.cruzado, do: 'DO2' } })).toBe(true);
+      expect(hasPmcFodaChanged(fodaA, { ...fodaA, cruzado: { ...fodaA.cruzado, fa: 'FA2' } })).toBe(true);
+
+      // C4: UAC homónima en semestre de distinta paridad (no laboral) NO contamina el componente
+      const homonymousCatalog = [
+        { uac_name: 'Taller de Investigación', semester: 2, component: 'fundamental', contenidos_formativos: null },
+        { uac_name: 'Módulo Laboral Multianual', semester: 2, component: 'competencias_laborales', contenidos_formativos: null },
+      ];
+      expect(matchCurricularContent('Taller de Investigación', 1, homonymousCatalog)).toBeUndefined();
+      expect(matchCurricularContent('Módulo Laboral Multianual', 3, homonymousCatalog)?.component).toBe(
+        'competencias_laborales'
+      );
     });
   });
 });
