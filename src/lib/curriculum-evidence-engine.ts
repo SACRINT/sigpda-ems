@@ -125,11 +125,13 @@ export type ProgresiónResumida = ProgresionResumida;
 
 export interface ContenidoFormativoFuente {
   order?: number;
+  orden?: number;
   numero?: number;
   proposito?: string;
   progresion?: string;
   actividad?: string;
   contenidos?: string[] | string;
+  temas?: string[] | string;
   metas?: string[];
   saberes?: string[];
   categorias?: string[];
@@ -375,29 +377,36 @@ function textoDeContenido(cf: ContenidoFormativoFuente): string {
   const directo = (cf.progresion || cf.proposito || cf.actividad || '').trim();
   if (directo) return directo;
 
-  if (Array.isArray(cf.contenidos)) {
-    return cf.contenidos.map((c) => (c || '').trim()).filter(Boolean).join('. ');
+  const fuenteLista = cf.contenidos ?? cf.temas;
+  if (Array.isArray(fuenteLista)) {
+    return fuenteLista.map((c) => (c || '').trim()).filter(Boolean).join('. ');
   }
-  return (cf.contenidos || '').trim();
+  return (fuenteLista || '').trim();
 }
 
 /**
  * Construye progresiones resumidas a partir de los contenidos formativos o,
  * en su defecto, de las actividades clave. Soporta los formatos BGE
- * (proposito/progresion) y Bachillerato Técnico (actividad/saberes).
+ * (proposito/progresion), FFEO (orden/temas) y Bachillerato Técnico (actividad/saberes).
  */
 export function construirProgresionesResumidas(
   contenidosFormativos?: ContenidoFormativoFuente[] | null,
   actividades?: ActividadFuente[] | null
 ): ProgresionResumida[] {
   const desdeContenidos: ProgresionResumida[] = (contenidosFormativos ?? []).map((cf, idx) => {
-    const orden = cf.order || cf.numero || (idx + 1);
+    const orden = cf.order || cf.orden || cf.numero || (idx + 1);
     const descripcion = textoDeContenido(cf);
-    const listaContenidos = Array.isArray(cf.contenidos)
-      ? cf.contenidos.map((c) => (c || '').trim()).filter(Boolean)
-      : typeof cf.contenidos === 'string' && cf.contenidos.trim()
-        ? [cf.contenidos.trim()]
-        : (cf.saberes ?? []).map((s) => (s || '').trim()).filter(Boolean);
+    const rawContenidos =
+      Array.isArray(cf.contenidos) && cf.contenidos.length > 0
+        ? cf.contenidos
+        : typeof cf.contenidos === 'string' && cf.contenidos.trim()
+          ? [cf.contenidos.trim()]
+          : Array.isArray(cf.temas) && cf.temas.length > 0
+            ? cf.temas
+            : typeof cf.temas === 'string' && cf.temas.trim()
+              ? [cf.temas.trim()]
+              : (cf.saberes ?? []);
+    const listaContenidos = rawContenidos.map((c) => (c || '').trim()).filter(Boolean);
 
     return {
       orden,

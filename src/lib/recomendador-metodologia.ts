@@ -554,6 +554,11 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
   },
 
   // ── Artes y Expresión Cultural → ABP ────────────────────────────────────────
+  'actividades artisticas y culturales': {
+    id: 'abp',
+    razon: 'Proyectos integradores de expresión artística y patrimonio cultural comunitario',
+    dominio: 'Artes y Cultura',
+  },
   'actividades artisticas y culturales i': {
     id: 'abp',
     razon: 'Proyectos integradores de expresión artística comunitaria',
@@ -575,7 +580,22 @@ export const CANONICAL_UAC_METODOLOGIAS: Record<string, { id: string; razon: str
     dominio: 'Artes y Cultura',
   },
 
-  // ── Formación Socioemocional y PAEC → ApS ───────────────────────────────────
+  // ── Currículum Ampliado / Formación Socioemocional (MCCEMS 2025-2026) ───────
+  'practica y colaboracion ciudadana': {
+    id: 'aprendizaje_servicio',
+    razon: 'Participación ciudadana activa, cultura de paz y acción solidaria en beneficio comunitario (ApS)',
+    dominio: 'Currículum Ampliado — Ciudadanía',
+  },
+  'educacion para la salud': {
+    id: 'aprendizaje_servicio',
+    razon: 'Promoción de hábitos saludables, autocuidado integral y campañas preventivas comunitarias (ApS)',
+    dominio: 'Currículum Ampliado — Salud Integral',
+  },
+  'educacion integral en sexualidad y genero': {
+    id: 'estudio_casos',
+    razon: 'Análisis deliberativo y respetuoso de dilemas vivenciales, derechos sexuales y perspectiva de género',
+    dominio: 'Currículum Ampliado — Sexualidad y Género',
+  },
   'formacion socioemocional iii': {
     id: 'aprendizaje_servicio',
     razon: 'Servicio colaborativo a la comunidad escolar y empatía',
@@ -856,7 +876,7 @@ export function recomendarMetodologiaConDetalle(
   contextData?: ContextDataRecomendacion
 ): RecomendacionDetalle {
   const normUac = normalizeUnicode(uacName || '').trim();
-  const { clean: cleanUac, variants: uacVariants } = normalizeUacCanonical(uacName || '');
+  const { variants: uacVariants } = normalizeUacCanonical(uacName || '');
   const componentLower = (component || '').toLowerCase().trim();
   const isLaboral = componentLower === 'laboral' || componentLower.includes('laboral') || componentLower.includes('profesional');
   const isBt = isTechnologicalSubsystem(subsystem);
@@ -1084,11 +1104,16 @@ export function recomendarMetodologiaConDetalle(
           dominioDisciplinar: pack.label,
         };
       case 'educacion_fisica':
-      case 'salud':
         return {
           metodologiaId: 'gamificacion',
           razon: 'Sugerencia de Gamificación Pedagógica para dinámicas lúdicas y retos motrices',
           dominioDisciplinar: 'Educación Física y Deporte',
+        };
+      case 'salud':
+        return {
+          metodologiaId: 'aprendizaje_servicio',
+          razon: 'Sugerencia de Aprendizaje-Servicio (ApS) para promoción de la salud, autocuidado y prevención comunitaria',
+          dominioDisciplinar: 'Salud y Bienestar Comunitario',
         };
       case 'ingles':
         return {

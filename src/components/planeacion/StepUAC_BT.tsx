@@ -12,6 +12,35 @@ import {
 import { SEMESTERS_WITHOUT_COMPONENT } from '@/lib/subsystem-config';
 import { cleanSocioemotionalName } from '@/lib/utils';
 
+interface CatalogContenidoItem {
+  order?: number;
+  orden?: number;
+  numero?: number;
+  proposito?: string;
+  progresion?: string;
+  contenidos?: string | string[];
+  temas?: string[];
+  categorias?: string[];
+  subcategorias?: string[];
+  metas?: string[];
+  actividad?: string;
+  saberes?: string[];
+}
+
+interface CatalogProgramRecord {
+  id: string;
+  uac_name: string;
+  semester: number;
+  component: string;
+  curriculum_name?: string;
+  total_hours?: number;
+  learning_outcome?: string;
+  activities?: ExtractedPdfData['activities'];
+  evidences?: string[];
+  contenidos_formativos?: CatalogContenidoItem[];
+  year?: number;
+}
+
 export interface UACSelection {
   uacName: string;
   semester: number;
@@ -61,8 +90,8 @@ export default function StepUAC_BT({
   const userChangedSelectionRef = useRef(false);
   
   // Para componentes no laborales (fundamental, ampliado, etc.)
-  const [catalogPrograms, setCatalogPrograms] = useState<any[]>([]);
-  const [selectedCatalogUac, setSelectedCatalogUac] = useState<any>(null);
+  const [catalogPrograms, setCatalogPrograms] = useState<CatalogProgramRecord[]>([]);
+  const [selectedCatalogUac, setSelectedCatalogUac] = useState<CatalogProgramRecord | null>(null);
   
   const [isManualInput, setIsManualInput] = useState(Boolean(initialSelection?.uacName));
   const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -163,12 +192,30 @@ export default function StepUAC_BT({
     }
 
     if (isLaboral && activeCarrera && activeModulo && activeSubmodulo && !isManualInput) {
-      setForm(prev => ({
-        ...prev,
-        uacName: activeSubmodulo.uac_name || `Submódulo ${selectedSubmoduloIndex + 1}: ${activeSubmodulo.nombre}`,
-        curriculumName: activeCarrera.nombre,
-        subsystem: selectedSubsystem,
-      }));
+      let cancelled = false;
+      const nextUacName = activeSubmodulo.uac_name || `Submódulo ${selectedSubmoduloIndex + 1}: ${activeSubmodulo.nombre}`;
+      const nextCurriculum = activeCarrera.nombre;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setForm(prev => {
+          if (
+            prev.uacName === nextUacName &&
+            prev.curriculumName === nextCurriculum &&
+            prev.subsystem === selectedSubsystem
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            uacName: nextUacName,
+            curriculumName: nextCurriculum,
+            subsystem: selectedSubsystem,
+          };
+        });
+      });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [isLaboral, activeCarrera, activeModulo, activeSubmodulo, selectedSubmoduloIndex, selectedSubsystem, isManualInput, initialSelection]);
 
@@ -176,12 +223,20 @@ export default function StepUAC_BT({
   useEffect(() => {
     if (isLaboral) return;
 
+    let cancelled = false;
+    const controller = new AbortController();
+
     const fetchPrograms = async () => {
       setLoadingPrograms(true);
       try {
         const subParam = selectedSubsystem ? `&subsystem=${selectedSubsystem}` : '&subsystem=tecnologico';
-        const res = await fetch(`/api/programs?semester=${form.semester}&component=${form.component}${subParam}`);
+        const res = await fetch(
+          `/api/programs?semester=${form.semester}&component=${form.component}${subParam}`,
+          { signal: controller.signal }
+        );
         const data = await res.json();
+
+        if (cancelled) return;
 
         if (data.programs) {
           const filtered = data.programs;
@@ -201,7 +256,7 @@ export default function StepUAC_BT({
           );
 
           const selected = restoringInitial
-            ? filtered.find(matchesInitialSelection)
+            ? (filtered.find(matchesInitialSelection) || filtered[0])
             : filtered[0];
 
           if (selected) {
@@ -213,18 +268,30 @@ export default function StepUAC_BT({
               subsystem: selectedSubsystem,
             }));
             setIsManualInput(false);
+          } else {
+            setSelectedCatalogUac(null);
           }
 
           restoredCatalogInitialRef.current = true;
         }
       } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) {
+          return;
+        }
         console.error('Error fetching BT catalog programs:', err);
       } finally {
-        setLoadingPrograms(false);
+        if (!cancelled) {
+          setLoadingPrograms(false);
+        }
       }
     };
 
     fetchPrograms();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [form.semester, form.component, selectedSubsystem, isLaboral, initialSelection]);
 
   // Cambio de semestre
@@ -386,14 +453,14 @@ export default function StepUAC_BT({
 
       const initialData: ExtractedPdfData = {
         uacName: cleanUacName,
-        learningOutcome: selectedCatalogUac.learning_outcome,
+        learningOutcome: selectedCatalogUac.learning_outcome || '',
         totalHours: selectedCatalogUac.total_hours || 54,
         activities: selectedCatalogUac.activities || [
           { order: 1, name: `Propósito Formativo 1`, hours: 18 },
           { order: 2, name: `Propósito Formativo 2`, hours: 18 },
           { order: 3, name: `Propósito Formativo 3`, hours: 18 },
         ],
-        evidences: selectedCatalogUac.evidences,
+        evidences: selectedCatalogUac.evidences || [],
         parseConfidence: 'high',
         year: selectedCatalogUac.year || 2025,
         contenidosFormativos: selectedCatalogUac.contenidos_formativos,
@@ -749,9 +816,20 @@ export default function StepUAC_BT({
                   <div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Contenidos / Temas</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
-                      {selectedCatalogUac.contenidos_formativos?.length > 0
-                        ? `${selectedCatalogUac.contenidos_formativos.reduce((acc: number, c: any) => acc + (c.contenidos?.length || 0), 0)} temas precargados`
-                        : 'Listos para sincronizar'}
+                      {(() => {
+                        const totalTemas = Array.isArray(selectedCatalogUac.contenidos_formativos)
+                          ? selectedCatalogUac.contenidos_formativos.reduce(
+                              (acc: number, c: CatalogContenidoItem) =>
+                                acc + (Array.isArray(c?.contenidos) && c.contenidos.length > 0
+                                  ? c.contenidos.length
+                                  : Array.isArray(c?.temas)
+                                    ? c.temas.length
+                                    : 0),
+                              0
+                            )
+                          : 0;
+                        return totalTemas > 0 ? `${totalTemas} temas precargados` : 'Listos para sincronizar';
+                      })()}
                     </div>
                   </div>
                 </div>

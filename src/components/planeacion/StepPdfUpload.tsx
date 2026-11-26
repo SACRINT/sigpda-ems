@@ -24,12 +24,20 @@ function cleanData(data: ExtractedPdfData, component?: string): ExtractedPdfData
     })),
     evidences: (data.evidences || []).map(e => removeHyphens(e || '')),
     contenidosFormativos: Array.isArray(data.contenidosFormativos)
-      ? data.contenidosFormativos.map((cf: ContenidoFormativoFuente) => ({
-          ...cf,
-          proposito: removeHyphens(cf.proposito || ''),
-          actividad: removeHyphens(cf.actividad || ''),
-          contenidos: normalizeContenidos(cf.contenidos),
-        }))
+      ? data.contenidosFormativos.map((cf: ContenidoFormativoFuente, cfIdx: number) => {
+          const rawList =
+            (Array.isArray(cf.contenidos) && cf.contenidos.length > 0) ||
+            (typeof cf.contenidos === 'string' && cf.contenidos.trim().length > 0)
+              ? cf.contenidos
+              : cf.temas;
+          return {
+            ...cf,
+            order: cf.order ?? cf.orden ?? cf.numero ?? cfIdx + 1,
+            proposito: removeHyphens(cf.proposito || ''),
+            actividad: removeHyphens(cf.actividad || ''),
+            contenidos: normalizeContenidos(rawList),
+          };
+        })
       : data.contenidosFormativos,
   };
 
@@ -407,9 +415,14 @@ export default function StepPdfUpload({ uacSelection, initialData, onNext, onBac
             <label className="form-label form-label-required">{activityLabel}</label>
             {formData.activities.map((a, idx) => {
               const currentCf = (formData.contenidosFormativos as ContenidoFormativoFuente[] | undefined)?.find(
-                cf => cf.order === a.order
+                cf => (cf.order ?? cf.orden ?? cf.numero) === a.order
               ) || (formData.contenidosFormativos as ContenidoFormativoFuente[] | undefined)?.[idx];
-              const contenidos = normalizeContenidos(currentCf?.contenidos);
+              const contenidos = normalizeContenidos(
+                (Array.isArray(currentCf?.contenidos) && currentCf.contenidos.length > 0) ||
+                (typeof currentCf?.contenidos === 'string' && currentCf.contenidos.trim().length > 0)
+                  ? currentCf.contenidos
+                  : currentCf?.temas
+              );
 
               return (
                 <div key={idx} className="activity-card-item" style={{ marginBottom: '12px', background: 'var(--c-bg-elevated)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--c-border-2)' }}>

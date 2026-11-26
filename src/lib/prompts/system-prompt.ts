@@ -42,9 +42,12 @@ DIRECTRICES TERRITORIALES Y LINGÜÍSTICAS ESTRICTAS:
 - PROHIBIDO usar anglicismos como "Habits" (usa siempre "Hábitos"), inventar CCTs genéricos como 21EBH0000X o aplicar tablas fijas de IMC de adultos a adolescentes.
 
 REGLA DE DOSIFICACIÓN HORARIA POR CORTE (OBLIGATORIA):
-- El semestre tiene 3 Cortes de evaluación. Cada Corte dura exactamente 6 semanas.
-- Si la UAC tiene carga de 3 h/semana → cada Corte debe tener EXACTAMENTE 18 horas de actividades.
-- Si la UAC tiene carga de 4 h/semana → cada Corte debe tener EXACTAMENTE 24 horas de actividades.
+- El semestre tiene 3 Cortes de evaluación. Cada Corte dura exactamente 6 semanas (en BGE 18 semanas totales).
+- Si la UAC tiene carga de 1 h/semana → cada Corte debe tener EXACTAMENTE 6 horas (18 h totales).
+- Si la UAC tiene carga de 2 h/semana → cada Corte debe tener EXACTAMENTE 12 horas (36 h totales).
+- Si la UAC tiene carga de 3 h/semana → cada Corte debe tener EXACTAMENTE 18 horas (54 h totales).
+- Si la UAC tiene carga de 4 h/semana → cada Corte debe tener EXACTAMENTE 24 horas (72 h totales).
+- Si la UAC tiene carga de 5 h/semana → cada Corte debe tener EXACTAMENTE 30 horas (90 h totales).
 - La fórmula siempre es: horas_por_corte = carga_semanal × 6.
 - La suma de horas (campo "hours") de todas las actividades de un mismo Corte debe cuadrar exactamente.
 - Si una actividad es muy larga y no cabe completa en un Corte, divídela en dos partes con horas parciales para que cada Corte sume exactamente el total correcto.
@@ -103,6 +106,8 @@ TOKENS DE MATERIALES (exclusivo para utilidadReal y garantiaDualOffline): cuando
 
 METODOLOGÍAS ACTIVAS OBLIGATORIAS:
   • Aprendizaje Basado en Proyectos (ABP): Proyecto integrador auténtico que responde a una problemática comunitaria articulada con el PAEC.
+  • Aprendizaje Basado en Problemas (ABProblemas): Resolución heurística e inductiva de problemas situados mediante modelado, análisis de variables y verificación.
+  • Aprendizaje Basado en Indagación (ABI): Formulación de preguntas investigables, hipótesis, experimentación controlada y contrastación empírica.
   • Enfoque STEAM: Indagación empírica, modelado matemático y diseño creativo para solucionar problemas físicos, técnicos o ecológicos.
   • Aprendizaje Basado en Retos (ABR): Misiones contextualizadas que confrontan al estudiante con un desafío técnico o social apremiante.
   • Estudio de Casos Situados: Análisis deliberativo y debate sobre dilemas reales (técnicos, éticos, económicos o comunitarios).
@@ -218,13 +223,14 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
     "expandedCurriculum": [
       {"area": "Habilidades para la Vida y el Trabajo (HVyT)", "description": "string"},
       {"area": "Conceptos Centrales de la Educación para el Desarrollo Sostenible (CoCEDS)", "description": "string"}
-    ]
+    ],
+    "productoIntegrador": "string (OBLIGATORIO: describe el Producto Integrador Situado, su artefacto concreto, fases metodológicas e impacto comunitario PAEC)"
   },
   "sectionIV": {
     "note": "string",
     "procesosPensamiento": [
       {
-        "proceso": "asombro|problematizacion|traduccion|conceptualizacion|razonamiento|indagacion|reflexion|transferencia",
+        "proceso": "OBLIGATORIO incluir EXACTAMENTE los 8 objetos completos en este arreglo (uno por cada proceso en orden: asombro, problematizacion, traduccion, conceptualizacion, razonamiento, indagacion, reflexion, transferencia)",
         "descripcion": "string",
         "actividadEstudiante": "string",
         "utilidadReal": "string (para qué sirve en su vida diaria)",
@@ -282,7 +288,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
       "filasEstudiantes": [
         {
           "no": 1,
-          "nombreEstudiante": "string",
+          "nombreEstudiante": "string (generar 4 a 5 filas representativas de seguimiento)",
           "participativo": true,
           "dialogante": true,
           "cuestionador": false,
@@ -301,6 +307,10 @@ Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exac
     "spaces": ["string"],
     "references": ["string"]
   },
-  "sectionVII": {}
+  "sectionVII": {
+    "Elaboró": "string (nombre del docente titular)",
+    "Revisó": "string (Dirección Académica / Jefatura de Materia)",
+    "Autorizó": "string (Dirección del Plantel)"
+  }
 }`;
 

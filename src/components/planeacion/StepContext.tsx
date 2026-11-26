@@ -17,6 +17,7 @@ import {
 
 interface Props {
   extractedData: ExtractedPdfData;
+  semester?: number;
   component?: string;
   initialContext?: TeacherContext | null;
   onNext: (ctx: TeacherContext) => void;
@@ -41,6 +42,7 @@ const SUBSYSTEMS = [
 
 export default function StepContext({
   extractedData,
+  semester: selectedSemester,
   component: selectedComponent,
   initialContext,
   onNext,
@@ -73,12 +75,13 @@ export default function StepContext({
     metodologiaActiva: initialContext?.metodologiaActiva,
   }));
 
+  const resolvedSemester = selectedSemester ?? (extractedData as { semester?: number }).semester;
   const draftKey = `planeacion-context-${(extractedData.uacName || 'sin-uac')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')}-${(extractedData as { semester?: number }).semester ?? 'sin-semestre'}`;
+    .replace(/^-+|-+$/g, '')}-${resolvedSemester ?? 'sin-semestre'}`;
   const { restored: localDraftRestored, dismissRestore } = useLocalDraft<TeacherContext>(draftKey, form, {
     onRestore: (draft) => setForm((prev) => ({ ...prev, ...draft })),
   });
@@ -124,7 +127,7 @@ export default function StepContext({
           if (profile.cct && !initialContext?.paecProblem) {
             try {
               const uac = (extractedData as { uacName?: string })?.uacName || '';
-              const sem = (extractedData as { semester?: number })?.semester;
+              const sem = resolvedSemester;
               const totalActs = Array.isArray(extractedData.activities) ? extractedData.activities.length : 0;
               const pRes = await fetch(
                 `/api/paec/context?cct=${encodeURIComponent(profile.cct)}&uac=${encodeURIComponent(uac)}${sem ? `&semester=${sem}` : ''}${totalActs > 0 ? `&totalActivities=${totalActs}` : ''}`

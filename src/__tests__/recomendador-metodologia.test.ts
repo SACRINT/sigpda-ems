@@ -174,4 +174,30 @@ describe('recomendarMetodologia', () => {
       expect(recomendarMetodologia('Pensamiento Matemático Aplicado a las Finanzas 1', 'ffe_optativa')).toBe('abproblemas');
     });
   });
+
+  describe('Currículum Ampliado MCCEMS 2025-2026 (Semestres 2, 3, 4, 5 y 6)', () => {
+    it('recomienda Aprendizaje-Servicio (ApS) para Educación para la Salud (NO gamificación deportiva)', () => {
+      const res = recomendarMetodologia('Educación para la Salud', 'ampliado', 'bge');
+      expect(res).toBe('aprendizaje_servicio');
+      expect(res).not.toBe('gamificacion');
+    });
+
+    it('recomienda Aprendizaje-Servicio (ApS) para Práctica y Colaboración Ciudadana', () => {
+      expect(
+        recomendarMetodologia('Práctica y Colaboración Ciudadana', 'ampliado', 'bge')
+      ).toBe('aprendizaje_servicio');
+    });
+
+    it('recomienda Estudio de Casos Situados para Educación Integral en Sexualidad y Género', () => {
+      expect(
+        recomendarMetodologia('Educación Integral en Sexualidad y Género', 'ampliado', 'bge')
+      ).toBe('estudio_casos');
+    });
+
+    it('recomienda ABP para Actividades Artísticas y Culturales (sin número romano)', () => {
+      expect(
+        recomendarMetodologia('Actividades Artísticas y Culturales', 'ampliado', 'bge')
+      ).toBe('abp');
+    });
+  });
 });

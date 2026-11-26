@@ -157,11 +157,18 @@ export function buildUserPrompt(
   const isTransitionSemester = semester >= 5; // 5to y 6to semestre aún usan progresiones en 2026-2027
 
   // ── Hour distribution math ─────────────────────────────────────────────────
-  // BGE usa 18 semanas de mediación docente.
+  // BGE usa 18 semanas de mediación docente (3 cortes × 6 semanas = 18/36/54/72/90h).
   // Bachilleratos Tecnológicos (BT) usan 16 semanas de mediación docente oficial COSFAC.
   const weeksPerSemester = isTec ? 16 : 18;
-  const totalHours = officialProgram?.total_hours || extractedData.totalHours || (isTec && isLaboral ? 80 : 54);
-  const weeklyLoad = Math.max(1, Math.round(totalHours / weeksPerSemester));
+  const rawTotalHours = officialProgram?.total_hours || extractedData.totalHours || (isTec && isLaboral ? 80 : 54);
+  const weeklyLoad = Math.max(1, Math.round(rawTotalHours / weeksPerSemester));
+  const canonicalPerCorte = resolveSessionsPerBlock(weeklyLoad);
+  // En BGE (18 semanas), alinea el total semestral con la cuota canónica (weeklyLoad × 18) para evitar
+  // contradicciones en el prompt cuando un catálogo legado reporta 64h (base 16 sem) en lugar de 72h.
+  const totalHours =
+    !isTec && !isLaboral && weeklyLoad >= 1 && weeklyLoad <= 5
+      ? canonicalPerCorte * 3
+      : rawTotalHours;
 
   // ── Prepare Activities & Official Content ───────────────────────────────────
   let activitiesList: {
@@ -260,7 +267,6 @@ export function buildUserPrompt(
 
     // Regla inmortal: en asignaturas BGE (y cualquier carga de 1–5 h/sem equivalente a 6/12/18/24/30 sesiones/bloque),
     // cada Corte debe sumar exactamente `resolveSessionsPerBlock(weeklyLoad)` sin importar cuántas progresiones tenga.
-    const canonicalPerCorte = resolveSessionsPerBlock(weeklyLoad);
     activitiesList =
       !isTec || totalHours === canonicalPerCorte * 3
         ? enforceCanonicalCortesOnActivities(rawActivitiesList, weeklyLoad)
@@ -645,12 +651,12 @@ ${(context.paecOperationalActivity.propositoFormativo || context.paecOperational
 INSTRUCCIONES OBLIGATORIAS PARA ESTA ACTIVIDAD:
 1. SECCIÓN III (Transversalidad, PAEC y Producto Integrador):
    - Describe explícitamente cómo esta UAC (${extractedData.uacName}) vincula sus aprendizajes con la actividad institucional acordada: "${context.paecOperationalActivity.actividad}".
-   - En "transversalidad.productoIntegrador", integra OBLIGATORIAMENTE el Producto Integrador Situado compuesto arriba, detallando el Artefacto Integrador, sus fases metodológicas y su impacto en la comunidad escolar.
+   - En "sectionIII.productoIntegrador", integra OBLIGATORIAMENTE el Producto Integrador Situado compuesto arriba, detallando el Artefacto Integrador, sus fases metodológicas y su impacto en la comunidad escolar.
 2. SECCIÓN IV (Secuencia Didáctica): Integra y desarrolla esta actividad concreta en la secuencia didáctica (en la fase de Desarrollo o Cierre del Corte correspondiente), articulándola directamente con los saberes y contenidos oficiales.
 ` : `ESTADO DEL PLAN OPERATIVO DEL PAEC:
 Esta asignatura (${extractedData.uacName}) no cuenta con una actividad preasignada en el Plan Operativo del documento escolar.
 INSTRUCCIÓN:
-1. SECCIÓN III (Transversalidad, PAEC y Producto Integrador): Genera propuestas formativas pertinentes y situadas que vinculen la UAC con la problemática: "${context.paecProjectName || context.paecProblem.substring(0, 80)}". En "transversalidad.productoIntegrador", plasma de forma explícita el Producto Integrador Situado compuesto arriba con su artefacto y aplicación comunitaria.
+1. SECCIÓN III (Transversalidad, PAEC y Producto Integrador): Genera propuestas formativas pertinentes y situadas que vinculen la UAC con la problemática: "${context.paecProjectName || context.paecProblem.substring(0, 80)}". En "sectionIII.productoIntegrador", plasma de forma explícita el Producto Integrador Situado compuesto arriba con su artefacto y aplicación comunitaria.
 2. SECCIÓN IV (Secuencia Didáctica): Articula las secuencias formativas con las fases del Producto Integrador y las evidencias disciplinares oficiales.`}
 
 Caracterización y Perfil de los Estudiantes:
@@ -703,7 +709,7 @@ ${isTransitionSemester
    - "saberHacer": Procedimientos aplicados, destrezas técnicas, mediciones, cálculos, manipulación de herramientas y resolución operativa.
    - "saberSer": Actitudes profesionales, ética, seguridad e higiene, compromiso comunitario y trabajo colaborativo.
 4. SECCIÓN V (EVALUACIÓN FORMATIVA Y SUMATIVA CON EVIDENCIAS REALES):
-   - En cada momento de evaluación ("evaluacion"), utiliza OBLIGATORIAMENTE las Evidencias Sugeridas oficiales listadas arriba (respetando la máxima prioridad de teacherOverrides y las evidencias disciplinares derivadas). Queda ESTRICTAMENTE PROHIBIDO inventar textos genéricos como "Ensayo crítico" o "Portafolio de evidencias" cuando no correspondan a la naturaleza de la UAC.
+   - En cada momento de evaluación ("sectionV.evaluations"), utiliza OBLIGATORIAMENTE las Evidencias Sugeridas oficiales listadas arriba (respetando la máxima prioridad de teacherOverrides y las evidencias disciplinares derivadas). Queda ESTRICTAMENTE PROHIBIDO inventar textos genéricos como "Ensayo crítico" o "Portafolio de evidencias" cuando no correspondan a la naturaleza de la UAC.
    - Evalúa formativa y sumativamente el Producto Integrador Situado a través de los criterios e instrumentos de acreditación formal.
    - Asegura que las ponderaciones de los criterios sumen exactamente 100% e incluye el Acuerdo de Acreditación formal firmado.
 5. SECCIÓN VI (MATERIALES): En "teacherMaterials" incluye ÚNICAMENTE materiales diseñados por el docente (guías, manuales, hojas de trabajo). NUNCA infraestructura física escolar (proyector, internet, pizarrones).
@@ -712,7 +718,7 @@ ${isTransitionSemester
    - "retoSituado": Genera un reto de alta utilidad real con verbo en infinitivo (Diseñar, Construir, Diagnosticar, Evaluar, Mitigar, Optimizar), contexto local concreto de Puebla (${location}), problemática real de la comunidad ("${context.paecProblem.substring(0, 80)}") y propósito curricular articulado.
    - "diagnosticoSituado3D": Desarrolla la dimensión territorial, la dimensión de praxis juvenil (reconociendo al 44% de alumnos que trabajan) y la dimensión de aula/EDIEMS (rezago diagnóstico y BAP).
 8. SECCIÓN IV (8 PROCESOS DE PENSAMIENTO Y MODELO FINLANDÉS):
-   - "procesosPensamiento": Desglosa los 8 procesos cognitivos oficiales (asombro, problematizacion, traduccion, conceptualizacion, razonamiento, indagacion, reflexion, transferencia) indicando para cada uno su "utilidadReal" cotidiana y su "garantiaDualOffline" en aula (material análogo). CERO tareas de relleno o memorísticas pasivas.
+   - "sectionIV.procesosPensamiento": OBLIGATORIO devolver EXACTAMENTE los 8 objetos completos (uno por cada proceso: asombro, problematizacion, traduccion, conceptualizacion, razonamiento, indagacion, reflexion, transferencia — NUNCA devuelvas solo 1 o 2 elementos), indicando para cada uno su "utilidadReal" cotidiana y su "garantiaDualOffline" en aula (material análogo). CERO tareas de relleno o memorísticas pasivas.
 9. SECCIÓN V-B (BITÁCORA FORMATIVA Y REGULADORA 50-20-30):
    - "bitacora502030": Genera la bitácora oficial con criterioProceso50 (observando participativo, dialogante, cuestionador, apoyo), evidenciaColectiva20, evidenciaIndividual30, ticketSalidaPregunta y 4-5 estudiantes representativos con calificaciones y notas cualitativas de acompañamiento.
 

@@ -249,6 +249,7 @@ export default function NuevaPlaneacionClient({ locale }: Props) {
             {draft.step === 3 && draft.extractedData && draft.uacSelection && (
               <StepContext
                 extractedData={draft.extractedData}
+                semester={draft.uacSelection.semester}
                 component={draft.uacSelection.component}
                 initialContext={draft.context}
                 onNext={handleContextNext}

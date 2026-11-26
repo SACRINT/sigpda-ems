@@ -15,6 +15,35 @@ import {
 } from '@/lib/bge-actividades-clave-catalog';
 import { useLocalDraft } from '@/hooks/useLocalDraft';
 
+interface CatalogContenidoItem {
+  order?: number;
+  orden?: number;
+  numero?: number;
+  proposito?: string;
+  progresion?: string;
+  contenidos?: string | string[];
+  temas?: string[];
+  categorias?: string[];
+  subcategorias?: string[];
+  metas?: string[];
+  actividad?: string;
+  saberes?: string[];
+}
+
+interface CatalogProgramRecord {
+  id: string;
+  uac_name: string;
+  semester: number;
+  component: string;
+  curriculum_name?: string;
+  total_hours?: number;
+  learning_outcome?: string;
+  activities?: ExtractedPdfData['activities'];
+  evidences?: string[];
+  contenidos_formativos?: CatalogContenidoItem[];
+  year?: number;
+}
+
 export interface UACSelection {
   uacName: string;
   semester: number;
@@ -52,8 +81,8 @@ export default function StepUAC_BGE({
         curriculumName: '',
       });
 
-  const [catalogPrograms, setCatalogPrograms] = useState<any[]>([]);
-  const [selectedCatalogUac, setSelectedCatalogUac] = useState<any>(null);
+  const [catalogPrograms, setCatalogPrograms] = useState<CatalogProgramRecord[]>([]);
+  const [selectedCatalogUac, setSelectedCatalogUac] = useState<CatalogProgramRecord | null>(null);
   const [isManualInput, setIsManualInput] = useState(Boolean(initialSelection?.uacName));
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,18 +91,29 @@ export default function StepUAC_BGE({
       ? initialSelection.curriculumName
       : ''
   );
+  const selectedSpecialtyRef = useRef(selectedSpecialty);
+  useEffect(() => {
+    selectedSpecialtyRef.current = selectedSpecialty;
+  }, [selectedSpecialty]);
   const restoredInitialRef = useRef(!initialSelection?.uacName);
 
   const restoredDraftRef = useRef<UACSelection | null>(null);
-  const { restored: localDraftRestored, dismissRestore } = useLocalDraft<UACSelection>(
+  const {
+    restored: localDraftRestored,
+    isHydrated: isDraftHydrated,
+    dismissRestore,
+  } = useLocalDraft<UACSelection>(
     `planeacion-uac-bge-${selectedSubsystem || 'bge'}`,
     form,
     {
       onRestore: (draft) => {
         restoredDraftRef.current = draft;
         setForm((prev) => ({ ...prev, ...draft }));
-        if (draft.curriculumName) setSelectedSpecialty(draft.curriculumName);
-        setIsManualInput(Boolean(draft.uacName));
+        if (draft.component === 'laboral' && draft.curriculumName) {
+          setSelectedSpecialty(draft.curriculumName);
+        } else {
+          setSelectedSpecialty('');
+        }
       },
     }
   );
@@ -89,14 +129,14 @@ export default function StepUAC_BGE({
   const activeSpecialty = selectedSpecialty || (form.component === 'laboral' ? (specialties[0] || '') : '');
 
   // Filtrar UACs según el componente y la capacitación seleccionada
-  const filteredUacs: any[] = form.component === 'laboral'
+  const filteredUacs: CatalogProgramRecord[] = form.component === 'laboral'
     ? (() => {
         if (!activeSpecialty || activeSpecialty === 'manual_specialty') {
           return [];
         }
 
         const normSpec = normalizeKey(activeSpecialty);
-        let matches = catalogPrograms.filter(p => normalizeKey(p.curriculum_name) === normSpec);
+        let matches = catalogPrograms.filter(p => normalizeKey(p.curriculum_name || '') === normSpec);
 
         const expectedNames = getUacNamesForCapacitacion(activeSpecialty, form.semester);
         if (expectedNames.length > 0) {
@@ -139,16 +179,28 @@ export default function StepUAC_BGE({
     : catalogPrograms;
 
   // Carga de programas desde el catálogo oficial BGE
+  // Espera a que useLocalDraft hidrate antes de disparar el primer fetch y cancela
+  // respuestas obsoletas (AbortController + flag) para impedir sobrescritura por race condition.
   useEffect(() => {
+    if (!isDraftHydrated) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+
     const fetchPrograms = async () => {
       setLoadingPrograms(true);
       try {
         const subParam = selectedSubsystem ? `&subsystem=${selectedSubsystem}` : '&subsystem=bge';
-        const res = await fetch(`/api/programs?semester=${form.semester}&component=${form.component}${subParam}`);
+        const res = await fetch(
+          `/api/programs?semester=${form.semester}&component=${form.component}${subParam}`,
+          { signal: controller.signal }
+        );
         const data = await res.json();
 
+        if (cancelled) return;
+
         if (data.programs) {
-          const filtered = data.programs;
+          const filtered = data.programs as CatalogProgramRecord[];
           setCatalogPrograms(filtered);
 
           const restoringInitial = !restoredInitialRef.current;
@@ -162,37 +214,40 @@ export default function StepUAC_BGE({
             )
           );
 
-          const pickSelection = (candidates: any[]) => {
+          const pickSelection = (candidates: CatalogProgramRecord[]) => {
             const draft = restoredDraftRef.current;
-            if (draft?.uacName) {
+            if (draft?.uacName && draft.semester === form.semester && draft.component === form.component) {
+              const draftKey = normalizeKey(draft.uacName);
               const draftMatch = candidates.find(
-                (program) => normalizeKey(program.uac_name || '') === normalizeKey(draft.uacName)
+                (program) =>
+                  normalizeKey(program.uac_name || '') === draftKey ||
+                  normalizeKey(cleanSocioemotionalName(program.uac_name || '', form.semester)) === draftKey
               );
               if (draftMatch) return draftMatch;
             }
-            return restoringInitial ? candidates.find(matchesInitialSelection) : candidates[0];
+            return restoringInitial ? (candidates.find(matchesInitialSelection) || candidates[0]) : candidates[0];
           };
 
           if (form.component === 'laboral') {
-            let currentSpec = selectedSpecialty;
+            let currentSpec = selectedSpecialtyRef.current;
             const validSpecialty = Boolean(
               currentSpec &&
               currentSpec !== 'manual_specialty' &&
-              specialties.some(s => normalizeKey(s) === normalizeKey(currentSpec))
+              FORMACIONES_LABORALES_BGE.some(s => normalizeKey(s) === normalizeKey(currentSpec))
             );
 
             if (!validSpecialty && !(restoringInitial && initialSelection?.component === 'laboral')) {
-              currentSpec = specialties[0] || '';
+              currentSpec = FORMACIONES_LABORALES_BGE[0] || '';
               setSelectedSpecialty(currentSpec);
             }
 
             if (currentSpec && currentSpec !== 'manual_specialty') {
               const normSpec = normalizeKey(currentSpec);
-              let matches = filtered.filter((p: any) => normalizeKey(p.curriculum_name) === normSpec);
+              let matches = filtered.filter((p) => normalizeKey(p.curriculum_name || '') === normSpec);
 
               const expected = getUacNamesForCapacitacion(currentSpec, form.semester);
               if (expected.length > 0) {
-                const found = filtered.filter((p: any) =>
+                const found = filtered.filter((p) =>
                   expected.some(exp => normalizeKey(p.uac_name) === normalizeKey(exp))
                 );
                 if (found.length > 0) matches = found;
@@ -238,6 +293,8 @@ export default function StepUAC_BGE({
                   }));
                   setIsManualInput(false);
                 }
+              } else {
+                setSelectedCatalogUac(null);
               }
             }
           } else {
@@ -255,23 +312,37 @@ export default function StepUAC_BGE({
                 }));
                 setIsManualInput(false);
               }
+            } else {
+              setSelectedCatalogUac(null);
             }
           }
 
           restoredInitialRef.current = true;
+          restoredDraftRef.current = null;
         }
       } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) {
+          return;
+        }
         console.error('Error fetching BGE catalog programs:', err);
       } finally {
-        setLoadingPrograms(false);
+        if (!cancelled) {
+          setLoadingPrograms(false);
+        }
       }
     };
 
     fetchPrograms();
-  }, [form.semester, form.component, selectedSubsystem, initialSelection]);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [isDraftHydrated, form.semester, form.component, selectedSubsystem, initialSelection]);
 
   // Cambio de semestre
   const handleSemesterChange = (newSemester: number) => {
+    restoredDraftRef.current = null;
     let nextComponent = form.component;
     if (SEMESTERS_WITHOUT_COMPONENT.bge.includes(newSemester) && form.component === 'laboral') {
       nextComponent = 'fundamental';
@@ -288,6 +359,7 @@ export default function StepUAC_BGE({
 
   // Cambio de componente
   const handleComponentChange = (newComponent: string) => {
+    restoredDraftRef.current = null;
     const isLaboral = newComponent === 'laboral';
     const defaultSpec = FORMACIONES_LABORALES_BGE[0];
     const specToUse = isLaboral ? (selectedSpecialty || defaultSpec) : '';
@@ -340,6 +412,7 @@ export default function StepUAC_BGE({
 
   // Cambio de capacitación
   const handleSpecialtyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    restoredDraftRef.current = null;
     const val = e.target.value;
     if (val === 'manual_specialty') {
       setIsManualInput(true);
@@ -351,7 +424,7 @@ export default function StepUAC_BGE({
       setIsManualInput(false);
 
       const expected = getUacNamesForCapacitacion(val, form.semester);
-      let matches = catalogPrograms.filter(p => normalizeKey(p.curriculum_name) === normalizeKey(val));
+      let matches = catalogPrograms.filter(p => normalizeKey(p.curriculum_name || '') === normalizeKey(val));
 
       if (expected.length > 0) {
         const found = catalogPrograms.filter(p =>
@@ -408,6 +481,7 @@ export default function StepUAC_BGE({
 
   // Cambio de UAC en el select
   const handleUacSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    restoredDraftRef.current = null;
     const val = e.target.value;
     if (val === 'manual') {
       setIsManualInput(true);
@@ -454,12 +528,12 @@ export default function StepUAC_BGE({
 
       const initialData: ExtractedPdfData = {
         uacName: cleanUacName,
-        learningOutcome: selectedCatalogUac.learning_outcome,
+        learningOutcome: selectedCatalogUac.learning_outcome || '',
         totalHours: selectedCatalogUac.total_hours || 54,
         activities: selectedCatalogUac.activities ||
           // Fallback: look up in static catalog by curriculum/semester/uac position
           getActividadesClaveBGE(
-            selectedCatalogUac.curriculum_name,
+            selectedCatalogUac.curriculum_name || '',
             selectedCatalogUac.semester,
             1
           ) || [
@@ -467,7 +541,7 @@ export default function StepUAC_BGE({
             { order: 2 as const, name: selectedCatalogUac.uac_name, hours: 18 as const },
             { order: 3 as const, name: selectedCatalogUac.uac_name, hours: 18 as const },
           ],
-        evidences: selectedCatalogUac.evidences,
+        evidences: selectedCatalogUac.evidences || [],
         parseConfidence: 'high',
         year: selectedCatalogUac.year || 2025,
         contenidosFormativos: form.component === 'laboral' ? undefined : selectedCatalogUac.contenidos_formativos,
@@ -742,9 +816,20 @@ export default function StepUAC_BGE({
                   <div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Contenidos / Temas</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
-                      {selectedCatalogUac.contenidos_formativos?.length > 0
-                        ? `${selectedCatalogUac.contenidos_formativos.reduce((acc: number, c: any) => acc + (c.contenidos?.length || 0), 0)} temas precargados`
-                        : 'Listos para sincronizar'}
+                      {(() => {
+                        const totalTemas = Array.isArray(selectedCatalogUac.contenidos_formativos)
+                          ? selectedCatalogUac.contenidos_formativos.reduce(
+                              (acc: number, c: CatalogContenidoItem) =>
+                                acc + (Array.isArray(c?.contenidos) && c.contenidos.length > 0
+                                  ? c.contenidos.length
+                                  : Array.isArray(c?.temas)
+                                    ? c.temas.length
+                                    : 0),
+                              0
+                            )
+                          : 0;
+                        return totalTemas > 0 ? `${totalTemas} temas precargados` : 'Listos para sincronizar';
+                      })()}
                     </div>
                   </div>
                 </>

@@ -339,10 +339,19 @@ export async function POST(
                     : undefined,
               extractedData: effectiveExtractedData as unknown as Record<string, unknown>,
             });
+            const canonicalBgeTotalHours =
+              !isTechnologicalSubsystem(resolvedSubsystem) &&
+              resolvedComponent !== 'laboral' &&
+              resolvedWeeklyHours >= 1 &&
+              resolvedWeeklyHours <= 5
+                ? resolveSessionsPerBlock(resolvedWeeklyHours) * 3
+                : 0;
             const resolvedTotalHours =
-              resolvedTotalHoursRaw > 0
-                ? resolvedTotalHoursRaw
-                : resolvedWeeklyHours * resolveSemesterWeeks(resolvedSubsystem);
+              canonicalBgeTotalHours > 0
+                ? canonicalBgeTotalHours
+                : resolvedTotalHoursRaw > 0
+                  ? resolvedTotalHoursRaw
+                  : resolvedWeeklyHours * resolveSemesterWeeks(resolvedSubsystem);
 
             parsedContent.sectionI.uacName = resolvedUacName;
             if (!parsedContent.sectionI.subjectName) {
@@ -464,6 +473,32 @@ export async function POST(
                   ? rawBitacora.ticketSalidaPregunta
                   : `¿Qué concepto de ${resolvedUacName} aplicaste hoy en tu contexto?`,
             };
+
+            // Normalizar sectionIII.productoIntegrador si el modelo lo devolvió bajo clave heredada transversalidad
+            const legacyTransv = (parsedContent as unknown as Record<string, unknown>).transversalidad as
+              | { productoIntegrador?: unknown }
+              | undefined;
+            if (!parsedContent.sectionIII || typeof parsedContent.sectionIII !== 'object') {
+              parsedContent.sectionIII = {};
+            }
+            const s3Rec = parsedContent.sectionIII as Record<string, unknown>;
+            if (
+              (!s3Rec.productoIntegrador || String(s3Rec.productoIntegrador).trim().length < 10) &&
+              typeof legacyTransv?.productoIntegrador === 'string' &&
+              legacyTransv.productoIntegrador.trim().length >= 10
+            ) {
+              s3Rec.productoIntegrador = legacyTransv.productoIntegrador.trim();
+            }
+
+            // Garantizar sección VII (firmas institucionales) poblada si llegó vacía
+            const s7Raw = (parsedContent as unknown as Record<string, unknown>).sectionVII;
+            if (!s7Raw || typeof s7Raw !== 'object' || Object.keys(s7Raw as Record<string, unknown>).length === 0) {
+              (parsedContent as unknown as Record<string, unknown>).sectionVII = {
+                Elaboró: String(parsedContent.sectionI.teacherName || 'Docente Titular'),
+                Revisó: 'Dirección Académica',
+                Autorizó: context.directorName || 'Dirección del Plantel',
+              };
+            }
 
             // Regla inmortal de sesiones por bloque: en BGE (y cargas 1–5 h/sem equivalentes a 6/12/18/24/30 por bloque),
             // cada Corte de sectionIV.activities DEBE sumar exactamente resolveSessionsPerBlock(resolvedWeeklyHours).
