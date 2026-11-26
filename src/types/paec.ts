@@ -96,6 +96,7 @@ export interface MapeoRow {
   uacName: string;
   topic: string;
   linking: string;
+  component?: string;
 }
 
 export interface CronogramaRow {

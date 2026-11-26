@@ -369,7 +369,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             municipality: project.municipality,
           });
       const effectiveFoda = baseFoda;
-      const fodaChanged = fodaNeedsSynthesis || !currentFoda.cruzado?.fo || !currentFoda.cruzado?.da;
+      const fodaChanged =
+        fodaNeedsSynthesis ||
+        JSON.stringify(effectiveFoda) !== JSON.stringify(currentFoda);
 
       const normativaDocs = await getOrLoadProjectNormativa(project.normativa);
       const basePrompt = buildPmcDiagnosticoPrompt(

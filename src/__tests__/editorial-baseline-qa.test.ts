@@ -26,7 +26,6 @@ import {
   extractFormulasFromText,
   preventSixGramTheoryOverlap,
 } from '@/lib/visual-engine/sacrint/content-distiller';
-import { resolveSacrintPack } from '@/lib/visual-engine/sacrint/discipline-packs';
 import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
 import { MATH_DEMO_WORKBOOK } from '@/lib/visual-engine/sacrint/fixtures/math-demo-workbook';
 import { buildSacrintDeck, buildSacrintInfographic } from '@/lib/visual-engine/sacrint/spec';
@@ -174,11 +173,11 @@ describe('Fase 0 Baseline QA — Regresiones editoriales, visuales y pedagógica
     const svgs = renderDeckSvgs(deck);
     const s1Text = svgs[1]!.svg.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     const s2Text = svgs[2]!.svg.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    // Slide 2/2 conserva oración inicial completa de práctica y aplicación (sin recortar "El terreno..." ni "Observa...")
+    // Slide 2/2 conserva oración inicial completa de práctica y aplicación (permitiendo sinonimia anti-6-gram Observa→Examina)
     expect(s2Text).toContain('El terreno');
     expect(s2Text).toContain('12 m');
     expect(s2Text).toContain('9 m');
-    expect(s2Text).toContain('Observa el salón');
+    expect(s2Text).toMatch(/(?:Observa|Examina)\s+el\s+sal[oó]n/i);
     expect(s2Text).toMatch(/OBJETIVOS?|METAS?|PROP[OÓ]SITO/i);
     expect(s2Text).toMatch(/EVALUACI[OÓ]N|CRITERIOS?|R[UÚ]BRICA/i);
 

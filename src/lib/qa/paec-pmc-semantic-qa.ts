@@ -149,18 +149,6 @@ export function resolveExpectedMccemsLabel(
 }
 
 /**
- * Infiere el semestre desde el numeral romano final del nombre de la UAC
- * solo como respaldo defensivo si no vino explícito en el mapeo.
- */
-export function inferSemesterFromUacName(uacName: string): number | null {
-  const clean = String(uacName || '').trim();
-  const m = clean.match(/\b(VI|IV|V|III|II|I)\b(?:\s*[:.\-–].*)?$/);
-  if (!m) return null;
-  const romanMap: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
-  return romanMap[m[1]] ?? null;
-}
-
-/**
  * Fórmula exacta F11 para meta de reprobación:
  * En F11, aprobados + reprobados + bajas = totalAlumnos (mismo denominador).
  * Por tanto:

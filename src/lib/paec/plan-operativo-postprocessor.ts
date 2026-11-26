@@ -77,6 +77,13 @@ export function distillPaecProgression(
       // Limpiar menciones residuales internas de "Progresión" en fundamental 1-4 / 2027+
       text = text.replace(/\bProgresiones?\s+de\s+Aprendizaje\b/gi, 'Propósitos Formativos');
       text = text.replace(/\bProgresi[oó]n\s+(\d+)\b/gi, 'Propósito Formativo $1');
+    } else if (expected === 'Progresión') {
+      text = text.replace(
+        /^Prop[oó]sito(?:s)?\s+Formativo(?:s)?\s*(\d+)?\s*[:.\-–]?\s*/i,
+        (_, num) => (num ? `Progresión ${num}: ` : 'Progresión: ')
+      );
+      text = text.replace(/\bProp[oó]sitos\s+Formativos\b/gi, 'Progresiones de Aprendizaje');
+      text = text.replace(/\bProp[oó]sito\s+Formativo\s+(\d+)\b/gi, 'Progresión $1');
     } else if (expected === 'Actividad Clave') {
       text = text.replace(
         /^(?:Prop[oó]sito\s+Formativo|Progresi[oó]n(?:\s+de\s+Aprendizaje)?)\s*(\d+)?\s*[:.\-–]?\s*/i,

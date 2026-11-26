@@ -5,7 +5,7 @@ import type {
   PlanOperativoRow,
   PlanOperativoData,
 } from '@/types/paec';
-import { auditPaecPlan } from '@/lib/qa/paec-pmc-semantic-qa';
+import { auditPaecPlan, type PaecUacCatalogMeta } from '@/lib/qa/paec-pmc-semantic-qa';
 import { DIMENSIONS } from './shared';
 
 export function evaluateCriterio11(cronograma: CronogramaRow[] | null | undefined): PaecAuditCriterion {
@@ -296,11 +296,14 @@ function inspectPlanOperativoSemestre(
 
 export function evaluateCriterio15(
   planA: PlanOperativoRow[] | null | undefined,
-  planOperativoLegacy?: PlanOperativoData | null
+  planOperativoLegacy?: PlanOperativoData | null,
+  uacCatalog: PaecUacCatalogMeta[] = [],
+  cicloEscolar?: string
 ): PaecAuditCriterion {
   const rows = planA || planOperativoLegacy?.semestreA || [];
   const info = inspectPlanOperativoSemestre(rows);
-  const semantic = rows.length > 0 ? auditPaecPlan(rows, [], { parity: 1, strict: false }) : null;
+  const semantic =
+    rows.length > 0 ? auditPaecPlan(rows, uacCatalog, { parity: 1, cicloEscolar, strict: false }) : null;
   const hardSemanticFails = semantic
     ? semantic.fails.filter((f) => !f.startsWith('semanas sin actividad') && !f.includes('columna'))
     : [];
@@ -350,11 +353,14 @@ export function evaluateCriterio15(
 
 export function evaluateCriterio16(
   planB: PlanOperativoRow[] | null | undefined,
-  planOperativoLegacy?: PlanOperativoData | null
+  planOperativoLegacy?: PlanOperativoData | null,
+  uacCatalog: PaecUacCatalogMeta[] = [],
+  cicloEscolar?: string
 ): PaecAuditCriterion {
   const rows = planB || planOperativoLegacy?.semestreB || [];
   const info = inspectPlanOperativoSemestre(rows);
-  const semantic = rows.length > 0 ? auditPaecPlan(rows, [], { parity: 0, strict: false }) : null;
+  const semantic =
+    rows.length > 0 ? auditPaecPlan(rows, uacCatalog, { parity: 0, cicloEscolar, strict: false }) : null;
   const hardSemanticFails = semantic
     ? semantic.fails.filter((f) => !f.startsWith('semanas sin actividad') && !f.includes('columna'))
     : [];

@@ -3,9 +3,11 @@ import { auth } from '@/lib/auth';
 import {
   getTeacherByEmail,
   getPaecProjectById,
+  getProgramsCatalogForPaec,
   updatePaecProjectStep,
   updatePaecQualityAudit,
 } from '@/lib/db';
+import { matchCurricularContent } from '@/lib/paec-curricular-helper';
 import {
   validatePaecStepResult,
   calculateGlobalPaecScore,
@@ -28,7 +30,7 @@ import {
   PaecPaso9GobernanzaSchema,
 } from '@/lib/ai-schemas';
 import { z } from 'zod';
-import type { DetalleCurricularRow } from '@/types/paec';
+import type { DetalleCurricularRow, MapeoRow } from '@/types/paec';
 import { extractIdempotencyKey, checkIdempotencyKey, createIdempotencyKey } from '@/lib/idempotency';
 import {
   distillPaecProgression,
@@ -187,17 +189,36 @@ export async function POST(
       parsedJson = parseResult.data as object;
     }
 
-    // Fase C: Destilar progressionsOrPurposes en Paso 5 (Detalle Curricular)
+    // Fase C: Enriquecer component en Paso 3 (no-chunked) y destilar progressionsOrPurposes en Paso 5
+    if (step === 3 && Array.isArray(parsedJson)) {
+      const step3Semesters = project.cycle_type === 'A' ? [1, 3, 5] : project.cycle_type === 'B' ? [2, 4, 6] : [1, 2, 3, 4, 5, 6];
+      const allUacsStep3 = await getProgramsCatalogForPaec(step3Semesters);
+      parsedJson = (parsedJson as MapeoRow[]).map((row) => {
+        if (row.component) return row;
+        const catMatch = matchCurricularContent(row.uacName, Number(row.semester), allUacsStep3);
+        return {
+          ...row,
+          component: catMatch?.component || undefined,
+        };
+      });
+    }
+
     if (step === 5 && Array.isArray(parsedJson)) {
-      parsedJson = (parsedJson as DetalleCurricularRow[]).map((row) => ({
-        ...row,
-        progressionsOrPurposes: distillPaecProgression(row.progressionsOrPurposes, {
-          semester: Number(row.semester),
-          component: isLikelyLaboralUac(row.uacName) ? 'competencias_laborales' : 'fundamental',
-          cicloEscolar: SCHOOL_YEAR,
-          maxChars: 340,
-        }),
-      }));
+      const mapeoRows = (project.fase2_mapeo || []) as MapeoRow[];
+      parsedJson = (parsedJson as DetalleCurricularRow[]).map((row) => {
+        const mapped = mapeoRows.find(
+          (m) => m.uacName.toLowerCase().trim() === row.uacName.toLowerCase().trim() && Number(m.semester) === Number(row.semester)
+        );
+        return {
+          ...row,
+          progressionsOrPurposes: distillPaecProgression(row.progressionsOrPurposes, {
+            semester: Number(row.semester),
+            component: mapped?.component || (isLikelyLaboralUac(row.uacName) ? 'competencias_laborales' : 'fundamental'),
+            cicloEscolar: SCHOOL_YEAR,
+            maxChars: 340,
+          }),
+        };
+      });
     }
 
     // Persistir el resultado definitivo en la BD Neon
@@ -210,7 +231,10 @@ export async function POST(
     );
 
     // FASE C: Quality Gate Oficial — Evaluación normativa por paso
-    const stepAudit = validatePaecStepResult(step, parsedJson);
+    const stepAudit = validatePaecStepResult(step, parsedJson, {
+      mapeo: (updatedProject.fase2_mapeo || project.fase2_mapeo) as MapeoRow[] | null | undefined,
+      cicloEscolar: SCHOOL_YEAR,
+    });
     logger.info(`[PAEC Quality Gate] Paso ${step} evaluado: Score ${stepAudit.score}/100 (${stepAudit.estatus})`);
 
     // Si score < 60 en algún criterio (score <= 2 de 4): registrar warning pero NO bloquear

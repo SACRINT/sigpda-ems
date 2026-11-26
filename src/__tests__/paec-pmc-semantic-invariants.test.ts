@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePmcCategoria } from '@/lib/constants/pmc-categorias';
 import { distillPaecProgression, sanitizePaecOperationalPlan } from '@/lib/paec/plan-operativo-postprocessor';
-import { evaluateCriterio15 } from '@/lib/paec-quality-gate';
+import { evaluateCriterio15, evaluateCriterio16 } from '@/lib/paec-quality-gate';
 import { computePmcIndicatorValues } from '@/lib/pmc-indicator-calculator';
 import { ensureCrossFoda } from '@/lib/pmc/pmc-foda-synthesizer';
 import { calculateGlobalPmcScore } from '@/lib/pmc-quality-gate';
@@ -328,6 +328,44 @@ describe('PAEC / PMC Semantic QA Invariants (Fase A)', () => {
       dupPlan.push({ ...dupPlan[2], week: 'Semana 4' });
       const c15 = evaluateCriterio15(dupPlan as never);
       expect(c15.score).toBeLessThan(4);
+    });
+
+    it('distills Propósito Formativo -> Progresión for sem 5-6 in cycle < 2027-2028 and keeps Propósito Formativo in >= 2027-2028', () => {
+      const sem5OldCycle = distillPaecProgression(
+        'Propósito Formativo 2: Analiza el expansionismo capitalista en México.',
+        { semester: 5, component: 'fundamental', cicloEscolar: '2026-2027' }
+      );
+      expect(sem5OldCycle).toMatch(/^Progresión 2:/);
+
+      const sem5NewCycle = distillPaecProgression(
+        'Propósito Formativo 2: Analiza el expansionismo capitalista en México.',
+        { semester: 5, component: 'fundamental', cicloEscolar: '2027-2028' }
+      );
+      expect(sem5NewCycle).toMatch(/^Propósito Formativo 2:/);
+    });
+
+    it('evaluates C15/C16 parity with real uacCatalog (penalizes leaked semester, allows Sem 5 Conciencia Histórica II in Sem A)', () => {
+      const validSem5Plan = make16WeekPaecPlan([
+        {
+          uac: 'Conciencia Histórica II',
+          progression: 'Progresión 2: Analiza el expansionismo capitalista en México.',
+        },
+      ]);
+      const c15Valid = evaluateCriterio15(validSem5Plan as never, null, SAMPLE_CATALOG, '2026-2027');
+      expect(c15Valid.score).toBe(4);
+
+      const leakedSemA = make16WeekPaecPlan([{ uac: 'Ciencias Sociales II' }]);
+      const c15Leaked = evaluateCriterio15(leakedSemA as never, null, SAMPLE_CATALOG, '2026-2027');
+      expect(c15Leaked.score).toBeLessThan(4);
+      expect(c15Leaked.feedback).toMatch(/paridad rota/i);
+
+      const leakedSemB = make16WeekPaecPlan().map((r) => ({
+        ...r,
+        uac: r.week === 'Semana 3' ? 'Ciencias Sociales I' : 'Ciencias Sociales II',
+      }));
+      const c16Leaked = evaluateCriterio16(leakedSemB as never, null, SAMPLE_CATALOG, '2026-2027');
+      expect(c16Leaked.score).toBeLessThan(4);
+      expect(c16Leaked.feedback).toMatch(/paridad rota/i);
     });
   });
 });

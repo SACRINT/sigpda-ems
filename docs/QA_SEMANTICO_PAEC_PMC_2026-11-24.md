@@ -10,8 +10,8 @@
 ## 0. Decisiones acordadas (cierre de preguntas)
 
 - **Q2 — Datos históricos: SÍ se remedian**, en **Fase C.5**, con script **idempotente y transaccional** (dry-run primero, backup/rollback, aprobación explícita). Alcance:
-  1. **6 filas paridad rota** en `fase3_plan_operativo_a`: "Conciencia Histórica II" en *Comunidad Resiliente* (2) y *Eco-Cuenca* (4).
-  2. **2 metas de reprobación invertidas**: Moisés Sáenz Garza `ant 0 → meta 7.5`; Héroes de la Patria `ant 11.6 → meta 11.9`.
+  1. ~~**6 filas paridad rota** en `fase3_plan_operativo_a`~~ *(Falsado contra BD en Fase A/C.5: en MCCEMS, `Conciencia Histórica II` es 5.° semestre = impar → Semestre A válido; **0 violaciones reales de paridad en PAEC**, ver §11.2)*.
+  2. **2 metas de reprobación invertidas**: Moisés Sáenz Garza `ant 0 → meta 7.5`; Héroes de la Patria `ant 11.6 → meta 11.9` (más `et_meta` invertida en Supervisión Escolar 004).
   3. **Categorías mixtas** en los 3 PMC (códigos `1/2/3` + llaves legacy + nombres).
 - **Q3 — Exportación: SÍ.** `HTTP 422` **solo en FAIL duro**; los **WARN** se registran en log y **permiten la descarga** con aviso. No se bloquea por WARN.
 
@@ -23,7 +23,7 @@
 |---|---|---|
 | FODA sintetizado se descarta | `api/pmc/[id]/generate-step/route.ts:476` guarda `currentFoda` cuando `fodaNeedsSynthesis`; usa `effectiveFoda` solo en prompt (352/368). | CONFIRMADO |
 | `reprobacion_meta` invertida | BD: Héroes `11.6 → 11.9`; Moisés `0 → 7.5`. Fórmula `max(0,100−aprobacion_meta)` en `PmcWizardClient.tsx:1682/1707` y `pmc-indicator-calculator.ts:114-116`. | CONFIRMADO |
-| Paridad rota en Semestre A | "Conciencia Histórica II" en `fase3_plan_operativo_a` en **ambos** PAEC (2 + 4 filas). | CONFIRMADO |
+| Paridad en Semestre A (`Conciencia Histórica II`) | BD (`fase2_mapeo`): `Conciencia Histórica II` es **5.° semestre (impar)** en ambos PAEC → paridad válida en Sem A (**0 violaciones reales**, ver §11.2). | FALSADO (OK EN BD) |
 | `paec-context` devuelve 1 fila y sin semestre | `matchOperationalActivity` retorna en la 1.ª coincidencia (`paec-context.ts:143`); `planRows` concatena fase2+A+B sin filtro (258-262). `matchCurricularMapping` ya filtra por semestre (163/171). | CONFIRMADO |
 | PMC-C8 laxo | `pmc-quality-gate.ts:455` `creaaCompliant >= 1` da puntaje completo. | CONFIRMADO |
 | Taxonomía sucia | BD: 8 etiquetas en Héroes; Moisés mezcla `1/2` + nombres; Supervisión solo `1/2/3`. | CONFIRMADO |
@@ -319,7 +319,7 @@ Si `--env-file`/`--import tsx` no aplica en su Node, usar `npx tsx` + dotenv. Ve
   Post-procesador en Pasos 5/6/7 (destilar `progression` ≤280, guard paridad, MCCEMS data-driven por ciclo, dedupe S16); endurecer `paec-quality-gate.ts` (C15–C18) y gate de exportación; `paec-context.ts` devuelve `operationalActivities[]` por corte (SSoT `curricular-blocks.ts`) manteniendo `operationalActivity`; actualizar `build-prompt.ts` y proyecto PAEC del libro.
   **Gate:** PAEC sin FAIL duro; alineación por 3 cortes verificada.
 - **Fase C.5 — Golden limpios + remediación de BD (aprobada)**
-  Congelar golden PAEC/PMC (diff=0) **después** de B/C; script idempotente/transaccional con dry-run + backup para: 6 filas de paridad, 2 reprobaciones invertidas, categorías mixtas.
+  Congelar golden PAEC/PMC (diff=0) **después** de B/C; script idempotente/transaccional con dry-run + backup para: 2 reprobaciones invertidas, categorías mixtas y validación de paridad (en BD real se confirmó 0 violaciones de paridad al verificar `Conciencia Histórica II` = sem 5, ver §11.2).
   **Gate:** golden verde; remediación aplicada y re-auditada.
 - **Fase D — Refactor de monolitos (PMC y PAEC) con golden diff=0**
   Ver §8. No cambia comportamiento. Luego: Horarios (auditoría + golden + refactor) y Cartografía (solo auditoría de calidad; sin monolitos).
@@ -370,7 +370,7 @@ Si `--env-file`/`--import tsx` no aplica en su Node, usar `npx tsx` + dotenv. Ve
 ## 10. Baseline esperado de Fase A (rojo controlado)
 
 Fase A **debe** mostrar FAIL duros conocidos (es el objetivo, no un error):
-- **PAEC:** 6 filas de paridad rota (Conciencia Histórica II en Sem A: 2 Resiliente + 4 Eco-Cuenca).
+- **PAEC:** 0 filas de paridad rota tras validar `fase2_mapeo` en BD (`Conciencia Histórica II` es 5.° semestre = impar en ambos PAEC; ver §11.2).
 - **PMC:** 2 metas de reprobación invertidas (Moisés 0→7.5; Héroes 11.6→11.9) y categorías no canónicas (`1/2/3/practica_docente/convivencia_paec`).
 - WARN esperados: `progression` cruda histórica, FODA sin cruce, faltantes de fórmula/fuente, bullets <3.
 

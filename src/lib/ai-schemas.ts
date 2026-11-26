@@ -162,6 +162,7 @@ const MapeoRowSchema = z.object({
   uacName: z.string().min(1, 'Nombre de la UAC requerido'),
   topic: z.string().default('Contenido formativo'),
   linking: z.string().min(5, 'La vinculación comunitaria de la UAC es requerida'),
+  component: z.string().optional(),
 });
 
 export const PaecPaso3Schema = z.preprocess((input: unknown) => {

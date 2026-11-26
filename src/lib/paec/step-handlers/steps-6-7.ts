@@ -135,11 +135,17 @@ export async function handlePaecSteps6To7(ctx: PaecStepHandlerContext): Promise<
         }
 
         // Fase C: Post-procesado determinista (paridad impar, dedupe excluyendo Sem 16, destilación progression y MCCEMS)
-        const catalogMetaA = mapeo.map((m) => ({
-          uacName: m.uacName,
-          semester: Number(m.semester),
-          component: isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental',
-        }));
+        const catalogMetaA = mapeo.map((m) => {
+          const catMatch = matchCurricularContent(m.uacName, Number(m.semester), allUacsStep6);
+          return {
+            uacName: m.uacName,
+            semester: Number(m.semester),
+            component:
+              m.component ||
+              catMatch?.component ||
+              (isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental'),
+          };
+        });
         const sanitizedA = sanitizePaecOperationalPlan(allRowsSemA, catalogMetaA, {
           parity: 1,
           cicloEscolar: SCHOOL_YEAR,
@@ -271,11 +277,17 @@ export async function handlePaecSteps6To7(ctx: PaecStepHandlerContext): Promise<
         }
 
         // Fase C: Post-procesado determinista (paridad par, dedupe excluyendo Sem 16, destilación progression y MCCEMS)
-        const catalogMetaB = mapeo.map((m) => ({
-          uacName: m.uacName,
-          semester: Number(m.semester),
-          component: isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental',
-        }));
+        const catalogMetaB = mapeo.map((m) => {
+          const catMatch = matchCurricularContent(m.uacName, Number(m.semester), allUacsStep7);
+          return {
+            uacName: m.uacName,
+            semester: Number(m.semester),
+            component:
+              m.component ||
+              catMatch?.component ||
+              (isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental'),
+          };
+        });
         const sanitizedB = sanitizePaecOperationalPlan(allRowsSemB, catalogMetaB, {
           parity: 0,
           cicloEscolar: SCHOOL_YEAR,

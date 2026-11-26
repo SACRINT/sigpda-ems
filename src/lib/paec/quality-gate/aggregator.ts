@@ -43,10 +43,34 @@ import {
   evaluateCriterio22,
   evaluateCriterio23,
 } from './criteria-19-23';
+import { isLikelyLaboralUac } from '@/lib/paec/plan-operativo-postprocessor';
+import type { PaecUacCatalogMeta } from '@/lib/qa/paec-pmc-semantic-qa';
+import { SCHOOL_YEAR } from '@/lib/config';
 
-export function validatePaecStepResult(step: number, data: unknown): PaecQualityAudit {
+function buildUacCatalogFromMapeo(mapeo?: MapeoRow[] | null): PaecUacCatalogMeta[] {
+  if (!Array.isArray(mapeo) || mapeo.length === 0) return [];
+  return mapeo
+    .filter((m) => m && typeof m.uacName === 'string' && m.uacName.trim().length > 0)
+    .map((m) => ({
+      uacName: m.uacName,
+      semester: Number(m.semester) || 0,
+      component: m.component || (isLikelyLaboralUac(m.uacName) ? 'competencias_laborales' : 'fundamental'),
+    }));
+}
+
+export interface ValidatePaecStepContext {
+  mapeo?: MapeoRow[] | null;
+  cicloEscolar?: string;
+}
+
+export function validatePaecStepResult(
+  step: number,
+  data: unknown,
+  context?: ValidatePaecStepContext
+): PaecQualityAudit {
   const criterios: PaecAuditCriterion[] = [];
   const record = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+  const uacCatalog = buildUacCatalogFromMapeo(context?.mapeo);
 
   switch (step) {
     case 1: {
@@ -90,7 +114,7 @@ export function validatePaecStepResult(step: number, data: unknown): PaecQuality
 
     case 6: {
       const rowsA = (Array.isArray(data) ? data : (record?.semestreA as PlanOperativoRow[] | undefined) || []) as PlanOperativoRow[];
-      criterios.push(evaluateCriterio15(rowsA));
+      criterios.push(evaluateCriterio15(rowsA, null, uacCatalog, context?.cicloEscolar));
       criterios.push(evaluateCriterio17(rowsA, null, null, 6));
       criterios.push(evaluateCriterio18(rowsA, null));
       break;
@@ -98,7 +122,7 @@ export function validatePaecStepResult(step: number, data: unknown): PaecQuality
 
     case 7: {
       const rowsB = (Array.isArray(data) ? data : (record?.semestreB as PlanOperativoRow[] | undefined) || []) as PlanOperativoRow[];
-      criterios.push(evaluateCriterio16(rowsB));
+      criterios.push(evaluateCriterio16(rowsB, null, uacCatalog, context?.cicloEscolar));
       criterios.push(evaluateCriterio17(null, rowsB, null, 7));
       criterios.push(evaluateCriterio18(null, rowsB));
       break;
@@ -167,6 +191,8 @@ export type PaecProjectInput = Partial<PaecProject> & {
   fase2_anexos?: AnexosData | null;
   fase4_gobernanza?: PaecGobernanza | null;
   fase4_informe_supervision?: PaecInformeSupervision | null;
+  schoolYear?: string | null;
+  ciclo_escolar?: string | null;
 };
 
 /**
@@ -189,6 +215,9 @@ export function calculateGlobalPaecScore(project: PaecProjectInput): PaecQuality
   const anexos = project.fase2Anexos || project.fase2_anexos || (impl as { anexos?: AnexosData } | null | undefined)?.anexos;
   const gobernanza = project.fase4Gobernanza || project.fase4_gobernanza;
   const informe = project.fase4InformeSupervision || project.fase4_informe_supervision;
+
+  const uacCatalog = buildUacCatalogFromMapeo(mapeo);
+  const cicloEscolar = project.schoolYear || project.ciclo_escolar || SCHOOL_YEAR;
 
   const criterios: PaecAuditCriterion[] = [
     // Dimensión 1 (1-4)
@@ -216,8 +245,8 @@ export function calculateGlobalPaecScore(project: PaecProjectInput): PaecQuality
     evaluateCriterio14(detalle),
 
     // Dimensión 6 (15-18)
-    evaluateCriterio15(planA, planLegacy),
-    evaluateCriterio16(planB, planLegacy),
+    evaluateCriterio15(planA, planLegacy, uacCatalog, cicloEscolar),
+    evaluateCriterio16(planB, planLegacy, uacCatalog, cicloEscolar),
     evaluateCriterio17(planA, planB, planLegacy),
     evaluateCriterio18(planA, planB, planLegacy),
 

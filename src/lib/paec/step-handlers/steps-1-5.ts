@@ -168,7 +168,14 @@ export async function handlePaecSteps1To5(ctx: PaecStepHandlerContext): Promise<
               throw new Error(`Error de formato en bloque de Mapeo ${blockNum}: ${parseResult.error}`);
             }
 
-            allMapeoRows.push(...(parseResult.data as MapeoRow[]));
+            const enrichedChunkRows = (parseResult.data as MapeoRow[]).map((row) => {
+              const catMatch = matchCurricularContent(row.uacName, Number(row.semester), allUacs);
+              return {
+                ...row,
+                component: row.component || catMatch?.component || undefined,
+              };
+            });
+            allMapeoRows.push(...enrichedChunkRows);
           }
 
           stepResultData = allMapeoRows;
