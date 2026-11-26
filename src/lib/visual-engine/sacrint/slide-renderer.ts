@@ -29,6 +29,23 @@ function glow(cx: number, cy: number, r: number, fill: string, opacity = 1): str
   return circle(cx, cy, r, fill, `opacity="${opacity}"`);
 }
 
+function editorialSceneSvg(
+  dataUri: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  accent: string,
+  clipId: string,
+  radius = 18
+): string {
+  const safeHref = dataUri.replace(/"/g, '&quot;');
+  return `<g><defs><clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}"/></clipPath></defs>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="rgba(5,12,20,0.82)"/>` +
+    `<image href="${safeHref}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="none" stroke="${accent}" stroke-opacity="0.48" stroke-width="1.5"/></g>`;
+}
+
 function factStrip(facts: SacrintFact[], x: number, y: number, width: number): string {
   const gap = 12;
   const tileWidth = (width - gap * (facts.length - 1)) / facts.length;
@@ -118,7 +135,23 @@ function renderCover(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kind:
     truncate: false,
   });
   parts.push(paecNote.svg);
-  parts.push(styleCoverArt(deck.style.id, 1140, 150, 700, 760, accent, accent2));
+  const heroDataUri = deck.editorialScenes?.hero?.dataUri;
+  if (heroDataUri) {
+    parts.push(
+      editorialSceneSvg(
+        heroDataUri,
+        1140,
+        150,
+        700,
+        760,
+        accent,
+        `sacrint-cover-scene-${deck.meta.blockNumber}-${deck.meta.missionNumber}`,
+        22
+      )
+    );
+  } else {
+    parts.push(styleCoverArt(deck.style.id, 1140, 150, 700, 760, accent, accent2));
+  }
   parts.push(footer(W, H, `${deck.meta.schoolName}  ·  ${deck.meta.teacherName}`, `${accent2 === SACRINT.blue ? 'SIGPDA / EMS' : 'SACRINT'}  ·  EMS`, accent));
   return svgDocument(W, H, parts.join(''), accent, accent2, deck.style.id);
 }
@@ -312,6 +345,23 @@ function renderConcept(deck: SacrintDeckSpec, slide: Extract<SacrintSlide, { kin
       parts.push(sectionLabel(colRightX + 24, bodyTop + 24, colRightW - 48, 'Expresión clave', accent, 'F'));
       parts.push(singleLine(formulas[0]!, colRightX + 24, bodyTop + 76, { fill: accent, fontSize: 22, family: 'display', weight: 'bold' }));
       exTop = bodyTop + 130;
+    }
+    const conceptDataUri = deck.editorialScenes?.concept?.dataUri;
+    if (conceptDataUri) {
+      const sceneH = formulas.length > 0 ? 150 : 186;
+      parts.push(
+        editorialSceneSvg(
+          conceptDataUri,
+          colRightX,
+          exTop,
+          colRightW,
+          sceneH,
+          accent2,
+          `sacrint-concept-scene-${deck.meta.blockNumber}-${slide.sessionNumber ?? deck.meta.missionNumber}`,
+          16
+        )
+      );
+      exTop += sceneH + 14;
     }
     const exH = Math.max(240, 940 - exTop);
     parts.push(panel(colRightX, exTop, colRightW, exH, { fill: 'rgba(8,17,29,0.82)', radius: 18 }));

@@ -888,7 +888,10 @@ export function buildSacrintInfographic(
     sanitizeField(project?.communityUtility, '', 110, 16)
   );
 
-  const editorialScene = resolveSacrintInfographicEditorialScene(meta.subjectName, meta.blockNumber);
+  const editorialScene = resolveSacrintInfographicEditorialScene(meta.subjectName, meta.blockNumber, {
+    fileExists: options.sceneFileExists,
+    readDataUri: options.sceneReadDataUri,
+  });
 
   const spec: SacrintInfographicSpec = {
     format,

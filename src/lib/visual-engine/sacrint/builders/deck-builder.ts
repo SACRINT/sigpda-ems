@@ -1266,7 +1266,10 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const allSlides: SacrintSlide[] = [cover, hook, concept, demo, practice, challenge, evidence, closing];
   const slides = mode === 'classroom' ? [hook, concept, demo, challenge] : allSlides;
 
-  const deckScenes = resolveSacrintDeckEditorialScenes(meta.subjectName, meta.blockNumber);
+  const deckScenes = resolveSacrintDeckEditorialScenes(meta.subjectName, meta.blockNumber, {
+    fileExists: options.sceneFileExists,
+    readDataUri: options.sceneReadDataUri,
+  });
   const hasDeckScenes = Boolean(deckScenes.hero || deckScenes.concept);
 
   return {

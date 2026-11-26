@@ -35,6 +35,7 @@ import {
   missionIndexToSceneRole,
   type AllocatedEditorialScene,
 } from './scene-allocator';
+import { createNodeSceneDataUriReader, createNodeSceneFileExists } from './scene-allocator-node';
 
 export interface ResolveVisualOptions {
   planningId?: string;
@@ -77,7 +78,8 @@ export function resolveEditorialSceneForMission(options: {
     uacName: options.uacName,
     blockNumber: options.blockIndex + 1,
     role: missionIndexToSceneRole(options.missionIndex),
-    publicDir: options.publicDir,
+    fileExists: createNodeSceneFileExists(options.publicDir),
+    readDataUri: createNodeSceneDataUriReader(options.publicDir),
     overrideSlug: options.overrideSlug,
   });
   if (!scene) return null;

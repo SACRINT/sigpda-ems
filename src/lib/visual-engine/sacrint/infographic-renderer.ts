@@ -186,6 +186,23 @@ ${item.weight != null ? singleLine(`${item.weight}%`, x + width, rowY, { fill: p
     .join('');
 }
 
+function editorialSceneCardSvg(
+  dataUri: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  accent: string,
+  clipId: string,
+  radius = 16
+): string {
+  const safeHref = dataUri.replace(/"/g, '&quot;');
+  return `<g><defs><clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}"/></clipPath></defs>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="rgba(15,23,42,0.06)"/>` +
+    `<image href="${safeHref}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="none" stroke="${accent}" stroke-opacity="0.45" stroke-width="1.5"/></g>`;
+}
+
 function renderWide(spec: SacrintInfographicSpec): string {
   const { width, height } = INFOGRAPHIC.wide;
   const p = resolvePalette(spec);
@@ -199,7 +216,9 @@ function renderWide(spec: SacrintInfographicSpec): string {
   parts.push(topHud(width, `${spec.pack.short} / MANUAL DE CONCEPTOS`, `MISIÓN ${String(spec.meta.missionNumber).padStart(2, '0')} · ${spec.meta.blockName}`, p.accent, p.theme));
   parts.push(dotGrid(margin, 112, contentW, 8, p.isLight ? 0.14 : 0.5));
 
-  const title = textBlock(spec.title, 2060, {
+  const hasEditorialScene = Boolean(spec.editorialScene?.dataUri);
+  const titleMaxW = hasEditorialScene ? 1820 : 2060;
+  const title = textBlock(spec.title, titleMaxW, {
     x: margin,
     y: 214,
     fill: p.pal.white,
@@ -230,7 +249,27 @@ function renderWide(spec: SacrintInfographicSpec): string {
     truncate: false,
   });
   parts.push(claim.svg);
-  parts.push(progressRail(width - margin - 320, claimY, 320, 1, 4, p.accent2, spec.style.id));
+  if (spec.editorialScene?.dataUri) {
+    const sceneW = 216;
+    const sceneH = 270;
+    const sceneX = width - margin - sceneW;
+    const sceneY = 152;
+    parts.push(
+      editorialSceneCardSvg(
+        spec.editorialScene.dataUri,
+        sceneX,
+        sceneY,
+        sceneW,
+        sceneH,
+        p.accent,
+        `sacrint-info-wide-${spec.meta.blockNumber}-${spec.meta.missionNumber}`,
+        16
+      )
+    );
+    parts.push(progressRail(sceneX - 344, claimY, 320, 1, 4, p.accent2, spec.style.id));
+  } else {
+    parts.push(progressRail(width - margin - 320, claimY, 320, 1, 4, p.accent2, spec.style.id));
+  }
 
   // Columna Izquierda: Esquema / Definiciones + Reglas clave + Mini-ejemplo o Diagrama coherente
   const leftX = margin;
@@ -447,7 +486,9 @@ function renderLetter(spec: SacrintInfographicSpec): string {
   parts.push(topHud(width, `${spec.pack.short} / MANUAL DE CONCEPTOS`, `MISIÓN ${String(spec.meta.missionNumber).padStart(2, '0')}`, p.accent, p.theme));
   parts.push(dotGrid(margin, 104, contentW, 6, p.isLight ? 0.14 : 0.35));
 
-  const title = textBlock(spec.title, contentW, {
+  const hasLetterScene = Boolean(spec.editorialScene?.dataUri);
+  const letterHeaderW = hasLetterScene ? contentW - 152 : contentW;
+  const title = textBlock(spec.title, letterHeaderW, {
     x: margin,
     y: 162,
     fill: p.pal.white,
@@ -463,9 +504,24 @@ function renderLetter(spec: SacrintInfographicSpec): string {
   parts.push(title.svg);
   const subtitleY = 162 + title.fitted.height + 18;
   parts.push(singleLine(uppercaseLabel(spec.subtitle), margin, subtitleY, { fill: p.accent, fontSize: 11, weight: 'semibold', letterSpacing: 1.8 }));
-  parts.push(line(margin, subtitleY + 14, margin + 520, subtitleY + 14, p.accent, 1.2, 'stroke-opacity="0.55"'));
+  parts.push(line(margin, subtitleY + 14, margin + Math.min(520, letterHeaderW), subtitleY + 14, p.accent, 1.2, 'stroke-opacity="0.55"'));
 
-  let y = subtitleY + 32;
+  if (spec.editorialScene?.dataUri) {
+    parts.push(
+      editorialSceneCardSvg(
+        spec.editorialScene.dataUri,
+        width - margin - 132,
+        132,
+        132,
+        165,
+        p.accent,
+        `sacrint-info-letter-${spec.meta.blockNumber}-${spec.meta.missionNumber}`,
+        14
+      )
+    );
+  }
+
+  let y = hasLetterScene ? Math.max(subtitleY + 32, 310) : subtitleY + 32;
   const band1H = 104;
   const formulaW = Math.round(contentW * 0.54);
   parts.push(formulaPanel(spec, p, margin, y, formulaW, band1H, 23));

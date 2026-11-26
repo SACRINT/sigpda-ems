@@ -14,6 +14,7 @@ import {
   type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
 import {
   extractMaterialsFromWorkbook,
   type ExtractedBlockMaterials,
@@ -301,6 +302,7 @@ export async function buildAulaPackageZip(
       let excludedCount = 0;
       const allTheorySources = entries.flatMap((entry) => collectWorkbookTheorySources(entry.workbook));
       const misconceptionTracker = new Map<string, number>();
+      const sceneLoader = createNodeSceneLoader();
 
       for (const entry of entries) {
         let extracted: ExtractedBlockMaterials | undefined;
@@ -320,6 +322,7 @@ export async function buildAulaPackageZip(
               missionIndex,
               extraTheorySources: allTheorySources,
               misconceptionTracker,
+              ...sceneLoader,
             });
             const review = reviewBlockMaterials({
               workbook: entry.workbook,

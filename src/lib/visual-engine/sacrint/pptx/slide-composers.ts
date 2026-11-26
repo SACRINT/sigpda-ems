@@ -28,8 +28,29 @@ import {
   pt,
 } from './theme-and-primitives';
 import { addDiagram } from './diagram-drawers';
+import { ensurePngDataUri } from '../../scene-allocator-node';
 
-function renderCover(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract<SacrintSlide, { kind: 'cover' }>) {
+interface PreparedDeckScenes {
+  heroDataUri?: string;
+  conceptDataUri?: string;
+}
+
+async function prepareDeckScenesForPptx(deck: SacrintDeckSpec): Promise<PreparedDeckScenes> {
+  const heroRaw = deck.editorialScenes?.hero?.dataUri;
+  const conceptRaw = deck.editorialScenes?.concept?.dataUri;
+  const [heroDataUri, conceptDataUri] = await Promise.all([
+    heroRaw ? ensurePngDataUri(heroRaw).catch(() => undefined) : Promise.resolve(undefined),
+    conceptRaw ? ensurePngDataUri(conceptRaw).catch(() => undefined) : Promise.resolve(undefined),
+  ]);
+  return { heroDataUri, conceptDataUri };
+}
+
+function renderCover(
+  slide: PptxGenJS.Slide,
+  deck: SacrintDeckSpec,
+  spec: Extract<SacrintSlide, { kind: 'cover' }>,
+  preparedScenes?: PreparedDeckScenes
+) {
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
   addHud(slide, `${deck.pack.short} / SACRINT`, `MISIÓN ${String(deck.meta.missionNumber).padStart(2, '0')} · BLOQUE ${String(deck.meta.blockNumber).padStart(2, '0')}`, 0, accent);
@@ -71,7 +92,19 @@ function renderCover(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extrac
   addPanel(slide, 80, 820, 940, 54, { fill: C.panel, transparency: 22 });
   addText(slide, spec.footerNote, 102, 828, 890, 38, { fontSize: pt(spec.footerNote.length > 90 ? 13 : 16), color: C.textSoft, maxLines: 2 });
   addFactStrip(slide, spec.facts, 80, 880, 940, 84);
-  coverArt(slide, deck, accent, accent2);
+  if (preparedScenes?.heroDataUri) {
+    addPanel(slide, 1140, 150, 700, 760, { fill: C.panel, transparency: 10, stroke: accent });
+    slide.addImage({
+      data: preparedScenes.heroDataUri,
+      x: inch(1140),
+      y: inch(150),
+      w: inch(700),
+      h: inch(760),
+      sizing: { type: 'cover', w: inch(700), h: inch(760) },
+    });
+  } else {
+    coverArt(slide, deck, accent, accent2);
+  }
   addFooter(slide, deck, 'SACRINT · EMS', accent);
 }
 
@@ -120,7 +153,12 @@ function renderHook(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract
   addFooter(slide, deck, 'observar · modelar · decidir', accent);
 }
 
-function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extract<SacrintConceptSlide, { kind: 'concept' }>) {
+function renderConcept(
+  slide: PptxGenJS.Slide,
+  deck: SacrintDeckSpec,
+  spec: Extract<SacrintConceptSlide, { kind: 'concept' }>,
+  preparedScenes?: PreparedDeckScenes
+) {
   addStyleBackdrop(slide, deck);
   const accent = deck.pack.accent;
   const accent2 = deck.pack.accent2;
@@ -204,8 +242,21 @@ function renderConcept(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Extr
       });
     }
 
-    const exPanelY = hasFormula ? topY + 134 : topY;
-    const exPanelH = 948 - exPanelY;
+    let exPanelY = hasFormula ? topY + 134 : topY;
+    if (preparedScenes?.conceptDataUri) {
+      const sceneH = hasFormula ? 148 : 182;
+      addPanel(slide, 968, exPanelY, 872, sceneH, { fill: C.panel, transparency: 10, stroke: accent2 });
+      slide.addImage({
+        data: preparedScenes.conceptDataUri,
+        x: inch(968),
+        y: inch(exPanelY),
+        w: inch(872),
+        h: inch(sceneH),
+        sizing: { type: 'cover', w: inch(872), h: inch(sceneH) },
+      });
+      exPanelY += sceneH + 14;
+    }
+    const exPanelH = Math.max(220, 948 - exPanelY);
     const exStatement = spec.workedExample?.problemStatement || '';
     const exSteps = (spec.workedExample?.steps ?? []).slice(0, 3);
     const exResult = spec.workedExample?.interpretation;
@@ -746,13 +797,14 @@ function renderEvidence(slide: PptxGenJS.Slide, deck: SacrintDeckSpec, spec: Ext
   addFooter(slide, deck, 'criterios · rúbrica · verificación', accent);
 }
 
-function renderDeckIntoPptx(pptx: PptxGenJS, deck: SacrintDeckSpec): void {
+async function renderDeckIntoPptx(pptx: PptxGenJS, deck: SacrintDeckSpec): Promise<void> {
+  const preparedScenes = await prepareDeckScenesForPptx(deck);
   for (const spec of deck.slides) {
     const slide = pptx.addSlide();
     slide.background = { color: C.canvas };
-    if (spec.kind === 'cover') renderCover(slide, deck, spec);
+    if (spec.kind === 'cover') renderCover(slide, deck, spec, preparedScenes);
     else if (spec.kind === 'hook') renderHook(slide, deck, spec);
-    else if (spec.kind === 'concept') renderConcept(slide, deck, spec);
+    else if (spec.kind === 'concept') renderConcept(slide, deck, spec, preparedScenes);
     else if (spec.kind === 'demo') renderDemo(slide, deck, spec);
     else if (spec.kind === 'practice') renderPractice(slide, deck, spec);
     else if (spec.kind === 'challenge') renderChallenge(slide, deck, spec);
@@ -769,7 +821,7 @@ export async function generateSacrintPptx(deck: SacrintDeckSpec): Promise<Buffer
   pptx.company = deck.meta.schoolName || getRuntimePlatformName();
   pptx.author = deck.meta.teacherName || getRuntimePlatformName();
 
-  renderDeckIntoPptx(pptx, deck);
+  await renderDeckIntoPptx(pptx, deck);
 
   const out = await pptx.write({ outputType: 'nodebuffer' });
   return Buffer.from(out as Uint8Array);
@@ -788,7 +840,7 @@ export async function generateCombinedSacrintPptx(
   pptx.author = meta?.teacherName || first?.meta.teacherName || getRuntimePlatformName();
 
   for (const deck of decks) {
-    renderDeckIntoPptx(pptx, deck);
+    await renderDeckIntoPptx(pptx, deck);
   }
 
   const out = await pptx.write({ outputType: 'nodebuffer' });

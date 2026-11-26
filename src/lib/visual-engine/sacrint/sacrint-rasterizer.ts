@@ -13,6 +13,20 @@ import { hasDanglingEnding, isPublishablePedagogicalText } from '@/lib/editorial
 import { splitSpanishSentences } from '@/lib/editorial/fitter/sentence-splitter';
 import { isValidRenderableFormula, normalizeEditorialText, toWinAnsiMathSafe } from '@/lib/editorial/text-normalization';
 import { diagramFormula, diagramModelLabel } from './diagrams/registry';
+import { ensurePngDataUri } from '../scene-allocator-node';
+
+async function inlineTranscodeSvgWebpToPng(svg: string): Promise<string> {
+  const webpRe = /data:image\/webp;base64,[A-Za-z0-9+/=]+/g;
+  const matches = svg.match(webpRe);
+  if (!matches || matches.length === 0) return svg;
+  const unique = Array.from(new Set(matches));
+  let out = svg;
+  for (const rawUri of unique) {
+    const pngUri = await ensurePngDataUri(rawUri);
+    out = out.split(rawUri).join(pngUri);
+  }
+  return out;
+}
 
 export interface RenderedPng {
   filename: string;
@@ -21,9 +35,10 @@ export interface RenderedPng {
 
 export async function renderSvgToPng(svg: string, width: number, height: number, scale = 1): Promise<Buffer> {
   ensureSacrintFontsRegistered();
+  const safeSvg = await inlineTranscodeSvgWebpToPng(svg);
   const targetWidth = Math.round(width * scale);
   const targetHeight = Math.round(height * scale);
-  const raster = new Resvg(svg, {
+  const raster = new Resvg(safeSvg, {
     font: {
       fontFiles: getSacrintFontFiles(),
       loadSystemFonts: false,
@@ -660,19 +675,34 @@ function renderVectorWidePage(doc: jsPDF, spec: SacrintInfographicSpec) {
     color: slateMuted,
     align: 'right',
   });
-  const afterTitle = drawFittedVectorText(doc, spec.title, margin, 15, contentW, 11, {
+  const hasWideScene = Boolean(
+    spec.editorialScene?.dataUri && /^data:image\/(png|jpe?g);base64,/i.test(spec.editorialScene.dataUri)
+  );
+  const headerTextW = hasWideScene ? contentW - 24 : contentW;
+  const afterTitle = drawFittedVectorText(doc, spec.title, margin, 15, headerTextW, 11, {
     fontSize: 13.5,
     minFontSize: 9.5,
     bold: true,
     color: slateDark,
     lineFactor: 1.16,
   });
-  drawFittedVectorText(doc, spec.claim, margin, Math.min(26.5, afterTitle + 1.5), contentW, 8.5, {
+  drawFittedVectorText(doc, spec.claim, margin, Math.min(26.5, afterTitle + 1.5), headerTextW, 8.5, {
     fontSize: 8.2,
     minFontSize: 6.8,
     color: slateSoft,
     lineFactor: 1.2,
   });
+  if (hasWideScene && spec.editorialScene?.dataUri) {
+    const imgW = 20;
+    const imgH = 25;
+    const imgX = margin + contentW - imgW;
+    const imgY = 9.5;
+    const fmt = /^data:image\/jpe?g;base64,/i.test(spec.editorialScene.dataUri) ? 'JPEG' : 'PNG';
+    doc.addImage(spec.editorialScene.dataUri, fmt, imgX, imgY, imgW, imgH);
+    doc.setDrawColor(accent[0], accent[1], accent[2]);
+    doc.setLineWidth(0.35);
+    doc.rect(imgX, imgY, imgW, imgH, 'S');
+  }
 
   const topY = 36.5;
   const bodyH = pageH - topY - 10;
@@ -946,17 +976,32 @@ function renderVectorLetterPage(doc: jsPDF, spec: SacrintInfographicSpec) {
     5,
     { fontSize: 8, bold: true, color: accent2 }
   );
-  const afterTitle = drawFittedVectorText(doc, spec.title, margin, 17, contentW, 14, {
+  const hasLetterScene = Boolean(
+    spec.editorialScene?.dataUri && /^data:image\/(png|jpe?g);base64,/i.test(spec.editorialScene.dataUri)
+  );
+  const letterTextW = hasLetterScene ? contentW - 28 : contentW;
+  const afterTitle = drawFittedVectorText(doc, spec.title, margin, 17, letterTextW, 14, {
     fontSize: 15,
     minFontSize: 10.5,
     bold: true,
     color: slateDark,
   });
-  drawFittedVectorText(doc, spec.claim, margin, Math.min(32, afterTitle + 1.5), contentW, 10, {
+  drawFittedVectorText(doc, spec.claim, margin, Math.min(32, afterTitle + 1.5), letterTextW, 10, {
     fontSize: 8.6,
     minFontSize: 7,
     color: slateSoft,
   });
+  if (hasLetterScene && spec.editorialScene?.dataUri) {
+    const imgW = 24;
+    const imgH = 30;
+    const imgX = margin + contentW - imgW;
+    const imgY = 12;
+    const fmt = /^data:image\/jpe?g;base64,/i.test(spec.editorialScene.dataUri) ? 'JPEG' : 'PNG';
+    doc.addImage(spec.editorialScene.dataUri, fmt, imgX, imgY, imgW, imgH);
+    doc.setDrawColor(accent[0], accent[1], accent[2]);
+    doc.setLineWidth(0.35);
+    doc.rect(imgX, imgY, imgW, imgH, 'S');
+  }
 
   let y = 44;
   const validFormulas = (spec.formulasList ?? []).filter((f) => isValidRenderableFormula(f));
@@ -1123,5 +1168,19 @@ export async function renderCombinedSacrintInfographicsPdf(
   specs: SacrintInfographicSpec[],
   layout: 'letter' | 'wide' = 'wide'
 ): Promise<Buffer> {
-  return renderSacrintInfographicsVectorPdf(specs, layout);
+  const preparedSpecs = await Promise.all(
+    specs.map(async (spec) => {
+      const rawUri = spec.editorialScene?.dataUri;
+      if (!rawUri || !/^data:image\/webp;base64,/i.test(rawUri)) return spec;
+      const pngUri = await ensurePngDataUri(rawUri);
+      return {
+        ...spec,
+        editorialScene: {
+          ...spec.editorialScene!,
+          dataUri: pngUri,
+        },
+      };
+    })
+  );
+  return renderSacrintInfographicsVectorPdf(preparedSpecs, layout);
 }

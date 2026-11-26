@@ -23,6 +23,7 @@ import {
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
+import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
 import { isStructuredVisualPayload } from '@/lib/materials/material-tokens';
 import { sanitizeDocFilenameWithBlock, type BrandingContext } from '@/lib/document-branding';
 import { shortSubjectCode } from '@/lib/short-filename';
@@ -411,8 +412,9 @@ async function handleBulkDocx(request: NextRequest) {
 
         if (effectiveEntries.length > 0) {
           const misconceptionTracker = new Map<string, number>();
+          const sceneLoader = createNodeSceneLoader();
           const sacrintDecks: SacrintDeckSpec[] = effectiveEntries.flatMap((entry) =>
-            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide', misconceptionTracker })
+            buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide', misconceptionTracker, ...sceneLoader })
           );
           if (sacrintDecks.length > 0) {
             const pptxBuf = await generateCombinedSacrintPptx(sacrintDecks, {
@@ -443,12 +445,14 @@ async function handleBulkDocx(request: NextRequest) {
 
         if (effectiveEntries.length > 0) {
           const specs: SacrintInfographicSpec[] = [];
+          const sceneLoader = createNodeSceneLoader();
           for (const entry of effectiveEntries) {
             for (const target of selectInfographicTargets(entry.workbook)) {
               specs.push(
                 buildSacrintInfographic(entry.workbook, 'wide', {
                   missionIndex: target.missionIndex,
                   sessionIndex: target.sessionIndex,
+                  ...sceneLoader,
                 })
               );
             }

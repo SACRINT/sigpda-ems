@@ -43,6 +43,7 @@ import {
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
 import { resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui';
 import { allocateEditorialSceneOnDisk } from '@/lib/visual-engine/scene-allocator';
+import { createNodeSceneFileExists } from '@/lib/visual-engine/scene-allocator-node';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
 import { sanitizeDocFilename } from '@/lib/document-branding';
 import {
@@ -363,6 +364,7 @@ export async function POST(
         uacName: resolvedUacName,
         blockNumber: firstBlock + 1,
         role: 'block_cover',
+        fileExists: createNodeSceneFileExists(),
       });
       chapter = StudentChapterSchema.parse({
         uac: resolvedUacName,

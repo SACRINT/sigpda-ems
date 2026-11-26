@@ -1,8 +1,12 @@
 /**
- * scene-allocator.ts — Asignador Determinista de Escenas Contextuales (3-en-1: Libros + 08 + 09)
+ * scene-allocator.ts — Asignador Determinista y Puro de Escenas Contextuales (3-en-1: Libros + 08 + 09)
  * SIGPDA-EMS · Fase 2 Motor Editorial Unificado
  *
- * Implementa la matriz exacta de roles y deduplicación del Catálogo Maestro:
+ * Módulo 100 % puro (cero imports de `node:fs` / `node:path`) compatible con bundles cliente y servidor.
+ * El acceso a disco o red/Blob se inyecta mediante `fileExists` y `readDataUri` desde
+ * `scene-allocator-node.ts` en rutas servidor.
+ *
+ * Matriz exacta de roles y deduplicación del Catálogo Maestro:
  * - Portadas de Bloque: B1 → `portada`, B2 → `concepto`, B3 → `comunidad` (0 portadas repetidas en semestre).
  * - 4 Misiones por bloque: M1 → `concepto` (`top_band`), M2 → `practica` (`horizontal_editorial`),
  *   M3 → `portada` (`detail_right`), M4 → `comunidad` (`full`) (0 repeticiones entre misiones del bloque).
@@ -11,8 +15,6 @@
  * - Prioridad de resolución: `overrides/` → dominio primario → fallback `indagacion_interdisciplinaria_general`.
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import {
   getDisciplinaryAdapter,
   type DisciplinaryDomainId,
@@ -26,6 +28,9 @@ import {
   type EditorialSceneRole,
 } from './editorial-scenes-catalog';
 
+export type SceneFileExistsFn = (relativePath: string) => boolean;
+export type SceneReadDataUriFn = (relativePath: string) => string | undefined;
+
 export interface AllocatedEditorialScene {
   id: string;
   domainId: DisciplinaryDomainId;
@@ -38,6 +43,8 @@ export interface AllocatedEditorialScene {
   aspectRatio: '16:9' | '4:5';
   source: 'override' | 'domain' | 'fallback_general';
   existsOnDisk: boolean;
+  /** Imagen inline `data:image/webp;base64,...` o `data:image/png;base64,...` para renderers 08/09 y serverless. */
+  dataUri?: string;
 }
 
 export interface SceneAllocationRequest {
@@ -49,8 +56,10 @@ export interface SceneAllocationRequest {
   role: EditorialSceneRole;
   /** Slug opcional para buscar override específico en `public/images/escenas/overrides/`. */
   overrideSlug?: string | null;
-  /** Directorio raíz `public/` (inyectable en pruebas). */
-  publicDir?: string;
+  /** Predicado inyectado de existencia del asset (default `() => false`, seguro en cliente). */
+  fileExists?: SceneFileExistsFn;
+  /** Lector opcional inyectado que devuelve `data:image/...;base64,...` para renderers SVG/PPTX/PDF. */
+  readDataUri?: SceneReadDataUriFn;
   /** Rastreador de deduplicación por rol dentro del bloque/semestre. */
   tracker?: BlockSceneTracker;
 }
@@ -71,12 +80,30 @@ const BLOCK_COVER_ROTATION: readonly EditorialSceneArchetype[] = [
   'comunidad',
 ];
 
-const ARCHETYPE_FALLBACK_ORDER: readonly EditorialSceneArchetype[] = [
+/** Roles panorámicos 16:9 NUNCA deben rotar a `practica` (4:5 vertical). */
+const LANDSCAPE_ROTATION_ORDER: readonly EditorialSceneArchetype[] = [
   'portada',
   'concepto',
   'comunidad',
-  'practica',
 ];
+
+const PORTRAIT_OR_FLEX_ROTATION_ORDER: readonly EditorialSceneArchetype[] = [
+  'practica',
+  'portada',
+  'concepto',
+  'comunidad',
+];
+
+const LANDSCAPE_ROLES: ReadonlySet<EditorialSceneRole> = new Set<EditorialSceneRole>([
+  'block_cover',
+  'mission_1',
+  'mission_3',
+  'mission_4',
+  'slides_hero',
+  'slides_concept',
+]);
+
+const DEFAULT_FILE_EXISTS: SceneFileExistsFn = () => false;
 
 function slugifyUacForOverride(raw: string): string {
   return raw
@@ -132,22 +159,8 @@ export function missionIndexToSceneRole(missionIndex: number): EditorialSceneRol
   }
 }
 
-function getDefaultPublicDir(): string {
-  return path.join(process.cwd(), 'public');
-}
-
-function fileExistsUnderPublic(publicDir: string, relativePath: string): boolean {
-  if (typeof window !== 'undefined') return false;
-  try {
-    const cleaned = relativePath.replace(/^\/+/, '');
-    return fs.existsSync(path.join(publicDir, cleaned));
-  } catch {
-    return false;
-  }
-}
-
-function findOverrideSceneOnDisk(
-  publicDir: string,
+function findOverrideScene(
+  fileExists: SceneFileExistsFn,
   overrideKeys: string[],
   archetype: EditorialSceneArchetype,
 ): { id: string; relativePath: string } | null {
@@ -157,10 +170,11 @@ function findOverrideSceneOnDisk(
       `${key}-${archetype}.webp`,
       `${key}-${archetype}.png`,
       `${key}.webp`,
+      `${key}.png`,
     ];
     for (const filename of candidates) {
       const rel = `${EDITORIAL_SCENES_OVERRIDES_PATH}/${filename}`;
-      if (fileExistsUnderPublic(publicDir, rel)) {
+      if (fileExists(rel)) {
         return {
           id: `override:${filename.replace(/\.(webp|png)$/i, '')}`,
           relativePath: rel,
@@ -184,7 +198,11 @@ function pickNonRepeatingArchetype(
   const preferredId = EDITORIAL_SCENES_CATALOG[domainId][preferred].id;
   if (!used.has(preferredId)) return preferred;
 
-  for (const altArch of ARCHETYPE_FALLBACK_ORDER) {
+  const order = LANDSCAPE_ROLES.has(role)
+    ? LANDSCAPE_ROTATION_ORDER
+    : PORTRAIT_OR_FLEX_ROTATION_ORDER;
+
+  for (const altArch of order) {
     const candidateId = EDITORIAL_SCENES_CATALOG[domainId][altArch].id;
     if (!used.has(candidateId)) return altArch;
   }
@@ -204,9 +222,11 @@ function recordRoleAllocation(tracker: BlockSceneTracker | undefined, role: Edit
 /**
  * Asigna la escena editorial canónica (con detección de `overrides/` y fallback a
  * `indagacion_interdisciplinaria_general` cuando el activo de dominio aún no existe en disco).
+ * Nunca registra en el tracker cuando `existsOnDisk: false` para no bloquear asignaciones posteriores.
  */
 export function allocateEditorialScene(request: SceneAllocationRequest): AllocatedEditorialScene {
-  const publicDir = request.publicDir ?? getDefaultPublicDir();
+  const fileExists = request.fileExists ?? DEFAULT_FILE_EXISTS;
+  const readDataUri = request.readDataUri;
   const domainId: DisciplinaryDomainId =
     request.domainId ??
     getDisciplinaryAdapter(request.uacName || '', request.component || undefined).id;
@@ -221,11 +241,12 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
     request.uacName ? slugifyUacForOverride(request.uacName) : '',
   ].filter(Boolean);
 
-  const overrideHit = findOverrideSceneOnDisk(publicDir, overrideKeys, archetype);
+  const overrideHit = findOverrideScene(fileExists, overrideKeys, archetype);
   if (overrideHit) {
     const usedInRole = request.tracker?.usedByRole.get(request.role);
     if (!usedInRole || !usedInRole.has(overrideHit.id)) {
       recordRoleAllocation(request.tracker, request.role, overrideHit.id);
+      const dataUri = readDataUri?.(overrideHit.relativePath);
       return {
         id: overrideHit.id,
         domainId,
@@ -238,14 +259,15 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
         aspectRatio: domainEntry.aspectRatio,
         source: 'override',
         existsOnDisk: true,
+        ...(dataUri ? { dataUri } : {}),
       };
     }
   }
 
   // 2. Escena del dominio primario
-  const domainExists = fileExistsUnderPublic(publicDir, domainEntry.relativePath);
-  if (domainExists) {
+  if (fileExists(domainEntry.relativePath)) {
     recordRoleAllocation(request.tracker, request.role, domainEntry.id);
+    const dataUri = readDataUri?.(domainEntry.relativePath);
     return {
       id: domainEntry.id,
       domainId,
@@ -258,15 +280,16 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
       aspectRatio: domainEntry.aspectRatio,
       source: 'domain',
       existsOnDisk: true,
+      ...(dataUri ? { dataUri } : {}),
     };
   }
 
-  // 3. Fallback determinista a `indagacion_interdisciplinaria_general` si existe en disco
+  // 3. Fallback determinista a `indagacion_interdisciplinaria_general` si existe
   if (domainId !== 'indagacion_interdisciplinaria_general') {
     const generalEntry = EDITORIAL_SCENES_CATALOG.indagacion_interdisciplinaria_general[archetype];
-    const generalExists = fileExistsUnderPublic(publicDir, generalEntry.relativePath);
-    if (generalExists) {
+    if (fileExists(generalEntry.relativePath)) {
       recordRoleAllocation(request.tracker, request.role, generalEntry.id);
+      const dataUri = readDataUri?.(generalEntry.relativePath);
       return {
         id: generalEntry.id,
         domainId,
@@ -279,12 +302,12 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
         aspectRatio: generalEntry.aspectRatio,
         source: 'fallback_general',
         existsOnDisk: true,
+        ...(dataUri ? { dataUri } : {}),
       };
     }
   }
 
-  // 4. Ningún archivo existe aún en disco: devuelve el descriptor esperado con `existsOnDisk: false`
-  recordRoleAllocation(request.tracker, request.role, domainEntry.id);
+  // 4. Ningún archivo disponible: devuelve el descriptor esperado SIN contaminar el tracker
   return {
     id: domainEntry.id,
     domainId,
@@ -302,7 +325,7 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
 
 /**
  * Variante segura para renderers (Typst, DOCX, 08, 09): devuelve la escena SOLO si el
- * archivo `.webp`/`.png` resuelto existe físicamente en `public/images/escenas/`.
+ * archivo `.webp`/`.png` resuelto existe según `fileExists`.
  */
 export function allocateEditorialSceneOnDisk(
   request: SceneAllocationRequest,
@@ -317,27 +340,36 @@ export function allocateEditorialSceneOnDisk(
 export function resolveSacrintDeckEditorialScenes(
   uacName: string,
   blockNumber = 1,
-  options?: { publicDir?: string; overrideSlug?: string },
+  options?: {
+    fileExists?: SceneFileExistsFn;
+    readDataUri?: SceneReadDataUriFn;
+    overrideSlug?: string;
+  },
 ): {
   hero: AllocatedEditorialScene | null;
   concept: AllocatedEditorialScene | null;
 } {
+  if (!options?.fileExists) {
+    return { hero: null, concept: null };
+  }
   const tracker = createBlockSceneTracker();
   return {
     hero: allocateEditorialSceneOnDisk({
       uacName,
       blockNumber,
       role: 'slides_hero',
-      publicDir: options?.publicDir,
-      overrideSlug: options?.overrideSlug,
+      fileExists: options.fileExists,
+      readDataUri: options.readDataUri,
+      overrideSlug: options.overrideSlug,
       tracker,
     }),
     concept: allocateEditorialSceneOnDisk({
       uacName,
       blockNumber,
       role: 'slides_concept',
-      publicDir: options?.publicDir,
-      overrideSlug: options?.overrideSlug,
+      fileExists: options.fileExists,
+      readDataUri: options.readDataUri,
+      overrideSlug: options.overrideSlug,
       tracker,
     }),
   };
@@ -349,13 +381,19 @@ export function resolveSacrintDeckEditorialScenes(
 export function resolveSacrintInfographicEditorialScene(
   uacName: string,
   blockNumber = 1,
-  options?: { publicDir?: string; overrideSlug?: string },
+  options?: {
+    fileExists?: SceneFileExistsFn;
+    readDataUri?: SceneReadDataUriFn;
+    overrideSlug?: string;
+  },
 ): AllocatedEditorialScene | null {
+  if (!options?.fileExists) return null;
   return allocateEditorialSceneOnDisk({
     uacName,
     blockNumber,
     role: 'infographic_activity',
-    publicDir: options?.publicDir,
-    overrideSlug: options?.overrideSlug,
+    fileExists: options.fileExists,
+    readDataUri: options.readDataUri,
+    overrideSlug: options.overrideSlug,
   });
 }

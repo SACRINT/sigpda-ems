@@ -9,6 +9,7 @@ import {
   type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
 import {
   extractMaterialsFromWorkbook,
   type ExtractedBlockMaterials,
@@ -88,6 +89,7 @@ export async function GET(
     const deckErrors: ReviewIssue[] = [];
     const deckWarnings: ReviewIssue[] = [];
     const misconceptionTracker = new Map<string, number>();
+    const sceneLoader = createNodeSceneLoader();
 
     for (const entry of effectiveEntries) {
       let extracted: ExtractedBlockMaterials | undefined;
@@ -99,6 +101,7 @@ export async function GET(
       const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, {
         mode: deckMode,
         misconceptionTracker,
+        ...sceneLoader,
       });
       for (const deck of entryDecks) {
         sacrintDecks.push(deck);

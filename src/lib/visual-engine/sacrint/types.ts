@@ -8,7 +8,11 @@ import type { SacrintContentErrorContext } from '@/lib/editorial/topic-title-res
 import type { SacrintPack } from './discipline-packs';
 import type { SacrintVisualStyle } from './visual-styles';
 import type { SacrintThemeMode } from './tokens';
-import type { AllocatedEditorialScene } from '../scene-allocator';
+import type {
+  AllocatedEditorialScene,
+  SceneFileExistsFn,
+  SceneReadDataUriFn,
+} from '../scene-allocator';
 
 export interface SacrintVariable {
   symbol: string;
@@ -528,6 +532,10 @@ export interface SacrintBuildOptions {
   extraTheorySources?: Array<string | null | undefined>;
   /** Contador por compilación para diversificar errores comunes sin estado global de módulo. */
   misconceptionTracker?: Map<string, number>;
+  /** Predicado inyectado desde servidor para detectar escenas editoriales `.webp` en `public/`. */
+  sceneFileExists?: SceneFileExistsFn;
+  /** Lector inyectado desde servidor para inline base64 `dataUri` de escenas editoriales. */
+  sceneReadDataUri?: SceneReadDataUriFn;
 }
 
 export type ConceptFamily =

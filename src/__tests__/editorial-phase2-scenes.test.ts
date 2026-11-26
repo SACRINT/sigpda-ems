@@ -3,18 +3,21 @@
  *
  * Valida:
  * 1. Cobertura total tipada: 17 dominios `DisciplinaryDomainId` × 4 arquetipos = 68 escenas `.webp`.
- * 2. Matriz exacta de roles:
+ * 2. Matriz exacta de roles + fixes menores:
  *    - 0 portadas repetidas entre Bloques 1, 2 y 3 (`portada` → `concepto` → `comunidad`).
- *    - 0 repeticiones entre las 4 misiones dentro del mismo bloque (`concepto/top_band`,
- *      `practica/horizontal_editorial`, `portada/detail_right`, `comunidad/full`).
+ *    - 0 repeticiones entre las 4 misiones dentro del mismo bloque.
  *    - 0 repeticiones en el mismo rol bajo `createBlockSceneTracker()`.
- * 3. Prioridad de `public/images/escenas/overrides/` sobre escenas de dominio.
- * 4. Fallback determinista a `indagacion_interdisciplinaria_general` cuando falta el dominio en disco,
- *    y retorno seguro `null` en `allocateEditorialSceneOnDisk` cuando no hay ningún activo en disco.
- * 5. Soporte `.webp` en `SpotMaterialSchema` y `EditorialSceneSchema` + compilación real en Typst
- *    de un `StudentChapter` con `coverScene` `.webp` sobre `worker-editorial/server.js`.
- * 6. Integración 3-en-1: Libro (`coverScene`), `08 Presentaciones` (`slides_hero`/`slides_concept`),
- *    `09 Infografías` (`infographic_activity` 4:5) y `visual-asset-manager` (`resolveEditorialSceneForMission`).
+ *    - Roles 16:9 NUNCA rotan a `practica` (4:5).
+ *    - `existsOnDisk: false` NUNCA contamina el tracker.
+ * 3. Prioridad de `public/images/escenas/overrides/` (incluye `${key}.png`) sobre escenas de dominio
+ *    y fallback determinista a `indagacion_interdisciplinaria_general`.
+ * 4. Soporte `.webp` en `SpotMaterialSchema`/`EditorialSceneSchema` + compilación real en Typst
+ *    de `StudentChapter` con `coverScene` `.webp` sobre `worker-editorial/server.js`.
+ * 5. Integración 3-en-1 REAL hasta los renderers de salida:
+ *    - 08 SVG (`slide-renderer.ts`): `<image href="data:image/..."` en portada y concepto.
+ *    - 08 PPTX (`generateSacrintPptx`): descomprimido con `JSZip` contiene archivos reales en `ppt/media/`.
+ *    - 09 SVG (`infographic-renderer.ts`) + PNG (`renderInfographicPng`) + PDF vectorial (`renderCombinedSacrintInfographicsPdf`):
+ *      contiene `<image` en SVG (wide y letter), rasteriza `.webp` y embebe XObject `/Subtype /Image` en el PDF.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -23,6 +26,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import sharp from 'sharp';
+import JSZip from 'jszip';
 import { DISCIPLINARY_DOMAIN_IDS, resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui';
 import {
   EDITORIAL_SCENES_CATALOG,
@@ -35,6 +39,11 @@ import {
   resolveSacrintDeckEditorialScenes,
   resolveSacrintInfographicEditorialScene,
 } from '@/lib/visual-engine/scene-allocator';
+import {
+  createNodeSceneDataUriReader,
+  createNodeSceneFileExists,
+  createNodeSceneLoader,
+} from '@/lib/visual-engine/scene-allocator-node';
 import { resolveEditorialSceneForMission } from '@/lib/visual-engine/visual-asset-manager';
 import {
   EditorialSceneSchema,
@@ -43,6 +52,15 @@ import {
   type StudentChapter,
 } from '@/lib/editorial/student-content-model';
 import { dispatchToEditorialWorker } from '@/lib/editorial/worker-client';
+import { MATH_DEMO_WORKBOOK } from '@/lib/visual-engine/sacrint/fixtures/math-demo-workbook';
+import { buildSacrintDeck, buildSacrintInfographic } from '@/lib/visual-engine/sacrint/spec';
+import { renderDeckSvgs } from '@/lib/visual-engine/sacrint/slide-renderer';
+import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
+import { renderInfographicSvg } from '@/lib/visual-engine/sacrint/infographic-renderer';
+import {
+  renderCombinedSacrintInfographicsPdf,
+  renderInfographicPng,
+} from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { handleRequest } = require('../../worker-editorial/server.js');
@@ -56,13 +74,20 @@ async function writeSampleWebp(filePath: string, width = 320, height = 180): Pro
     .toFile(filePath);
 }
 
-describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Roles · WebP · 3-en-1)', () => {
+async function writeSamplePng(filePath: string, width = 320, height = 180): Promise<void> {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  await sharp({
+    create: { width, height, channels: 3, background: { r: 31, g: 122, b: 90 } },
+  })
+    .png()
+    .toFile(filePath);
+}
+
+describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Roles · WebP · Renderers 08/09)', () => {
   let tmpPublicDir: string;
 
   beforeAll(async () => {
     tmpPublicDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigpda-phase2-public-'));
-    // Crear escenas reales `.webp` en tmpPublicDir para pruebas deterministas en disco:
-    // 1) Dominio completo `pensamiento_matematico` (4 arquetipos)
     for (const entry of Object.values(EDITORIAL_SCENES_CATALOG.pensamiento_matematico)) {
       await writeSampleWebp(
         path.join(tmpPublicDir, entry.relativePath.replace(/^\/+/, '')),
@@ -70,7 +95,6 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
         entry.height / 4,
       );
     }
-    // 2) Fallback general `indagacion_interdisciplinaria_general` (4 arquetipos)
     for (const entry of Object.values(EDITORIAL_SCENES_CATALOG.indagacion_interdisciplinaria_general)) {
       await writeSampleWebp(
         path.join(tmpPublicDir, entry.relativePath.replace(/^\/+/, '')),
@@ -78,9 +102,13 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
         entry.height / 4,
       );
     }
-    // 3) Override específico para UAC piloto `cecbv`
     await writeSampleWebp(
       path.join(tmpPublicDir, 'images', 'escenas', 'overrides', 'cecbv-portada.webp'),
+      320,
+      180,
+    );
+    await writeSamplePng(
+      path.join(tmpPublicDir, 'images', 'escenas', 'overrides', 'aecaef.png'),
       320,
       180,
     );
@@ -95,10 +123,8 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
     const all = listAllEditorialScenes();
     expect(all).toHaveLength(68);
 
-    const uniqueIds = new Set(all.map((s) => s.id));
-    const uniquePaths = new Set(all.map((s) => s.relativePath));
-    expect(uniqueIds.size).toBe(68);
-    expect(uniquePaths.size).toBe(68);
+    expect(new Set(all.map((s) => s.id)).size).toBe(68);
+    expect(new Set(all.map((s) => s.relativePath)).size).toBe(68);
 
     for (const domainId of DISCIPLINARY_DOMAIN_IDS) {
       const set = EDITORIAL_SCENES_CATALOG[domainId];
@@ -114,37 +140,20 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
     }
   });
 
-  it('cumple la matriz de roles exacta: 0 portadas repetidas B1/B2/B3, 0 repeticiones entre M1–M4 y 0 repeticiones en el mismo rol', () => {
-    // 1. Portadas de Bloques 1, 2 y 3 del semestre
-    const coverB1 = allocateEditorialScene({
-      uacName: 'Pensamiento Matemático I',
-      blockNumber: 1,
-      role: 'block_cover',
-      publicDir: tmpPublicDir,
-    });
-    const coverB2 = allocateEditorialScene({
-      uacName: 'Pensamiento Matemático I',
-      blockNumber: 2,
-      role: 'block_cover',
-      publicDir: tmpPublicDir,
-    });
-    const coverB3 = allocateEditorialScene({
-      uacName: 'Pensamiento Matemático I',
-      blockNumber: 3,
-      role: 'block_cover',
-      publicDir: tmpPublicDir,
-    });
+  it('cumple matriz de roles: 0 portadas B1–B3, 0 repeticiones M1–M4, 16:9 no rota a practica y existsOnDisk:false no contamina tracker', () => {
+    const fileExists = createNodeSceneFileExists(tmpPublicDir);
 
-    expect(coverB1.archetype).toBe('portada');
-    expect(coverB2.archetype).toBe('concepto');
-    expect(coverB3.archetype).toBe('comunidad');
+    const coverB1 = allocateEditorialScene({ uacName: 'Pensamiento Matemático I', blockNumber: 1, role: 'block_cover', fileExists });
+    const coverB2 = allocateEditorialScene({ uacName: 'Pensamiento Matemático I', blockNumber: 2, role: 'block_cover', fileExists });
+    const coverB3 = allocateEditorialScene({ uacName: 'Pensamiento Matemático I', blockNumber: 3, role: 'block_cover', fileExists });
+
+    expect([coverB1.archetype, coverB2.archetype, coverB3.archetype]).toEqual(['portada', 'concepto', 'comunidad']);
     expect(new Set([coverB1.id, coverB2.id, coverB3.id]).size).toBe(3);
 
-    // 2. 4 Misiones dentro del mismo bloque: 4 arquetipos distintos y crops diferenciados
-    const m1 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_1', publicDir: tmpPublicDir });
-    const m2 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_2', publicDir: tmpPublicDir });
-    const m3 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_3', publicDir: tmpPublicDir });
-    const m4 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_4', publicDir: tmpPublicDir });
+    const m1 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_1', fileExists });
+    const m2 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_2', fileExists });
+    const m3 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_3', fileExists });
+    const m4 = allocateEditorialScene({ domainId: 'pensamiento_matematico', blockNumber: 1, role: 'mission_4', fileExists });
 
     expect(new Set([m1.id, m2.id, m3.id, m4.id]).size).toBe(4);
     expect([m1.crop, m2.crop, m3.crop, m4.crop]).toEqual([
@@ -154,64 +163,78 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
       'full',
     ]);
 
-    // 3. Dedupe dinámico en el mismo rol con tracker
+    // Roles 16:9 nunca rotan a practica (4:5), ni tras agotar las 3 panorámicas
     const tracker = createBlockSceneTracker();
-    const firstHero = allocateEditorialScene({
+    const h1 = allocateEditorialScene({ domainId: 'pensamiento_matematico', role: 'slides_hero', fileExists, tracker });
+    const h2 = allocateEditorialScene({ domainId: 'pensamiento_matematico', role: 'slides_hero', fileExists, tracker });
+    const h3 = allocateEditorialScene({ domainId: 'pensamiento_matematico', role: 'slides_hero', fileExists, tracker });
+    const h4 = allocateEditorialScene({ domainId: 'pensamiento_matematico', role: 'slides_hero', fileExists, tracker });
+    expect([h1.archetype, h2.archetype, h3.archetype]).toEqual(['portada', 'concepto', 'comunidad']);
+    expect([h1, h2, h3, h4].every((s) => s.archetype !== 'practica')).toBe(true);
+
+    // existsOnDisk:false NO contamina el tracker para una asignación válida posterior
+    const cleanTracker = createBlockSceneTracker();
+    const missed = allocateEditorialScene({
       domainId: 'pensamiento_matematico',
       role: 'slides_hero',
-      publicDir: tmpPublicDir,
-      tracker,
+      fileExists: () => false,
+      tracker: cleanTracker,
     });
-    const secondHero = allocateEditorialScene({
+    expect(missed.existsOnDisk).toBe(false);
+    expect(cleanTracker.usedByRole.size).toBe(0);
+    const hitAfterMiss = allocateEditorialScene({
       domainId: 'pensamiento_matematico',
       role: 'slides_hero',
-      publicDir: tmpPublicDir,
-      tracker,
+      fileExists,
+      tracker: cleanTracker,
     });
-    expect(firstHero.id).not.toBe(secondHero.id);
+    expect(hitAfterMiss.existsOnDisk).toBe(true);
+    expect(hitAfterMiss.archetype).toBe('portada');
   });
 
-  it('prioriza overrides/ sobre el dominio y cae a indagacion_interdisciplinaria_general si falta el dominio en disco', () => {
-    // Prioridad overrides/
-    const overrideScene = allocateEditorialSceneOnDisk({
+  it('prioriza overrides/ (.webp y ${key}.png) y cae a indagacion_interdisciplinaria_general si falta dominio en disco', () => {
+    const fileExists = createNodeSceneFileExists(tmpPublicDir);
+
+    const overrideWebp = allocateEditorialSceneOnDisk({
       uacName: 'Coloca elementos constructivos básicos',
       overrideSlug: 'cecbv',
       blockNumber: 1,
       role: 'block_cover',
-      publicDir: tmpPublicDir,
+      fileExists,
     });
-    expect(overrideScene).not.toBeNull();
-    expect(overrideScene?.source).toBe('override');
-    expect(overrideScene?.relativePath).toBe('/images/escenas/overrides/cecbv-portada.webp');
+    expect(overrideWebp?.source).toBe('override');
+    expect(overrideWebp?.relativePath).toBe('/images/escenas/overrides/cecbv-portada.webp');
 
-    // Fallback determinista a indagacion_interdisciplinaria_general (literatura no existe en tmpPublicDir)
+    const overridePng = allocateEditorialSceneOnDisk({
+      uacName: 'Actualiza equipos de cómputo',
+      overrideSlug: 'aecaef',
+      blockNumber: 1,
+      role: 'block_cover',
+      fileExists,
+    });
+    expect(overridePng?.source).toBe('override');
+    expect(overridePng?.relativePath).toBe('/images/escenas/overrides/aecaef.png');
+
     const fallbackScene = allocateEditorialSceneOnDisk({
       uacName: 'Pensamiento Literario',
       blockNumber: 1,
       role: 'block_cover',
-      publicDir: tmpPublicDir,
+      fileExists,
     });
-    expect(fallbackScene).not.toBeNull();
     expect(fallbackScene?.domainId).toBe('lengua_comunicacion_literatura');
     expect(fallbackScene?.resolvedDomainId).toBe('indagacion_interdisciplinaria_general');
     expect(fallbackScene?.source).toBe('fallback_general');
 
-    // Directorio vacío -> null seguro (cero crashes en Typst mientras no se suben lotes)
-    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigpda-empty-public-'));
-    try {
-      const none = allocateEditorialSceneOnDisk({
-        uacName: 'Pensamiento Literario',
-        blockNumber: 1,
-        role: 'block_cover',
-        publicDir: emptyDir,
-      });
-      expect(none).toBeNull();
-    } finally {
-      fs.rmSync(emptyDir, { recursive: true, force: true });
-    }
+    const none = allocateEditorialSceneOnDisk({
+      uacName: 'Pensamiento Literario',
+      blockNumber: 1,
+      role: 'block_cover',
+      fileExists: () => false,
+    });
+    expect(none).toBeNull();
   });
 
-  it('habilita .webp en SpotMaterialSchema y EditorialSceneSchema y conecta 3-en-1 (08, 09 y visual-asset-manager)', () => {
+  it('renderiza escenas reales en 08 (SVG <image> + PPTX ppt/media/) y 09 (SVG <image> + PNG + PDF XObject /Subtype /Image)', async () => {
     expect(
       SpotMaterialSchema.safeParse({
         nombre: 'Escena de laboratorio',
@@ -220,22 +243,21 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
       }).success,
     ).toBe(true);
 
-    // 08 Presentaciones: hero (portada) + concept (concepto), 0 repeticiones
-    const deckScenes = resolveSacrintDeckEditorialScenes('Pensamiento Matemático I', 1, {
-      publicDir: tmpPublicDir,
-    });
-    expect(deckScenes.hero?.archetype).toBe('portada');
-    expect(deckScenes.concept?.archetype).toBe('concepto');
+    const sceneLoader = createNodeSceneLoader(tmpPublicDir);
+    const fileExists = createNodeSceneFileExists(tmpPublicDir);
+    const readDataUri = createNodeSceneDataUriReader(tmpPublicDir);
+
+    // 3-en-1 helpers + visual-asset-manager
+    const deckScenes = resolveSacrintDeckEditorialScenes('Pensamiento Matemático I', 1, { fileExists, readDataUri });
+    expect(deckScenes.hero?.dataUri).toMatch(/^data:image\/webp;base64,/);
+    expect(deckScenes.concept?.dataUri).toMatch(/^data:image\/webp;base64,/);
     expect(deckScenes.hero?.id).not.toBe(deckScenes.concept?.id);
 
-    // 09 Infografías: vertical 4:5 dedicado
-    const infoScene = resolveSacrintInfographicEditorialScene('Pensamiento Matemático I', 1, {
-      publicDir: tmpPublicDir,
-    });
+    const infoScene = resolveSacrintInfographicEditorialScene('Pensamiento Matemático I', 1, { fileExists, readDataUri });
     expect(infoScene?.archetype).toBe('practica');
     expect(infoScene?.aspectRatio).toBe('4:5');
+    expect(infoScene?.dataUri).toMatch(/^data:image\/webp;base64,/);
 
-    // visual-asset-manager: 4 misiones distintas del mismo bloque
     const missionVisuals = [0, 1, 2, 3].map((missionIndex) =>
       resolveEditorialSceneForMission({
         uacName: 'Pensamiento Matemático I',
@@ -247,6 +269,44 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
     expect(missionVisuals.every((v) => v?.type === 'editorial_scene')).toBe(true);
     expect(new Set(missionVisuals.map((v) => v?.scene?.id)).size).toBe(4);
     expect(EditorialSceneSchema.safeParse(missionVisuals[0]?.scene).success).toBe(true);
+
+    // 08 SVG: portada (cover) contiene <image href="data:image/..."
+    const deck = buildSacrintDeck(MATH_DEMO_WORKBOOK, {
+      missionIndex: 0,
+      mode: 'full',
+      ...sceneLoader,
+    });
+    const renderedSlides = renderDeckSvgs(deck);
+    const coverSlideSvg = renderedSlides.find((s) => s.kind === 'cover')?.svg ?? '';
+    expect(coverSlideSvg).toContain('<image href="data:image/webp;base64,');
+
+    // 08 PPTX: archivo ZIP contiene imagen real embebida en ppt/media/
+    const pptxBuffer = await generateSacrintPptx(deck);
+    const zip = await JSZip.loadAsync(pptxBuffer);
+    const mediaFiles = Object.keys(zip.files).filter((name) => name.startsWith('ppt/media/'));
+    expect(mediaFiles.length).toBeGreaterThanOrEqual(1);
+
+    // 09 SVG (wide + letter) + PNG raster + PDF vectorial con XObject de imagen real
+    const infoWide = buildSacrintInfographic(MATH_DEMO_WORKBOOK, 'wide', {
+      missionIndex: 0,
+      ...sceneLoader,
+    });
+    const wideSvg = renderInfographicSvg(infoWide);
+    expect(wideSvg).toContain('<image href="data:image/webp;base64,');
+
+    const infoLetter = buildSacrintInfographic(MATH_DEMO_WORKBOOK, 'letter', {
+      missionIndex: 0,
+      ...sceneLoader,
+    });
+    const letterSvg = renderInfographicSvg(infoLetter);
+    expect(letterSvg).toContain('<image href="data:image/webp;base64,');
+
+    const renderedPng = await renderInfographicPng(infoWide, 0.25);
+    expect(renderedPng.buffer.length).toBeGreaterThan(5_000);
+
+    const pdfBuffer = await renderCombinedSacrintInfographicsPdf([infoWide, infoLetter], 'wide');
+    const pdfLatin1 = pdfBuffer.toString('latin1');
+    expect(pdfLatin1).toContain('/Subtype /Image');
   });
 
   it('compila un StudentChapter real con coverScene .webp a PDF válido mediante worker-editorial/server.js', async () => {
@@ -257,8 +317,7 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
 
     try {
       process.env.PUBLIC_DIR = tmpPublicDir;
-      const secret = 'phase2-webp-cover-secret';
-      process.env.EDITORIAL_WORKER_SECRET = secret;
+      process.env.EDITORIAL_WORKER_SECRET = 'phase2-webp-cover-secret';
 
       await new Promise<void>((resolve, reject) => {
         server = http.createServer(handleRequest);
@@ -274,7 +333,7 @@ describe('Fase 2 — Motor de Escenas Contextuales (68 Escenas · Matriz de Role
         uacName: 'Pensamiento Matemático I',
         blockNumber: 1,
         role: 'block_cover',
-        publicDir: tmpPublicDir,
+        fileExists: createNodeSceneFileExists(tmpPublicDir),
       });
       expect(coverScene).not.toBeNull();
 
