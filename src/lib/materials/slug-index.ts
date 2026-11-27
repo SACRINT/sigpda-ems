@@ -64,6 +64,26 @@ const CONTEXT_KEYWORD_MAP: KeywordCategoryMapping[] = [
     keywords: ['epp', 'seguridad', 'proteccion civil'],
     categories: ['seguridad_epp'],
   },
+  {
+    keywords: ['historia', 'conciencia historica', 'ciencias sociales', 'sociologia', 'filosofia', 'humanidades', 'etica', 'derecho'],
+    categories: ['ofimatica', 'medicion', 'arte'],
+  },
+  {
+    keywords: ['lengua', 'literatura', 'ingles', 'comunicacion', 'lectura', 'medios'],
+    categories: ['arte', 'computo', 'servicios'],
+  },
+  {
+    keywords: ['salud', 'anatomia', 'enfermeria', 'nutricion', 'vida saludable', 'sexualidad'],
+    categories: ['salud', 'deportivo'],
+  },
+  {
+    keywords: ['cultura digital', 'programacion', 'ciberseguridad', 'inteligencia artificial', 'robotica'],
+    categories: ['computo', 'fisica'],
+  },
+  {
+    keywords: ['turismo', 'hospedaje', 'administracion', 'contabilidad', 'emprendimiento'],
+    categories: ['servicios', 'ofimatica'],
+  },
 ];
 
 const LABORAL_CATEGORIES: MaterialCategory[] = [

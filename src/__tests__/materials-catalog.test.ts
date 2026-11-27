@@ -25,13 +25,20 @@ describe('T-IMG-08: Test de Integridad Cruzada del Catálogo de Materiales', () 
     }
   });
 
-  it('el catálogo completo cubre el plan de 244 slugs P1-P6 (53 ejecutados + 191 pendientes de imagen)', () => {
-    expect(MATERIALES_CATALOG.length).toBe(244);
+  it('el catálogo completo cubre el plan de 316 slugs P1-P7 (53 P1 + 263 P2-P7 con presencia física en disco)', () => {
+    expect(MATERIALES_CATALOG.length).toBe(316);
 
     const p1Items = MATERIALES_CATALOG.filter((item) => item.priority === 'P1');
     const p2Items = MATERIALES_CATALOG.filter((item) => item.priority === 'P2');
     expect(p1Items.length).toBe(53);
-    expect(p2Items.length).toBe(191);
+    expect(p2Items.length).toBe(263);
+
+    // Garantizar que los 316 slugs existen físicamente como PNG en public/images/materiales/
+    const matDir = path.join(process.cwd(), 'public', 'images', 'materiales');
+    const missingOnDisk = MATERIALES_CATALOG.filter(
+      (item) => !fs.existsSync(path.join(matDir, `${item.slug}.png`))
+    ).map((item) => item.slug);
+    expect(missingOnDisk).toEqual([]);
   });
 
   it('todos los slugs son únicos y cumplen con formato kebab-case estricto', () => {

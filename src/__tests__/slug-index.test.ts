@@ -8,10 +8,10 @@ import { MATERIALES_CATALOG } from '@/lib/materials/materials-catalog';
 import { logger } from '@/lib/logger';
 
 describe('slug-index — helper de índices para prompts', () => {
-  it('buildMaterialSlugIndex() sin args devuelve 244 líneas y cada una empieza por "- "', () => {
+  it('buildMaterialSlugIndex() sin args devuelve 316 líneas y cada una empieza por "- "', () => {
     const index = buildMaterialSlugIndex();
     const lines = index.split('\n');
-    expect(lines).toHaveLength(244);
+    expect(lines).toHaveLength(316);
     for (const line of lines) {
       expect(line.startsWith('- ')).toBe(true);
       expect(line).toMatch(/^- [a-z0-9-]+ — .+/);
@@ -87,10 +87,10 @@ describe('slug-index — helper de índices para prompts', () => {
     const maxLimit = MATERIAL_INDEX_MAX_CHARS - 300;
     const indexWithGuard = buildMaterialSlugIndex(emptyContextCats, maxLimit);
     expect(indexWithGuard.length).toBeLessThanOrEqual(maxLimit);
-    // Verifica que contiene una cantidad coherente de slugs truncada por categorías enteras (~156 de 244)
+    // Verifica que contiene una cantidad coherente de slugs truncada por categorías enteras (<= 316)
     const lines = indexWithGuard.split('\n');
     expect(lines.length).toBeGreaterThan(100);
-    expect(lines.length).toBeLessThanOrEqual(244);
+    expect(lines.length).toBeLessThanOrEqual(316);
   });
 });
 
