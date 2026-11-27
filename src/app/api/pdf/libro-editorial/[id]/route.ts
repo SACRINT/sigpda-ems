@@ -42,6 +42,7 @@ import {
 } from '@/lib/editorial/student-content-model';
 import { composeStudentSessionsFromWorkbooks } from '@/lib/editorial/compose-student-sessions';
 import { resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui';
+import { enrichEditorialSessionsV2 } from '@/lib/editorial/editorial-v2-enricher';
 import { allocateEditorialSceneOnDisk } from '@/lib/visual-engine/scene-allocator';
 import { createNodeSceneFileExists } from '@/lib/visual-engine/scene-allocator-node';
 import { ensureEditorialPlanCompleteness } from '@/lib/editorial/plan-completeness';
@@ -87,14 +88,33 @@ export function resolveEditorialTemplateVersion(): string {
     return cachedTemplateVersion;
   }
   try {
-    const templatePath = path.join(
+    const templateDir = path.join(
       /*turbopackIgnore: true*/ process.cwd(),
       'templates',
       'editorial',
-      'workbook-template.typ'
     );
-    const sha = crypto.createHash('sha256').update(fs.readFileSync(templatePath)).digest('hex');
-    cachedTemplateVersion = `tpl:${sha.slice(0, 16)}`;
+    const collectTyp = (dir: string, base = dir): string[] => {
+      if (!fs.existsSync(dir)) return [];
+      const out: string[] = [];
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) out.push(...collectTyp(full, base));
+        else if (entry.isFile() && entry.name.endsWith('.typ')) {
+          out.push(path.relative(base, full).replace(/\\/g, '/'));
+        }
+      }
+      return out.sort();
+    };
+    const files = collectTyp(templateDir);
+    if (!files.includes('workbook-template.typ')) {
+      throw new Error('workbook-template.typ missing');
+    }
+    const hash = crypto.createHash('sha256');
+    for (const rel of files) {
+      hash.update(rel);
+      hash.update(fs.readFileSync(path.join(templateDir, rel)));
+    }
+    cachedTemplateVersion = `tpl:${hash.digest('hex').slice(0, 16)}`;
   } catch {
     cachedTemplateVersion = EDITORIAL_TEMPLATE_VERSION_FALLBACK;
   }
@@ -301,7 +321,8 @@ export async function POST(
         rawPlanning.workbooks_json = repair.workbooksJson as typeof rawPlanning.workbooks_json;
       }
 
-      const composed = composeStudentSessionsFromWorkbooks(rawPlanning);
+      const sceneFileExists = createNodeSceneFileExists();
+      const composed = composeStudentSessionsFromWorkbooks(rawPlanning, { sceneFileExists });
 
       if (composed.sessions.length === 0) {
         logger.warn('[api/pdf/libro-editorial] NO_SESSIONS: la planeación no tiene libros de bloque con sesiones de estudiante', {
@@ -364,8 +385,17 @@ export async function POST(
         uacName: resolvedUacName,
         blockNumber: firstBlock + 1,
         role: 'block_cover',
-        fileExists: createNodeSceneFileExists(),
+        fileExists: sceneFileExists,
       });
+      const isPublishingV2 = featureFlags.isEnabled('PUBLISHING_ENGINE_V2');
+      const finalSessions = isPublishingV2
+        ? await enrichEditorialSessionsV2({
+            uacName: resolvedUacName,
+            sessions: composed.sessions,
+            missions: composed.missions,
+          })
+        : composed.sessions;
+
       chapter = StudentChapterSchema.parse({
         uac: resolvedUacName,
         bloque: bloqueEtiqueta,
@@ -377,7 +407,14 @@ export async function POST(
         zonaEscolar: formatZonaEscolar(schoolIdentity.schoolZone),
         disciplinaUi: resolveEditorialDisciplinaryUi(resolvedUacName),
         ...(coverScene ? { coverScene } : {}),
-        sesiones: composed.sessions,
+        ...(isPublishingV2 && composed.missions.length > 0 ? { missions: composed.missions } : {}),
+        ...(isPublishingV2 && composed.projectSections.length > 0
+          ? { projectSections: composed.projectSections }
+          : {}),
+        ...(isPublishingV2 && composed.evaluationSections.length > 0
+          ? { evaluationSections: composed.evaluationSections }
+          : {}),
+        sesiones: finalSessions,
       });
     }
 

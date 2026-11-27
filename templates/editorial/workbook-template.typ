@@ -9,6 +9,14 @@
 // - Spot de materiales didácticos limitado estrictamente a <= 4.2 cm (>= 300 DPI)
 
 // ============================================================================
+// Componentes Modulares Fase 3 (PUBLISHING_ENGINE_V2)
+// ============================================================================
+#import "components/active-workbook.typ": writing-lines, empty-data-table, code-workspace, embedded-svg-diagram, digital-tool-qr-card
+#import "components/mission-banner.typ": render-mission-banner
+#import "components/project-section.typ": render-project-section
+#import "components/evaluation-section.typ": render-evaluation-section
+
+// ============================================================================
 // Paleta Cromática Institucional & Editorial (Valores Hex sin almohadilla interna)
 // ============================================================================
 #let c-primary = rgb("0f294a")      // Azul Marino Profundo Institucional
@@ -397,9 +405,19 @@
           ]
         ]
       ]
+
+      #if "embeddedDiagram" in s and s.embeddedDiagram != none [
+        #v(3pt)
+        #embedded-svg-diagram(
+          s.embeddedDiagram.svg,
+          title: s.embeddedDiagram.title,
+          caption: if "caption" in s.embeddedDiagram { s.embeddedDiagram.caption } else { none },
+          accent-color: ui-primary,
+        )
+      ]
     ],
     [
-      // Barra Marginal: Spot Didáctico + Glosario + Recursos
+      // Barra Marginal: Spot Didáctico + Glosario + Recursos + QR Herramienta Digital
       #if "materialSpot" in s and s.materialSpot != none [
         #marginal-spot-figure(
           (if "assetsRoot" in chapter and chapter.assetsRoot != none { chapter.assetsRoot } else { "/public" }) + "/images/materiales/" + s.materialSpot.archivo,
@@ -414,6 +432,10 @@
 
       #if "recursos" in s and s.recursos != none and s.recursos.len() > 0 [
         #marginal-resource(s.recursos)
+      ]
+
+      #if "digitalToolQr" in s and s.digitalToolQr != none [
+        #digital-tool-qr-card(s.digitalToolQr, accent-color: ui-primary)
       ]
     ]
   )
@@ -451,6 +473,33 @@
       ]
     ]
   )
+
+  #if "activeSpaces" in s and s.activeSpaces != none and s.activeSpaces.len() > 0 [
+    #v(2pt)
+    #for sp in s.activeSpaces [
+      #if sp.kind == "writing_lines" [
+        #writing-lines(
+          title: sp.title,
+          count: if "lines" in sp and sp.lines != none { sp.lines } else { 4 },
+          accent-color: ui-primary,
+        )
+      ] else if sp.kind == "data_table" [
+        #empty-data-table(
+          title: sp.title,
+          headers: if "headers" in sp and sp.headers != none { sp.headers } else { ("Variable", "Dato", "Conclusión") },
+          rows: if "rows" in sp and sp.rows != none { sp.rows } else { 3 },
+          header-color: ui-primary,
+        )
+      ] else if sp.kind == "code_box" [
+        #code-workspace(
+          title: sp.title,
+          lang: if "language" in sp and sp.language != none { sp.language } else { "pseudocodigo" },
+          starter: if "starterCode" in sp { sp.starterCode } else { "" },
+          accent-color: ui-teal,
+        )
+      ]
+    ]
+  ]
 
   #v(1.5pt)
 
@@ -653,13 +702,47 @@
 
   #pagebreak()
 
-  // 3. Renderizado de las Sesiones (salto de página SOLO entre sesiones; sin
-  // página en blanco al final del capítulo)
+  // 3. Renderizado de Misiones, Sesiones y Cierres de Bloque (Proyecto + Evaluación NEM)
+  #let ch-primary = resolve-ui-color(chapter, "primary", c-primary)
+  #let ch-accent = resolve-ui-color(chapter, "accent", c-accent)
+  #let ch-teal = resolve-ui-color(chapter, "teal", c-teal)
+  #let chapter-missions = if "missions" in chapter and chapter.missions != none { chapter.missions } else { () }
+  #let chapter-projects = if "projectSections" in chapter and chapter.projectSections != none { chapter.projectSections } else { () }
+  #let chapter-evals = if "evaluationSections" in chapter and chapter.evaluationSections != none { chapter.evaluationSections } else { () }
   #let session-list = chapter.sesiones
   #for (session-idx, s) in session-list.enumerate() [
+    #for m in chapter-missions [
+      #if m.startSession == s.numero [
+        #render-mission-banner(m, chapter, primary-color: ch-primary, accent-color: ch-accent)
+      ]
+    ]
     #render-session-item(s, chapter)
+    #for proj in chapter-projects [
+      #if "afterSession" in proj and proj.afterSession == s.numero [
+        #pagebreak()
+        #render-project-section(proj, primary-color: ch-primary, accent-color: ch-accent)
+      ]
+    ]
+    #for ev in chapter-evals [
+      #if "afterSession" in ev and ev.afterSession == s.numero [
+        #pagebreak()
+        #render-evaluation-section(ev, primary-color: ch-primary, accent-color: ch-accent, teal-color: ch-teal)
+      ]
+    ]
     #if session-idx < session-list.len() - 1 [
       #pagebreak()
+    ]
+  ]
+  #for proj in chapter-projects [
+    #if not ("afterSession" in proj) or proj.afterSession == none [
+      #pagebreak()
+      #render-project-section(proj, primary-color: ch-primary, accent-color: ch-accent)
+    ]
+  ]
+  #for ev in chapter-evals [
+    #if not ("afterSession" in ev) or ev.afterSession == none [
+      #pagebreak()
+      #render-evaluation-section(ev, primary-color: ch-primary, accent-color: ch-accent, teal-color: ch-teal)
     ]
   ]
 ]

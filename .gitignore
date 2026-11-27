@@ -54,6 +54,8 @@ __pycache__/
 
 # fuentes JPG de material sin referencia en la app (el asset canonico es el PNG 512x512 en root)
 public/images/materiales/_extras/
+# originales JPEG pesados de escenas (los assets canonicos son los 68 .webp en subcarpetas por dominio)
+public/images/escenas/_extras/
 
 
 output/

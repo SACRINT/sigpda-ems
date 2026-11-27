@@ -1,12 +1,10 @@
 /**
  * editorial-template-sync.test.ts — Verificación de Paridad y Sincronía de Plantillas Typst
- * SIGPDA-EMS · Motor Editorial de Alta Gama (Fase 2)
+ * SIGPDA-EMS · Motor Editorial de Alta Gama (Fases 2 y 3)
  *
- * Garantiza que la plantilla canónica del repositorio central (`templates/editorial/workbook-template.typ`)
- * y la plantilla embebida en el contexto de build del worker container (`worker-editorial/templates/editorial/workbook-template.typ`)
- * permanezcan 100% idénticas bit a bit (SHA-256).
- *
- * Previene divergencias silenciosas entre el compilador local y el microservicio de producción en Fly Machines.
+ * Garantiza que la plantilla canónica (`templates/editorial/workbook-template.typ`) y TODOS
+ * los componentes modulares (`templates/editorial/components/*.typ`) sean 100 % idénticos
+ * bit-a-bit (SHA-256) respecto a `worker-editorial/templates/editorial/`.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,31 +12,52 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
-describe('Paridad y Sincronía de Plantillas Typst (P3-D)', () => {
-  const canonicalPath = path.resolve(process.cwd(), 'templates', 'editorial', 'workbook-template.typ');
-  const workerEmbeddedPath = path.resolve(
-    process.cwd(),
-    'worker-editorial',
-    'templates',
-    'editorial',
-    'workbook-template.typ',
-  );
+function listTypFiles(dir: string, base = dir): string[] {
+  if (!fs.existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...listTypFiles(full, base));
+    } else if (entry.isFile() && entry.name.endsWith('.typ')) {
+      out.push(path.relative(base, full).replace(/\\/g, '/'));
+    }
+  }
+  return out.sort();
+}
 
-  it('la plantilla canónica y la plantilla embebida en worker-editorial deben existir', () => {
-    expect(fs.existsSync(canonicalPath)).toBe(true);
-    expect(fs.existsSync(workerEmbeddedPath)).toBe(true);
+function hashTypDir(dir: string, files: string[]): string {
+  const hash = crypto.createHash('sha256');
+  for (const rel of files) {
+    hash.update(rel);
+    hash.update(fs.readFileSync(path.join(dir, rel)));
+  }
+  return hash.digest('hex');
+}
+
+describe('Paridad y Sincronía de Plantillas Typst (P3-D + Fase 3 Modular)', () => {
+  const canonicalDir = path.resolve(process.cwd(), 'templates', 'editorial');
+  const workerDir = path.resolve(process.cwd(), 'worker-editorial', 'templates', 'editorial');
+
+  it('la plantilla canónica, sus componentes modulares y la copia del worker deben existir', () => {
+    const canonicalFiles = listTypFiles(canonicalDir);
+    const workerFiles = listTypFiles(workerDir);
+
+    expect(canonicalFiles).toContain('workbook-template.typ');
+    expect(canonicalFiles).toContain('components/active-workbook.typ');
+    expect(canonicalFiles).toContain('components/mission-banner.typ');
+    expect(canonicalFiles).toContain('components/project-section.typ');
+    expect(canonicalFiles).toContain('components/evaluation-section.typ');
+    expect(workerFiles).toEqual(canonicalFiles);
   });
 
-  it('la plantilla embebida del worker debe ser idéntica bit a bit (SHA-256) a la plantilla canónica', () => {
-    const canonicalBuffer = fs.readFileSync(canonicalPath);
-    const workerBuffer = fs.readFileSync(workerEmbeddedPath);
+  it('todos los archivos .typ del worker deben ser idénticos bit a bit (SHA-256) a la fuente canónica', () => {
+    const canonicalFiles = listTypFiles(canonicalDir);
+    const workerFiles = listTypFiles(workerDir);
+    expect(workerFiles).toEqual(canonicalFiles);
 
-    expect(canonicalBuffer.length).toBeGreaterThan(1000);
-    expect(workerBuffer.length).toBeGreaterThan(1000);
-
-    const canonicalSha256 = crypto.createHash('sha256').update(canonicalBuffer).digest('hex');
-    const workerSha256 = crypto.createHash('sha256').update(workerBuffer).digest('hex');
-
-    expect(workerSha256).toBe(canonicalSha256);
+    const canonicalSha = hashTypDir(canonicalDir, canonicalFiles);
+    const workerSha = hashTypDir(workerDir, workerFiles);
+    expect(workerSha).toBe(canonicalSha);
   });
 });

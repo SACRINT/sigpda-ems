@@ -9,7 +9,10 @@ import {
   type SacrintInfographicSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
-import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
+import {
+  createNodeSceneLoader,
+  hydrateInfographicEditorialSceneViaUrl,
+} from '@/lib/visual-engine/scene-allocator-node';
 import { logger } from '@/lib/logger';
 import { shortSubjectCode } from '@/lib/short-filename';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
@@ -98,15 +101,17 @@ export async function GET(
 
     const specs: SacrintInfographicSpec[] = [];
     const sceneLoader = createNodeSceneLoader();
+    const reqOrigin = new URL(request.url).origin;
 
     for (const entry of effectiveEntries) {
       for (const target of selectInfographicTargets(entry.workbook)) {
         try {
-          const spec = buildSacrintInfographic(entry.workbook, layout, {
+          const rawSpec = buildSacrintInfographic(entry.workbook, layout, {
             missionIndex: target.missionIndex,
             sessionIndex: target.sessionIndex,
             ...sceneLoader,
           });
+          const spec = await hydrateInfographicEditorialSceneViaUrl(rawSpec, reqOrigin);
           specs.push(spec);
         } catch (err) {
           logger.warn(

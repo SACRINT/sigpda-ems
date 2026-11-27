@@ -220,14 +220,34 @@ function resolveTemplatePath() {
  * Se memoiza en el primer cálculo.
  */
 let cachedTemplateVersion = null;
+function listTypFilesRecursive(dir, base = dir) {
+  if (!fs.existsSync(dir)) return [];
+  const results = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...listTypFilesRecursive(full, base));
+    } else if (entry.isFile() && entry.name.endsWith('.typ')) {
+      results.push(path.relative(base, full).replace(/\\/g, '/'));
+    }
+  }
+  return results.sort();
+}
+
 function getTemplateVersion() {
   if (cachedTemplateVersion !== null) {
     return cachedTemplateVersion;
   }
   try {
     const tplPath = resolveTemplatePath();
-    const hash = crypto.createHash('sha256').update(fs.readFileSync(tplPath)).digest('hex');
-    cachedTemplateVersion = `tpl:${hash.slice(0, 16)}`;
+    const tplDir = path.dirname(tplPath);
+    const typFiles = listTypFilesRecursive(tplDir);
+    const hash = crypto.createHash('sha256');
+    for (const rel of typFiles) {
+      hash.update(rel);
+      hash.update(fs.readFileSync(path.join(tplDir, rel)));
+    }
+    cachedTemplateVersion = `tpl:${hash.digest('hex').slice(0, 16)}`;
   } catch {
     cachedTemplateVersion = 'tpl:unavailable';
   }
@@ -455,10 +475,22 @@ function handleRequest(req, res) {
         const templatePath = resolveTemplatePath();
         const publicDir = resolvePublicDir();
 
-        // AUD-01: Copiar plantilla a scratchDir para que entry.typ use importación local
-        // relativa y elimine dependencia de componentes de disco (C:) o rutas raíz externas.
+        // AUD-01 + Fase 3: Copiar plantilla y sus componentes modulares a scratchDir
         const localTemplatePath = path.join(scratchDir, 'workbook-template.typ');
         await fs.promises.copyFile(templatePath, localTemplatePath);
+        const componentsSrcDir = path.join(path.dirname(templatePath), 'components');
+        if (fs.existsSync(componentsSrcDir)) {
+          const componentsDestDir = path.join(scratchDir, 'components');
+          await fs.promises.mkdir(componentsDestDir, { recursive: true });
+          for (const file of await fs.promises.readdir(componentsSrcDir)) {
+            if (file.endsWith('.typ')) {
+              await fs.promises.copyFile(
+                path.join(componentsSrcDir, file),
+                path.join(componentsDestDir, file),
+              );
+            }
+          }
+        }
 
         // Raíz efectiva de Typst para resolución de assets estáticos (AUD-01 / AUD-R2).
         // En Linux/Fly Machines /app y /tmp residen bajo /. En Windows dev local,

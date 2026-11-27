@@ -9,7 +9,10 @@ import {
   type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
-import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
+import {
+  createNodeSceneLoader,
+  hydrateDeckEditorialScenesViaUrl,
+} from '@/lib/visual-engine/scene-allocator-node';
 import {
   extractMaterialsFromWorkbook,
   type ExtractedBlockMaterials,
@@ -90,6 +93,7 @@ export async function GET(
     const deckWarnings: ReviewIssue[] = [];
     const misconceptionTracker = new Map<string, number>();
     const sceneLoader = createNodeSceneLoader();
+    const reqOrigin = new URL(request.url).origin;
 
     for (const entry of effectiveEntries) {
       let extracted: ExtractedBlockMaterials | undefined;
@@ -98,11 +102,13 @@ export async function GET(
       } catch {
         extracted = undefined;
       }
-      const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, {
-        mode: deckMode,
-        misconceptionTracker,
-        ...sceneLoader,
-      });
+      const entryDecks = await Promise.all(
+        buildSacrintDecksForWorkbook(entry.workbook, {
+          mode: deckMode,
+          misconceptionTracker,
+          ...sceneLoader,
+        }).map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
+      );
       for (const deck of entryDecks) {
         sacrintDecks.push(deck);
         const review = reviewBlockMaterials({

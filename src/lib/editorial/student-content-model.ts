@@ -89,6 +89,122 @@ export const EditorialSceneSchema = z.object({
 
 export type EditorialScene = z.infer<typeof EditorialSceneSchema>;
 
+export const ActiveSpaceSchema = z.object({
+  kind: z.enum(['writing_lines', 'data_table', 'code_box']),
+  title: z.string().min(3),
+  lines: z.number().int().min(2).max(8).optional(),
+  headers: z.array(z.string().min(1)).min(2).max(5).optional(),
+  rows: z.number().int().min(2).max(7).optional(),
+  language: z.string().optional(),
+  starterCode: z.string().optional(),
+});
+
+export type ActiveSpaceItem = z.infer<typeof ActiveSpaceSchema>;
+
+export const EmbeddedDiagramSchema = z.object({
+  title: z.string().min(3),
+  caption: z.string().optional(),
+  svg: z.string().includes('<svg'),
+});
+
+export type EmbeddedDiagram = z.infer<typeof EmbeddedDiagramSchema>;
+
+export const DigitalToolQrSchema = z.object({
+  name: z.string().min(2),
+  url: z.string().url(),
+  description: z.string().min(4),
+  svg: z.string().includes('<svg'),
+});
+
+export type DigitalToolQr = z.infer<typeof DigitalToolQrSchema>;
+
+export const StudentMissionFramingSchema = z.object({
+  blockNumber: z.number().int().positive(),
+  missionIndex: z.number().int().positive(),
+  title: z.string().min(3),
+  stageLabel: z.string().min(3),
+  startSession: z.number().int().positive(),
+  endSession: z.number().int().positive(),
+  realLifeContext: z.string().optional(),
+  scene: EditorialSceneSchema.optional(),
+  trafficLight: z
+    .object({
+      green: z.string(),
+      yellow: z.string(),
+      red: z.string(),
+    })
+    .optional(),
+});
+
+export type StudentMissionFraming = z.infer<typeof StudentMissionFramingSchema>;
+
+export const StudentProjectSectionSchema = z.object({
+  blockNumber: z.number().int().positive(),
+  blockName: z.string().min(3),
+  afterSession: z.number().int().positive().optional(),
+  artifactName: z.string().min(3),
+  communityUtility: z.string().min(5),
+  requiredMaterials: z.array(z.string()).default([]),
+  phases: z
+    .array(
+      z.object({
+        phaseNum: z.number().int().positive(),
+        title: z.string().min(2),
+        allocatedHours: z.number().nonnegative(),
+        deliverables: z.array(z.string()).default([]),
+        instructions: z.string().min(3),
+      }),
+    )
+    .default([]),
+  technicalSpecs: z.array(z.string()).default([]),
+  acceptanceCriteria: z.array(z.string()).default([]),
+  registrationFormat: z.string().optional(),
+});
+
+export type StudentProjectSection = z.infer<typeof StudentProjectSectionSchema>;
+
+export const StudentEvaluationSectionSchema = z.object({
+  blockNumber: z.number().int().positive(),
+  blockName: z.string().min(3),
+  afterSession: z.number().int().positive().optional(),
+  rubric: z
+    .array(
+      z.object({
+        criterion: z.string().min(2),
+        weightPercent: z.number().nonnegative(),
+        levels: z.array(
+          z.object({
+            levelName: z.string().min(2),
+            points: z.number().nonnegative(),
+            descriptor: z.string().min(2),
+          }),
+        ),
+      }),
+    )
+    .default([]),
+  checklist: z
+    .array(
+      z.object({
+        item: z.string().min(3),
+        category: z.string().min(2),
+      }),
+    )
+    .default([]),
+  reflectionPrompts: z.array(z.string().min(4)).default([]),
+  quizQuestions: z
+    .array(
+      z.object({
+        questionNumber: z.number().int().positive(),
+        scenario: z.string(),
+        question: z.string().min(4),
+        options: z.array(z.string()).optional(),
+      }),
+    )
+    .default([]),
+});
+
+export type StudentEvaluationSection = z.infer<typeof StudentEvaluationSectionSchema>;
+
 export interface StudentSession {
   numero: number;
   titulo: string;
@@ -104,6 +220,9 @@ export interface StudentSession {
   materialSpot?: SpotMaterial;
   sidenote?: string;
   productoIntegrador?: string;
+  embeddedDiagram?: EmbeddedDiagram;
+  digitalToolQr?: DigitalToolQr;
+  activeSpaces?: ActiveSpaceItem[];
 }
 
 export interface StudentChapter {
@@ -118,6 +237,9 @@ export interface StudentChapter {
   editorialSubtitle?: string;
   disciplinaUi?: EditorialDisciplinaryUi;
   coverScene?: EditorialScene;
+  missions?: StudentMissionFraming[];
+  projectSections?: StudentProjectSection[];
+  evaluationSections?: StudentEvaluationSection[];
   sesiones: StudentSession[];
 }
 
@@ -172,6 +294,9 @@ export const StudentSessionSchema = z.object({
   materialSpot: SpotMaterialSchema.optional(),
   sidenote: z.string().optional(),
   productoIntegrador: z.string().optional(),
+  embeddedDiagram: EmbeddedDiagramSchema.optional(),
+  digitalToolQr: DigitalToolQrSchema.optional(),
+  activeSpaces: z.array(ActiveSpaceSchema).optional(),
 });
 
 export const StudentChapterSchema = z.object({
@@ -186,6 +311,9 @@ export const StudentChapterSchema = z.object({
   editorialSubtitle: z.string().optional(),
   disciplinaUi: EditorialDisciplinaryUiSchema.optional(),
   coverScene: EditorialSceneSchema.optional(),
+  missions: z.array(StudentMissionFramingSchema).optional(),
+  projectSections: z.array(StudentProjectSectionSchema).optional(),
+  evaluationSections: z.array(StudentEvaluationSectionSchema).optional(),
   sesiones: z.array(StudentSessionSchema).min(1, 'El capítulo debe contener sesiones'),
 }).superRefine((chapter, ctx) => {
   // Invariante Load-Bearing anti-F11: continuidad estricta 1..N sin omisiones ni desorden

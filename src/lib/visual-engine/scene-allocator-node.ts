@@ -9,11 +9,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import sharp from 'sharp';
-import type {
-  AllocatedEditorialScene,
-  SceneFileExistsFn,
-  SceneReadDataUriFn,
+import {
+  allocateEditorialScene,
+  type AllocatedEditorialScene,
+  type SceneFileExistsFn,
+  type SceneReadDataUriFn,
 } from './scene-allocator';
+import type { SacrintDeckSpec, SacrintInfographicSpec } from './sacrint/types';
 
 const DEFAULT_PUBLIC_DIR = () => path.join(process.cwd(), 'public');
 
@@ -99,7 +101,7 @@ export async function ensurePngDataUri(dataUri: string): Promise<string> {
 export async function hydrateEditorialSceneViaUrl(
   scene: AllocatedEditorialScene,
   baseUrl: string,
-  timeoutMs = 4000,
+  timeoutMs = 3000,
 ): Promise<AllocatedEditorialScene> {
   if (scene.dataUri) return scene;
   try {
@@ -116,4 +118,72 @@ export async function hydrateEditorialSceneViaUrl(
   } catch {
     return scene;
   }
+}
+
+/**
+ * Fallback serverless (Vercel/Blob) para presentaciones `08`: si `fs` local no encontró
+ * `public/images/escenas/`, intenta hidratar hero + concepto vía HTTP desde `origin`.
+ * En local o contenedor con `public/` montado retorna inmediatamente (costo 0).
+ */
+export async function hydrateDeckEditorialScenesViaUrl(
+  deck: SacrintDeckSpec,
+  origin?: string | null,
+): Promise<SacrintDeckSpec> {
+  if (!origin) return deck;
+  if (deck.editorialScenes?.hero?.dataUri && deck.editorialScenes?.concept?.dataUri) {
+    return deck;
+  }
+  const [hero, concept] = await Promise.all([
+    deck.editorialScenes?.hero?.dataUri
+      ? Promise.resolve(deck.editorialScenes.hero)
+      : hydrateEditorialSceneViaUrl(
+          allocateEditorialScene({
+            uacName: deck.meta.subjectName,
+            blockNumber: deck.meta.blockNumber,
+            role: 'slides_hero',
+          }),
+          origin,
+        ),
+    deck.editorialScenes?.concept?.dataUri
+      ? Promise.resolve(deck.editorialScenes.concept)
+      : hydrateEditorialSceneViaUrl(
+          allocateEditorialScene({
+            uacName: deck.meta.subjectName,
+            blockNumber: deck.meta.blockNumber,
+            role: 'slides_concept',
+          }),
+          origin,
+        ),
+  ]);
+  const validHero = hero.dataUri ? hero : undefined;
+  const validConcept = concept.dataUri ? concept : undefined;
+  if (!validHero && !validConcept) return deck;
+  return {
+    ...deck,
+    editorialScenes: {
+      ...(validHero ? { hero: validHero } : {}),
+      ...(validConcept ? { concept: validConcept } : {}),
+    },
+  };
+}
+
+/**
+ * Fallback serverless (Vercel/Blob) para infografías `09`: si `fs` local no encontró
+ * la escena 4:5, intenta hidratarla vía HTTP desde `origin`.
+ */
+export async function hydrateInfographicEditorialSceneViaUrl(
+  spec: SacrintInfographicSpec,
+  origin?: string | null,
+): Promise<SacrintInfographicSpec> {
+  if (!origin || spec.editorialScene?.dataUri) return spec;
+  const hydrated = await hydrateEditorialSceneViaUrl(
+    allocateEditorialScene({
+      uacName: spec.meta.subjectName,
+      blockNumber: spec.meta.blockNumber,
+      role: 'infographic_activity',
+    }),
+    origin,
+  );
+  if (!hydrated.dataUri) return spec;
+  return { ...spec, editorialScene: hydrated };
 }

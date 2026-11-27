@@ -7,7 +7,10 @@ import { renderInfographicSvg } from '@/lib/visual-engine/sacrint/infographic-re
 import { renderCombinedSacrintInfographicsPdf, renderInfographicPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { INFOGRAPHIC } from '@/lib/visual-engine/sacrint/tokens';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
-import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
+import {
+  createNodeSceneLoader,
+  hydrateInfographicEditorialSceneViaUrl,
+} from '@/lib/visual-engine/scene-allocator-node';
 import { logger } from '@/lib/logger';
 import { shortSubjectCode } from '@/lib/short-filename';
 
@@ -93,10 +96,11 @@ export async function GET(
     }
 
     const size = INFOGRAPHIC[layout];
-    const spec = buildSacrintInfographic(workbook, layout as SacrintInfographicFormat, {
+    const rawSpec = buildSacrintInfographic(workbook, layout as SacrintInfographicFormat, {
       missionIndex: missionPos,
       ...createNodeSceneLoader(),
     });
+    const spec = await hydrateInfographicEditorialSceneViaUrl(rawSpec, new URL(request.url).origin);
     const review = reviewBlockMaterials({
       workbook,
       infographic: spec,

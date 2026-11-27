@@ -155,6 +155,9 @@ describe('composeStudentSessionsFromWorkbooks — sin relleno genérico', () => 
       dropped: [],
       totalPlans: 0,
       padded: 0,
+      missions: [],
+      projectSections: [],
+      evaluationSections: [],
     });
     expect(composeStudentSessionsFromWorkbooks({ workbooks_json: null }).sessions).toHaveLength(0);
   });

@@ -4,3 +4,5 @@ node_modules
 .env*
 docs
 **/node_modules
+public/images/materiales/_extras
+public/images/escenas/_extras

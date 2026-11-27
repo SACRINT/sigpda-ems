@@ -13,7 +13,10 @@ import { generateSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-ge
 import { renderSvgToPng } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { SLIDE } from '@/lib/visual-engine/sacrint/tokens';
 import { reviewBlockMaterials } from '@/lib/guide-engine/material-review';
-import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
+import {
+  createNodeSceneLoader,
+  hydrateDeckEditorialScenesViaUrl,
+} from '@/lib/visual-engine/scene-allocator-node';
 import { logger } from '@/lib/logger';
 import { shortSubjectCode } from '@/lib/short-filename';
 
@@ -106,11 +109,12 @@ export async function GET(
       return NextResponse.json({ error: 'La misión solicitada no existe en este bloque' }, { status: 404 });
     }
 
-    const deck = buildSacrintDeck(workbook, {
+    const rawDeck = buildSacrintDeck(workbook, {
       missionIndex: missionPos,
       mode: deckMode,
       ...createNodeSceneLoader(),
     });
+    const deck = await hydrateDeckEditorialScenesViaUrl(rawDeck, new URL(request.url).origin);
     if ((format === 'svg' || format === 'png') && (isNaN(slidePos) || slidePos < 0 || slidePos >= deck.slides.length)) {
       return NextResponse.json({ error: `slide inválido (0-${Math.max(0, deck.slides.length - 1)})` }, { status: 400 });
     }

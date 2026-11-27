@@ -9,7 +9,10 @@ import {
   type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
-import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
+import {
+  createNodeSceneLoader,
+  hydrateDeckEditorialScenesViaUrl,
+} from '@/lib/visual-engine/scene-allocator-node';
 import { logger } from '@/lib/logger';
 import { shortSubjectCode } from '@/lib/short-filename';
 
@@ -83,10 +86,13 @@ export async function GET(
       return NextResponse.json({ success: true, blockIndex, deck });
     }
 
-    const sacrintDecks: SacrintDeckSpec[] = buildSacrintDecksForWorkbook(workbook, {
-      mode: 'lesson-guide',
-      ...createNodeSceneLoader(),
-    });
+    const reqOrigin = new URL(request.url).origin;
+    const sacrintDecks: SacrintDeckSpec[] = await Promise.all(
+      buildSacrintDecksForWorkbook(workbook, {
+        mode: 'lesson-guide',
+        ...createNodeSceneLoader(),
+      }).map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
+    );
 
     const buffer = await generateCombinedSacrintPptx(sacrintDecks, {
       title: `Presentación SACRINT — ${deck.meta.subjectName} — Bloque ${blockIndex + 1}`,
