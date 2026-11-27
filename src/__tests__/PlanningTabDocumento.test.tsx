@@ -98,8 +98,8 @@ describe('PlanningTabDocumento — Tarea 1: Botón de exportación editorial', (
     expect(html).toMatch(/<button[^>]*id="btn-exportar-editorial"[^>]*>/);
     const buttonMatch = html.match(/<button[^>]*id="btn-exportar-editorial"[^>]*>/)?.[0] || '';
     expect(buttonMatch).not.toContain('disabled');
-    // AUD-T2: Badge debe reflejar Typst 0.13 en coherencia con el Dockerfile
-    expect(html).toContain('MCCEMS · Typst 0.13');
+    // AUD-T2: Badge debe reflejar Typst 0.15 en coherencia con el Dockerfile (0.15.1)
+    expect(html).toContain('MCCEMS · Typst 0.15');
   });
 
   it('con editorialEngineEnabled=true y isEditorialGenerating=true, el botón renderiza en estado disabled con spinner', () => {

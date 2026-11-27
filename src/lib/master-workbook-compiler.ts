@@ -18,7 +18,10 @@ import { getAllBlockWorkbooks } from '@/lib/db';
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
-import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
+import {
+  compileUnifiedEditorialPdf,
+  type UnifiedPdfEngine,
+} from '@/lib/editorial/unified-editorial-compiler';
 import { validateSemestralGuideQuality, type SemestralValidationOutput } from '@/lib/guide-engine/quality-validator';
 import { logger } from '@/lib/logger';
 
@@ -33,7 +36,12 @@ export async function compileSemestralWorkbook(
   planningId: string,
   planning: Planning,
   options: CompileSemestralOptions = {}
-): Promise<{ docx?: Buffer; pdf?: Buffer; semestralQuality: SemestralValidationOutput }> {
+): Promise<{
+  docx?: Buffer;
+  pdf?: Buffer;
+  pdfEngine?: UnifiedPdfEngine;
+  semestralQuality: SemestralValidationOutput;
+}> {
   const format = options.format || 'both';
 
   // 1. Leer los bloques disponibles desde la base de datos
@@ -64,19 +72,35 @@ export async function compileSemestralWorkbook(
   // 3. Renderizar únicamente el formato solicitado (0 tokens de IA, sin duplicar memoria/CPU)
   let docxBuffer: Buffer | undefined;
   let pdfBuffer: Buffer | undefined;
+  let pdfEngine: UnifiedPdfEngine | undefined;
 
   if (format === 'docx') {
     docxBuffer = await renderWorkbookToDocx(consolidatedBook, planning);
   } else if (format === 'pdf') {
-    pdfBuffer = await renderWorkbookToPdf(consolidatedBook, planning);
+    const unified = await compileUnifiedEditorialPdf({
+      planningId,
+      planning,
+      workbooksMap,
+      fallbackWorkbook: consolidatedBook,
+    });
+    pdfBuffer = unified.pdfBuffer;
+    pdfEngine = unified.engine;
   } else {
     docxBuffer = await renderWorkbookToDocx(consolidatedBook, planning);
-    pdfBuffer = await renderWorkbookToPdf(consolidatedBook, planning);
+    const unified = await compileUnifiedEditorialPdf({
+      planningId,
+      planning,
+      workbooksMap,
+      fallbackWorkbook: consolidatedBook,
+    });
+    pdfBuffer = unified.pdfBuffer;
+    pdfEngine = unified.engine;
   }
 
   return {
     docx: docxBuffer,
     pdf: pdfBuffer,
+    pdfEngine,
     semestralQuality,
   };
 }
@@ -111,7 +135,6 @@ export function buildConsolidatedBook(
   }
 
   // Índice consolidado con paginación corrida continua y numeración correlativa
-  let currentPageEstimate = 3; // Portada (1), Portada Semestral (2), Índice (3)
   const consolidatedTOC: ActiveWorkTextbook['tableOfContents'] = [];
   const consolidatedMissions: ActiveWorkTextbook['missions'] = [];
   let globalMissionIndex = 1;
@@ -138,7 +161,6 @@ export function buildConsolidatedBook(
         sessionsRange: `Sesiones: ${m.coveredSessions?.join(', ') || 'N/A'}`,
         pageEstimate: pageSpan,
       });
-      currentPageEstimate += pageSpan;
 
       // Inyectar misión con índice correlativo global
       consolidatedMissions.push({

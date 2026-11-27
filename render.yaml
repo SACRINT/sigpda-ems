@@ -1,0 +1,22 @@
+# render.yaml — Blueprint oficial de despliegue en Render para el Worker Editorial Typst
+# SIGPDA-EMS · Motor Editorial Unificado (Fase 4)
+#
+# Servicio activo en producción: https://sigpda-editorial-worker.onrender.com
+# Despliegue automático desde GitHub (rama main) usando el Dockerfile de la raíz.
+
+services:
+  - type: web
+    name: sigpda-editorial-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TYPST_VERSION
+        value: 0.15.1
+      - key: EDITORIAL_WORKER_SECRET
+        sync: false

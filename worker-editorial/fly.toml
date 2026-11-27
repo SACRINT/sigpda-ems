@@ -1,4 +1,8 @@
-# fly.toml — Configuración de Fly Machines para Editorial Publisher Worker
+# LEGACY / ARCHIVED — NO USAR EN PRODUCCIÓN.
+# El worker editorial en producción corre en Render (ver /render.yaml → https://sigpda-editorial-worker.onrender.com).
+# Este archivo se conserva únicamente como referencia histórica de configuración.
+#
+# fly.toml — Configuración anterior de Fly Machines para Editorial Publisher Worker
 # SIGPDA-EMS · Motor Editorial de Alta Gama (Fase 2)
 #
 # Configuración con scale-to-zero:

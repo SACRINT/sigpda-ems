@@ -96,8 +96,12 @@ export default async function PlanningDetailPage({
     createdAt: ex.created_at,
   }));
 
-  const editorialEngineEnabled = featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE');
+  const isPublishingV2 = featureFlags.isEnabled('PUBLISHING_ENGINE_V2');
   const subStatus = await getSubscriptionStatus(teacher.id, session.user.email);
+  // Cuando PUBLISHING_ENGINE_V2 está activo, el libro editorial Typst ya está fusionado
+  // en los botones normales de PDF y Paquete ZIP; solo el admin conserva la barra separada de diagnóstico.
+  const editorialEngineEnabled =
+    featureFlags.isEnabled('EDITORIAL_PUBLISHER_ENGINE') && (!isPublishingV2 || subStatus.isAdmin);
   const canEditDocument = Boolean(subStatus.isAdmin || subStatus.hasActiveSubscription);
   const showGenerationTelemetry =
     subStatus.isAdmin ||

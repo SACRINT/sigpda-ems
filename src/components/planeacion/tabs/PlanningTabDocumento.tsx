@@ -334,7 +334,7 @@ export default function PlanningTabDocumento({
                     fontWeight: 700,
                   }}
                 >
-                  MCCEMS · Typst 0.13
+                  MCCEMS · Typst 0.15
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1430,7 +1430,7 @@ export default function PlanningTabDocumento({
                                     } else {
                                       toast.error(data.error || 'Error en la reparación', { id: tid });
                                     }
-                                  } catch (err) {
+                                  } catch {
                                     toast.error('Error de red al reparar', { id: tid });
                                   }
                                 } else {

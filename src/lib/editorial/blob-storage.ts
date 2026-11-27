@@ -57,6 +57,38 @@ export async function isEditorialPdfStorageAvailable(
 }
 
 /**
+ * Lee los bytes de un PDF editorial previamente persistido (Vercel Blob o `local://`)
+ * para reutilización de caché por `content_hash` a costo 0 de compilación.
+ * Devuelve `null` si el archivo no existe, falla la red o no tiene cabecera `%PDF-`.
+ */
+export async function readEditorialPdfFromStorage(
+  storagePath: string | null | undefined,
+  timeoutMs = 15_000,
+): Promise<Buffer | null> {
+  if (!storagePath) return null;
+
+  try {
+    let buf: Buffer | null = null;
+
+    if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
+      const response = await fetch(storagePath, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!response.ok) return null;
+      buf = Buffer.from(await response.arrayBuffer());
+    } else if (storagePath.startsWith('local://')) {
+      const localFile = path.join(LOCAL_BLOB_DIR, path.basename(storagePath));
+      buf = await fs.promises.readFile(localFile);
+    }
+
+    if (!buf || buf.length < 100 || !buf.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
+      return null;
+    }
+    return buf;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Limpia archivos huérfanos del directorio local de blobs con antigüedad superior al TTL.
  * Exclusivo de entornos de desarrollo local y runners de CI (AUD-02 / AUD-R1).
  */

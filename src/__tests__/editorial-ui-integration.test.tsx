@@ -167,7 +167,7 @@ describe('Editorial UI Integration Suite (Fase 3 — Tarea 5)', () => {
     );
     expect(html).toContain('btn-exportar-editorial');
     expect(html).toContain('Exportar Libro Editorial');
-    expect(html).toContain('MCCEMS · Typst 0.13');
+    expect(html).toContain('MCCEMS · Typst 0.15');
   });
 
   it('Escenario 2: Caso premium — POST 403 PREMIUM_REQUIRED → Modal visible en Tab → Click "Ver planes" → router.push("/suscripcion")', async () => {

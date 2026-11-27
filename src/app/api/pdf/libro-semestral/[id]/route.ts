@@ -50,7 +50,7 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const { pdf } = await compileSemestralWorkbook(id, planning, { format: 'pdf' });
+    const { pdf, pdfEngine } = await compileSemestralWorkbook(id, planning, { format: 'pdf' });
     if (!pdf) {
       throw new Error('No se pudo generar el archivo PDF semestral');
     }
@@ -62,12 +62,14 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
+        ...(pdfEngine ? { 'X-Editorial-Engine': pdfEngine } : {}),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[GET /api/pdf/libro-semestral/[id]] Error:', error);
+    const message = error instanceof Error ? error.message : 'Error al compilar el libro semestral PDF';
     return NextResponse.json(
-      { error: error.message || 'Error al compilar el libro semestral PDF' },
+      { error: message },
       { status: 500 }
     );
   }

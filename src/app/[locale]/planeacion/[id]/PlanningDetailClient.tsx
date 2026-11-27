@@ -65,7 +65,17 @@ function PlanningDetailModular({
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Precalentamiento no bloqueante del worker editorial en Render cuando ya existen libros de bloque
+    const hasWorkbooks =
+      initialPlanning.workbooksJson &&
+      typeof initialPlanning.workbooksJson === 'object' &&
+      Object.keys(initialPlanning.workbooksJson).some((k) => /^block_\d+$/.test(k));
+    if (hasWorkbooks && process.env.NODE_ENV !== 'test') {
+      fetch('/api/pdf/editorial-warmup', { method: 'GET', credentials: 'same-origin' }).catch(() => {
+        // Silencioso: si falla el warmup, la descarga tiene fallback automático
+      });
+    }
+  }, [initialPlanning.workbooksJson]);
 
   useEffect(() => {
     setPlanning(initialPlanning);

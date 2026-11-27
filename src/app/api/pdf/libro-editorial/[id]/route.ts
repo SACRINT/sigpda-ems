@@ -15,9 +15,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
 import { auth } from '@/lib/auth';
+import {
+  EDITORIAL_TEMPLATE_VERSION_FALLBACK,
+  resolveEditorialTemplateVersion,
+} from '@/lib/editorial/template-version';
 import { getTeacherByEmail, getPlanningById, sql } from '@/lib/db';
 import { getSubscriptionStatus } from '@/lib/subscription-gate';
 import { featureFlags } from '@/lib/platform/feature-flags';
@@ -66,60 +68,7 @@ export const maxDuration = 60; // Timeout máximo compatible con plan Hobby y Ve
  */
 const EDITORIAL_REPAIR_DEADLINE_MS = 24_000;
 
-/**
- * Versión de respaldo de la plantilla Typst. Se usa SOLO si no es posible leer
- * el archivo .typ en runtime (defensa ante un bundle sin trazar). BUMPEAR junto
- * con cada commit que toque templates/editorial/workbook-template.typ.
- */
-export const EDITORIAL_TEMPLATE_VERSION_FALLBACK = 'v2026.10.20.2';
-
-let cachedTemplateVersion: string | null = null;
-
-/**
- * Versión de la plantilla Typst derivada del CONTENIDO REAL de
- * templates/editorial/workbook-template.typ (sha256 → 16 hex). Se incluye en el
- * content_hash para que cualquier cambio de espaciado/tipografía/estructura
- * invalide la caché de PDFs ya compilados sin depender de que alguien recuerde
- * bumpear una constante a mano (eso ya falló una vez: la caché quedó pegada con
- * un PDF de diseño viejo). Fallback: EDITORIAL_TEMPLATE_VERSION_FALLBACK.
- */
-export function resolveEditorialTemplateVersion(): string {
-  if (cachedTemplateVersion !== null) {
-    return cachedTemplateVersion;
-  }
-  try {
-    const templateDir = path.join(
-      /*turbopackIgnore: true*/ process.cwd(),
-      'templates',
-      'editorial',
-    );
-    const collectTyp = (dir: string, base = dir): string[] => {
-      if (!fs.existsSync(dir)) return [];
-      const out: string[] = [];
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) out.push(...collectTyp(full, base));
-        else if (entry.isFile() && entry.name.endsWith('.typ')) {
-          out.push(path.relative(base, full).replace(/\\/g, '/'));
-        }
-      }
-      return out.sort();
-    };
-    const files = collectTyp(templateDir);
-    if (!files.includes('workbook-template.typ')) {
-      throw new Error('workbook-template.typ missing');
-    }
-    const hash = crypto.createHash('sha256');
-    for (const rel of files) {
-      hash.update(rel);
-      hash.update(fs.readFileSync(path.join(templateDir, rel)));
-    }
-    cachedTemplateVersion = `tpl:${hash.digest('hex').slice(0, 16)}`;
-  } catch {
-    cachedTemplateVersion = EDITORIAL_TEMPLATE_VERSION_FALLBACK;
-  }
-  return cachedTemplateVersion;
-}
+export { EDITORIAL_TEMPLATE_VERSION_FALLBACK, resolveEditorialTemplateVersion };
 
 /**
  * Normaliza la zona escolar para portada e índice del libro.

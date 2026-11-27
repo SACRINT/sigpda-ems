@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { shortSubjectCode } from '@/lib/short-filename';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
-import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
+import { compileUnifiedEditorialPdf } from '@/lib/editorial/unified-editorial-compiler';
 import type { Planning } from '@/types/planning';
 
 import { logger } from '@/lib/logger';
@@ -74,7 +74,18 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const pdfBuffer = await renderWorkbookToPdf(workbook, planning);
+    const compiled = await compileUnifiedEditorialPdf({
+      planningId: id,
+      planning,
+      blockIndex,
+      workbooksMap: { [`block_${blockIndex}`]: { current: workbook } },
+      fallbackWorkbook: workbook,
+      teacherIdentity: {
+        schoolName: teacher.school_name,
+        cct: teacher.cct,
+      },
+    });
+    const pdfBuffer = compiled.pdfBuffer;
     const filename = `Libro_B${blockIndex + 1}_${shortSubjectCode(planning.uacName)}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
@@ -83,6 +94,7 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
+        'X-Editorial-Engine': compiled.engine,
       },
     });
   } catch (error: unknown) {
