@@ -37,6 +37,7 @@ import {
   sanitizePlanningContent,
 } from '@/lib/planning/quality-pipeline';
 import { isUpstreamAIError, AI_OUTAGE_USER_MESSAGE } from '@/lib/ai-resilience';
+import { enforceUsageQuota } from '@/lib/platform/usage-quota-guard';
 import type { ExtractedPdfData, TeacherContext, GeneratedPlanningContent, FechasCortes } from '@/types/planning';
 import type { RagContext } from '@/lib/rag-curricular';
 
@@ -79,6 +80,23 @@ export async function POST(
       return NextResponse.json(cachedResult, {
         headers: { 'X-Idempotency-Hit': 'true' },
       });
+    }
+
+    // PR 4.2: Cuota por periodo Stripe + rate limit horario + idempotencia (nunca cuenta doble en reintento)
+    const quota = await enforceUsageQuota({
+      teacherId: teacher.id,
+      teacherEmail: session.user.email,
+      metric: 'ai_planning',
+      idempotencyKey: idempotencyKey || `${id}:plan-generate`,
+    });
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+        {
+          status: quota.statusCode || 403,
+          headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+        }
+      );
     }
 
     const body = await request.json();

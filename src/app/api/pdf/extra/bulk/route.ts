@@ -41,6 +41,11 @@ import {
   type MaterialType,
   type ReviewIssue,
 } from '@/lib/guide-engine/material-review';
+import {
+  acquireEditorialConcurrencyLock,
+  enforceUsageQuota,
+  releaseEditorialConcurrencyLock,
+} from '@/lib/platform/usage-quota-guard';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -63,6 +68,10 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleBulkPdf(request: NextRequest) {
+  const startedAt = Date.now();
+  let bulkLockId: string | undefined;
+  let bulkTeacherId: string | undefined;
+  let bulkPlanningId: string | null = null;
   try {
     const session = await auth();
     if (!session?.user?.email) {
@@ -112,6 +121,41 @@ async function handleBulkPdf(request: NextRequest) {
     let brandingCtx: BrandingContext | undefined = undefined;
     let zipName = 'Materiales_Educativos_PDF.zip';
     let planning: Awaited<ReturnType<typeof getPlanningById>> | null = null;
+
+    // PR 4.2: Cuota diaria y lock de concurrencia para paquetes ZIP masivos (bloqueado en plan Bienvenida)
+    if (!extraIds || extraIds.length === 0) {
+      bulkTeacherId = teacher.id;
+      bulkPlanningId = planningId;
+      const quota = await enforceUsageQuota({
+        teacherId: teacher.id,
+        teacherEmail: session.user.email,
+        metric: 'bulk_zip_daily',
+        idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+      });
+      if (!quota.allowed) {
+        return NextResponse.json(
+          { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+          {
+            status: quota.statusCode || 403,
+            headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+          }
+        );
+      }
+      const lock = await acquireEditorialConcurrencyLock({
+        teacherId: teacher.id,
+        teacherEmail: session.user.email,
+        scope: 'bulk_zip',
+        resourceId: planningId || 'bulk-pdf',
+        ttlSeconds: 300,
+      });
+      if (!lock.acquired) {
+        return NextResponse.json(
+          { error: lock.message, code: lock.code },
+          { status: 409 }
+        );
+      }
+      bulkLockId = lock.lockId;
+    }
 
     if (extraIds && extraIds.length > 0) {
       extras = await getPlanningExtrasByIds(extraIds, teacher.id);
@@ -547,5 +591,16 @@ async function handleBulkPdf(request: NextRequest) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
     logger.error('Bulk PDF export error:', msg);
     return new Response(`Error: ${msg}`, { status: 500 });
+  } finally {
+    if (bulkLockId) {
+      await releaseEditorialConcurrencyLock({
+        lockId: bulkLockId,
+        teacherId: bulkTeacherId,
+        planningId: bulkPlanningId,
+        scope: 'bulk_zip_pdf',
+        engine: 'typst',
+        durationMs: Date.now() - startedAt,
+      });
+    }
   }
 }

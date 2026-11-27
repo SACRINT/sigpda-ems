@@ -3,6 +3,7 @@ import { shortSubjectCode } from '@/lib/short-filename';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getTeacherByEmail } from '@/lib/db';
 import { compileSemestralWorkbook } from '@/lib/master-workbook-compiler';
+import { QuotaExceededError } from '@/lib/platform/usage-quota-guard';
 import type { Planning } from '@/types/planning';
 
 import { logger } from '@/lib/logger';
@@ -50,7 +51,14 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const { pdf, pdfEngine } = await compileSemestralWorkbook(id, planning, { format: 'pdf' });
+    const { pdf, pdfEngine } = await compileSemestralWorkbook(id, planning, {
+      format: 'pdf',
+      quotaContext: {
+        teacherId: teacher.id,
+        teacherEmail: session.user.email,
+        idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+      },
+    });
     if (!pdf) {
       throw new Error('No se pudo generar el archivo PDF semestral');
     }
@@ -66,6 +74,15 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        {
+          status: error.statusCode,
+          headers: error.retryAfterSeconds ? { 'Retry-After': String(error.retryAfterSeconds) } : undefined,
+        }
+      );
+    }
     logger.error('[GET /api/pdf/libro-semestral/[id]] Error:', error);
     const message = error instanceof Error ? error.message : 'Error al compilar el libro semestral PDF';
     return NextResponse.json(

@@ -14,6 +14,7 @@ import { resolveCurricularBlocks } from '@/lib/curricular-blocks';
 import { resolveSessionsPerBlock, resolveWeeklyHours } from '@/lib/guide-engine/content-budget';
 import { partitionBlockSessionsByActivities } from '@/lib/planning-session-partitioner';
 import { buildBlockSequenceFromWorkbook } from '@/lib/planning/workbook-sequence-sync';
+import { enforceUsageQuota } from '@/lib/platform/usage-quota-guard';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
 
 export const runtime = 'nodejs';
@@ -263,6 +264,25 @@ export async function POST(
             warnings,
           });
         }
+      }
+    }
+
+    // PR 4.2: Cuota de secuencias IA (solo cuando realmente se invoca IA, no al sincronizar gratis desde workbook)
+    if (plan.teacher_id) {
+      const quota = await enforceUsageQuota({
+        teacherId: String(plan.teacher_id),
+        teacherEmail: userEmail,
+        metric: 'ai_sequence_extra',
+        idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+      });
+      if (!quota.allowed) {
+        return NextResponse.json(
+          { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+          {
+            status: quota.statusCode || 403,
+            headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+          }
+        );
       }
     }
 

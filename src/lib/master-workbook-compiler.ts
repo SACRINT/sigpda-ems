@@ -27,6 +27,11 @@ import { logger } from '@/lib/logger';
 
 export interface CompileSemestralOptions {
   format?: 'docx' | 'pdf' | 'both';
+  quotaContext?: {
+    teacherId: string;
+    teacherEmail?: string;
+    idempotencyKey?: string;
+  };
 }
 
 /**
@@ -82,6 +87,7 @@ export async function compileSemestralWorkbook(
       planning,
       workbooksMap,
       fallbackWorkbook: consolidatedBook,
+      quotaContext: options.quotaContext,
     });
     pdfBuffer = unified.pdfBuffer;
     pdfEngine = unified.engine;
@@ -92,6 +98,7 @@ export async function compileSemestralWorkbook(
       planning,
       workbooksMap,
       fallbackWorkbook: consolidatedBook,
+      quotaContext: options.quotaContext,
     });
     pdfBuffer = unified.pdfBuffer;
     pdfEngine = unified.engine;

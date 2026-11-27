@@ -397,23 +397,52 @@ export function resolveSacrintDeckEditorialScenes(
 
 /**
  * Helper 3-en-1 para entregables `09 Infografías`: resuelve escena vertical 4:5 dedicada.
+ * Soporta rotación automática entre hasta 3 variantes verticales 4:5 por dominio cuando existen
+ * en disco (`03-practica.webp`, `05-infografia-b.webp`, `06-infografia-c.webp`), conservando
+ * B1M1 (block=1, missionIndex=0) en `03-practica.webp` para paridad exacta con goldens.
  */
 export function resolveSacrintInfographicEditorialScene(
   uacName: string,
   blockNumber = 1,
   options?: {
+    missionIndex?: number;
     fileExists?: SceneFileExistsFn;
     readDataUri?: SceneReadDataUriFn;
     overrideSlug?: string;
   },
 ): AllocatedEditorialScene | null {
   if (!options?.fileExists) return null;
-  return allocateEditorialSceneOnDisk({
+  const baseScene = allocateEditorialSceneOnDisk({
     uacName,
     blockNumber,
+    missionIndex: options.missionIndex ?? 0,
     role: 'infographic_activity',
     fileExists: options.fileExists,
     readDataUri: options.readDataUri,
     overrideSlug: options.overrideSlug,
   });
+  if (!baseScene || baseScene.source === 'override') {
+    return baseScene;
+  }
+
+  const safeBlock = Math.max(1, Math.floor(blockNumber || 1));
+  const safeMission = Math.max(0, Math.floor(options.missionIndex ?? 0));
+  const variantSlot = ((safeBlock - 1) * 4 + safeMission) % 3;
+  if (variantSlot === 0) {
+    return baseScene;
+  }
+
+  const suffix = variantSlot === 1 ? '05-infografia-b' : '06-infografia-c';
+  const variantPath = baseScene.relativePath.replace(/-03-practica\.webp$/i, `-${suffix}.webp`);
+  if (variantPath !== baseScene.relativePath && options.fileExists(variantPath)) {
+    const variantId = baseScene.id.replace(/-03-practica$/i, `-${suffix}`);
+    return {
+      ...baseScene,
+      id: variantId,
+      relativePath: variantPath,
+      dataUri: options.readDataUri?.(variantPath),
+    };
+  }
+
+  return baseScene;
 }

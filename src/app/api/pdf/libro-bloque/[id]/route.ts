@@ -3,6 +3,7 @@ import { shortSubjectCode } from '@/lib/short-filename';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
 import { compileUnifiedEditorialPdf } from '@/lib/editorial/unified-editorial-compiler';
+import { QuotaExceededError } from '@/lib/platform/usage-quota-guard';
 import type { Planning } from '@/types/planning';
 
 import { logger } from '@/lib/logger';
@@ -84,6 +85,11 @@ export async function GET(
         schoolName: teacher.school_name,
         cct: teacher.cct,
       },
+      quotaContext: {
+        teacherId: teacher.id,
+        teacherEmail: session.user.email,
+        idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+      },
     });
     const pdfBuffer = compiled.pdfBuffer;
     const filename = `Libro_B${blockIndex + 1}_${shortSubjectCode(planning.uacName)}.pdf`;
@@ -98,6 +104,15 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        {
+          status: error.statusCode,
+          headers: error.retryAfterSeconds ? { 'Retry-After': String(error.retryAfterSeconds) } : undefined,
+        }
+      );
+    }
     const message = error instanceof Error ? error.message : 'Error al descargar el libro PDF';
     logger.error('[GET /api/pdf/libro-bloque/[id]] Error:', error);
     return NextResponse.json(

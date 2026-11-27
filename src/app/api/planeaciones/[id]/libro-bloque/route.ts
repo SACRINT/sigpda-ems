@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlanningById, getBlockWorkbook, saveBlockWorkbook } from '@/lib/db';
 import { requireActiveTeacher } from '@/lib/api-auth';
+import {
+  acquireEditorialConcurrencyLock,
+  enforceUsageQuota,
+  releaseEditorialConcurrencyLock,
+} from '@/lib/platform/usage-quota-guard';
 import { logger } from '@/lib/logger';
 import type { EvaluationRubricCriterion } from '@/types/work-textbook';
 export const runtime = 'nodejs';
@@ -60,10 +65,10 @@ export async function GET(
       wordCount: workbook?.totalWords || 0,
       totalWords: workbook?.totalWords || 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[GET /api/planeaciones/[id]/libro-bloque] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al obtener libro de trabajo' },
+      { error: error instanceof Error ? error.message : 'Error al obtener libro de trabajo' },
       { status: 500 }
     );
   }
@@ -96,6 +101,34 @@ export async function POST(
       return NextResponse.json({ error: 'No tienes permiso para acceder a esta planeación' }, { status: 403 });
     }
 
+    // PR 4.2: Cuota de bloques IA por periodo Stripe + lock de concurrencia con TTL
+    const quota = await enforceUsageQuota({
+      teacherId: teacher.id,
+      teacherEmail: teacher.email,
+      metric: 'ai_workbook_block',
+      idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+    });
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+        {
+          status: quota.statusCode || 403,
+          headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+        }
+      );
+    }
+
+    const lock = await acquireEditorialConcurrencyLock({
+      teacherId: teacher.id,
+      teacherEmail: teacher.email,
+      scope: 'ai_workbook_block',
+      resourceId: `${id}:b${bIndex}`,
+      ttlSeconds: 600,
+    });
+    if (!lock.acquired) {
+      return NextResponse.json({ error: lock.message, code: lock.code }, { status: 409 });
+    }
+
     const { createGenerationJob } = await import('@/lib/db');
     const { processGenerationJob } = await import('@/lib/job-worker');
     const { after } = await import('next/server');
@@ -103,12 +136,30 @@ export async function POST(
     const job = await createGenerationJob(id, teacher.id, bIndex);
 
     if (job.status === 'pending') {
+      const startedAt = Date.now();
       after(async () => {
         try {
           await processGenerationJob(job.id);
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error(`[POST /libro-bloque] Worker background error for job ${job.id}:`, err);
+        } finally {
+          await releaseEditorialConcurrencyLock({
+            lockId: lock.lockId,
+            teacherId: teacher.id,
+            planningId: id,
+            scope: `ai_workbook_b${bIndex}`,
+            engine: 'ai_gemini',
+            durationMs: Date.now() - startedAt,
+          });
         }
+      });
+    } else if (lock.lockId) {
+      await releaseEditorialConcurrencyLock({
+        lockId: lock.lockId,
+        teacherId: teacher.id,
+        planningId: id,
+        scope: `ai_workbook_b${bIndex}`,
+        engine: 'ai_gemini',
       });
     }
 
@@ -119,10 +170,10 @@ export async function POST(
       progress: job.progress,
       message: 'Trabajo de generación iniciado en segundo plano',
     }, { status: 202 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[POST /api/planeaciones/[id]/libro-bloque] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al iniciar la generación del libro de trabajo' },
+      { error: error instanceof Error ? error.message : 'Error al iniciar la generación del libro de trabajo' },
       { status: 500 }
     );
   }
@@ -211,10 +262,10 @@ export async function PATCH(
 
     logger.info(`[PATCH /libro-bloque] ${repairs.length} reparación(es) aplicadas en planning ${id} bloque ${bIndex} → v${version}`);
     return NextResponse.json({ success: true, version, repairs });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[PATCH /api/planeaciones/[id]/libro-bloque] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al reparar libro de trabajo' },
+      { error: error instanceof Error ? error.message : 'Error al reparar libro de trabajo' },
       { status: 500 }
     );
   }

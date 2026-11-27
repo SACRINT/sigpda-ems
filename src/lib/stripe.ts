@@ -11,7 +11,7 @@ export function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY environment variable is not set');
     }
     _stripe = new Stripe(secretKey, {
-      apiVersion: '2023-10-16' as any,
+      apiVersion: '2023-10-16' as unknown as Stripe.LatestApiVersion,
       typescript: true,
       httpAgent: new https.Agent({ family: 4 }),
     });
@@ -37,8 +37,8 @@ export const PLANS = [
       'Secuencias Didácticas',
       'Planes de Clase (50 min)',
       'Rúbricas e instrumentos de evaluación',
-      'Exportación a DOCX',
-      'Revisiones y ajustes ilimitados',
+      'Exportación a DOCX y PDF Editorial',
+      'Hasta 4 generaciones de libro de bloque y 15 compilaciones PDF por periodo',
     ],
   },
   {
@@ -55,8 +55,8 @@ export const PLANS = [
       'Secuencias Didácticas',
       'Planes de Clase (50 min)',
       'Rúbricas e instrumentos de evaluación',
-      'Exportación a DOCX',
-      'Revisiones y ajustes ilimitados',
+      'Exportación a DOCX y PDF Editorial',
+      'Hasta 12 generaciones de libro de bloque y 40 compilaciones PDF por periodo',
       'PAEC / PMC / PIPS incluido',
     ],
   },
@@ -73,8 +73,8 @@ export const PLANS = [
       'Secuencias Didácticas',
       'Planes de Clase (50 min)',
       'Rúbricas e instrumentos de evaluación',
-      'Exportación a DOCX',
-      'Revisiones y ajustes ilimitados',
+      'Exportación a DOCX y PDF Editorial',
+      'Hasta 20 generaciones de libro de bloque y 70 compilaciones PDF por periodo',
       'PAEC / PMC / PIPS incluido',
       'Soporte prioritario',
     ],
@@ -92,8 +92,8 @@ export const PLANS = [
       'Secuencias Didácticas',
       'Planes de Clase (50 min)',
       'Rúbricas e instrumentos de evaluación',
-      'Exportación a DOCX',
-      'Revisiones y ajustes ilimitados',
+      'Exportación a DOCX y PDF Editorial',
+      'Hasta 40 generaciones de libro de bloque y 120 compilaciones PDF por periodo',
       'PAEC / PMC / PIPS incluido',
       'Soporte prioritario',
       'Acceso anticipado a nuevas funciones',

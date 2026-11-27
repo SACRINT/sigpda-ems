@@ -3,6 +3,11 @@ import { after } from 'next/server';
 import { getPlanningById, createGenerationJob, claimGenerationJob, JOB_LEASE_SECONDS } from '@/lib/db';
 import { requireActiveTeacher } from '@/lib/api-auth';
 import { processGenerationJob } from '@/lib/job-worker';
+import {
+  acquireEditorialConcurrencyLock,
+  enforceUsageQuota,
+  releaseEditorialConcurrencyLock,
+} from '@/lib/platform/usage-quota-guard';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -35,6 +40,34 @@ export async function POST(
       return NextResponse.json({ error: 'No tienes permiso para acceder a esta planeación' }, { status: 403 });
     }
 
+    // PR 4.2: Cuota de bloques IA por periodo Stripe + lock de concurrencia con TTL
+    const quota = await enforceUsageQuota({
+      teacherId: teacher.id,
+      teacherEmail: teacher.email,
+      metric: 'ai_workbook_block',
+      idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+    });
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+        {
+          status: quota.statusCode || 403,
+          headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+        }
+      );
+    }
+
+    const lock = await acquireEditorialConcurrencyLock({
+      teacherId: teacher.id,
+      teacherEmail: teacher.email,
+      scope: 'ai_workbook_block',
+      resourceId: `${id}:b${bIndex}`,
+      ttlSeconds: 600,
+    });
+    if (!lock.acquired) {
+      return NextResponse.json({ error: lock.message, code: lock.code }, { status: 409 });
+    }
+
     // Crear trabajo en Neon PostgreSQL (o recuperar el activo si ya está corriendo)
     const job = await createGenerationJob(id, teacher.id, bIndex);
 
@@ -45,12 +78,30 @@ export async function POST(
     if (claimed && claimed.lease_id) {
       restarted = job.status === 'running';
       const leaseId = claimed.lease_id;
+      const startedAt = Date.now();
       after(async () => {
         try {
           await processGenerationJob(job.id, leaseId);
         } catch (workerErr: unknown) {
           logger.error(`[POST /create] Error en worker asíncrono para job ${job.id}:`, workerErr);
+        } finally {
+          await releaseEditorialConcurrencyLock({
+            lockId: lock.lockId,
+            teacherId: teacher.id,
+            planningId: id,
+            scope: `ai_workbook_create_b${bIndex}`,
+            engine: 'ai_gemini',
+            durationMs: Date.now() - startedAt,
+          });
         }
+      });
+    } else if (lock.lockId) {
+      await releaseEditorialConcurrencyLock({
+        lockId: lock.lockId,
+        teacherId: teacher.id,
+        planningId: id,
+        scope: `ai_workbook_create_b${bIndex}`,
+        engine: 'ai_gemini',
       });
     }
 

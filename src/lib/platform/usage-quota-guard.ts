@@ -1,0 +1,585 @@
+/**
+ * usage-quota-guard.ts — Guardián Central de Cuotas, Rate Limits y Concurrencia
+ * SIGPDA-EMS · Fase 4 (PR 4.2 · Control de Costos Vercel + Neon + Render + Gemini)
+ *
+ * Implementa la matriz acordada con los 3 ajustes aprobados:
+ * 1. Contadores mensuales anclados al **periodo de facturación de Stripe** (`currentPeriodEnd`),
+ *    NO mes calendario, en zona horaria `America/Mexico_City`.
+ * 2. **Idempotency key** por job/request para evitar doble conteo en reintentos; `cache-hit`
+ *    de PDF nunca descuenta cuota.
+ * 3. `usage_counters` con UPSERT atómico y `editorial_render_locks` con TTL + telemetría
+ *    de motor (`typst | typst_cached | jspdf_fallback`).
+ */
+
+import { getSubscriptionStatus, type SubscriptionStatus } from '@/lib/subscription-gate';
+import { WELCOME_PLAN_NAME } from '@/lib/subscription-plans';
+import {
+  getUsageCounter,
+  hasUsageIdempotencyKey,
+  incrementUsageCounterAtomic,
+  recordEditorialEngineTelemetry,
+  releaseRenderLockDb,
+  tryAcquireRenderLockDb,
+  type EditorialEngineTelemetryKind,
+} from '@/lib/db/usage-quotas';
+import { logger } from '@/lib/logger';
+
+export const MEXICO_CITY_TZ = 'America/Mexico_City';
+
+export type QuotaMetric =
+  | 'ai_planning'
+  | 'ai_workbook_block'
+  | 'ai_sequence_extra'
+  | 'pdf_compile'
+  | 'bulk_zip_daily';
+
+export type PlanTier =
+  | 'bienvenida'
+  | 'basico'
+  | 'estandar'
+  | 'avanzado'
+  | 'completo'
+  | 'institucional'
+  | 'administrador';
+
+export interface PlanQuotaPolicy {
+  tier: PlanTier;
+  label: string;
+  aiPlanningsPerPeriod: number;
+  aiWorkbookBlocksPerPeriod: number;
+  aiSequencesExtrasPerPeriod: number;
+  pdfCompilesPerPeriod: number;
+  bulkZipPerDay: number;
+  aiPerHour: number;
+  exportPerHour: number;
+  maxConcurrency: number;
+}
+
+export const PLAN_QUOTA_POLICIES: Readonly<Record<PlanTier, PlanQuotaPolicy>> = {
+  bienvenida: {
+    tier: 'bienvenida',
+    label: 'Cortesía (Bienvenida)',
+    aiPlanningsPerPeriod: 1,
+    aiWorkbookBlocksPerPeriod: 1,
+    aiSequencesExtrasPerPeriod: 2,
+    pdfCompilesPerPeriod: 3,
+    bulkZipPerDay: 0,
+    aiPerHour: 3,
+    exportPerHour: 3,
+    maxConcurrency: 1,
+  },
+  basico: {
+    tier: 'basico',
+    label: 'Básico',
+    aiPlanningsPerPeriod: 2,
+    aiWorkbookBlocksPerPeriod: 4,
+    aiSequencesExtrasPerPeriod: 10,
+    pdfCompilesPerPeriod: 15,
+    bulkZipPerDay: 2,
+    aiPerHour: 10,
+    exportPerHour: 8,
+    maxConcurrency: 1,
+  },
+  estandar: {
+    tier: 'estandar',
+    label: 'Estándar',
+    aiPlanningsPerPeriod: 6,
+    aiWorkbookBlocksPerPeriod: 12,
+    aiSequencesExtrasPerPeriod: 25,
+    pdfCompilesPerPeriod: 40,
+    bulkZipPerDay: 5,
+    aiPerHour: 15,
+    exportPerHour: 12,
+    maxConcurrency: 1,
+  },
+  avanzado: {
+    tier: 'avanzado',
+    label: 'Avanzado',
+    aiPlanningsPerPeriod: 10,
+    aiWorkbookBlocksPerPeriod: 20,
+    aiSequencesExtrasPerPeriod: 40,
+    pdfCompilesPerPeriod: 70,
+    bulkZipPerDay: 8,
+    aiPerHour: 20,
+    exportPerHour: 15,
+    maxConcurrency: 2,
+  },
+  completo: {
+    tier: 'completo',
+    label: 'Completo',
+    aiPlanningsPerPeriod: 20,
+    aiWorkbookBlocksPerPeriod: 40,
+    aiSequencesExtrasPerPeriod: 80,
+    pdfCompilesPerPeriod: 120,
+    bulkZipPerDay: 15,
+    aiPerHour: 30,
+    exportPerHour: 25,
+    maxConcurrency: 2,
+  },
+  institucional: {
+    tier: 'institucional',
+    label: 'Institucional / Dirección',
+    aiPlanningsPerPeriod: 10,
+    aiWorkbookBlocksPerPeriod: 15,
+    aiSequencesExtrasPerPeriod: 30,
+    pdfCompilesPerPeriod: 50,
+    bulkZipPerDay: 6,
+    aiPerHour: 15,
+    exportPerHour: 12,
+    maxConcurrency: 2,
+  },
+  administrador: {
+    tier: 'administrador',
+    label: 'Administrador',
+    aiPlanningsPerPeriod: Number.MAX_SAFE_INTEGER,
+    aiWorkbookBlocksPerPeriod: Number.MAX_SAFE_INTEGER,
+    aiSequencesExtrasPerPeriod: Number.MAX_SAFE_INTEGER,
+    pdfCompilesPerPeriod: Number.MAX_SAFE_INTEGER,
+    bulkZipPerDay: Number.MAX_SAFE_INTEGER,
+    aiPerHour: Number.MAX_SAFE_INTEGER,
+    exportPerHour: Number.MAX_SAFE_INTEGER,
+    maxConcurrency: 8,
+  },
+};
+
+export interface QuotaWindows {
+  periodWindowKey: string;
+  dayWindowKey: string;
+  hourWindowKey: string;
+  timezone: typeof MEXICO_CITY_TZ;
+}
+
+export interface QuotaCheckResult {
+  allowed: boolean;
+  tier: PlanTier;
+  metric: QuotaMetric;
+  windowKey: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  alreadyCounted?: boolean;
+  statusCode?: 403 | 429;
+  code?: 'PLAN_UPGRADE_REQUIRED' | 'QUOTA_EXCEEDED' | 'RATE_LIMIT_EXCEEDED';
+  message?: string;
+  retryAfterSeconds?: number;
+}
+
+export interface ConcurrencyLockResult {
+  acquired: boolean;
+  lockId?: string;
+  tier: PlanTier;
+  activeCount: number;
+  maxConcurrency: number;
+  statusCode?: 409;
+  code?: 'CONCURRENCY_LIMIT';
+  message?: string;
+}
+
+export class QuotaExceededError extends Error {
+  readonly statusCode: 403 | 409 | 429;
+  readonly code: string;
+  readonly retryAfterSeconds?: number;
+
+  constructor(params: {
+    message: string;
+    statusCode: 403 | 409 | 429;
+    code: string;
+    retryAfterSeconds?: number;
+  }) {
+    super(params.message);
+    this.name = 'QuotaExceededError';
+    this.statusCode = params.statusCode;
+    this.code = params.code;
+    this.retryAfterSeconds = params.retryAfterSeconds;
+  }
+}
+
+function normalizeLabel(raw: string | null | undefined): string {
+  return (raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Formatea una fecha en TZ `America/Mexico_City` (YYYY, MM, DD, HH) sin depender del huso del servidor.
+ */
+export function getMexicoCityDateParts(date: Date = new Date()): {
+  year: string;
+  month: string;
+  day: string;
+  hour: string;
+} {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MEXICO_CITY_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = formatter.formatToParts(date);
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value || '00';
+  return {
+    year: pick('year'),
+    month: pick('month'),
+    day: pick('day'),
+    hour: pick('hour'),
+  };
+}
+
+/**
+ * Resuelve el tier de cuotas desde el estado real de suscripción (`getSubscriptionStatus`).
+ */
+export function resolvePlanTier(subStatus: SubscriptionStatus): PlanTier {
+  if (subStatus.isAdmin) return 'administrador';
+  if (!subStatus.hasActiveSubscription || !subStatus.subscription) return 'bienvenida';
+
+  const normName = normalizeLabel(subStatus.subscription.planName);
+  if (normName === WELCOME_PLAN_NAME || normName.includes('cortesia') || normName.includes('bienvenida')) {
+    return 'bienvenida';
+  }
+  if (
+    normName.includes('director') ||
+    normName.includes('supervisor') ||
+    normName.includes('escuela') ||
+    normName.includes('institucional') ||
+    normName.includes('plantel')
+  ) {
+    return 'institucional';
+  }
+  if (normName.includes('completo')) return 'completo';
+  if (normName.includes('avanzado')) return 'avanzado';
+  if (normName.includes('estandar')) return 'estandar';
+  if (normName.includes('basico')) return 'basico';
+
+  const subjects = Number(subStatus.subscription.planSubjects || 0);
+  if (subjects >= 10) return 'completo';
+  if (subjects >= 5) return 'avanzado';
+  if (subjects >= 3) return 'estandar';
+  if (subjects >= 1) return 'basico';
+  return 'bienvenida';
+}
+
+/**
+ * Construye las llaves de ventana temporal:
+ * - Periodo de facturación Stripe (`stripe:<subId>:<YYYY-MM-DD>` en TZ `America/Mexico_City`)
+ *   en lugar de mes calendario, evitando reinicios dobles el día 1.
+ * - Ventana diaria y horaria en TZ `America/Mexico_City`.
+ */
+export function resolveQuotaWindows(
+  subStatus: SubscriptionStatus,
+  now: Date = new Date(),
+): QuotaWindows {
+  const mxNow = getMexicoCityDateParts(now);
+  const dayWindowKey = `mx-day:${mxNow.year}-${mxNow.month}-${mxNow.day}`;
+  const hourWindowKey = `mx-hour:${mxNow.year}-${mxNow.month}-${mxNow.day}T${mxNow.hour}`;
+
+  const tier = resolvePlanTier(subStatus);
+  if (tier === 'bienvenida') {
+    return {
+      periodWindowKey: 'bienvenida:cortesia',
+      dayWindowKey,
+      hourWindowKey,
+      timezone: MEXICO_CITY_TZ,
+    };
+  }
+
+  const sub = subStatus.subscription;
+  if (sub?.id && sub.currentPeriodEnd) {
+    const endDate = new Date(sub.currentPeriodEnd);
+    if (!Number.isNaN(endDate.getTime())) {
+      const mxEnd = getMexicoCityDateParts(endDate);
+      return {
+        periodWindowKey: `stripe:${sub.id}:${mxEnd.year}-${mxEnd.month}-${mxEnd.day}`,
+        dayWindowKey,
+        hourWindowKey,
+        timezone: MEXICO_CITY_TZ,
+      };
+    }
+  }
+
+  return {
+    periodWindowKey: `mx-month:${mxNow.year}-${mxNow.month}`,
+    dayWindowKey,
+    hourWindowKey,
+    timezone: MEXICO_CITY_TZ,
+  };
+}
+
+function getMetricLimit(policy: PlanQuotaPolicy, metric: QuotaMetric): number {
+  switch (metric) {
+    case 'ai_planning':
+      return policy.aiPlanningsPerPeriod;
+    case 'ai_workbook_block':
+      return policy.aiWorkbookBlocksPerPeriod;
+    case 'ai_sequence_extra':
+      return policy.aiSequencesExtrasPerPeriod;
+    case 'pdf_compile':
+      return policy.pdfCompilesPerPeriod;
+    case 'bulk_zip_daily':
+      return policy.bulkZipPerDay;
+  }
+}
+
+function isAiMetric(metric: QuotaMetric): boolean {
+  return (
+    metric === 'ai_planning' ||
+    metric === 'ai_workbook_block' ||
+    metric === 'ai_sequence_extra'
+  );
+}
+
+export interface QuotaGuardDeps {
+  getSubscriptionStatus: typeof getSubscriptionStatus;
+  getUsageCounter: typeof getUsageCounter;
+  hasUsageIdempotencyKey: typeof hasUsageIdempotencyKey;
+  incrementUsageCounterAtomic: typeof incrementUsageCounterAtomic;
+  tryAcquireRenderLockDb: typeof tryAcquireRenderLockDb;
+  releaseRenderLockDb: typeof releaseRenderLockDb;
+  recordEditorialEngineTelemetry: typeof recordEditorialEngineTelemetry;
+}
+
+const DEFAULT_DEPS: QuotaGuardDeps = {
+  getSubscriptionStatus,
+  getUsageCounter,
+  hasUsageIdempotencyKey,
+  incrementUsageCounterAtomic,
+  tryAcquireRenderLockDb,
+  releaseRenderLockDb,
+  recordEditorialEngineTelemetry,
+};
+
+/**
+ * Valida y consume atómicamente la cuota principal (periodo Stripe o diaria) + el rate limit
+ * horario en TZ `America/Mexico_City`.
+ *
+ * - Los administradores siempre tienen paso libre.
+ * - Si `idempotencyKey` ya fue contada antes (reintento de red), permite continuar sin sumar doble.
+ */
+export async function enforceUsageQuota(
+  params: {
+    teacherId: string;
+    teacherEmail?: string;
+    metric: QuotaMetric;
+    idempotencyKey?: string;
+    now?: Date;
+  },
+  deps: QuotaGuardDeps = DEFAULT_DEPS,
+): Promise<QuotaCheckResult> {
+  const subStatus = await deps.getSubscriptionStatus(params.teacherId, params.teacherEmail);
+  const tier = resolvePlanTier(subStatus);
+  const policy = PLAN_QUOTA_POLICIES[tier];
+  const windows = resolveQuotaWindows(subStatus, params.now);
+  const primaryWindowKey =
+    params.metric === 'bulk_zip_daily' ? windows.dayWindowKey : windows.periodWindowKey;
+  const primaryLimit = getMetricLimit(policy, params.metric);
+
+  if (tier === 'administrador') {
+    return {
+      allowed: true,
+      tier,
+      metric: params.metric,
+      windowKey: primaryWindowKey,
+      used: 0,
+      limit: primaryLimit,
+      remaining: Number.MAX_SAFE_INTEGER,
+    };
+  }
+
+  // 1. Si el plan no incluye esta funcionalidad (ej. bulk_zip_daily = 0 en Bienvenida) → 403 inmediato
+  if (primaryLimit <= 0) {
+    return {
+      allowed: false,
+      tier,
+      metric: params.metric,
+      windowKey: primaryWindowKey,
+      used: 0,
+      limit: 0,
+      remaining: 0,
+      statusCode: 403,
+      code: 'PLAN_UPGRADE_REQUIRED',
+      message: `Tu plan ${policy.label} no incluye descarga masiva en ZIP. Actualiza a un plan docente para desbloquear Paquete Completo.`,
+    };
+  }
+
+  // 2. Idempotencia: si esta operación ya fue contabilizada, no volver a bloquear ni descontar doble
+  const scopedPrimaryIdem = params.idempotencyKey
+    ? `q:${params.teacherId}:${params.metric}:${params.idempotencyKey}`
+    : undefined;
+  if (scopedPrimaryIdem && (await deps.hasUsageIdempotencyKey(scopedPrimaryIdem))) {
+    const currentUsed = await deps.getUsageCounter(params.teacherId, params.metric, primaryWindowKey);
+    return {
+      allowed: true,
+      tier,
+      metric: params.metric,
+      windowKey: primaryWindowKey,
+      used: currentUsed,
+      limit: primaryLimit,
+      remaining: Math.max(0, primaryLimit - currentUsed),
+      alreadyCounted: true,
+    };
+  }
+
+  // 3. Verificar cuota principal (periodo Stripe o diaria)
+  const currentPrimary = await deps.getUsageCounter(params.teacherId, params.metric, primaryWindowKey);
+  if (currentPrimary >= primaryLimit) {
+    const isDaily = params.metric === 'bulk_zip_daily';
+    return {
+      allowed: false,
+      tier,
+      metric: params.metric,
+      windowKey: primaryWindowKey,
+      used: currentPrimary,
+      limit: primaryLimit,
+      remaining: 0,
+      statusCode: isDaily ? 429 : 403,
+      code: 'QUOTA_EXCEEDED',
+      retryAfterSeconds: isDaily ? 3600 : undefined,
+      message: isDaily
+        ? `Alcanzaste tu límite diario de ${primaryLimit} descargas masivas ZIP en tu plan ${policy.label}. Intenta mañana o actualiza tu plan.`
+        : `Alcanzaste el límite de ${primaryLimit} usos incluidos en tu periodo actual del plan ${policy.label}. Actualiza tu plan para continuar.`,
+    };
+  }
+
+  // 4. Verificar rate limit por hora
+  const hourlyMetric = isAiMetric(params.metric) ? 'ai_hourly' : 'export_hourly';
+  const hourlyLimit = isAiMetric(params.metric) ? policy.aiPerHour : policy.exportPerHour;
+  const currentHourly = await deps.getUsageCounter(params.teacherId, hourlyMetric, windows.hourWindowKey);
+  if (currentHourly >= hourlyLimit) {
+    return {
+      allowed: false,
+      tier,
+      metric: params.metric,
+      windowKey: windows.hourWindowKey,
+      used: currentHourly,
+      limit: hourlyLimit,
+      remaining: 0,
+      statusCode: 429,
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfterSeconds: 1800,
+      message: `Límite temporal alcanzado (${hourlyLimit} solicitudes por hora en tu plan ${policy.label}). Espera unos minutos antes de reintentar.`,
+    };
+  }
+
+  // 5. Incremento atómico en Neon (con protección de idempotencia)
+  const primaryInc = await deps.incrementUsageCounterAtomic({
+    teacherId: params.teacherId,
+    metric: params.metric,
+    windowKey: primaryWindowKey,
+    idempotencyKey: scopedPrimaryIdem,
+  });
+
+  if (!primaryInc.alreadyCounted) {
+    await deps.incrementUsageCounterAtomic({
+      teacherId: params.teacherId,
+      metric: hourlyMetric,
+      windowKey: windows.hourWindowKey,
+      idempotencyKey: params.idempotencyKey
+        ? `h:${params.teacherId}:${hourlyMetric}:${params.idempotencyKey}`
+        : undefined,
+    });
+  }
+
+  return {
+    allowed: true,
+    tier,
+    metric: params.metric,
+    windowKey: primaryWindowKey,
+    used: primaryInc.usedCount,
+    limit: primaryLimit,
+    remaining: Math.max(0, primaryLimit - primaryInc.usedCount),
+    alreadyCounted: primaryInc.alreadyCounted,
+  };
+}
+
+/**
+ * Adquiere un lock de concurrencia con TTL para evitar múltiples renders/jobs simultáneos por docente.
+ */
+export async function acquireEditorialConcurrencyLock(
+  params: {
+    teacherId: string;
+    teacherEmail?: string;
+    scope: 'pdf_compile' | 'bulk_zip' | 'ai_workbook_block';
+    resourceId: string;
+    ttlSeconds?: number;
+  },
+  deps: QuotaGuardDeps = DEFAULT_DEPS,
+): Promise<ConcurrencyLockResult> {
+  const subStatus = await deps.getSubscriptionStatus(params.teacherId, params.teacherEmail);
+  const tier = resolvePlanTier(subStatus);
+  const policy = PLAN_QUOTA_POLICIES[tier];
+
+  if (tier === 'administrador') {
+    return {
+      acquired: true,
+      tier,
+      activeCount: 0,
+      maxConcurrency: policy.maxConcurrency,
+    };
+  }
+
+  const res = await deps.tryAcquireRenderLockDb({
+    teacherId: params.teacherId,
+    scope: params.scope,
+    resourceId: params.resourceId,
+    maxConcurrency: policy.maxConcurrency,
+    ttlSeconds: params.ttlSeconds ?? (params.scope === 'ai_workbook_block' ? 600 : 180),
+  });
+
+  if (!res.acquired) {
+    return {
+      acquired: false,
+      tier,
+      activeCount: res.activeCount,
+      maxConcurrency: policy.maxConcurrency,
+      statusCode: 409,
+      code: 'CONCURRENCY_LIMIT',
+      message: `Ya tienes ${res.activeCount} proceso(s) pesado(s) en curso (máximo ${policy.maxConcurrency} simultáneo en tu plan ${policy.label}). Espera a que termine antes de iniciar otro.`,
+    };
+  }
+
+  return {
+    acquired: true,
+    lockId: res.lockId,
+    tier,
+    activeCount: res.activeCount,
+    maxConcurrency: policy.maxConcurrency,
+  };
+}
+
+/**
+ * Libera el lock de concurrencia y registra telemetría del motor (`typst | typst_cached | jspdf_fallback`).
+ */
+export async function releaseEditorialConcurrencyLock(
+  params: {
+    lockId?: string;
+    teacherId?: string | null;
+    planningId?: string | null;
+    scope: string;
+    engine: EditorialEngineTelemetryKind;
+    cached?: boolean;
+    durationMs?: number;
+  },
+  deps: QuotaGuardDeps = DEFAULT_DEPS,
+): Promise<void> {
+  try {
+    if (params.lockId) {
+      await deps.releaseRenderLockDb(params.lockId, params.engine);
+    }
+    await deps.recordEditorialEngineTelemetry({
+      teacherId: params.teacherId,
+      planningId: params.planningId,
+      scope: params.scope,
+      engine: params.engine,
+      cached: params.cached,
+      durationMs: params.durationMs,
+    });
+  } catch (err) {
+    logger.warn('[usage-quota-guard] Error liberando lock/telemetría (no bloqueante):', {
+      scope: params.scope,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}

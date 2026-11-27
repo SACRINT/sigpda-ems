@@ -49,6 +49,13 @@ import {
   type SchoolIdentitySource,
 } from '@/lib/school-identity';
 import { sanitizeDocFilename } from '@/lib/document-branding';
+import {
+  acquireEditorialConcurrencyLock,
+  enforceUsageQuota,
+  QuotaExceededError,
+  releaseEditorialConcurrencyLock,
+} from '@/lib/platform/usage-quota-guard';
+import { recordEditorialEngineTelemetry } from '@/lib/db/usage-quotas';
 import { logger } from '@/lib/logger';
 
 export type UnifiedPdfEngine = 'typst' | 'typst_cached' | 'jspdf_legacy' | 'jspdf_fallback';
@@ -73,6 +80,12 @@ export interface UnifiedEditorialCompileParams {
     schoolName?: string | null;
     cct?: string | null;
     schoolZone?: string | null;
+  };
+  /** Contexto opcional de cuotas/concurrencia PR 4.2 (en cache-hit nunca descuenta cuota). */
+  quotaContext?: {
+    teacherId: string;
+    teacherEmail?: string;
+    idempotencyKey?: string;
   };
 }
 
@@ -101,7 +114,12 @@ function formatZonaEscolar(raw?: string | null): string {
 export async function compileUnifiedEditorialPdf(
   params: UnifiedEditorialCompileParams,
 ): Promise<UnifiedEditorialCompileResult> {
+  const startedAt = Date.now();
   const useV2 = params.forceV2 ?? featureFlags.isEnabled('PUBLISHING_ENGINE_V2');
+  const scopeLabel =
+    typeof params.blockIndex === 'number' && Number.isInteger(params.blockIndex)
+      ? `v2-block-${params.blockIndex}`
+      : 'v2-semestral';
 
   if (!useV2) {
     const pdfBuffer = await renderWorkbookToPdf(params.fallbackWorkbook, params.planning);
@@ -111,6 +129,9 @@ export async function compileUnifiedEditorialPdf(
       cached: false,
     };
   }
+
+  let lockId: string | undefined;
+  let finalEngine: UnifiedPdfEngine = 'jspdf_fallback';
 
   try {
     const isSingleBlock = typeof params.blockIndex === 'number' && Number.isInteger(params.blockIndex);
@@ -238,6 +259,17 @@ export async function compileUnifiedEditorialPdf(
               contentHash: contentHash.slice(0, 12),
               bytes: cachedBuffer.length,
             });
+            finalEngine = 'typst_cached';
+            if (params.quotaContext) {
+              await recordEditorialEngineTelemetry({
+                teacherId: params.quotaContext.teacherId,
+                planningId: params.planningId,
+                scope: scopeKey,
+                engine: 'typst_cached',
+                cached: true,
+                durationMs: Date.now() - startedAt,
+              });
+            }
             return {
               pdfBuffer: cachedBuffer,
               engine: 'typst_cached',
@@ -251,6 +283,40 @@ export async function compileUnifiedEditorialPdf(
         logger.warn('[unified-editorial-compiler] Error consultando caché editorial (se continúa compilando):', {
           planningId: params.planningId,
           error: cacheLookupErr instanceof Error ? cacheLookupErr.message : String(cacheLookupErr),
+        });
+      }
+    }
+
+    // 1b. PR 4.2: En cache-miss real, aplicar lock de concurrencia y cuota con idempotencia (contentHash)
+    if (params.quotaContext) {
+      const lock = await acquireEditorialConcurrencyLock({
+        teacherId: params.quotaContext.teacherId,
+        teacherEmail: params.quotaContext.teacherEmail,
+        scope: 'pdf_compile',
+        resourceId: `${params.planningId}:${scopeKey}`,
+        ttlSeconds: 180,
+      });
+      if (!lock.acquired) {
+        throw new QuotaExceededError({
+          message: lock.message || 'Ya existe una compilación PDF activa para tu cuenta.',
+          statusCode: 409,
+          code: lock.code || 'CONCURRENCY_LIMIT',
+        });
+      }
+      lockId = lock.lockId;
+
+      const quota = await enforceUsageQuota({
+        teacherId: params.quotaContext.teacherId,
+        teacherEmail: params.quotaContext.teacherEmail,
+        metric: 'pdf_compile',
+        idempotencyKey: params.quotaContext.idempotencyKey || `${scopeKey}:${contentHash.slice(0, 24)}`,
+      });
+      if (!quota.allowed) {
+        throw new QuotaExceededError({
+          message: quota.message || 'Has alcanzado el límite de compilaciones PDF de tu plan.',
+          statusCode: quota.statusCode || 403,
+          code: quota.code || 'QUOTA_EXCEEDED',
+          retryAfterSeconds: quota.retryAfterSeconds,
         });
       }
     }
@@ -303,6 +369,7 @@ export async function compileUnifiedEditorialPdf(
       }
     }
 
+    finalEngine = 'typst';
     return {
       pdfBuffer: workerResponse.pdfBuffer,
       engine: 'typst',
@@ -312,12 +379,16 @@ export async function compileUnifiedEditorialPdf(
       source: workerResponse.source,
     };
   } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      throw err;
+    }
     const reason = err instanceof Error ? err.message : String(err);
     logger.warn('[unified-editorial-compiler] Falló Typst/Render; activando fallback automático a jsPDF clásico:', {
       planningId: params.planningId,
       blockIndex: params.blockIndex,
       reason,
     });
+    finalEngine = 'jspdf_fallback';
     const pdfBuffer = await renderWorkbookToPdf(params.fallbackWorkbook, params.planning);
     return {
       pdfBuffer,
@@ -325,5 +396,17 @@ export async function compileUnifiedEditorialPdf(
       cached: false,
       fallbackReason: reason,
     };
+  } finally {
+    if (lockId || (params.quotaContext && finalEngine !== 'typst_cached')) {
+      await releaseEditorialConcurrencyLock({
+        lockId,
+        teacherId: params.quotaContext?.teacherId,
+        planningId: params.planningId,
+        scope: scopeLabel,
+        engine: finalEngine,
+        cached: false,
+        durationMs: Date.now() - startedAt,
+      });
+    }
   }
 }
