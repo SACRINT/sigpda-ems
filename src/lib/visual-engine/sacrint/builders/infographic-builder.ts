@@ -296,14 +296,18 @@ export function dedupeInfographicSpecs(specs: SacrintInfographicSpec[]): Sacrint
   const seen = new Set<string>();
   const out: SacrintInfographicSpec[] = [];
   for (const spec of specs) {
-    const key = spec.title
+    const titleKey = spec.title
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, ' ')
       .trim();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
+    if (!titleKey) continue;
+    // Deduplicar solo dentro del mismo bloque y misión para jamás eliminar sesiones reales
+    // de otro bloque/misión que compartan un título conceptual alineado (ej. B2M1 vs B2M2 o B1 vs B2).
+    const scopeKey = `${spec.meta?.blockNumber ?? 1}|${spec.meta?.missionNumber ?? 1}|${titleKey}`;
+    if (seen.has(scopeKey)) continue;
+    seen.add(scopeKey);
     out.push(spec);
   }
   return out;
@@ -596,25 +600,39 @@ function alignInfographicTitleWithSessionBody(params: {
   const isSocializacionClaim = /^socializaci[oó]n\s+de\s+hallazgos/i.test(visualSubject);
   const titleMentionsSocializacion = /\bsocializaci[oó]n\b/i.test(title);
   const titleTokens = normalizeAlignmentTokens(title);
-  const bodyTokenSet = new Set(normalizeAlignmentTokens(bodySource));
-  const sharedCount = titleTokens.filter((t) => bodyTokenSet.has(t)).length;
+  // Para validar títulos genéricos o "... del proyecto" (ej. "Variables del proyecto" vs cuerpo de
+  // "Operadores lógicos y matemáticos"), comparar estrictamente contra claim + fórmula — NO contra
+  // definicionClave que puede mencionar incidentalmente la palabra genérica "variables".
+  const claimFormulaSource = [params.visualClaim, params.visualFormula].filter(Boolean).join(' ');
+  const claimFormulaTokenSet = new Set(normalizeAlignmentTokens(claimFormulaSource));
+  const sharedWithClaimCount = titleTokens.filter((t) => claimFormulaTokenSet.has(t)).length;
   const isGenericProjectTitle =
     titleTokens.length === 0 || /\bdel\s+proyecto\b/i.test(title);
 
   // 1. Si el cuerpo es explícitamente "Socialización de hallazgos..." y el título no lo indica,
-  //    anteponerlo (combinado si el título actual es un dominio corto concreto).
+  //    anteponerlo conservando un ancla temática limpia del dominio para distinguir bloques/misiones.
   if (isSocializacionClaim && !titleMentionsSocializacion) {
-    if (!isScaffoldingTitle && !isArtifactTitle && title.length >= 6 && title.length <= 34) {
-      const lowerAnchor = title.charAt(0).toLowerCase() + title.slice(1);
-      const combined = `Socialización de hallazgos: ${lowerAnchor}`;
-      if (combined.length <= 68) return combined;
+    if (!isScaffoldingTitle && !isArtifactTitle && title.length >= 6) {
+      const compactAnchor = title
+        .replace(
+          /^(?:investigaci[oó]n\s+sobre|historia\s+y\s+el\s+estado\s+de\s+(?:la|el|los|las)|fundamentos\s+de\s+(?:la|el|los|las)|introducci[oó]n\s+a(?:l|\s+la|\s+los|\s+las)?)\s+/i,
+          '',
+        )
+        .trim();
+      const anchor = compactAnchor.length >= 6 && compactAnchor.length <= 38 ? compactAnchor : title;
+      if (anchor.length >= 6 && anchor.length <= 38) {
+        const lowerAnchor =
+          /^[A-Z]{2,}/.test(anchor) ? anchor : anchor.charAt(0).toLowerCase() + anchor.slice(1);
+        const combined = `Socialización de hallazgos: ${lowerAnchor}`;
+        if (combined.length <= 68) return combined;
+      }
     }
     return visualSubject;
   }
 
   // 2. Andamiaje genérico ("Aplicación Práctica..."), nombre de artefacto PAEC ("Kit de...", "App-Comunidad...")
-  //    o título genérico sin traslape real ("Fundamentos de la ciudadanía digital", "Variables del proyecto").
-  if (isScaffoldingTitle || isArtifactTitle || (isGenericProjectTitle && sharedCount === 0)) {
+  //    o título genérico sin traslape con el claim/fórmula ("Fundamentos de la ciudadanía digital", "Variables del proyecto").
+  if (isScaffoldingTitle || isArtifactTitle || (isGenericProjectTitle && sharedWithClaimCount === 0)) {
     return visualSubject;
   }
 

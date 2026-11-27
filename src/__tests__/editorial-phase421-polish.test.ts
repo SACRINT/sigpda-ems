@@ -18,6 +18,8 @@
  *      sin repetir jamás dos páginas consecutivas, y el PDF vectorial real contiene los XObjects de imagen.
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import JSZip from 'jszip';
 import sharp from 'sharp';
@@ -31,8 +33,11 @@ import {
 import {
   buildSacrintDecksForWorkbook,
   buildSacrintInfographic,
+  dedupeInfographicSpecs,
   selectInfographicTargets,
+  type SacrintDeckSpec,
 } from '@/lib/visual-engine/sacrint/spec';
+import { cleanStepLine } from '@/lib/visual-engine/sacrint/distiller/formula-and-steps';
 import { generateCombinedSacrintPptx } from '@/lib/visual-engine/sacrint/sacrint-pptx-generator';
 import { renderCombinedSacrintInfographicsPdf } from '@/lib/visual-engine/sacrint/sacrint-rasterizer';
 import { createNodeSceneLoader } from '@/lib/visual-engine/scene-allocator-node';
@@ -345,13 +350,20 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     const workbooks = [1, 2, 3].map((b) => makeCdBlockWorkbook(b));
     const misconceptionTracker = new Map<string, number>();
 
-    const allDecks = workbooks.flatMap((wb) =>
-      buildSacrintDecksForWorkbook(wb, {
+    const allDecks: SacrintDeckSpec[] = [];
+    let prevHero:
+      | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
+      | undefined;
+    for (const wb of workbooks) {
+      const blockDecks = buildSacrintDecksForWorkbook(wb, {
         mode: 'lesson-guide',
         misconceptionTracker,
+        previousHeroArchetype: prevHero,
         ...sceneLoader,
-      }),
-    );
+      });
+      prevHero = blockDecks[blockDecks.length - 1]?.editorialScenes?.hero?.archetype ?? prevHero;
+      allDecks.push(...blockDecks);
+    }
 
     expect(allDecks).toHaveLength(12);
 
@@ -360,10 +372,11 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     expect(heroPaths.every((p) => typeof p === 'string' && p.endsWith('.webp'))).toBe(true);
     expect(allDecks.every((d) => d.editorialScenes?.hero?.dataUri?.startsWith('data:image/webp;base64,'))).toBe(true);
 
-    // Verificar que ningún bloque repite 4/4/4 la misma portada (cada bloque usa las 3 escenas 16:9)
+    // Verificar que ningún bloque repite 4/4/4 la misma portada (>= 2 escenas por bloque y las 3 en el semestre)
+    expect(new Set(heroPaths).size).toBe(3);
     for (let b = 0; b < 3; b++) {
       const blockHeroes = heroPaths.slice(b * 4, b * 4 + 4);
-      expect(new Set(blockHeroes).size).toBe(3);
+      expect(new Set(blockHeroes).size).toBeGreaterThanOrEqual(2);
     }
 
     // Verificar que ninguna misión consecutiva en el semestre repite portada
@@ -383,7 +396,7 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     expect(mediaFiles.length).toBeGreaterThanOrEqual(3);
 
     // Cada portada (slide 1, 10, 19... = inicio de cada deck de 9 slides) debe apuntar a una imagen en ppt/media/
-    // y el bloque 1 NO puede tener las 4 portadas apuntando al mismo hash de imagen
+    // y ningún bloque puede tener las 4 portadas apuntando al mismo hash de imagen
     const mediaHashes = new Map<string, number>();
     for (const mf of mediaFiles) {
       const entry = zip.file(mf);
@@ -405,10 +418,11 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     }
 
     expect(coverSizesPerMission).toHaveLength(12);
-    // Los 3 bloques tienen exactamente 3 tamaños de imagen distintos en sus 4 portadas (rotación real, NO 4/4/4)
-    expect(new Set(coverSizesPerMission.slice(0, 4)).size).toBe(3);
-    expect(new Set(coverSizesPerMission.slice(4, 8)).size).toBe(3);
-    expect(new Set(coverSizesPerMission.slice(8, 12)).size).toBe(3);
+    // Las 3 escenas se usan a lo largo del semestre, ningún bloque repite 4/4/4 y 0 consecutivas repetidas
+    expect(new Set(coverSizesPerMission).size).toBe(3);
+    expect(new Set(coverSizesPerMission.slice(0, 4)).size).toBeGreaterThanOrEqual(2);
+    expect(new Set(coverSizesPerMission.slice(4, 8)).size).toBeGreaterThanOrEqual(2);
+    expect(new Set(coverSizesPerMission.slice(8, 12)).size).toBeGreaterThanOrEqual(2);
     for (let i = 1; i < coverSizesPerMission.length; i++) {
       expect(coverSizesPerMission[i]).not.toBe(coverSizesPerMission[i - 1]);
     }
@@ -762,6 +776,145 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
       const spec = buildSacrintInfographic(wb, 'wide', { missionIndex: 0, sessionIndex: 0 });
       expect(spec.title, `Caso ${c.label}`).toMatch(c.expectedRegex);
       expect(spec.title, `Caso ${c.label}`).not.toMatch(c.forbiddenRegex);
+    }
+  });
+
+  it('PR 4.2.3 — 09 Infografías: dedupe por bloque/misión preserva 48 págs (sin borrar GNU/Linux ni 4 libertades B2M2), 0 cajas R vacías (CD1 real p26/p29) y p41 Variables del proyecto alineada', () => {
+    // 1. Verificar que p41 ("Variables del proyecto") se alinea incluso cuando definicionClave menciona "variables"
+    const wbP41 = makeCdBlockWorkbook(3);
+    wbP41.missions[2]!.title = 'Misión 3: Variables del proyecto';
+    wbP41.missions[2]!.sessionTopic = 'Variables del proyecto';
+    wbP41.missions[2]!.sessionPlans![0]!.objetivo = 'Analizarás variables del proyecto comunitario.';
+    wbP41.missions[2]!.sessionPlans![0]!.sintesisVisual = {
+      conceptoBreve:
+        'Los operadores lógicos y matemáticos son herramientas fundamentales para procesar datos y establecer reglas de decisión.',
+      formulaOReglaClave: 'SI (Condición A)',
+      ejemploBreve: {
+        planteamiento: 'Identificas riesgo en 870 jóvenes usando edad < 18 y eventos > 3.',
+        pasos: ['Defines variables y operadores comparativos.', 'Verificas con pruebas de escritorio.'],
+        conclusion: 'La regla identifica correctamente a los jóvenes en riesgo.',
+      },
+      mapaConceptual: {
+        definicionClave: 'Es el conjunto de reglas lógicas que procesan variables para generar una salida.',
+        criterioDesarrollo: 'Efectúa pruebas de escritorio con valores reales para validar la lógica de tus reglas.',
+        errorComun: 'Usar operadores incorrectos que no reflejan la realidad del problema analizado.',
+        correccionBreve: 'Efectúa pruebas de escritorio con valores reales para validar la lógica de tus reglas.',
+      },
+    };
+    const specP41 = buildSacrintInfographic(wbP41, 'wide', { missionIndex: 2, sessionIndex: 0 });
+    expect(specP41.title).toMatch(/operadores\s+l[oó]gicos\s+y\s+matem[aá]ticos/i);
+    expect(specP41.title).not.toMatch(/variables\s+del\s+proyecto/i);
+
+    // 2. Verificar que dedupeInfographicSpecs NO elimina sesiones de otro bloque/misión (restaura 48 págs)
+    const wbB1 = makeCdBlockWorkbook(1);
+    wbB1.missions[1]!.sessionTopic = 'Historia y el estado de la tecnología digital';
+    wbB1.missions[1]!.sessionPlans![0]!.objetivo = 'Socializarás resultados técnicos con el grupo.';
+    wbB1.missions[1]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'La socialización de hallazgos es el proceso de comunicar resultados de investigación técnica para consensuar soluciones.';
+
+    const wbB2 = makeCdBlockWorkbook(2);
+    wbB2.missions[0]!.sessionTopic = 'Fundamentos de la ciudadanía digital';
+    wbB2.missions[0]!.sessionPlans![0]!.objetivo = 'Comprenderás los fundamentos de la ciudadanía digital.';
+    wbB2.missions[0]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'Las cuatro libertades del software libre garantizan que mantengas el control total sobre tus herramientas digitales.';
+    wbB2.missions[1]!.sessionTopic = 'Cuatro libertades del software libre';
+    wbB2.missions[1]!.sessionPlans![0]!.objetivo = 'Aplicarás las cuatro libertades del software libre.';
+    wbB2.missions[1]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'Las cuatro libertades del software libre garantizan control total y soberanía tecnológica.';
+    wbB2.missions[1]!.sessionPlans![1]!.objetivo =
+      'Socializarás tu investigación sobre herramientas digitales y GNU/Linux.';
+    wbB2.missions[1]!.sessionPlans![1]!.sintesisVisual!.conceptoBreve =
+      'La socialización de hallazgos es el proceso de comunicar propuestas tecnológicas fundamentadas sobre GNU/Linux.';
+
+    const specB1M2 = buildSacrintInfographic(wbB1, 'wide', { missionIndex: 1, sessionIndex: 0 });
+    const specB2M1 = buildSacrintInfographic(wbB2, 'wide', { missionIndex: 0, sessionIndex: 0 });
+    const specB2M2a = buildSacrintInfographic(wbB2, 'wide', { missionIndex: 1, sessionIndex: 0 });
+    const specB2M2b = buildSacrintInfographic(wbB2, 'wide', { missionIndex: 1, sessionIndex: 1 });
+    const deduped = dedupeInfographicSpecs([specB1M2, specB2M1, specB2M2a, specB2M2b]);
+    expect(deduped).toHaveLength(4);
+    expect(specB1M2.title).toMatch(/socializaci[oó]n\s+de\s+hallazgos/i);
+    expect(specB2M2b.title).toMatch(/socializaci[oó]n\s+de\s+hallazgos/i);
+
+    // 3. Verificar en el fixture real CD1 (p26 y p29) que NINGUNA caja de variable (incl. R) queda vacía
+    const realWorkbooksPath = path.join(
+      process.cwd(),
+      'tests',
+      'fixtures',
+      'sacrint-golden',
+      'real-workbooks.json',
+    );
+    const realWorkbooks = JSON.parse(fs.readFileSync(realWorkbooksPath, 'utf8')) as Record<
+      string,
+      ActiveWorkTextbook
+    >;
+    const cd1Real = realWorkbooks['CD1']!;
+    const cd1Specs = dedupeInfographicSpecs(
+      selectInfographicTargets(cd1Real).map((t) =>
+        buildSacrintInfographic(cd1Real, 'wide', {
+          missionIndex: t.missionIndex,
+          sessionIndex: t.sessionIndex,
+        }),
+      ),
+    );
+    expect(cd1Specs.length).toBeGreaterThanOrEqual(6);
+    for (const s of cd1Specs) {
+      expect(s.variables.length).toBeGreaterThanOrEqual(3);
+      for (const v of s.variables) {
+        expect(v.meaning.trim().length, `Variable vacía ${v.symbol} en "${s.title}"`).toBeGreaterThanOrEqual(12);
+      }
+      if (s.diagram.kind === 'block-diagram') {
+        expect(
+          s.diagram.feedback.detail.trim().length,
+          `Caja R (feedback) vacía en "${s.title}"`,
+        ).toBeGreaterThanOrEqual(12);
+      }
+    }
+  });
+
+  it('PR 4.2.3 — 08 Presentaciones: elimina typo "15.(0)", evita protoboard en Slide 49 "Hoja de cálculo" y asegura coherencia temática de portadas', () => {
+    // 1. Typo "15.(0)" en decimales al final de oración
+    const cleaned = cleanStepLine(
+      'Conclusión: El promedio de horas recreativas es 4.8 y el de estudio es 15.0. La condición lógica señala que el promedio de estudio no supera las 15 horas.',
+    );
+    expect(cleaned).toContain('15.0. La condición lógica');
+    expect(cleaned).not.toContain('15.(0)');
+
+    // 2. Coherencia temática en Bloque 2 de Cultura Digital I (incl. Slide 49 "Hoja de cálculo")
+    const sceneLoader = createNodeSceneLoader();
+    const wbB2 = makeCdBlockWorkbook(2);
+    wbB2.missions[0]!.title = 'Misión 1: Las 4 libertades';
+    wbB2.missions[0]!.sessionTopic = 'Las 4 libertades';
+    wbB2.missions[0]!.sessionPlans![0]!.objetivo = 'Comprender las cuatro libertades del software libre.';
+    wbB2.missions[1]!.title = 'Misión 2: Práctica y Aplicación — Hojas de cálculo';
+    wbB2.missions[1]!.sessionTopic = 'Hojas de cálculo';
+    wbB2.missions[1]!.sessionPlans![0]!.objetivo = 'Aplicar fórmulas condicionales en hoja de cálculo.';
+    wbB2.missions[2]!.title = 'Misión 3: Proyecto Integrador — Privacidad';
+    wbB2.missions[2]!.sessionTopic = 'Privacidad';
+    wbB2.missions[2]!.sessionPlans![0]!.objetivo = 'Proteger tu privacidad y credenciales digitales.';
+    wbB2.missions[3]!.title = 'Misión 4: Evaluación y Cierre — Ciudadanía digital';
+    wbB2.missions[3]!.sessionTopic = 'Ciudadanía digital';
+    wbB2.missions[3]!.sessionPlans![0]!.objetivo = 'Ejercer una ciudadanía digital ética en tu comunidad.';
+
+    const decks = buildSacrintDecksForWorkbook(wbB2, {
+      mode: 'lesson-guide',
+      ...sceneLoader,
+    });
+
+    // Hojas de cálculo (Misión 2, donde vive Slide 49): ni portada ni concepto pueden usar protoboard (tic-01-portada / tic-02-concepto en concepto)
+    const spreadsheetDeck = decks[1]!;
+    expect(spreadsheetDeck.editorialScenes?.hero?.relativePath).toContain('tic-04-comunidad.webp');
+    expect(spreadsheetDeck.editorialScenes?.concept?.relativePath).toContain('tic-04-comunidad.webp');
+    expect(spreadsheetDeck.editorialScenes?.concept?.relativePath).not.toContain('tic-01-portada.webp');
+
+    // Privacidad y Ciudadanía digital jamás deben recibir protoboard (tic-01-portada)
+    expect(decks[2]!.editorialScenes?.hero?.relativePath).not.toContain('tic-01-portada.webp');
+    expect(decks[3]!.editorialScenes?.hero?.relativePath).not.toContain('tic-01-portada.webp');
+
+    // Cero portadas consecutivas repetidas dentro del bloque
+    for (let i = 1; i < decks.length; i++) {
+      expect(decks[i]!.editorialScenes?.hero?.relativePath).not.toBe(
+        decks[i - 1]!.editorialScenes?.hero?.relativePath,
+      );
     }
   });
 });

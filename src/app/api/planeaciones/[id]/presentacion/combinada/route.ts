@@ -94,6 +94,9 @@ export async function GET(
     const misconceptionTracker = new Map<string, number>();
     const sceneLoader = createNodeSceneLoader();
     const reqOrigin = new URL(request.url).origin;
+    let prevHeroArchetype:
+      | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
+      | undefined;
 
     for (const entry of effectiveEntries) {
       let extracted: ExtractedBlockMaterials | undefined;
@@ -102,12 +105,16 @@ export async function GET(
       } catch {
         extracted = undefined;
       }
+      const rawEntryDecks = buildSacrintDecksForWorkbook(entry.workbook, {
+        mode: deckMode,
+        misconceptionTracker,
+        previousHeroArchetype: prevHeroArchetype,
+        ...sceneLoader,
+      });
+      const lastArch = rawEntryDecks[rawEntryDecks.length - 1]?.editorialScenes?.hero?.archetype;
+      if (lastArch) prevHeroArchetype = lastArch;
       const entryDecks = await Promise.all(
-        buildSacrintDecksForWorkbook(entry.workbook, {
-          mode: deckMode,
-          misconceptionTracker,
-          ...sceneLoader,
-        }).map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
+        rawEntryDecks.map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
       );
       for (const deck of entryDecks) {
         sacrintDecks.push(deck);

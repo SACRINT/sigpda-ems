@@ -226,9 +226,9 @@ export function cleanStepLine(rawStep: string): string {
     .replace(/^(?:paso\s*\d+\s*[:.\-–]|\d+[.)]\s*)/i, '')
     .trim();
   // Eliminar etiquetas de plantilla/prompt de última milla y normalizar listas numeradas inline
-  // ("1. Desenergizar... 2. Limpiar...") para que splitSpanishSentences nunca corte tras "1."
+  // ("1. Desenergizar... 2. Limpiar...") sin corromper decimales al final de oración ("15.0. La...").
   const withoutTemplate = stripTemplateLabels(base)
-    .replace(/(?<=[:.;\s]|^)(\d+)\.\s+(?=[A-ZÁÉÍÓÚÑ])/g, '($1) ')
+    .replace(/(?<=[:;\s]|^|(?<!\d)\.)(\d+)\.\s+(?=[A-ZÁÉÍÓÚÑ])/g, '($1) ')
     .replace(/\s{2,}/g, ' ')
     .trim();
   if (!withoutTemplate || NUMERIC_ONLY_STEP_RE.test(withoutTemplate)) {

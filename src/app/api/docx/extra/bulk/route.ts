@@ -469,12 +469,23 @@ async function handleBulkDocx(request: NextRequest) {
           const misconceptionTracker = new Map<string, number>();
           const sceneLoader = createNodeSceneLoader();
           const reqOrigin = new URL(request.url).origin;
+          const rawDecks: SacrintDeckSpec[] = [];
+          let prevHeroArchetype:
+            | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
+            | undefined;
+          for (const entry of effectiveEntries) {
+            const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, {
+              mode: 'lesson-guide',
+              misconceptionTracker,
+              previousHeroArchetype: prevHeroArchetype,
+              ...sceneLoader,
+            });
+            const lastArch = entryDecks[entryDecks.length - 1]?.editorialScenes?.hero?.archetype;
+            if (lastArch) prevHeroArchetype = lastArch;
+            rawDecks.push(...entryDecks);
+          }
           const sacrintDecks: SacrintDeckSpec[] = await Promise.all(
-            effectiveEntries
-              .flatMap((entry) =>
-                buildSacrintDecksForWorkbook(entry.workbook, { mode: 'lesson-guide', misconceptionTracker, ...sceneLoader })
-              )
-              .map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
+            rawDecks.map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
           );
           if (sacrintDecks.length > 0) {
             const pptxBuf = await generateCombinedSacrintPptx(sacrintDecks, {

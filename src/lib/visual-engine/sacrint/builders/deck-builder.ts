@@ -1026,13 +1026,29 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
         : rawCoverFooter,
   };
 
-  // Resolver escenas editoriales 16:9 rotadas por (blockNumber, missionIndex) para TODOS los modos
-  // (incluido `lesson-guide`, que es el modo usado en `08_Presentaciones_*.pptx`).
+  // Resolver escenas editoriales 16:9 con afinidad temática (ej. evitar protoboard en "Hoja de cálculo")
+  // y anti-repetición consecutiva para TODOS los modos (incluido `lesson-guide` en `08_Presentaciones_*.pptx`).
+  // Priorizar título + sessionTopic de la misión (o la sesión seleccionada) para que sesiones secundarias
+  // no contaminen el tema principal de portada/concepto.
+  const primaryMissionTopic = [mission.title, mission.sessionTopic].filter(Boolean).join(' ').trim();
+  const missionTopicText =
+    selectedSession && typeof options.sessionIndex === 'number'
+      ? [primaryMissionTopic, selectedSession.objetivo, selectedSession.sintesisVisual?.conceptoBreve]
+          .filter(Boolean)
+          .join(' ')
+      : primaryMissionTopic ||
+        sessionPlans
+          .slice(0, 3)
+          .map((s) => s.objetivo)
+          .filter(Boolean)
+          .join(' ');
   const deckScenes = resolveSacrintDeckEditorialScenes(meta.subjectName, meta.blockNumber, {
     missionIndex:
       typeof options.missionIndex === 'number'
         ? Math.max(0, options.missionIndex)
         : Math.max(0, (meta.missionNumber || 1) - 1),
+    topicText: missionTopicText,
+    avoidHeroArchetypes: options.previousHeroArchetype ? [options.previousHeroArchetype] : undefined,
     fileExists: options.sceneFileExists,
     readDataUri: options.sceneReadDataUri,
   });
@@ -1298,7 +1314,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   };
 }
 
-/** Construye todos los mazos SACRINT de un libro completo (misión por misión). */
+/** Construye todos los mazos SACRINT de un libro completo (misión por misión) sin repetir portadas consecutivas. */
 export function buildSacrintDecksForWorkbook(
   workbook: ActiveWorkTextbook,
   options: Omit<SacrintBuildOptions, 'missionIndex'> = {}
@@ -1310,7 +1326,16 @@ export function buildSacrintDecksForWorkbook(
     ...options,
     misconceptionTracker,
   };
-  return Array.from({ length: missionCount }, (_, missionIndex) =>
-    buildSacrintDeck(workbook, { ...effectiveOptions, missionIndex })
-  );
+  const decks: SacrintDeckSpec[] = [];
+  let prevHero = options.previousHeroArchetype;
+  for (let missionIndex = 0; missionIndex < missionCount; missionIndex++) {
+    const deck = buildSacrintDeck(workbook, {
+      ...effectiveOptions,
+      missionIndex,
+      previousHeroArchetype: prevHero,
+    });
+    prevHero = deck.editorialScenes?.hero?.archetype ?? prevHero;
+    decks.push(deck);
+  }
+  return decks;
 }

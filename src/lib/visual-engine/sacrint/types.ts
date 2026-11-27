@@ -8,6 +8,7 @@ import type { SacrintContentErrorContext } from '@/lib/editorial/topic-title-res
 import type { SacrintPack } from './discipline-packs';
 import type { SacrintVisualStyle } from './visual-styles';
 import type { SacrintThemeMode } from './tokens';
+import type { EditorialSceneArchetype } from '../editorial-scenes-catalog';
 import type {
   AllocatedEditorialScene,
   SceneFileExistsFn,
@@ -536,6 +537,8 @@ export interface SacrintBuildOptions {
   sceneFileExists?: SceneFileExistsFn;
   /** Lector inyectado desde servidor para inline base64 `dataUri` de escenas editoriales. */
   sceneReadDataUri?: SceneReadDataUriFn;
+  /** Arquetipo de portada usado en la misión inmediatamente anterior para evitar repeticiones consecutivas. */
+  previousHeroArchetype?: EditorialSceneArchetype;
 }
 
 export type ConceptFamily =

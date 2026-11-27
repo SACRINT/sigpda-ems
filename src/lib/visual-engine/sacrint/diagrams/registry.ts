@@ -292,7 +292,7 @@ export function buildDiagramVariables(diagram: SacrintDiagramSpec): SacrintVaria
         { symbol: 'P', label: 'Proceso', meaning: safeVar(diagram.process.detail, 76) },
         { symbol: 'S', label: 'Salida', meaning: safeVar(diagram.output.detail, 76) },
         { symbol: 'R', label: 'Retroalimentación', meaning: safeVar(diagram.feedback.detail, 76) },
-      ];
+      ].filter((item) => item.meaning.trim().length > 0);
     case 'sop-flow':
       return [
         { symbol: 'P', label: 'Preparación', meaning: safeVar(diagram.steps[0]?.detail, 76) },

@@ -56,6 +56,10 @@ export interface SceneAllocationRequest {
   /** Índice de misión 0-based opcional para rotar escenas 16:9 en `slides_hero`. */
   missionIndex?: number;
   role: EditorialSceneRole;
+  /** Texto temático opcional (título/tema de misión o sesión) para coherencia semántica de escena en `08`. */
+  topicText?: string;
+  /** Arquetipos a evitar (ej. portada de la misión previa para impedir repeticiones consecutivas). */
+  avoidArchetypes?: readonly EditorialSceneArchetype[];
   /** Slug opcional para buscar override específico en `public/images/escenas/overrides/`. */
   overrideSlug?: string | null;
   /** Predicado inyectado de existencia del asset (default `() => false`, seguro en cliente). */
@@ -234,6 +238,74 @@ function recordRoleAllocation(tracker: BlockSceneTracker | undefined, role: Edit
   set.add(id);
 }
 
+const TIC_HARDWARE_RE =
+  /\b(?:hardware|perif[eé]ric|circuito|protoboard|arduino|sensor|microcontrolador|arquitectura\s+de\s+computador|sistemas?\s+operativos?|red(?:es)?\s+(?:locales|inal[aá]mbricas|cablead)|corporaciones\s+de\s+innovaci[oó]n)\b/i;
+
+const TIC_FLOWCHART_RE = /\b(?:diagramas?\s+de\s+flujo)\b/i;
+
+const TIC_SOFTWARE_OR_CITIZENSHIP_RE =
+  /\b(?:hojas?\s+de\s+c[aá]lculo|excel|f[oó]rmula|funci[oó]n\s+si|promedio|tabular|ciudadan[ií]a\s+digital|identidad\s+digital|contaminaci[oó]n\s+digital|desigualdad|brecha\s+digital|comunidad|socializaci[oó]n|an[aá]lisis\s+de\s+datos|datos|software\s+libre)\b/i;
+
+const TIC_SECURITY_OR_LOGIC_RE =
+  /\b(?:privacidad|seguridad|contrase[nñ]a|credencial|autenticaci[oó]n|licencias?|creative\s+commons|gpl|4\s+libertades|cuatro\s+libertades|operadores|l[oó]gica|algoritmo|pseudoc[oó]digo|historia\s+cr[ií]tica|solucionar\s+un\s+problema)\b/i;
+
+function resolveThematicLandscapeArchetype(params: {
+  domainId: DisciplinaryDomainId;
+  role: EditorialSceneRole;
+  defaultArchetype: EditorialSceneArchetype;
+  topicText?: string;
+  avoidArchetypes?: readonly EditorialSceneArchetype[];
+}): EditorialSceneArchetype {
+  const { domainId, role, defaultArchetype, topicText, avoidArchetypes } = params;
+  const avoidSet = new Set(avoidArchetypes ?? []);
+
+  if (domainId === 'cultura_digital_programacion_ti' && topicText && topicText.trim().length > 0) {
+    const isHardware = TIC_HARDWARE_RE.test(topicText);
+    const isFlowchartOnly = !isHardware && TIC_FLOWCHART_RE.test(topicText);
+    const isSoftwareOrCitizenship = TIC_SOFTWARE_OR_CITIZENSHIP_RE.test(topicText);
+    const isSecurityOrLogic = TIC_SECURITY_OR_LOGIC_RE.test(topicText);
+
+    // En `slides_concept` (ej. Slide 49 "Hoja de cálculo"), jamás asignar protoboard/Arduino
+    // cuando la sesión trata de software, hojas de cálculo, datos o ciudadanía digital.
+    if (role === 'slides_concept' && (isSoftwareOrCitizenship || isSecurityOrLogic) && !isHardware) {
+      return 'comunidad';
+    }
+
+    if (role === 'slides_hero' || role === 'slides_concept') {
+      let ranked: readonly EditorialSceneArchetype[];
+      if (isSoftwareOrCitizenship && !isHardware) {
+        // Priorizar laptop/tableta comunitaria (sin protoboard); jamás protoboard `portada` en hojas de cálculo o ciudadanía
+        ranked = ['comunidad', 'concepto', 'portada'];
+      } else if (isSecurityOrLogic && !isHardware) {
+        // Priorizar candado/lógica (`concepto`) o comunidad (`comunidad`), evitando protoboard físico
+        ranked = ['concepto', 'comunidad', 'portada'];
+      } else if (isHardware || isFlowchartOnly) {
+        ranked = ['portada', 'concepto', 'comunidad'];
+      } else {
+        const startIdx = LANDSCAPE_ROTATION_ORDER.indexOf(defaultArchetype);
+        ranked =
+          startIdx >= 0
+            ? [
+                ...LANDSCAPE_ROTATION_ORDER.slice(startIdx),
+                ...LANDSCAPE_ROTATION_ORDER.slice(0, startIdx),
+              ]
+            : LANDSCAPE_ROTATION_ORDER;
+      }
+
+      const chosen = ranked.find((arch) => !avoidSet.has(arch));
+      if (chosen) return chosen;
+      return ranked[0];
+    }
+  }
+
+  if (avoidSet.has(defaultArchetype) && LANDSCAPE_ROLES.has(role)) {
+    const alt = LANDSCAPE_ROTATION_ORDER.find((arch) => !avoidSet.has(arch));
+    if (alt) return alt;
+  }
+
+  return defaultArchetype;
+}
+
 /**
  * Asigna la escena editorial canónica (con detección de `overrides/` y fallback a
  * `indagacion_interdisciplinaria_general` cuando el activo de dominio aún no existe en disco).
@@ -251,7 +323,14 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
     request.blockNumber ?? 1,
     request.missionIndex ?? 0,
   );
-  const archetype = pickNonRepeatingArchetype(domainId, slot.archetype, request.role, request.tracker);
+  const thematicArchetype = resolveThematicLandscapeArchetype({
+    domainId,
+    role: request.role,
+    defaultArchetype: slot.archetype,
+    topicText: request.topicText,
+    avoidArchetypes: request.avoidArchetypes,
+  });
+  const archetype = pickNonRepeatingArchetype(domainId, thematicArchetype, request.role, request.tracker);
   const domainEntry: EditorialSceneEntry = EDITORIAL_SCENES_CATALOG[domainId][archetype];
 
   // 1. Prioridad máxima: `public/images/escenas/overrides/`
@@ -361,6 +440,8 @@ export function resolveSacrintDeckEditorialScenes(
   blockNumber = 1,
   options?: {
     missionIndex?: number;
+    topicText?: string;
+    avoidHeroArchetypes?: readonly EditorialSceneArchetype[];
     fileExists?: SceneFileExistsFn;
     readDataUri?: SceneReadDataUriFn;
     overrideSlug?: string;
@@ -380,6 +461,8 @@ export function resolveSacrintDeckEditorialScenes(
       blockNumber,
       missionIndex,
       role: 'slides_hero',
+      topicText: options.topicText,
+      avoidArchetypes: options.avoidHeroArchetypes,
       fileExists: options.fileExists,
       readDataUri: options.readDataUri,
       overrideSlug: options.overrideSlug,
@@ -390,6 +473,7 @@ export function resolveSacrintDeckEditorialScenes(
       blockNumber,
       missionIndex,
       role: 'slides_concept',
+      topicText: options.topicText,
       fileExists: options.fileExists,
       readDataUri: options.readDataUri,
       overrideSlug: options.overrideSlug,

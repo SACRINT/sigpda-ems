@@ -313,7 +313,7 @@
           "title": "Socialización de hallazgos: protección de datos",
           "formula": "Problema (Riesgo) + Evidencia (Datos) + Solución (Acción) = Impacto Social",
           "diagramKind": "block-diagram",
-          "contentHash": "90e0dd3b6d9fce00ed916fd0c091d76bdd89bb248f0a30a2830cc05823058880"
+          "contentHash": "ecbb652203117dbdda02d570e869880499bb6237f47b8d3eb68f0d261ecb1ea2"
         },
         {
           "title": "Ciudadanía digital",
@@ -331,7 +331,7 @@
           "title": "Procedimiento técnico para reducir la contaminación digital",
           "formula": "Datos Almacenados (GB) × Energía de Servidor = Huella de Carbono Digital",
           "diagramKind": "block-diagram",
-          "contentHash": "5d06c9f9660d7b749bfe40be3f8fa2a30bdb1774630c97bb88296e2b3baaca2d"
+          "contentHash": "c458d4d219bc2e95c639a7ce92241e530c655e718015c0dd8e06608a51092296"
         }
       ],
       "pptxSemanticHash": "3341842561f873d5ebbe74995c9dcfd9605e4cc980cb35d8ae17599ef367632b",

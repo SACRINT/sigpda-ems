@@ -37,17 +37,58 @@ interface PreparedDeckScenes {
   conceptWithFormulaDataUri?: string;
   /** Recorte exacto 872×182 para banda superior sin fórmula en slide de concepto. */
   conceptWideDataUri?: string;
+  /** Respaldo 872×148 / 872×182 seguro (sin protoboard) para slides de software/ofimática. */
+  softwareSafeWithFormulaDataUri?: string;
+  softwareSafeWideDataUri?: string;
+  conceptIsHardwareProtoboard?: boolean;
 }
 
+const SOFTWARE_CONCEPT_SLIDE_RE =
+  /\b(?:hojas?\s+de\s+c[aá]lculo|excel|f[oó]rmula|funci[oó]n\s+si|promedio|ciudadan[ií]a|privacidad|identidad\s+digital|licencias?|creative\s+commons|gpl|software\s+libre|contaminaci[oó]n\s+digital|desigualdad|datos|tabul|gr[aá]fic)\b/i;
+const HARDWARE_CONCEPT_SLIDE_RE =
+  /\b(?:hardware|protoboard|arduino|circuito|sensor|perif[eé]ric|microcontrolador)\b/i;
+
 async function prepareDeckScenesForPptx(deck: SacrintDeckSpec): Promise<PreparedDeckScenes> {
-  const heroRaw = deck.editorialScenes?.hero?.dataUri;
-  const conceptRaw = deck.editorialScenes?.concept?.dataUri;
-  const [heroDataUri, conceptWithFormulaDataUri, conceptWideDataUri] = await Promise.all([
+  const heroScene = deck.editorialScenes?.hero;
+  const conceptScene = deck.editorialScenes?.concept;
+  const heroRaw = heroScene?.dataUri;
+  const conceptRaw = conceptScene?.dataUri;
+  const conceptIsHardwareProtoboard = Boolean(
+    conceptScene &&
+      conceptScene.domainId === 'cultura_digital_programacion_ti' &&
+      (conceptScene.archetype === 'portada' || conceptScene.archetype === 'concepto'),
+  );
+  const heroIsSoftwareSafe = Boolean(
+    heroRaw &&
+      heroScene &&
+      heroScene.domainId === 'cultura_digital_programacion_ti' &&
+      heroScene.archetype === 'comunidad',
+  );
+  const [
+    heroDataUri,
+    conceptWithFormulaDataUri,
+    conceptWideDataUri,
+    softwareSafeWithFormulaDataUri,
+    softwareSafeWideDataUri,
+  ] = await Promise.all([
     heroRaw ? ensureCroppedPngDataUri(heroRaw, 700, 760).catch(() => undefined) : Promise.resolve(undefined),
     conceptRaw ? ensureCroppedPngDataUri(conceptRaw, 872, 148).catch(() => undefined) : Promise.resolve(undefined),
     conceptRaw ? ensureCroppedPngDataUri(conceptRaw, 872, 182).catch(() => undefined) : Promise.resolve(undefined),
+    heroIsSoftwareSafe && conceptIsHardwareProtoboard && heroRaw
+      ? ensureCroppedPngDataUri(heroRaw, 872, 148).catch(() => undefined)
+      : Promise.resolve(undefined),
+    heroIsSoftwareSafe && conceptIsHardwareProtoboard && heroRaw
+      ? ensureCroppedPngDataUri(heroRaw, 872, 182).catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
-  return { heroDataUri, conceptWithFormulaDataUri, conceptWideDataUri };
+  return {
+    heroDataUri,
+    conceptWithFormulaDataUri,
+    conceptWideDataUri,
+    softwareSafeWithFormulaDataUri,
+    softwareSafeWideDataUri,
+    conceptIsHardwareProtoboard,
+  };
 }
 
 function renderCover(
@@ -247,9 +288,18 @@ function renderConcept(
     }
 
     let exPanelY = hasFormula ? topY + 134 : topY;
-    const conceptSceneUri = hasFormula
-      ? preparedScenes?.conceptWithFormulaDataUri
-      : preparedScenes?.conceptWideDataUri;
+    const slideTopicSample = `${spec.title} ${spec.subtitle ?? ''} ${spec.explanation ?? ''}`;
+    const avoidProtoboardForSlide =
+      Boolean(preparedScenes?.conceptIsHardwareProtoboard) &&
+      SOFTWARE_CONCEPT_SLIDE_RE.test(slideTopicSample) &&
+      !HARDWARE_CONCEPT_SLIDE_RE.test(slideTopicSample);
+    const conceptSceneUri = avoidProtoboardForSlide
+      ? hasFormula
+        ? preparedScenes?.softwareSafeWithFormulaDataUri
+        : preparedScenes?.softwareSafeWideDataUri
+      : hasFormula
+        ? preparedScenes?.conceptWithFormulaDataUri
+        : preparedScenes?.conceptWideDataUri;
     if (conceptSceneUri) {
       const sceneH = hasFormula ? 148 : 182;
       addPanel(slide, 968, exPanelY, 872, sceneH, { fill: C.panel, transparency: 10, stroke: accent2 });

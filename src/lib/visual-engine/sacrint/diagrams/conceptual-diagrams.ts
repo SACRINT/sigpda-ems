@@ -384,7 +384,35 @@ export function buildBlockDiagram(mission: MissionSection): BlockDiagramSpec {
     130,
     ''
   );
-  const feedback = detail(mission.formativeCheckpoint?.question, 130, '');
+  // Cadena de respaldo para la caja de CONTROL / Retroalimentación (R): evita cajas vacías cuando
+  // una corrección es demasiado corta o truncada (ej. "Usa ejemplos prácticos." o "...elimina lo que no.").
+  const feedbackCandidates = [
+    mission.formativeCheckpoint?.question,
+    mission.conceptZero?.contrastTable?.[0]?.reasoning,
+    mission.conceptZero?.contrastTable?.[0]?.correctConcept,
+    mission.weDoSection?.guidedPractice,
+    mission.youDoSection?.autonomousChallenge,
+    mission.metacognitiveTrafficLight?.green,
+  ];
+  let feedback = '';
+  for (const candidate of feedbackCandidates) {
+    const resolved = detail(candidate, 130, '');
+    if (resolved) {
+      feedback = resolved;
+      break;
+    }
+  }
+  if (!feedback) {
+    const cleanFallback = clean(
+      mission.formativeCheckpoint?.question ||
+        mission.conceptZero?.contrastTable?.[0]?.reasoning ||
+        mission.weDoSection?.guidedPractice ||
+        mission.youDoSection?.autonomousChallenge
+    );
+    if (cleanFallback && cleanFallback.length >= 12) {
+      feedback = cleanFallback;
+    }
+  }
 
   return {
     kind: 'block-diagram',
