@@ -53,6 +53,8 @@ export interface SceneAllocationRequest {
   domainId?: DisciplinaryDomainId;
   /** Número de bloque 1-based (1, 2, 3...). */
   blockNumber?: number;
+  /** Índice de misión 0-based opcional para rotar escenas 16:9 en `slides_hero`. */
+  missionIndex?: number;
   role: EditorialSceneRole;
   /** Slug opcional para buscar override específico en `public/images/escenas/overrides/`. */
   overrideSlug?: string | null;
@@ -121,8 +123,10 @@ function slugifyUacForOverride(raw: string): string {
 export function resolveCanonicalRoleSlot(
   role: EditorialSceneRole,
   blockNumber = 1,
+  missionIndex = 0,
 ): { archetype: EditorialSceneArchetype; crop: EditorialSceneCrop } {
   const safeBlock = Math.max(1, Math.floor(blockNumber || 1));
+  const safeMission = Math.max(0, Math.floor(missionIndex || 0));
   switch (role) {
     case 'block_cover': {
       const archetype = BLOCK_COVER_ROTATION[(safeBlock - 1) % BLOCK_COVER_ROTATION.length];
@@ -136,10 +140,18 @@ export function resolveCanonicalRoleSlot(
       return { archetype: 'portada', crop: 'detail_right' };
     case 'mission_4':
       return { archetype: 'comunidad', crop: 'full' };
-    case 'slides_hero':
-      return { archetype: 'portada', crop: 'full' };
-    case 'slides_concept':
-      return { archetype: 'concepto', crop: 'full' };
+    case 'slides_hero': {
+      // Rota entre los 3 arquetipos panorámicos 16:9 (nunca 4:5 `practica`),
+      // conservando B1M1 = `portada` para paridad exacta con baseline/goldens.
+      const archetype =
+        LANDSCAPE_ROTATION_ORDER[(safeBlock - 1 + safeMission) % LANDSCAPE_ROTATION_ORDER.length];
+      return { archetype, crop: 'full' };
+    }
+    case 'slides_concept': {
+      const archetype =
+        LANDSCAPE_ROTATION_ORDER[(safeBlock + safeMission) % LANDSCAPE_ROTATION_ORDER.length];
+      return { archetype, crop: 'full' };
+    }
     case 'infographic_activity':
       return { archetype: 'practica', crop: 'full' };
   }
@@ -231,7 +243,11 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
     request.domainId ??
     getDisciplinaryAdapter(request.uacName || '', request.component || undefined).id;
 
-  const slot = resolveCanonicalRoleSlot(request.role, request.blockNumber ?? 1);
+  const slot = resolveCanonicalRoleSlot(
+    request.role,
+    request.blockNumber ?? 1,
+    request.missionIndex ?? 0,
+  );
   const archetype = pickNonRepeatingArchetype(domainId, slot.archetype, request.role, request.tracker);
   const domainEntry: EditorialSceneEntry = EDITORIAL_SCENES_CATALOG[domainId][archetype];
 
@@ -341,6 +357,7 @@ export function resolveSacrintDeckEditorialScenes(
   uacName: string,
   blockNumber = 1,
   options?: {
+    missionIndex?: number;
     fileExists?: SceneFileExistsFn;
     readDataUri?: SceneReadDataUriFn;
     overrideSlug?: string;
@@ -353,10 +370,12 @@ export function resolveSacrintDeckEditorialScenes(
     return { hero: null, concept: null };
   }
   const tracker = createBlockSceneTracker();
+  const missionIndex = options.missionIndex ?? 0;
   return {
     hero: allocateEditorialSceneOnDisk({
       uacName,
       blockNumber,
+      missionIndex,
       role: 'slides_hero',
       fileExists: options.fileExists,
       readDataUri: options.readDataUri,
@@ -366,6 +385,7 @@ export function resolveSacrintDeckEditorialScenes(
     concept: allocateEditorialSceneOnDisk({
       uacName,
       blockNumber,
+      missionIndex,
       role: 'slides_concept',
       fileExists: options.fileExists,
       readDataUri: options.readDataUri,

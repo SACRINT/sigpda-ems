@@ -12,8 +12,10 @@
 
 import QRCode from 'qrcode';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
-import { dispatchVisual } from '@/lib/visual-engine/visual-dispatcher';
+import { dispatchVisual, isDigitalCultureSubject } from '@/lib/visual-engine/visual-dispatcher';
 import { resolveDigitalToolsForMission } from '@/lib/visual-engine/digital-tools-registry';
+import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
+import { normalizeUnicode } from '@/lib/utils/normalize';
 import type {
   ActiveSpaceItem,
   DigitalToolQr,
@@ -23,6 +25,56 @@ import type {
 } from './student-content-model';
 
 const qrSvgCache = new Map<string, string>();
+
+const CARTESIAN_ALLOWED_SUBJECT_RE =
+  /\b(?:pensamiento\s+matematico|matematic\w*|calculo|algebra|geometria|trigonometria|estadistica|probabilidad|pensamiento\s+variacional|fisica|fenomenos\s+fisicos|quimica|reacciones\s+quimicas|materia\s+y\s+sus\s+interacciones|conservacion\s+de\s+la\s+energia)\b/i;
+
+function isCartesianAllowedSubject(uacName: string): boolean {
+  if (isDigitalCultureSubject(uacName)) return false;
+  const norm = normalizeUnicode(uacName);
+  if (/\b(?:deport\w*|educacion\s+fisica|actividades\s+fisicas|cuidado\s+fisico)\b/i.test(norm)) {
+    return false;
+  }
+  return CARTESIAN_ALLOWED_SUBJECT_RE.test(norm);
+}
+
+function escapeXmlText(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/**
+ * Inyecta `VisualAnnotation[]` como `<text>` vectoriales dentro del `<svg>` para Typst 0.15.1
+ * (Typst cuenta con fuentes nativas Inter / Liberation Sans, a diferencia de librsvg en jsPDF).
+ * No modifica los generadores base ni afecta a jsPDF.
+ */
+export function embedAnnotationsIntoSvg(
+  svg: string,
+  annotations?: VisualAnnotation[],
+): string {
+  if (!annotations || annotations.length === 0 || !svg.includes('</svg>')) {
+    return svg;
+  }
+  const textNodes = annotations
+    .filter((a) => typeof a.text === 'string' && a.text.trim().length > 0)
+    .map((a) => {
+      const anchor =
+        a.align === 'center' ? 'middle' : a.align === 'end' ? 'end' : 'start';
+      const weight = a.bold ? '700' : '400';
+      const fill = a.color || '#1e293b';
+      const size = Number.isFinite(a.fontSize) ? Math.max(6, Math.min(20, a.fontSize)) : 9;
+      return `<text x="${a.svgX}" y="${a.svgY}" font-family="Inter, Liberation Sans, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${escapeXmlText(a.text.trim())}</text>`;
+    })
+    .join('\n');
+
+  if (!textNodes) return svg;
+  const idx = svg.lastIndexOf('</svg>');
+  return `${svg.slice(0, idx)}\n${textNodes}\n</svg>`;
+}
 
 /**
  * Genera un QR vectorial SVG determinista en memoria (sin red ni archivos temporales).
@@ -118,9 +170,18 @@ export async function enrichEditorialSessionsV2(params: {
         uacName,
         mission?.title || session.titulo,
         `${session.objetivo} ${session.motivacion}`,
-        mission ? mission.missionIndex - 1 : 0,
+        mission ? mission.missionIndex : 1,
       );
-      if (visual?.svg && visual.svg.includes('<svg')) {
+      const isCartesianDiagram =
+        visual?.metadata?.type === 'stem-cartesian-plane' ||
+        Boolean(
+          visual?.annotations?.some(
+            (a) => typeof a.text === 'string' && /plano\s+cartesiano/i.test(a.text),
+          ),
+        );
+      if (isCartesianDiagram && !isCartesianAllowedSubject(uacName)) {
+        // Guard defensivo P0: jamás inyectar Plano Cartesiano en asignaturas no matemático-físico-químicas
+      } else if (visual?.svg && visual.svg.includes('<svg')) {
         const captionText =
           visual.annotations?.find((a) => typeof a.text === 'string' && a.text.trim().length > 3)?.text ||
           mission?.title ||
@@ -128,7 +189,7 @@ export async function enrichEditorialSessionsV2(params: {
         embeddedDiagram = {
           title: `Esquema Técnico · ${mission?.title || session.titulo}`.slice(0, 120),
           caption: captionText,
-          svg: visual.svg,
+          svg: embedAnnotationsIntoSvg(visual.svg, visual.annotations),
         };
       }
     }

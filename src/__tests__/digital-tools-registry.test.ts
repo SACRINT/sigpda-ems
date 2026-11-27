@@ -88,4 +88,32 @@ describe('Fase 6: Catálogo de Herramientas Digitales y Widget QR en Workbooks',
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
     expect(pdfBuffer.toString('ascii', 0, 5)).toBe('%PDF-');
   });
+
+  it('5. P1 Hotfix 4.1.1: Cultura Digital nunca recibe Cronómetro HIIT/Tabata, Kinovea ni BioDigital; Educación Física sí recibe Tabata', () => {
+    const cdTools = resolveMultipleDigitalToolsForMission(
+      'Cultura Digital I',
+      'Gestión del tiempo y activación de sistemas digitales',
+      'Organiza el tiempo de respuesta, estaciones de trabajo y activación del sistema operativo en red.',
+      5
+    );
+    const cdIds = cdTools.map((t) => t.id);
+    expect(cdIds).not.toContain('tabata_timer');
+    expect(cdIds).not.toContain('kinovea_sport');
+    expect(cdIds).not.toContain('biodigital');
+
+    const cdSingle = resolveDigitalToolsForMission(
+      'Cultura Digital I',
+      'Activación y optimización de tiempo en redes',
+      'Estaciones de trabajo y series de datos en la nube'
+    );
+    expect(cdSingle?.id).not.toBe('tabata_timer');
+
+    const peTool = resolveDigitalToolsForMission(
+      'Educación Física I',
+      'Circuito de activación y control de pulso',
+      'Series aeróbicas de resistencia con cronómetro y registro de frecuencia cardíaca'
+    );
+    expect(peTool).not.toBeNull();
+    expect(peTool?.id).toBe('tabata_timer');
+  });
 });

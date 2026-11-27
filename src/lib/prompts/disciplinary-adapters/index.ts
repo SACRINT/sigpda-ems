@@ -438,6 +438,7 @@ const ADAPTERS_BASE: Record<DisciplinaryDomainId, DisciplinaryAdapterBase> = {
       'matraz erlenmeyer',
       'mechero bunsen',
       'balanza romana',
+      'plano cartesiano',
     ],
     workbookVoiceDirective:
       'Incluye algoritmos paso a paso, tablas de prueba de escritorio (traza de variables), bloques de código o fórmulas de hoja de cálculo comentadas y su equivalente offline en cuaderno.',

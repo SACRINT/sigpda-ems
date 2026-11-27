@@ -377,5 +377,79 @@ describe('Fase 3 — Paridad Total ActiveWorkTextbook → Typst (PUBLISHING_ENGI
     expect(renderInfographicSvg(info)).toContain('<image href="data:image/webp;base64,');
     const pdfBuf = await renderCombinedSacrintInfographicsPdf([info], 'wide');
     expect(pdfBuf.toString('latin1')).toContain('/Subtype /Image');
+
+    // P2: las portadas 08 rotan entre los 3 arquetipos 16:9 por misión sin tocar `practica` (4:5)
+    const deckM2 = buildSacrintDeck(MATH_DEMO_WORKBOOK, { missionIndex: 1, mode: 'full', ...loader });
+    const deckM3 = buildSacrintDeck(MATH_DEMO_WORKBOOK, { missionIndex: 2, mode: 'full', ...loader });
+    expect(deckM2.editorialScenes?.hero?.archetype).toBe('concepto');
+    expect(deckM3.editorialScenes?.hero?.archetype).toBe('comunidad');
+    expect(deckM2.editorialScenes?.hero?.aspectRatio).toBe('16:9');
+    expect(deckM3.editorialScenes?.hero?.aspectRatio).toBe('16:9');
+  });
+
+  it('Hotfix 4.1.1 (P0 + P1): Cultura Digital I en V2 produce 0 Planos Cartesianos, 0 Misión 0, 0 HIIT/Tabata e inyecta <text> vectoriales en SVG compilable en Typst', async () => {
+    const fileExists = createNodeSceneFileExists();
+    const cdWorkbook = makeBlockWorkbook(0, 1);
+    cdWorkbook.current.missions[0]!.title = 'Hardware y software en sistemas digitales';
+    cdWorkbook.current.missions[0]!.sessionPlans![0]!.objetivo =
+      'Analizar la arquitectura de hardware, software y gestión del tiempo de activación del sistema.';
+    cdWorkbook.current.missions[1]!.title = 'Algoritmos y diagramas de flujo';
+    cdWorkbook.current.missions[2]!.title = 'Ciudadanía digital y protección de datos';
+
+    const composed = composeStudentSessionsFromWorkbooks(
+      {
+        uac_name: 'Cultura Digital I',
+        workbooks_json: { block_0: cdWorkbook },
+      },
+      { sceneFileExists: fileExists },
+    );
+
+    const enriched = await enrichEditorialSessionsV2({
+      uacName: 'Cultura Digital I',
+      sessions: composed.sessions,
+      missions: composed.missions,
+    });
+
+    for (const s of enriched) {
+      if (s.embeddedDiagram) {
+        expect(s.embeddedDiagram.caption).not.toMatch(/plano\s+cartesiano/i);
+        expect(s.embeddedDiagram.caption).not.toContain('Misión 0');
+        expect(s.embeddedDiagram.svg).not.toMatch(/plano\s+cartesiano/i);
+        expect(s.embeddedDiagram.svg).toContain('<text ');
+      }
+      if (s.digitalToolQr) {
+        expect(s.digitalToolQr.name).not.toMatch(/HIIT|Tabata|Kinovea|BioDigital/i);
+      }
+    }
+
+    expect(enriched[0]?.embeddedDiagram?.caption).toContain('Misión 1');
+    expect(enriched[1]?.embeddedDiagram?.caption).toContain('Misión 2');
+    expect(enriched[2]?.embeddedDiagram?.caption).toContain('Misión 3');
+
+    // Compilación real con Typst 0.15.1 para validar que los <text> SVG compilan sin errores de fuentes
+    const chapter = StudentChapterSchema.parse({
+      uac: 'Cultura Digital I',
+      bloque: 'Bloque 1',
+      editorialSubtitle: 'Verificación Hotfix 4.1.1 Cultura Digital MCCEMS',
+      semestre: '1',
+      cicloEscolar: '2026-2027',
+      plantel: 'Bachillerato General Estatal Puebla',
+      cct: '21EBH0123A',
+      zonaEscolar: 'Zona 086',
+      disciplinaUi: resolveEditorialDisciplinaryUi('Cultura Digital I'),
+      missions: composed.missions,
+      sesiones: enriched,
+    });
+    const compiled = await dispatchToEditorialWorker(chapter, { sourceDateEpoch: 0 });
+    expect(compiled.success).toBe(true);
+    expect(compiled.pdfBuffer.subarray(0, 5).toString()).toBe('%PDF-');
+
+    const parser = new PDFParse({ data: new Uint8Array(compiled.pdfBuffer) });
+    const parsedText = (await parser.getText()).text;
+    await parser.destroy();
+    expect(parsedText).not.toMatch(/Plano\s+Cartesiano/i);
+    expect(parsedText).not.toContain('Misión 0');
+    expect(parsedText).not.toMatch(/HIIT|Tabata/i);
+    expect(parsedText).not.toContain('Estructura Social');
   });
 });

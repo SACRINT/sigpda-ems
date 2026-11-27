@@ -167,6 +167,33 @@ const TECHNICAL_DRAWING_KEYWORDS = [
   'trazo técnico',
 ];
 
+const DIGITAL_CULTURE_KEYWORDS = [
+  'cultura digital',
+  'taller de cultura digital',
+  'pensamiento algoritmico',
+  'pensamiento algorítmico',
+  'programacion',
+  'programación',
+  'tecnologias de la informacion',
+  'tecnologías de la información',
+  'informatica',
+  'informática',
+  'ciberseguridad',
+  'inteligencia artificial',
+  'ciencia de datos',
+];
+
+/**
+ * Determina si una UAC pertenece a Cultura Digital / Programación / TI.
+ * Nota: 'cultura digital' se conserva en STEM_KEYWORDS por compatibilidad con plantillas 08
+ * y material-extractor, pero `dispatchVisual` la intercepta antes de la rama STEM para evitar
+ * cualquier fallback de Plano Cartesiano.
+ */
+export function isDigitalCultureSubject(uacName: string): boolean {
+  const norm = normalizeUnicode(uacName);
+  return DIGITAL_CULTURE_KEYWORDS.some((kw) => norm.includes(normalizeUnicode(kw)));
+}
+
 /**
  * Determina si una UAC pertenece al área de Dibujo Técnico y Arquitectura.
  */
@@ -592,12 +619,132 @@ export function dispatchVisual(
     return dispatchTechnicalDrawing(topic, contextText, missionNumber);
   }
 
+  // Combinar título + contexto para máxima cobertura de keywords
+  const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
+
+  // ── 0B. DISPATCHER ESPECIALIZADO: CULTURA DIGITAL, ALGORITMOS Y TI ──────
+  // Intercepta antes de STEM para garantizar diagramas computacionales/conceptuales
+  // y prohibir taxativamente el fallback de Plano Cartesiano en Cultura Digital.
+  if (isDigitalCultureSubject(uacName)) {
+    const rawContext = `${topic}\n${contextText || ''}`;
+    const buildDigitalConceptMap = () => {
+      const extracted = extractTermDefs(rawContext, topic);
+      const hasExtracted = extracted.nodes.length >= 3;
+      const nodes = hasExtracted
+        ? extracted.nodes
+        : [
+            { label: 'Cultura Digital', level: 0 as const },
+            { label: 'Ciudadanía Digital', level: 1 as const },
+            { label: 'Pensamiento Algorítmico', level: 1 as const },
+            { label: 'Privacidad y Ética', level: 2 as const },
+            { label: 'Colaboración en Red', level: 2 as const },
+          ];
+      const edges = hasExtracted
+        ? extracted.edges
+        : [
+            { from: 0, to: 1, label: 'promueve' },
+            { from: 0, to: 2, label: 'estructura' },
+            { from: 1, to: 3, label: 'protege' },
+            { from: 2, to: 4, label: 'impulsa' },
+          ];
+      const res = generateConceptMap(nodes, edges, {
+        title: `Mapa Conceptual Digital: ${topic.slice(0, 32)} (${scopeLabel})`,
+      });
+      res.metadata = {
+        type: 'digital_concept_map',
+        realItemCount: hasExtracted ? extracted.nodes.length - 1 : 0,
+        isFallback: !hasExtracted,
+      };
+      return res;
+    };
+
+    // 1. Ciudadanía digital, ética, privacidad, huella en redes sociales o derechos de autor → Mapa Conceptual
+    if (
+      /\b(?:ciudadania\s+digital|identidad\s+digital|huella\s+(?:digital|en\s+redes)|redes?\s+sociales?|privacidad|derechos?\s+de\s+autor|etica\s+digital|netiqueta|ciberacoso|propiedad\s+intelectual)\b/.test(
+        searchText
+      ) &&
+      !/\b(?:hardware|software|algoritmo|pseudocodigo|diagrama\s+de\s+flujo)\b/.test(searchText)
+    ) {
+      return buildDigitalConceptMap();
+    }
+
+    // 2. Arquitectura de sistemas, hardware, software, redes de cómputo, ciberseguridad o bases de datos
+    if (
+      /\b(?:hardware|software|sistema(?:s)?|arquitectura|red(?:es)?\s+(?:de\s+computo|informatica|local|lan|wan)|internet|nube|servidor|base(?:s)?\s+de\s+datos|ciberseguridad|dispositivo(?:s)?|periferico(?:s)?|componente(?:s)?|modulo(?:s)?|cpu|memoria|almacenamiento)\b/.test(
+        searchText
+      )
+    ) {
+      const extractedBlocks = extractSystemBlocks(rawContext);
+      const blocks =
+        extractedBlocks.length >= 2
+          ? extractedBlocks
+          : [
+              { title: 'Entrada y Usuario', subtitle: 'Datos, periféricos y captura', role: 'input' as const },
+              { title: 'Hardware y Software', subtitle: 'Procesamiento y sistema operativo', role: 'process' as const },
+              { title: 'Red y Almacenamiento', subtitle: 'Gestión segura y respaldo', role: 'control' as const },
+              { title: 'Salida Digital', subtitle: 'Producto y servicio al usuario', role: 'output' as const },
+            ];
+      const res = generateBlockDiagram(blocks, {
+        title: `Arquitectura Digital: ${topic.slice(0, 34)} (${scopeLabel})`,
+      });
+      res.metadata = {
+        type: 'digital_block_diagram',
+        realItemCount: extractedBlocks.length,
+        isFallback: extractedBlocks.length < 2,
+      };
+      return res;
+    }
+
+    // 2. Algoritmos, diagramas de flujo, pseudocódigo, programación, automatización u hoja de cálculo
+    if (
+      /\b(?:algoritmo(?:s)?|pseudocodigo|diagrama\s+de\s+flujo|flujo|programacion|codigo|variable(?:s)?|bucle|condicional|hoja\s+de\s+calculo|automatizacion|proceso(?:s)?|paso(?:s)?|protocolo|metodologia)\b/.test(
+        searchText
+      )
+    ) {
+      const { technicalSteps } = extractEnumSteps(rawContext);
+      const steps =
+        technicalSteps.length >= 2
+          ? technicalSteps
+          : [
+              {
+                step: '1. Definir Problema',
+                instruction: 'Identificar entradas, salidas y requerimientos digitales',
+                qualityCheck: 'Alcance verificado',
+              },
+              {
+                step: '2. Diseñar Algoritmo',
+                instruction: 'Estructurar secuencia lógica, decisiones y flujo de datos',
+                qualityCheck: 'Prueba de escritorio OK',
+              },
+              {
+                step: '3. Implementar Solución',
+                instruction: 'Construir prototipo, fórmula o código limpio y documentado',
+                qualityCheck: 'Ejecución sin errores',
+              },
+              {
+                step: '4. Validar y Publicar',
+                instruction: 'Verificar usabilidad, seguridad y ética digital comunitaria',
+                qualityCheck: 'Entrega validada',
+              },
+            ];
+      const res = generateTechnicalFlow(steps, {
+        title: `Flujo Digital y Algorítmico: ${topic.slice(0, 30)} (${scopeLabel})`,
+      });
+      res.metadata = {
+        type: 'digital_technical_flow',
+        realItemCount: technicalSteps.length,
+        isFallback: technicalSteps.length < 2,
+      };
+      return res;
+    }
+
+    // 3. Ciudadanía digital, ética, privacidad, comunicación e identidad digital (default seguro)
+    return buildDigitalConceptMap();
+  }
+
   const isStem = isStemSubject(uacName);
   const isHumanities = isHumanitiesSubject(uacName);
   const isLaboral = isLaboralSubject(uacName);
-
-  // Combinar título + contexto para máxima cobertura de keywords
-  const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
 
   // ── A. DISPATCHER ÁREA STEM / CIENCIAS EXACTAS ────────────────────────────
   if (isStem) {

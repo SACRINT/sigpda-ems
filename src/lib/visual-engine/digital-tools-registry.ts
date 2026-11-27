@@ -19,6 +19,10 @@ export interface DigitalTool {
   requiresAccount: boolean;
   subjectAffinity: string[];
   relevanceKeywords: string[];
+  /** Si es true, la herramienta SOLO puede seleccionarse si la asignatura coincide con `subjectAffinity`. */
+  requireSubjectAffinity?: boolean;
+  /** Asignaturas donde esta herramienta queda explícitamente prohibida (anti-contaminación cross-domain). */
+  excludedSubjects?: string[];
 }
 
 export const MCCEMS_DIGITAL_TOOLS: DigitalTool[] = [
@@ -89,8 +93,8 @@ export const MCCEMS_DIGITAL_TOOLS: DigitalTool[] = [
     description: 'Entorno de programación por bloques para desarrollo del pensamiento algorítmico.',
     platforms: ['Web', 'Offline'],
     requiresAccount: false,
-    subjectAffinity: ['cultura digital', 'informática', 'matemáticas', 'pensamiento algorítmico'],
-    relevanceKeywords: ['algoritmo', 'bucle', 'variable', 'condicional', 'programa', 'código', 'lógica', 'animación', 'interactivo'],
+    subjectAffinity: ['cultura digital', 'informática', 'informatica', 'programación', 'programacion', 'matemáticas', 'pensamiento algorítmico'],
+    relevanceKeywords: ['algoritmo', 'bucle', 'variable', 'condicional', 'programa', 'código', 'lógica', 'animación', 'interactivo', 'software', 'hardware', 'digital', 'diagrama de flujo', 'pseudocódigo'],
   },
   {
     id: 'inegi_mapa',
@@ -139,8 +143,10 @@ export const MCCEMS_DIGITAL_TOOLS: DigitalTool[] = [
     description: 'Atlas anatómico en tercera dimensión de sistemas del cuerpo humano.',
     platforms: ['Web', 'Android', 'iOS'],
     requiresAccount: false,
-    subjectAffinity: ['biología', 'ciencias de la salud', 'anatomía', 'cuidado del cuerpo', 'salud integral', 'actividades físicas y deportivas', 'educación física'],
+    subjectAffinity: ['biología', 'biologia', 'ciencias de la salud', 'anatomía', 'anatomia', 'cuidado del cuerpo', 'salud integral', 'educación para la salud', 'educacion para la salud', 'actividades físicas y deportivas', 'actividades fisicas y deportivas', 'educación física', 'educacion fisica'],
     relevanceKeywords: ['sistema', 'órgano', 'célula', 'tejido', 'esqueleto', 'músculo', 'circulatorio', 'digestivo', 'salud', 'frecuencia cardíaca', 'acondicionamiento'],
+    requireSubjectAffinity: true,
+    excludedSubjects: ['cultura digital', 'informática', 'informatica', 'programación', 'programacion', 'matemáticas', 'matematicas', 'historia', 'filosofía', 'filosofia'],
   },
   {
     id: 'kinovea_sport',
@@ -149,8 +155,10 @@ export const MCCEMS_DIGITAL_TOOLS: DigitalTool[] = [
     description: 'Análisis biomecánico en video, cronometraje deportivo y medición de ángulos motrices.',
     platforms: ['Web', 'Offline'],
     requiresAccount: false,
-    subjectAffinity: ['actividades físicas y deportivas', 'educación física', 'deporte', 'cuidado físico'],
+    subjectAffinity: ['actividades físicas y deportivas', 'actividades fisicas y deportivas', 'educación física', 'educacion fisica', 'deporte', 'cuidado físico', 'cuidado fisico'],
     relevanceKeywords: ['juego', 'deporte', 'motricidad', 'agilidad', 'circuito', 'velocidad', 'coordinación', 'biomecánica', 'desempeño', 'recorrido', 'entrenamiento'],
+    requireSubjectAffinity: true,
+    excludedSubjects: ['cultura digital', 'informática', 'informatica', 'programación', 'programacion', 'matemáticas', 'matematicas', 'química', 'quimica', 'historia', 'filosofía', 'filosofia'],
   },
   {
     id: 'tabata_timer',
@@ -159,8 +167,10 @@ export const MCCEMS_DIGITAL_TOOLS: DigitalTool[] = [
     description: 'Temporizador deportivo programable para circuitos de activación, series y control de pulso.',
     platforms: ['Web', 'Android', 'iOS', 'Offline'],
     requiresAccount: false,
-    subjectAffinity: ['actividades físicas y deportivas', 'educación física', 'deporte', 'salud integral'],
+    subjectAffinity: ['actividades físicas y deportivas', 'actividades fisicas y deportivas', 'educación física', 'educacion fisica', 'deporte', 'salud integral'],
     relevanceKeywords: ['cronómetro', 'tiempo', 'pulsaciones', 'frecuencia cardíaca', 'estaciones', 'activación', 'calentamiento', 'resistencia', 'aeróbico', 'series'],
+    requireSubjectAffinity: true,
+    excludedSubjects: ['cultura digital', 'informática', 'informatica', 'programación', 'programacion', 'matemáticas', 'matematicas', 'física', 'fisica', 'química', 'quimica', 'historia', 'filosofía', 'filosofia', 'lengua'],
   },
   {
     id: 'librecad',
@@ -230,7 +240,21 @@ export function resolveMultipleDigitalToolsForMission(
       continue;
     }
 
+    // Exclusión explícita por asignatura (anti-contaminación cross-domain, P1)
+    if (
+      tool.excludedSubjects &&
+      tool.excludedSubjects.some((ex) => {
+        const lowerEx = ex.toLowerCase();
+        // Evitar que 'física' en excludedSubjects bloquee 'educación física' o 'actividades físicas'
+        if ((lowerEx === 'física' || lowerEx === 'fisica') && isSportsOrPE) return false;
+        return normSubject.includes(lowerEx);
+      })
+    ) {
+      continue;
+    }
+
     let score = 0;
+    let hasSubjectAffinity = false;
 
     // Afinidad disciplinar (3 puntos)
     for (const affinity of tool.subjectAffinity) {
@@ -241,8 +265,15 @@ export function resolveMultipleDigitalToolsForMission(
       }
       if (normSubject.includes(lowerAff)) {
         score += 3;
+        hasSubjectAffinity = true;
         break;
       }
+    }
+
+    // Si la herramienta exige afinidad disciplinar estricta (ej. tabata_timer, kinovea_sport, biodigital),
+    // impedir su selección únicamente por palabras genéricas como "tiempo", "activación" o "sistema".
+    if (tool.requireSubjectAffinity && !hasSubjectAffinity) {
+      continue;
     }
 
     // Coincidencia de palabras clave en título (4 puntos) o texto (1 punto)

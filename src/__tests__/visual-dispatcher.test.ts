@@ -7,7 +7,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { dispatchVisual, isStemSubject } from '@/lib/visual-engine/visual-dispatcher';
+import {
+  dispatchVisual,
+  isDigitalCultureSubject,
+  isStemSubject,
+} from '@/lib/visual-engine/visual-dispatcher';
 
 describe('visual-dispatcher.ts — Despacho auténtico y distinción misión/sesión', () => {
   it('detecta asignaturas STEM correctamente', () => {
@@ -58,5 +62,47 @@ describe('visual-dispatcher.ts — Despacho auténtico y distinción misión/ses
     expect(res).not.toBeNull();
     expect(res?.metadata?.isFallback).toBe(false);
     expect(res?.annotations.some((a) => a.text.includes('-x² + 4'))).toBe(true);
+  });
+
+  it('P0 Hotfix 4.1.1: Cultura Digital conserva isStemSubject=true pero NUNCA despacha Plano Cartesiano ni Misión 0', () => {
+    expect(isStemSubject('Cultura Digital I')).toBe(true);
+    expect(isDigitalCultureSubject('Cultura Digital I')).toBe(true);
+
+    const hw = dispatchVisual({
+      subject: 'Cultura Digital I',
+      topic: 'Hardware y software en la computadora escolar',
+      context: 'Componentes físicos, sistema operativo y periféricos',
+      missionNumber: 1,
+    });
+    expect(hw).not.toBeNull();
+    expect(hw?.metadata?.type).toBe('digital_block_diagram');
+    const hwText = hw!.annotations.map((a) => a.text).join(' ');
+    expect(hwText).not.toMatch(/plano\s+cartesiano/i);
+    expect(hwText).toContain('Misión 1');
+    expect(hwText).not.toContain('Misión 0');
+
+    const algo = dispatchVisual({
+      subject: 'Cultura Digital I',
+      topic: 'Algoritmos y diagramas de flujo',
+      context: 'Diseño paso a paso de un proceso automatizado',
+      missionNumber: 2,
+    });
+    expect(algo).not.toBeNull();
+    expect(algo?.metadata?.type).toBe('digital_technical_flow');
+    const algoText = algo!.annotations.map((a) => a.text).join(' ');
+    expect(algoText).not.toMatch(/plano\s+cartesiano/i);
+    expect(algoText).toContain('Misión 2');
+
+    const ethics = dispatchVisual({
+      subject: 'Cultura Digital I',
+      topic: 'Ciudadanía digital y privacidad de datos',
+      context: 'Identidad digital, huella en redes y derechos de autor',
+      missionNumber: 3,
+    });
+    expect(ethics).not.toBeNull();
+    expect(ethics?.metadata?.type).toBe('digital_concept_map');
+    const ethicsText = ethics!.annotations.map((a) => a.text).join(' ');
+    expect(ethicsText).not.toMatch(/plano\s+cartesiano/i);
+    expect(ethicsText).toContain('Misión 3');
   });
 });
