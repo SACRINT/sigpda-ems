@@ -17,6 +17,7 @@ import { WELCOME_PLAN_NAME } from '@/lib/subscription-plans';
 import {
   consumeUsageQuotaAtomicDb,
   recordEditorialEngineTelemetry,
+  refundUsageQuotaAtomicDb,
   releaseRenderLockDb,
   tryAcquireRenderLockDb,
   type EditorialEngineTelemetryKind,
@@ -157,6 +158,9 @@ export interface QuotaCheckResult {
   limit: number;
   remaining: number;
   alreadyCounted?: boolean;
+  hourlyMetric?: string;
+  hourWindowKey?: string;
+  scopedIdempotencyKey?: string;
   statusCode?: 403 | 429 | 503;
   code?:
     | 'PLAN_UPGRADE_REQUIRED'
@@ -338,6 +342,7 @@ function isAiMetric(metric: QuotaMetric): boolean {
 export interface QuotaGuardDeps {
   getSubscriptionStatus: typeof getSubscriptionStatus;
   consumeUsageQuotaAtomicDb: typeof consumeUsageQuotaAtomicDb;
+  refundUsageQuotaAtomicDb?: typeof refundUsageQuotaAtomicDb;
   tryAcquireRenderLockDb: typeof tryAcquireRenderLockDb;
   releaseRenderLockDb: typeof releaseRenderLockDb;
   recordEditorialEngineTelemetry: typeof recordEditorialEngineTelemetry;
@@ -346,6 +351,7 @@ export interface QuotaGuardDeps {
 const DEFAULT_DEPS: QuotaGuardDeps = {
   getSubscriptionStatus,
   consumeUsageQuotaAtomicDb,
+  refundUsageQuotaAtomicDb,
   tryAcquireRenderLockDb,
   releaseRenderLockDb,
   recordEditorialEngineTelemetry,
@@ -480,6 +486,9 @@ export async function enforceUsageQuota(
       limit: primaryLimit,
       remaining: Math.max(0, primaryLimit - atomicRes.primaryUsed),
       alreadyCounted: atomicRes.alreadyCounted,
+      hourlyMetric,
+      hourWindowKey: windows.hourWindowKey,
+      scopedIdempotencyKey: scopedPrimaryIdem,
     };
   }
 
@@ -612,6 +621,40 @@ export async function acquireEditorialConcurrencyLock(
     activeCount: res.activeCount,
     maxConcurrency: policy.maxConcurrency,
   };
+}
+
+/**
+ * Reembolsa atómicamente una cuota consumida si el servicio externo (ej. Render Typst) falla
+ * después del consumo, garantizando que el docente jamás pierda créditos por errores del worker.
+ */
+export async function refundUsageQuota(
+  params: {
+    teacherId: string;
+    quota: QuotaCheckResult;
+  },
+  deps: QuotaGuardDeps = DEFAULT_DEPS,
+): Promise<boolean> {
+  if (!params.quota.allowed || params.quota.alreadyCounted || params.quota.tier === 'administrador') {
+    return false;
+  }
+  const refundFn = deps.refundUsageQuotaAtomicDb ?? refundUsageQuotaAtomicDb;
+  try {
+    return await refundFn({
+      teacherId: params.teacherId,
+      metric: params.quota.metric,
+      primaryWindowKey: params.quota.windowKey,
+      hourlyMetric: params.quota.hourlyMetric,
+      hourWindowKey: params.quota.hourWindowKey,
+      idempotencyKey: params.quota.scopedIdempotencyKey,
+    });
+  } catch (err) {
+    logger.warn('[usage-quota-guard] Error al reembolsar cuota (no bloqueante):', {
+      teacherId: params.teacherId,
+      metric: params.quota.metric,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
 }
 
 /**

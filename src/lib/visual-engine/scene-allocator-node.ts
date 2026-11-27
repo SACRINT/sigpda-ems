@@ -82,6 +82,28 @@ export function createNodeSceneLoader(publicDir = DEFAULT_PUBLIC_DIR()): {
 }
 
 /**
+ * Convierte un `data:image/webp|png|jpeg;base64,...` a PNG recortado con `fit: 'cover'` a las
+ * dimensiones exactas `(targetWidthPx × targetHeightPx)` para PowerPoint (PPTX).
+ * Evita estiramientos cuando `pptxgenjs` emite `<a:srcRect l="0" r="0" t="0" b="0"/>` sobre data URIs.
+ */
+export async function ensureCroppedPngDataUri(
+  dataUri: string,
+  targetWidthPx: number,
+  targetHeightPx: number,
+): Promise<string> {
+  const match = /^data:image\/(webp|png|jpe?g);base64,(.+)$/i.exec(dataUri.trim());
+  if (!match) return dataUri;
+  const srcBuf = Buffer.from(match[2], 'base64');
+  const w = Math.max(32, Math.round(targetWidthPx));
+  const h = Math.max(32, Math.round(targetHeightPx));
+  const pngBuf = await sharp(srcBuf)
+    .resize(w, h, { fit: 'cover', position: 'centre' })
+    .png()
+    .toBuffer();
+  return `data:image/png;base64,${pngBuf.toString('base64')}`;
+}
+
+/**
  * Convierte un `data:image/webp;base64,...` a `data:image/png;base64,...` vía `sharp`
  * para garantizar compatibilidad universal en PowerPoint (PPTX), jsPDF y Resvg.
  * Si ya es PNG o JPEG, devuelve el `dataUri` intacto.

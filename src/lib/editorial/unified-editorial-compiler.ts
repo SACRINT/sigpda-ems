@@ -53,8 +53,10 @@ import {
   acquireEditorialConcurrencyLock,
   enforceUsageQuota,
   QuotaExceededError,
+  refundUsageQuota,
   releaseEditorialConcurrencyLock,
   releaseEditorialLockOnAbort,
+  type QuotaCheckResult,
 } from '@/lib/platform/usage-quota-guard';
 import { recordEditorialEngineTelemetry } from '@/lib/db/usage-quotas';
 import { logger } from '@/lib/logger';
@@ -100,6 +102,21 @@ export interface UnifiedEditorialCompileResult {
   fallbackReason?: string;
 }
 
+const HOT_EDITORIAL_CACHE_MAX = 200;
+const hotEditorialCache = new Map<string, { pdfStoragePath: string; pageCount?: number }>();
+
+function rememberHotEditorialCache(key: string, entry: { pdfStoragePath: string; pageCount?: number }): void {
+  if (hotEditorialCache.size >= HOT_EDITORIAL_CACHE_MAX) {
+    const oldestKey = hotEditorialCache.keys().next().value;
+    if (oldestKey) hotEditorialCache.delete(oldestKey);
+  }
+  hotEditorialCache.set(key, entry);
+}
+
+export function clearHotEditorialCacheForTests(): void {
+  hotEditorialCache.clear();
+}
+
 function formatZonaEscolar(raw?: string | null): string {
   const v = (raw ?? '').trim();
   if (!v) return 'Zona no registrada';
@@ -134,6 +151,7 @@ export async function compileUnifiedEditorialPdf(
   let lockId: string | undefined;
   let finalEngine: UnifiedPdfEngine = 'jspdf_fallback';
   let abortedByQuota = false;
+  let consumedQuota: QuotaCheckResult | null = null;
 
   try {
     const isSingleBlock = typeof params.blockIndex === 'number' && Number.isInteger(params.blockIndex);
@@ -248,12 +266,39 @@ export async function compileUnifiedEditorialPdf(
       .update(JSON.stringify(chapter))
       .digest('hex');
 
-    // 1. Revisar caché por content_hash antes de invocar Render/Typst (0 costo de compilación)
+    // 1. Revisar caché por content_hash antes de invocar Render/Typst (0 costo de compilación).
+    // Si Neon falla temporalmente, se respalda en `hotEditorialCache` + Blob para que un PDF
+    // ya cacheado responda 200 OK (nunca 503 por caída de BD).
+    const hotKey = `${params.planningId}:${contentHash}`;
     if (!params.skipCache) {
+      let cachedStoragePath: string | null = null;
+      let cachedPageCount: number | undefined;
       try {
         const existing = await getEditorialBookByPlanningAndHash(params.planningId, contentHash);
         if (existing?.status === 'completed' && existing.pdf_storage_path) {
-          const cachedBuffer = await readEditorialPdfFromStorage(existing.pdf_storage_path);
+          cachedStoragePath = existing.pdf_storage_path;
+          cachedPageCount = existing.page_count ?? undefined;
+          rememberHotEditorialCache(hotKey, {
+            pdfStoragePath: cachedStoragePath,
+            pageCount: cachedPageCount,
+          });
+        }
+      } catch (cacheLookupErr) {
+        const hotHit = hotEditorialCache.get(hotKey);
+        if (hotHit) {
+          cachedStoragePath = hotHit.pdfStoragePath;
+          cachedPageCount = hotHit.pageCount;
+        }
+        logger.warn('[unified-editorial-compiler] Neon no disponible al consultar caché editorial:', {
+          planningId: params.planningId,
+          recoveredFromHotCache: Boolean(hotHit),
+          error: cacheLookupErr instanceof Error ? cacheLookupErr.message : String(cacheLookupErr),
+        });
+      }
+
+      if (cachedStoragePath) {
+        try {
+          const cachedBuffer = await readEditorialPdfFromStorage(cachedStoragePath);
           if (cachedBuffer) {
             logger.info('[unified-editorial-compiler] Cache HIT (0 costo compilación):', {
               planningId: params.planningId,
@@ -277,19 +322,19 @@ export async function compileUnifiedEditorialPdf(
               engine: 'typst_cached',
               cached: true,
               contentHash,
-              pageCount: existing.page_count ?? undefined,
+              pageCount: cachedPageCount,
             };
           }
+        } catch (blobReadErr) {
+          logger.warn('[unified-editorial-compiler] Falló lectura de caché Blob (se continúa compilando):', {
+            planningId: params.planningId,
+            error: blobReadErr instanceof Error ? blobReadErr.message : String(blobReadErr),
+          });
         }
-      } catch (cacheLookupErr) {
-        logger.warn('[unified-editorial-compiler] Error consultando caché editorial (se continúa compilando):', {
-          planningId: params.planningId,
-          error: cacheLookupErr instanceof Error ? cacheLookupErr.message : String(cacheLookupErr),
-        });
       }
     }
 
-    // 1b. PR 4.2.1: En cache-miss real, aplicar lock de concurrencia ANTES de cuota con idempotencia
+    // 1b. PR 4.2.1/4.2.2: En cache-miss real, aplicar lock de concurrencia ANTES de cuota con idempotencia
     if (params.quotaContext) {
       const lock = await acquireEditorialConcurrencyLock({
         teacherId: params.quotaContext.teacherId,
@@ -324,6 +369,7 @@ export async function compileUnifiedEditorialPdf(
           retryAfterSeconds: quota.retryAfterSeconds,
         });
       }
+      consumedQuota = quota;
     }
 
     // 2. Compilar en Render (o typst.exe local en desarrollo)
@@ -361,6 +407,10 @@ export async function compileUnifiedEditorialPdf(
         const bloqueSlug = sanitizeDocFilename(chapter.bloque, 20);
         const safeName = `${[uacSlug, bloqueSlug].filter(Boolean).join('_') || params.planningId}_${contentHash.slice(0, 8)}.pdf`;
         const upload = await uploadEditorialPdfToBlob(workerResponse.pdfBuffer, safeName);
+        rememberHotEditorialCache(hotKey, {
+          pdfStoragePath: upload.url,
+          pageCount: workerResponse.pageCount,
+        });
         await updateEditorialBookStatus(bookRecord.id, 'completed', {
           pdfStoragePath: upload.url,
           pageCount: workerResponse.pageCount,
@@ -389,9 +439,17 @@ export async function compileUnifiedEditorialPdf(
       throw err;
     }
     const reason = err instanceof Error ? err.message : String(err);
+    // PR 4.2.2: Si Render falló después de descontar cuota `pdf_compile`, reembolsar automáticamente
+    if (params.quotaContext && consumedQuota && !consumedQuota.alreadyCounted) {
+      await refundUsageQuota({
+        teacherId: params.quotaContext.teacherId,
+        quota: consumedQuota,
+      });
+    }
     logger.warn('[unified-editorial-compiler] Falló Typst/Render; activando fallback automático a jsPDF clásico:', {
       planningId: params.planningId,
       blockIndex: params.blockIndex,
+      quotaRefunded: Boolean(params.quotaContext && consumedQuota && !consumedQuota.alreadyCounted),
       reason,
     });
     finalEngine = 'jspdf_fallback';

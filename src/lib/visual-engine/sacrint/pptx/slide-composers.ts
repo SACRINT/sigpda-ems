@@ -28,21 +28,26 @@ import {
   pt,
 } from './theme-and-primitives';
 import { addDiagram } from './diagram-drawers';
-import { ensurePngDataUri } from '../../scene-allocator-node';
+import { ensureCroppedPngDataUri } from '../../scene-allocator-node';
 
 interface PreparedDeckScenes {
+  /** Recorte exacto 700×760 (ratio 0.921) para panel lateral de portada sin estiramiento. */
   heroDataUri?: string;
-  conceptDataUri?: string;
+  /** Recorte exacto 872×148 para banda superior con fórmula en slide de concepto. */
+  conceptWithFormulaDataUri?: string;
+  /** Recorte exacto 872×182 para banda superior sin fórmula en slide de concepto. */
+  conceptWideDataUri?: string;
 }
 
 async function prepareDeckScenesForPptx(deck: SacrintDeckSpec): Promise<PreparedDeckScenes> {
   const heroRaw = deck.editorialScenes?.hero?.dataUri;
   const conceptRaw = deck.editorialScenes?.concept?.dataUri;
-  const [heroDataUri, conceptDataUri] = await Promise.all([
-    heroRaw ? ensurePngDataUri(heroRaw).catch(() => undefined) : Promise.resolve(undefined),
-    conceptRaw ? ensurePngDataUri(conceptRaw).catch(() => undefined) : Promise.resolve(undefined),
+  const [heroDataUri, conceptWithFormulaDataUri, conceptWideDataUri] = await Promise.all([
+    heroRaw ? ensureCroppedPngDataUri(heroRaw, 700, 760).catch(() => undefined) : Promise.resolve(undefined),
+    conceptRaw ? ensureCroppedPngDataUri(conceptRaw, 872, 148).catch(() => undefined) : Promise.resolve(undefined),
+    conceptRaw ? ensureCroppedPngDataUri(conceptRaw, 872, 182).catch(() => undefined) : Promise.resolve(undefined),
   ]);
-  return { heroDataUri, conceptDataUri };
+  return { heroDataUri, conceptWithFormulaDataUri, conceptWideDataUri };
 }
 
 function renderCover(
@@ -100,7 +105,6 @@ function renderCover(
       y: inch(150),
       w: inch(700),
       h: inch(760),
-      sizing: { type: 'cover', w: inch(700), h: inch(760) },
     });
   } else {
     coverArt(slide, deck, accent, accent2);
@@ -243,16 +247,18 @@ function renderConcept(
     }
 
     let exPanelY = hasFormula ? topY + 134 : topY;
-    if (preparedScenes?.conceptDataUri) {
+    const conceptSceneUri = hasFormula
+      ? preparedScenes?.conceptWithFormulaDataUri
+      : preparedScenes?.conceptWideDataUri;
+    if (conceptSceneUri) {
       const sceneH = hasFormula ? 148 : 182;
       addPanel(slide, 968, exPanelY, 872, sceneH, { fill: C.panel, transparency: 10, stroke: accent2 });
       slide.addImage({
-        data: preparedScenes.conceptDataUri,
+        data: conceptSceneUri,
         x: inch(968),
         y: inch(exPanelY),
         w: inch(872),
         h: inch(sceneH),
-        sizing: { type: 'cover', w: inch(872), h: inch(sceneH) },
       });
       exPanelY += sceneH + 14;
     }

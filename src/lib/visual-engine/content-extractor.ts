@@ -409,6 +409,8 @@ export function extractSafetyChecks(text: string): SafetyCheck[] {
 
 /**
  * Extrae bloques funcionales o módulos de un sistema técnico (Entrada -> Proceso -> Salida / Retroalimentación).
+ * Exige frontera de palabra `\b` y separador explícito `:` para jamás capturar fragmentos rotos de prosa
+ * (ej. "s que utilizas en tu entorno" de "fuentes" o "y salida que permiten").
  *
  * @param text Texto con descripciones de componentes o arquitectura
  * @returns SystemBlock[] (mínimo 3) o []
@@ -419,41 +421,51 @@ export function extractSystemBlocks(text: string): SystemBlock[] {
   const clean = cleanText(text);
   const blocks: SystemBlock[] = [];
 
-  // Buscar menciones de Entrada / Captura / Sensores
-  const inputMatch = clean.match(/(?:entrada|sensores|captura|input|fuente)\s*(?::|de|con)?\s*([A-ZÁÉÍÓÚa-záéíóú0-9\s]{4,35})/i);
-  if (inputMatch) {
+  const isCleanFragment = (val: string): boolean => {
+    const t = val.trim();
+    if (t.length < 6) return false;
+    // Rechazar arranques huérfanos con conector/pronombre/letra suelta
+    if (/^(?:s\b|es\b|y\b|o\b|que\b|para\b|con\b|por\b|en\b|de\b|del\b|al\b|la\b|el\b)/i.test(t)) {
+      return false;
+    }
+    return true;
+  };
+
+  // Buscar menciones explícitas con ":" para Entrada / Captura / Sensores
+  const inputMatch = clean.match(/\b(?:entrada|sensores|captura|input|fuente)\s*:\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9,\s]{6,40}?)(?=[.;\n]|$)/i);
+  if (inputMatch && isCleanFragment(inputMatch[1])) {
     blocks.push({
-      title: 'Entrada / Sensores',
+      title: 'Entrada / Captura',
       subtitle: cutWordBoundary(inputMatch[1], 32),
       role: 'input',
     });
   }
 
-  // Buscar menciones de Proceso / Control / Algoritmo
-  const processMatch = clean.match(/(?:proceso|controlador|procesador|unidad central|microcontrolador|algoritmo|lógica|control)\s*(?::|de|con)?\s*([A-ZÁÉÍÓÚa-záéíóú0-9\s]{4,35})/i);
-  if (processMatch) {
+  // Buscar menciones explícitas con ":" para Proceso / Control / Algoritmo
+  const processMatch = clean.match(/\b(?:proceso|controlador|procesador|unidad central|microcontrolador|algoritmo|l[oó]gica|control)\s*:\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9,\s]{6,40}?)(?=[.;\n]|$)/i);
+  if (processMatch && isCleanFragment(processMatch[1])) {
     blocks.push({
-      title: 'Núcleo de Control',
+      title: 'Núcleo de Proceso',
       subtitle: cutWordBoundary(processMatch[1], 32),
       role: 'process',
     });
   }
 
-  // Buscar menciones de Salida / Actuadores / Display
-  const outputMatch = clean.match(/(?:salida|actuador|display|pantalla|indicador|output|ejecución)\s*(?::|de|con)?\s*([A-ZÁÉÍÓÚa-záéíóú0-9\s]{4,35})/i);
-  if (outputMatch) {
+  // Buscar menciones explícitas con ":" para Salida / Actuadores / Display
+  const outputMatch = clean.match(/\b(?:salida|actuador|display|pantalla|indicador|output|ejecuci[oó]n)\s*:\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9,\s]{6,40}?)(?=[.;\n]|$)/i);
+  if (outputMatch && isCleanFragment(outputMatch[1])) {
     blocks.push({
-      title: 'Salida / Actuadores',
+      title: 'Salida / Resultados',
       subtitle: cutWordBoundary(outputMatch[1], 32),
       role: 'output',
     });
   }
 
-  // Buscar Retroalimentación / Monitoreo
-  const feedbackMatch = clean.match(/(?:retroalimentación|feedback|monitoreo|verificación|ajuste)\s*(?::|de|con)?\s*([A-ZÁÉÍÓÚa-záéíóú0-9\s]{4,35})/i);
-  if (feedbackMatch && blocks.length >= 2) {
+  // Buscar Retroalimentación / Monitoreo explícito
+  const feedbackMatch = clean.match(/\b(?:retroalimentaci[oó]n|feedback|monitoreo|verificaci[oó]n|ajuste|seguridad)\s*:\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9,\s]{6,40}?)(?=[.;\n]|$)/i);
+  if (feedbackMatch && isCleanFragment(feedbackMatch[1]) && blocks.length >= 2) {
     blocks.push({
-      title: 'Retroalimentación',
+      title: 'Control y Validación',
       subtitle: cutWordBoundary(feedbackMatch[1], 32),
       role: 'control',
     });

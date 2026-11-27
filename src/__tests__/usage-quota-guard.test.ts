@@ -10,6 +10,7 @@ import {
   resolvePlanTier,
   resolveQuotaWindows,
   enforceUsageQuota,
+  refundUsageQuota,
   acquireEditorialConcurrencyLock,
   releaseEditorialConcurrencyLock,
   releaseEditorialLockOnAbort,
@@ -117,6 +118,20 @@ function makeInMemoryDeps(subStatus: SubscriptionStatus) {
     releaseRenderLockDb: vi.fn(async (lockId) => {
       activeLocks.delete(lockId);
     }),
+    refundUsageQuotaAtomicDb: vi.fn(
+      async ({ teacherId, metric, primaryWindowKey, hourlyMetric, hourWindowKey, idempotencyKey }) => {
+        const pKey = `${teacherId}|${metric}|${primaryWindowKey}`;
+        const curP = counters.get(pKey) ?? 0;
+        if (curP > 0) counters.set(pKey, curP - 1);
+        if (hourlyMetric && hourWindowKey) {
+          const hKey = `${teacherId}|${hourlyMetric}|${hourWindowKey}`;
+          const curH = counters.get(hKey) ?? 0;
+          if (curH > 0) counters.set(hKey, curH - 1);
+        }
+        if (idempotencyKey) idemKeys.delete(idempotencyKey);
+        return curP > 0;
+      },
+    ),
     recordEditorialEngineTelemetry: vi.fn(async (entry) => {
       telemetry.push({ engine: entry.engine, cached: entry.cached, scope: entry.scope });
     }),
@@ -327,6 +342,34 @@ describe('PR 4.2 + PR 4.2.1 — Guardián Atómico de Cuotas, Resiliencia BD, Co
       deps,
     );
     expect(telemetry).toEqual([{ engine: 'typst', cached: false, scope: 'v2-semestral' }]);
+  });
+
+  it('PR 4.2.2: reembolsa atómicamente la cuota y libera idempotencyKey si Render falla tras descontar', async () => {
+    const basicSub = makeSub(); // Básico: 15 pdf_compile / periodo, 8/h
+    const { deps, counters, idemKeys } = makeInMemoryDeps(basicSub);
+
+    const consumed = await enforceUsageQuota(
+      { teacherId: 't-refund', metric: 'pdf_compile', idempotencyKey: 'hash-render-fail' },
+      deps,
+    );
+    expect(consumed.allowed).toBe(true);
+    expect(consumed.used).toBe(1);
+    expect(idemKeys.size).toBe(1);
+
+    const refunded = await refundUsageQuota({ teacherId: 't-refund', quota: consumed }, deps);
+    expect(refunded).toBe(true);
+    expect(counters.get(`t-refund|pdf_compile|${consumed.windowKey}`)).toBe(0);
+    expect(counters.get(`t-refund|${consumed.hourlyMetric}|${consumed.hourWindowKey}`)).toBe(0);
+    expect(idemKeys.size).toBe(0);
+
+    // Un nuevo intento vuelve a quedar en used=1 (el docente no perdió su crédito)
+    const retried = await enforceUsageQuota(
+      { teacherId: 't-refund', metric: 'pdf_compile', idempotencyKey: 'hash-render-fail' },
+      deps,
+    );
+    expect(retried.allowed).toBe(true);
+    expect(retried.used).toBe(1);
+    expect(retried.alreadyCounted).toBe(false);
   });
 
   it('Parte D (09 Infografías): rota entre las 3 escenas verticales 4:5 reales en disco (102 escenas activas)', () => {

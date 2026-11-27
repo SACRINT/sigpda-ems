@@ -503,6 +503,125 @@ function isDistinctConceptText(value: string, references: string[]): boolean {
   });
 }
 
+const INFOGRAPHIC_ALIGNMENT_GENERIC_WORDS = new Set([
+  'para', 'como', 'sobre', 'entre', 'desde', 'hacia', 'mediante', 'traves', 'durante', 'esta', 'este',
+  'estos', 'estas', 'toda', 'todo', 'todos', 'todas', 'cada', 'donde', 'cuando', 'porque', 'cual',
+  'digital', 'digitales', 'escolar', 'escolares', 'comunidad', 'comunitario', 'comunitaria', 'proyecto',
+  'practica', 'practicas', 'aplicacion', 'situaciones', 'contextuales', 'proceso', 'procesos',
+  'sistema', 'sistemas', 'herramienta', 'herramientas', 'solucion', 'soluciones', 'ciudadania',
+  'etico', 'etica', 'eticas', 'responsable', 'tecnologia', 'tecnologico', 'tecnologica', 'uso',
+  'analisis', 'estudio', 'desarrollo', 'historia', 'critica', 'estado', 'fundamentos', 'investigacion',
+  'guia', 'manual', 'mision', 'sesion', 'bloque', 'entorno', 'entornos', 'educativo', 'educativos',
+]);
+
+const INFOGRAPHIC_SCAFFOLDING_TITLE_RE =
+  /^(?:aplicaci[oó]n\s+pr[aá]ctica(?:\s+en\s+situaciones\s+contextuales)?|pr[aá]ctica\s+y\s+aplicaci[oó]n|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|exploraci[oó]n\s+diagn[oó]stica|presentaci[oó]n\s+final)/i;
+
+function normalizeAlignmentTokens(raw: string): string[] {
+  return (raw || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !INFOGRAPHIC_ALIGNMENT_GENERIC_WORDS.has(w))
+    .map((w) => w.slice(0, 6));
+}
+
+/**
+ * Extrae el sintagma nominal sujeto desde la definición breve de `sintesisVisual`
+ * (ej. "Las licencias Creative Commons son herramientas legales..." → "Licencias Creative Commons").
+ */
+export function extractSubjectFromVisualClaim(claimText?: string): string {
+  const clean = sanitizePedagogicalMetaPhrases(cleanSacrintText(claimText));
+  if (!clean || clean.length < 18) return '';
+  const verbMatch = clean.match(
+    /^(.{6,78}?)\s+(?:es|son|consiste\s+en|consisten\s+en|garantiza[n]?|transforma[n]?|permite[n]?|posibilita[n]?|constituye[n]?|representa[n]?|modela[n]?|forma[n]?|define[n]?|establece[n]?|integra[n]?|implica[n]?|se\s+define|se\s+refiere)\b/i,
+  );
+  if (!verbMatch?.[1]) return '';
+  let subject = verbMatch[1]
+    .replace(/^(?:el|la|los|las|un|una|unos|unas)\s+/i, '')
+    .replace(/^[\s,;:·\-–—]+|[\s,;:·\-–—]+$/g, '')
+    .trim();
+  if (subject.length < 6 || subject.length > 68) return '';
+  // Evitar fragmentos subordinados truncados ("Relación inversa donde el producto de variables")
+  if (/\b(?:donde|cuando|mientras|cuyo|cuya|que\s+el|que\s+la)\b/i.test(subject)) return '';
+  if (/^[a-záéíóúñ]/.test(subject)) {
+    subject = subject.charAt(0).toUpperCase() + subject.slice(1);
+  }
+  return subject;
+}
+
+/**
+ * Garantiza alineación semántica título ↔ cuerpo en `09 Infografías`:
+ * cuando `selectedSession.sintesisVisual` domina el cuerpo (claim + fórmula + definición),
+ * impide que el título quede anclado a un andamiaje genérico, al nombre del artefacto PAEC,
+ * a frases vacías ("Fundamentos de...", "Variables del proyecto") o a un tema sin mencionar
+ * la socialización de hallazgos cuando ese es el eje de la lámina.
+ */
+function alignInfographicTitleWithSessionBody(params: {
+  candidateTitle: string;
+  visualClaim?: string;
+  visualFormula?: string;
+  visualDefinition?: string;
+  artifactName?: string;
+}): string {
+  const title = params.candidateTitle.trim();
+  const bodySource = [params.visualClaim, params.visualDefinition, params.visualFormula]
+    .filter(Boolean)
+    .join(' ');
+  if (!bodySource.trim()) return title;
+
+  const visualSubject = extractSubjectFromVisualClaim(params.visualClaim);
+  if (!visualSubject) return title;
+
+  const isScaffoldingTitle = INFOGRAPHIC_SCAFFOLDING_TITLE_RE.test(title);
+  const artifactNorm = (params.artifactName || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const titleNorm = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const isArtifactTitle =
+    isPaecProjectOrArtifactTitle(title) ||
+    (Boolean(artifactNorm && artifactNorm.length >= 10) &&
+      (titleNorm === artifactNorm ||
+        titleNorm.startsWith(artifactNorm.slice(0, 18)) ||
+        artifactNorm.startsWith(titleNorm.slice(0, 18))));
+
+  const isSocializacionClaim = /^socializaci[oó]n\s+de\s+hallazgos/i.test(visualSubject);
+  const titleMentionsSocializacion = /\bsocializaci[oó]n\b/i.test(title);
+  const titleTokens = normalizeAlignmentTokens(title);
+  const bodyTokenSet = new Set(normalizeAlignmentTokens(bodySource));
+  const sharedCount = titleTokens.filter((t) => bodyTokenSet.has(t)).length;
+  const isGenericProjectTitle =
+    titleTokens.length === 0 || /\bdel\s+proyecto\b/i.test(title);
+
+  // 1. Si el cuerpo es explícitamente "Socialización de hallazgos..." y el título no lo indica,
+  //    anteponerlo (combinado si el título actual es un dominio corto concreto).
+  if (isSocializacionClaim && !titleMentionsSocializacion) {
+    if (!isScaffoldingTitle && !isArtifactTitle && title.length >= 6 && title.length <= 34) {
+      const lowerAnchor = title.charAt(0).toLowerCase() + title.slice(1);
+      const combined = `Socialización de hallazgos: ${lowerAnchor}`;
+      if (combined.length <= 68) return combined;
+    }
+    return visualSubject;
+  }
+
+  // 2. Andamiaje genérico ("Aplicación Práctica..."), nombre de artefacto PAEC ("Kit de...", "App-Comunidad...")
+  //    o título genérico sin traslape real ("Fundamentos de la ciudadanía digital", "Variables del proyecto").
+  if (isScaffoldingTitle || isArtifactTitle || (isGenericProjectTitle && sharedCount === 0)) {
+    return visualSubject;
+  }
+
+  // 3. Títulos disciplinares concretos válidos: preservar intactos.
+  return title;
+}
+
 export function buildSacrintInfographic(
   workbook: ActiveWorkTextbook,
   format: SacrintInfographicFormat = 'wide',
@@ -594,12 +713,19 @@ export function buildSacrintInfographic(
 
   const validFormulas = conceptHighlights.formulas.filter(isValidRenderableFormula);
   const rawCleanTitle = stripLeadingSessionTag(sanitizePedagogicalMetaPhrases(topicTitle || meta.missionTitle));
-  const cleanTitle =
+  const baseCleanTitle =
     /^Ciencia\s+experimental\s+como\b/i.test(rawCleanTitle) &&
     /\bdensidad\b/i.test(visualSynthesis?.conceptoBreve || conceptHighlights.definition || '') &&
     /(?:ρ|rho)\s*=\s*m\s*\/\s*V/i.test(visualSynthesis?.formulaOReglaClave || '')
       ? 'Ciencia experimental: propiedades de la materia y densidad'
       : rawCleanTitle;
+  const cleanTitle = alignInfographicTitleWithSessionBody({
+    candidateTitle: baseCleanTitle,
+    visualClaim: visualSynthesis?.conceptoBreve,
+    visualFormula: visualSynthesis?.formulaOReglaClave,
+    visualDefinition: visualMap?.definicionClave,
+    artifactName: project?.artifactName,
+  });
   const isQuantitative =
     pack.id === 'matematicas' || pack.id === 'fisica' || pack.id === 'quimica';
   misconceptionFix = alignMisconceptionWithTitle(cleanTitle, misconceptionFix, isQuantitative);

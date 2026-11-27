@@ -48,6 +48,12 @@ export interface LaboralVisualOptions {
   width?: number;
   height?: number;
   totalWeeks?: number;
+  /** Título opcional del panel descriptivo inferior (por defecto texto de taller). */
+  footerTitle?: string;
+  /** Descripción específica de la misión en el panel inferior (evita texto genérico repetido). */
+  footerText?: string;
+  /** Etiquetas personalizadas para los 3 buses [entrada->proceso, proceso->salida, retroalimentación]. */
+  busLabels?: [string, string, string];
 }
 
 // ── Paleta Institucional Técnica MCCEMS ───────────────────────────────────────
@@ -218,7 +224,9 @@ export function generateTechnicalFlow(
   `;
 
   annotations.push({
-    text: 'Norma Técnica Operativa: Inspección Visual -> Intervención Segura -> Medición -> Liberación de Equipo',
+    text:
+      options.footerText ||
+      'Norma Técnica Operativa: Inspección Visual -> Intervención Segura -> Medición -> Liberación de Equipo',
     svgX: w / 2,
     svgY: bannerY + 17,
     fontSize: 6.8,
@@ -304,8 +312,13 @@ export function generateBlockDiagram(
   `;
 
   // Anotación del bus de datos y feedback
+  const [busInLabel, busOutLabel, busFeedbackLabel] = options.busLabels ?? [
+    'Bus de Señal',
+    'Potencia / Salida',
+    'Lazo de Retroalimentación y Supervisión',
+  ];
   annotations.push({
-    text: 'Bus de Señal',
+    text: busInLabel,
     svgX: (pInput.x + blockW + pProcess.x) / 2,
     svgY: pInput.y + blockH / 2 - 8,
     fontSize: 6.5,
@@ -314,7 +327,7 @@ export function generateBlockDiagram(
     align: 'center',
   });
   annotations.push({
-    text: 'Potencia / Salida',
+    text: busOutLabel,
     svgX: (pProcess.x + blockW + pOutput.x) / 2,
     svgY: pProcess.y + blockH / 2 - 8,
     fontSize: 6.5,
@@ -323,7 +336,7 @@ export function generateBlockDiagram(
     align: 'center',
   });
   annotations.push({
-    text: 'Lazo de Retroalimentación y Supervisión',
+    text: busFeedbackLabel,
     svgX: (pProcess.x + blockW / 2 + pOutput.x + blockW / 2) / 2,
     svgY: 257,
     fontSize: 6.5,
@@ -332,12 +345,15 @@ export function generateBlockDiagram(
     align: 'center',
   });
 
-  // 2. Bloques funcionales (garantiza siempre 4 bloques válidos incluso si el extractor devolvió 2 o 3)
+  // 2. Bloques funcionales (asigna cada bloque por rol semántico sin duplicar Salida en Control)
+  const pickRole = (role: SystemBlock['role'], fallbackIdx: number): SystemBlock =>
+    data.find((b) => b.role === role) ?? data[fallbackIdx] ?? defaultBlocks[fallbackIdx];
+
   const blockDefs = [
-    { ...(data[0] ?? defaultBlocks[0]), pos: pInput, fill: '#f0f9ff', stroke: COLOR_BLUE, header: COLOR_BLUE },
-    { ...(data[1] ?? defaultBlocks[1]), pos: pProcess, fill: '#f8fafc', stroke: COLOR_NAVY, header: COLOR_NAVY },
-    { ...(data[2] ?? defaultBlocks[2]), pos: pControl, fill: '#fffbeb', stroke: COLOR_AMBER, header: COLOR_AMBER },
-    { ...(data[3] ?? defaultBlocks[3]), pos: pOutput, fill: '#f0fdf4', stroke: COLOR_EMERALD, header: COLOR_EMERALD },
+    { ...pickRole('input', 0), pos: pInput, fill: '#f0f9ff', stroke: COLOR_BLUE, header: COLOR_BLUE },
+    { ...pickRole('process', 1), pos: pProcess, fill: '#f8fafc', stroke: COLOR_NAVY, header: COLOR_NAVY },
+    { ...pickRole('control', 2), pos: pControl, fill: '#fffbeb', stroke: COLOR_AMBER, header: COLOR_AMBER },
+    { ...pickRole('output', 3), pos: pOutput, fill: '#f0fdf4', stroke: COLOR_EMERALD, header: COLOR_EMERALD },
   ];
 
   blockDefs.forEach((b) => {
@@ -375,7 +391,7 @@ export function generateBlockDiagram(
     <rect x="35" y="${panelY}" width="430" height="38" rx="5" fill="#f8fafc" stroke="${COLOR_BORDER}" stroke-width="1"/>
   `;
   annotations.push({
-    text: 'DESCRIPCIÓN DEL SISTEMA TÉCNICO',
+    text: options.footerTitle || 'DESCRIPCIÓN DEL SISTEMA TÉCNICO',
     svgX: 50,
     svgY: panelY + 14,
     fontSize: 6.8,
@@ -384,7 +400,9 @@ export function generateBlockDiagram(
     align: 'left',
   });
   annotations.push({
-    text: 'La interacción modular garantiza modularidad, mantenimiento predictivo y sustitución rápida de partes.',
+    text:
+      options.footerText ||
+      'La interacción modular garantiza modularidad, mantenimiento predictivo y sustitución rápida de partes.',
     svgX: 50,
     svgY: panelY + 28,
     fontSize: 6.2,

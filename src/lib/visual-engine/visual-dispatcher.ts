@@ -486,16 +486,33 @@ function tryExtractRectangleParameters(text: string): { largo: number; ancho: nu
   return null;
 }
 
+const DIAGRAM_SCAFFOLDING_PREFIX_RE =
+  /^(?:(?:misi[oó]n|sesi[oó]n)\s*\d+\s*[:.\-–—]\s*|(?:exploraci[oó]n\s+diagn[oó]stica(?:\s+y\s+problematizaci[oó]n\s+situada)?|fundamentaci[oó]n\s+y\s+activaci[oó]n|pr[aá]ctica\s+y\s+aplicaci[oó]n(?:\s*\([^)]*\))?|aplicaci[oó]n\s+pr[aá]ctica\s+en\s+situaciones\s+contextuales|desarrollo\s+y\s+aplicaci[oó]n|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|cierre\s+y\s+s[ií]ntesis)\s*[:.\-–—]?\s*)/i;
+
+const DANGLING_TAIL_WORD_RE =
+  /\b(?:de|del|al|la|el|los|las|un|una|unos|unas|y|e|o|u|en|a|para|con|por|su|sus|como|hacia|sobre|entre|desde|seg[uú]n|mediante|sin|tras)$/i;
+
 /**
- * Limpia prefijos/sufijos redundantes ("Misión N:", "Sesión N:", "(Misión N)") y trunca
- * estrictamente en frontera de palabra (nunca corta a media palabra como "Activac" o "Privacida").
+ * Limpia prefijos/sufijos redundantes ("Misión N:", "Sesión N:", "(Misión N)", listas parentéticas
+ * de asignaturas, paréntesis sin cerrar y preposiciones colgantes como "al", "de", "y") y trunca
+ * estrictamente en frontera de palabra.
  */
-export function cleanTopicForDiagram(raw: string, maxChars = 42): string {
+export function cleanTopicForDiagram(raw: string, maxChars = 46): string {
   let clean = (raw || '')
     .replace(/\s+/g, ' ')
-    .replace(/^(?:misi[oó]n|sesi[oó]n)\s*\d+\s*[:.\-–—]\s*/i, '')
     .replace(/\s*\((?:misi[oó]n|sesi[oó]n)\s*\d+\)\s*$/i, '')
-    .replace(/^(?:fundamentaci[oó]n\s+y\s+activaci[oó]n|desarrollo\s+y\s+aplicaci[oó]n|cierre\s+y\s+s[ií]ntesis)\s*[:.\-–—]\s*/i, '')
+    .replace(/\s*\((?:cultura\s+digital|pensamiento\s+matem[aá]tico|lengua\s+y\s+comunicaci[oó]n|ciencias\s+(?:naturales|sociales)|humanidades|formaci[oó]n\s+laboral)[^)]*\)?/gi, '')
+    .trim();
+
+  // Remover en cascada andamiajes pedagógicos que roban caracteres al tema disciplinar real
+  for (let pass = 0; pass < 4; pass++) {
+    const stripped = clean.replace(DIAGRAM_SCAFFOLDING_PREFIX_RE, '').trim();
+    if (stripped === clean || stripped.length < 6) break;
+    clean = stripped;
+  }
+
+  clean = clean
+    .replace(/\s*\([^)]*$/g, '') // Nunca dejar paréntesis abierto sin cerrar
     .replace(/^[\s·:;\-–—]+|[\s·:;\-–—]+$/g, '')
     .trim();
 
@@ -503,11 +520,28 @@ export function cleanTopicForDiagram(raw: string, maxChars = 42): string {
     const sliced = clean.slice(0, maxChars);
     const lastSpace = sliced.lastIndexOf(' ');
     clean = (lastSpace >= Math.max(8, Math.floor(maxChars * 0.45)) ? sliced.slice(0, lastSpace) : sliced)
-      .replace(/[\s,;:·\-–—]+$/g, '')
-      .replace(/\b(?:de|del|la|el|los|las|un|una|y|e|o|en|a|para|con|por|su|sus)$/i, '')
-      .replace(/[\s,;:·\-–—]+$/g, '')
+      .replace(/\s*\([^)]*$/g, '')
       .trim();
   }
+
+  // Limpiar puntuación y preposiciones/artículos colgantes en bucle (incluye "al", "de", "y", etc.)
+  for (let pass = 0; pass < 4; pass++) {
+    const next = clean
+      .replace(/[\s,;:·\-–—(]+$/g, '')
+      .replace(DANGLING_TAIL_WORD_RE, '')
+      .replace(/[\s,;:·\-–—(]+$/g, '')
+      .trim();
+    if (next === clean) break;
+    clean = next;
+  }
+
+  // Asegurar paréntesis balanceados siempre
+  const opens = (clean.match(/\(/g) || []).length;
+  const closes = (clean.match(/\)/g) || []).length;
+  if (opens > closes) {
+    clean = clean.replace(/\s*\([^)]*$/, '').trim();
+  }
+
   return clean || 'Tema de la Misión';
 }
 
@@ -519,9 +553,12 @@ const DIGITAL_PHRASE_STOPWORDS = new Set([
   'actividad', 'objetivo', 'tema', 'uso', 'aplicacion', 'desarrollo', 'contexto', 'escolar', 'comunidad',
 ]);
 
+const NARRATIVE_OR_SCAFFOLDING_PHRASE_RE =
+  /^(?:imagina|piensa|observa|recuerda|esta\s+situaci[oó]n|en\s+tu\s+(?:plantel|escuela|comunidad)|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|pr[aá]ctica\s+y\s+aplicaci[oó]n|aplicaci[oó]n\s+pr[aá]ctica|analizas|comprendes|identificas|exploras|consolidaci[oó]n|misi[oó]n\s*\d+|sesi[oó]n\s*\d+|concepto\s+clave)/i;
+
 /**
  * Extrae frases conceptuales reales del tema/contexto de la misión (0 tokens IA)
- * para construir mapas conceptuales, arquitecturas y flujos específicos de cada misión.
+ * filtrando andamiajes pedagógicos y frases narrativas sueltas.
  */
 function extractMissionTopicPhrases(topic: string, contextText: string, maxCount = 6): string[] {
   const cleanTopic = cleanTopicForDiagram(topic, 96);
@@ -534,20 +571,23 @@ function extractMissionTopicPhrases(topic: string, contextText: string, maxCount
         .replace(/\s+/g, ' ')
         .trim(),
     )
-    .filter((s) => s.length >= 10);
+    .filter((s) => s.length >= 10 && !NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(s));
 
   const phrases: string[] = [];
   const seen = new Set<string>();
 
   const pushPhrase = (raw: string, maxLen: number) => {
+    if (NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(raw.trim())) return;
     const trimmed = cleanTopicForDiagram(raw, maxLen);
+    if (NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(trimmed)) return;
     const norm = normalizeUnicode(trimmed);
-    if (!trimmed || trimmed.length < 5 || seen.has(norm)) return;
+    if (!trimmed || trimmed.length < 5 || seen.has(norm) || norm === 'tema de la mision') return;
+    if (/^(?:s\b|es\b|y\b|o\b|que\b)/i.test(trimmed)) return;
     seen.add(norm);
     phrases.push(trimmed);
   };
 
-  // 1. Subcláusulas significativas del título de la misión (separadas por coma, ":", "y")
+  // 1. Subcláusulas significativas del título de la misión
   for (const part of cleanTopic.split(/[,:;/—–-]+|\s+y\s+/i)) {
     const cleaned = part.trim();
     const meaningfulWords = cleaned
@@ -559,9 +599,8 @@ function extractMissionTopicPhrases(topic: string, contextText: string, maxCount
     if (phrases.length >= maxCount) return phrases;
   }
 
-  // 2. Fragmentos sustantivos de las oraciones reales del contexto
+  // 2. Términos o conceptos de las oraciones reales del contexto
   for (const piece of rawPieces) {
-    // Preferir lado izquierdo de "Término: descripción"
     const colonIdx = piece.indexOf(':');
     if (colonIdx >= 4 && colonIdx <= 34) {
       pushPhrase(piece.slice(0, colonIdx), 24);
@@ -720,11 +759,13 @@ export function dispatchVisual(
 
   // ── 0B. DISPATCHER ESPECIALIZADO: CULTURA DIGITAL, ALGORITMOS Y TI ──────
   // Intercepta antes de STEM para garantizar diagramas computacionales/conceptuales
-  // específicos por misión, sin truncamientos a media palabra ni Plano Cartesiano.
+  // variados y específicos por misión (sin sobreusar Arquitectura Digital ni texto genérico de taller).
   if (isDigitalCultureSubject(uacName)) {
-    const cleanTopic = cleanTopicForDiagram(topic, 38);
+    const cleanTopic = cleanTopicForDiagram(topic, 42);
     const rawContext = `${cleanTopic}\n${contextText || ''}`;
+    const primaryFocusText = normalizeUnicode(`${cleanTopic} ${(contextText || '').slice(0, 220)}`);
     const missionPhrases = extractMissionTopicPhrases(cleanTopic, contextText || '', 6);
+    const topicShort = cleanTopicForDiagram(cleanTopic, 34);
 
     const buildDigitalConceptMap = () => {
       const extracted = extractTermDefs(rawContext, cleanTopic);
@@ -745,9 +786,9 @@ export function dispatchVisual(
           : [
               { label: rootLabel, level: 0 as const },
               { label: 'Ciudadanía Digital', level: 1 as const },
-              { label: 'Pensamiento Algorítmico', level: 1 as const },
+              { label: 'Soberanía Tecnológica', level: 1 as const },
               { label: 'Privacidad y Ética', level: 2 as const },
-              { label: 'Colaboración en Red', level: 2 as const },
+              { label: 'Colaboración Abierta', level: 2 as const },
             ];
       const edges = hasExtracted
         ? extracted.edges
@@ -758,7 +799,7 @@ export function dispatchVisual(
             { from: 2, to: 4, label: 'aplica' },
           ];
       const res = generateConceptMap(nodes, edges, {
-        title: `Mapa Conceptual: ${cleanTopic} (${scopeLabel})`,
+        title: `Mapa Conceptual: ${topicShort} (${scopeLabel})`,
       });
       res.metadata = {
         type: 'digital_concept_map',
@@ -772,26 +813,11 @@ export function dispatchVisual(
       return res;
     };
 
-    // 1. Ciudadanía digital, ética, privacidad, huella en redes sociales o derechos de autor → Mapa Conceptual
-    if (
-      /\b(?:ciudadania\s+digital|identidad\s+digital|huella\s+(?:digital|en\s+redes)|redes?\s+sociales?|privacidad|derechos?\s+de\s+autor|etica\s+digital|netiqueta|ciberacoso|propiedad\s+intelectual)\b/.test(
-        searchText
-      ) &&
-      !/\b(?:hardware|software|algoritmo|pseudocodigo|diagrama\s+de\s+flujo)\b/.test(searchText)
-    ) {
-      return buildDigitalConceptMap();
-    }
-
-    // 2. Arquitectura de sistemas, hardware, software, redes de cómputo, ciberseguridad o bases de datos
-    if (
-      /\b(?:hardware|software|sistema(?:s)?|arquitectura|red(?:es)?\s+(?:de\s+computo|informatica|local|lan|wan)|internet|nube|servidor|base(?:s)?\s+de\s+datos|ciberseguridad|dispositivo(?:s)?|periferico(?:s)?|componente(?:s)?|modulo(?:s)?|cpu|memoria|almacenamiento)\b/.test(
-        searchText
-      )
-    ) {
+    const buildDigitalBlockDiagram = () => {
       const extractedBlocks = extractSystemBlocks(rawContext);
-      const hasGrounded = extractedBlocks.length >= 2 || missionPhrases.length >= 2;
+      const hasGrounded = extractedBlocks.length >= 3 || missionPhrases.length >= 2;
       const blocks =
-        extractedBlocks.length >= 2
+        extractedBlocks.length >= 3
           ? extractedBlocks
           : [
               {
@@ -806,32 +832,30 @@ export function dispatchVisual(
               },
               {
                 title: missionPhrases[2] || 'Control y Seguridad',
-                subtitle: 'Validación, red y respaldo',
+                subtitle: 'Permisos, privacidad y respaldo',
                 role: 'control' as const,
               },
               {
-                title: missionPhrases[3] || 'Producto Digital',
-                subtitle: 'Resultado verificable al usuario',
+                title: missionPhrases[3] || 'Salida Digital',
+                subtitle: 'Producto verificable y accesible',
                 role: 'output' as const,
               },
             ];
       const res = generateBlockDiagram(blocks, {
-        title: `Arquitectura Digital: ${cleanTopic} (${scopeLabel})`,
+        title: `Arquitectura Digital: ${topicShort} (${scopeLabel})`,
+        busLabels: ['Datos / Entrada', 'Salida / Producto', 'Validación, Ética y Control de Calidad'],
+        footerTitle: `ENFOQUE FUNCIONAL · ${scopeLabel.toUpperCase()}`,
+        footerText: `Articulación por capas digitales aplicada a ${topicShort} con verificación técnica y ética.`,
       });
       res.metadata = {
         type: 'digital_block_diagram',
-        realItemCount: extractedBlocks.length >= 2 ? extractedBlocks.length : Math.min(4, missionPhrases.length),
+        realItemCount: extractedBlocks.length >= 3 ? extractedBlocks.length : Math.min(4, missionPhrases.length),
         isFallback: !hasGrounded,
       };
       return res;
-    }
+    };
 
-    // 3. Algoritmos, diagramas de flujo, pseudocódigo, programación, automatización u hoja de cálculo
-    if (
-      /\b(?:algoritmo(?:s)?|pseudocodigo|diagrama\s+de\s+flujo|flujo|programacion|codigo|variable(?:s)?|bucle|condicional|hoja\s+de\s+calculo|automatizacion|proceso(?:s)?|paso(?:s)?|protocolo|metodologia)\b/.test(
-        searchText
-      )
-    ) {
+    const buildDigitalTechnicalFlow = () => {
       const { technicalSteps } = extractEnumSteps(rawContext);
       const hasGrounded = technicalSteps.length >= 2 || missionPhrases.length >= 2;
       const steps =
@@ -845,7 +869,7 @@ export function dispatchVisual(
               },
               {
                 step: '2. Modelado',
-                instruction: missionPhrases[1] || 'Estructurar secuencia lógica y decisiones',
+                instruction: missionPhrases[1] || 'Estructurar secuencia lógica y reglas',
                 qualityCheck: 'Prueba de escritorio OK',
               },
               {
@@ -860,7 +884,8 @@ export function dispatchVisual(
               },
             ];
       const res = generateTechnicalFlow(steps, {
-        title: `Flujo Algorítmico: ${cleanTopic} (${scopeLabel})`,
+        title: `Flujo Algorítmico: ${topicShort} (${scopeLabel})`,
+        footerText: `Ruta metodológica de ${topicShort}: Diagnóstico -> Diseño -> Ejecución -> Validación Ética.`,
       });
       res.metadata = {
         type: 'digital_technical_flow',
@@ -868,10 +893,50 @@ export function dispatchVisual(
         isFallback: !hasGrounded,
       };
       return res;
+    };
+
+    const isConceptCue = (txt: string) =>
+      /\b(?:ciudadania\s+digital|identidad\s+digital|huella\s+(?:digital|en\s+redes)|redes?\s+sociales?|privacidad|proteccion\s+de\s+datos|derechos?\s+de\s+autor|creative\s+commons|licencias?|software\s+libre|gnu\/linux|brecha\s+digital|desigualdad\s+digital|colonialismo\s+de\s+datos|etica\s+digital|netiqueta|ciberacoso|propiedad\s+intelectual|historia\s+critica|soberania\s+tecnologica)\b/.test(
+        txt
+      );
+    const isFlowCue = (txt: string) =>
+      /\b(?:algoritmo(?:s)?|pseudocodigo|diagrama(?:s)?\s+de\s+flujo|programacion|codigo|variable(?:s)?|operador(?:es)?\s+logico(?:s)?|bucle|condicional|hoja(?:s)?\s+de\s+calculo|formula(?:s)?|representacion\s+grafica|tabular|automatizacion|socializacion|defensa\s+de\s+soluciones|proyecto\s+integrador)\b/.test(
+        txt
+      );
+    const isArchCue = (txt: string) =>
+      /\b(?:hardware|arquitectura\s+(?:de\s+computo|digital|del\s+equipo)|sistema(?:s)?\s+operativo(?:s)?|red(?:es)?\s+(?:de\s+computo|informatica|local|lan|wan)|protocolo(?:s)?\s+de\s+red|servidor(?:es)?|base(?:s)?\s+de\s+datos|ciberseguridad|periferico(?:s)?|cpu|memoria\s+ram|almacenamiento|disco\s+(?:duro|ssd))\b/.test(
+        txt
+      );
+
+    // Evaluar primero señales explícitas del tema/objetivo principal (evita que menciones sueltas
+    // de "sistema" o "dispositivo" en párrafos secundarios acaparen 8/12 diagramas).
+    if (isConceptCue(primaryFocusText) && !isArchCue(primaryFocusText) && !isFlowCue(primaryFocusText)) {
+      return buildDigitalConceptMap();
+    }
+    if (isFlowCue(primaryFocusText) && !isArchCue(primaryFocusText)) {
+      return buildDigitalTechnicalFlow();
+    }
+    if (isArchCue(primaryFocusText)) {
+      return buildDigitalBlockDiagram();
     }
 
-    // 4. Ciudadanía digital, ética, privacidad, comunicación e identidad digital (default seguro)
-    return buildDigitalConceptMap();
+    // Rotación equilibrada entre los 3 tipos cuando el título principal combina varios ejes
+    const hasFlow = isFlowCue(searchText);
+    const hasConcept = isConceptCue(searchText);
+    const hasArch = isArchCue(searchText);
+    const mod = ((Math.max(1, missionNumber) - 1) % 3);
+
+    if (mod === 0 && hasConcept) return buildDigitalConceptMap();
+    if (mod === 1 && hasFlow) return buildDigitalTechnicalFlow();
+    if (mod === 2 && hasArch) return buildDigitalBlockDiagram();
+
+    if (hasFlow && !hasConcept) return buildDigitalTechnicalFlow();
+    if (hasConcept && !hasArch) return buildDigitalConceptMap();
+    if (hasArch && mod !== 1) return buildDigitalBlockDiagram();
+
+    if (mod === 0) return buildDigitalConceptMap();
+    if (mod === 1) return buildDigitalTechnicalFlow();
+    return buildDigitalBlockDiagram();
   }
 
   const isStem = isStemSubject(uacName);

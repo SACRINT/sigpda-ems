@@ -520,18 +520,50 @@ export function parseEjemploResuelto(rawEjemplo: string): EjemploResuelto {
   const pasos: string[] = [];
   const enunciadoLines: string[] = [];
 
+  const cleanPasoText = (raw: string): string =>
+    raw
+      .replace(/^[\s•*\-–—.:;]+/, '')
+      .replace(/:\s*:/g, ':')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const barePasoLabelRe = /^paso\s*\d+\s*[:.\-–—\s]*$/i;
+  const standaloneConclusionRe =
+    /^[:;•*\-–—.\s]*((?:Conclusi[oó]n|Resultado\s+final|Interpretaci[oó]n)\s*:\s*.+)$/i;
+  let prevWasBarePaso = false;
+
   for (const line of lines) {
+    if (barePasoLabelRe.test(line)) {
+      prevWasBarePaso = true;
+      continue;
+    }
     const match = line.match(pasoRegex);
     if (match) {
-      pasos.push(match[1].trim());
-    } else if (pasos.length === 0) {
+      prevWasBarePaso = false;
+      const cleanedPaso = cleanPasoText(match[1]);
+      if (cleanedPaso) pasos.push(cleanedPaso);
+      continue;
+    }
+    if (prevWasBarePaso && pasos.length > 0) {
+      const conclusionMatch = line.match(standaloneConclusionRe);
+      if (conclusionMatch) {
+        prevWasBarePaso = false;
+        const cleanedConclusion = cleanPasoText(conclusionMatch[1]);
+        if (cleanedConclusion) pasos.push(cleanedConclusion);
+        continue;
+      }
+    }
+    prevWasBarePaso = false;
+    if (pasos.length === 0) {
       enunciadoLines.push(line);
     } else {
+      const cleanedLine = cleanPasoText(line);
+      if (!cleanedLine) continue;
       const prev = pasos[pasos.length - 1];
       const hasUnclosedParen = (prev.match(/\(/g) || []).length > (prev.match(/\)/g) || []).length;
       const endsWithOperator = /[=+\-*/×÷^(]$/.test(prev.trimEnd());
-      const sep = !hasUnclosedParen && !endsWithOperator && !/[.:;?!]$/.test(prev) && /^\d+[.)]/.test(line) ? '; ' : ' ';
-      pasos[pasos.length - 1] = `${prev}${sep}${line}`;
+      const sep = !hasUnclosedParen && !endsWithOperator && !/[.:;?!]$/.test(prev) && /^\d+[.)]/.test(cleanedLine) ? '; ' : ' ';
+      pasos[pasos.length - 1] = `${prev}${sep}${cleanedLine}`;
     }
   }
 

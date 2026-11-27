@@ -39,6 +39,34 @@ const mockDispatchToEditorialWorker = vi.fn<(...args: unknown[]) => Promise<unkn
 const mockFetchWorkerTemplateVersion = vi.fn<() => Promise<string | null>>(
   async () => 'tpl:46494246dd2f2254',
 );
+const mockAcquireEditorialConcurrencyLock = vi.fn<(...args: unknown[]) => Promise<unknown>>(
+  async () => ({ acquired: true, lockId: 'lock-test-1', activeCount: 1 }),
+);
+const mockEnforceUsageQuota = vi.fn<(...args: unknown[]) => Promise<unknown>>(
+  async () => ({
+    allowed: true,
+    alreadyCounted: false,
+    metric: 'pdf_compile',
+    tier: 'pro',
+    windowKey: 'stripe_2026-11-01',
+    hourlyMetric: 'pdf_compile_hourly',
+    hourWindowKey: '2026-11-27T18',
+    scopedIdempotencyKey: 'pdf_compile:v2-block-0:hash',
+    used: 1,
+    limit: 60,
+    remaining: 59,
+  }),
+);
+const mockRefundUsageQuota = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true);
+const mockReleaseEditorialConcurrencyLock = vi.fn<(...args: unknown[]) => Promise<void>>(
+  async () => {},
+);
+const mockReleaseEditorialLockOnAbort = vi.fn<(...args: unknown[]) => Promise<void>>(
+  async () => {},
+);
+const mockRecordEditorialEngineTelemetry = vi.fn<(...args: unknown[]) => Promise<void>>(
+  async () => {},
+);
 
 vi.mock('@/lib/pdf-workbook-renderer', () => ({
   renderWorkbookToPdf: (...args: unknown[]) => mockRenderWorkbookToPdf(...args),
@@ -65,7 +93,33 @@ vi.mock('@/lib/editorial/worker-client', async (importOriginal) => {
   };
 });
 
-import { compileUnifiedEditorialPdf } from '@/lib/editorial/unified-editorial-compiler';
+vi.mock('@/lib/platform/usage-quota-guard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/platform/usage-quota-guard')>();
+  return {
+    ...actual,
+    acquireEditorialConcurrencyLock: (...args: unknown[]) =>
+      mockAcquireEditorialConcurrencyLock(...args),
+    enforceUsageQuota: (...args: unknown[]) => mockEnforceUsageQuota(...args),
+    refundUsageQuota: (...args: unknown[]) => mockRefundUsageQuota(...args),
+    releaseEditorialConcurrencyLock: (...args: unknown[]) =>
+      mockReleaseEditorialConcurrencyLock(...args),
+    releaseEditorialLockOnAbort: (...args: unknown[]) => mockReleaseEditorialLockOnAbort(...args),
+  };
+});
+
+vi.mock('@/lib/db/usage-quotas', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/db/usage-quotas')>();
+  return {
+    ...actual,
+    recordEditorialEngineTelemetry: (...args: unknown[]) =>
+      mockRecordEditorialEngineTelemetry(...args),
+  };
+});
+
+import {
+  clearHotEditorialCacheForTests,
+  compileUnifiedEditorialPdf,
+} from '@/lib/editorial/unified-editorial-compiler';
 import { featureFlags } from '@/lib/platform/feature-flags';
 
 function makeFixturePlanning(): Planning {
@@ -235,9 +289,10 @@ function makeFixtureWorkbook(blockIndex = 0): ActiveWorkTextbook {
   };
 }
 
-describe('Fase 4 (PR 4.0 + PR 4.1) — Render Blueprint y Motor Editorial Unificado', () => {
+describe('Fase 4 (PR 4.0 + PR 4.1 + PR 4.2.2) — Render Blueprint y Motor Editorial Unificado', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearHotEditorialCacheForTests();
     featureFlags.clearOverride('PUBLISHING_ENGINE_V2');
   });
 
@@ -372,6 +427,86 @@ describe('Fase 4 (PR 4.0 + PR 4.1) — Render Blueprint y Motor Editorial Unific
     expect(res.cached).toBe(false);
     expect(res.fallbackReason).toContain('Render cold-start timeout');
     expect(res.pdfBuffer.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(mockRenderWorkbookToPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('PR 4.2.2: un cache-hit previo en hotEditorialCache responde 200 (typst_cached) aunque Neon falle después, sin cobrar cuota ni lanzar 503', async () => {
+    featureFlags.setOverride('PUBLISHING_ENGINE_V2', true);
+    const cachedPdf = Buffer.from('%PDF-1.7\n%hot-cache-resilient-blob-bytes-' + '9'.repeat(120) + '\n%%EOF');
+    const planning = makeFixturePlanning();
+    const wb = makeFixtureWorkbook(0);
+
+    // Llamada 1: Neon responde normalmente y calienta hotEditorialCache
+    mockGetEditorialBookByPlanningAndHash.mockResolvedValueOnce({
+      id: 'eb-hot-1',
+      status: 'completed',
+      pdf_storage_path: 'https://blob.vercel-storage.com/editorial-books/hot-cached.pdf',
+      page_count: 22,
+    });
+    mockReadEditorialPdfFromStorage.mockResolvedValueOnce(cachedPdf);
+
+    const first = await compileUnifiedEditorialPdf({
+      planningId: planning.id,
+      planning,
+      blockIndex: 0,
+      workbooksMap: { block_0: { current: wb } },
+      fallbackWorkbook: wb,
+      quotaContext: { teacherId: 'teacher-001', teacherEmail: 'docente@sep.gob.mx' },
+    });
+    expect(first.engine).toBe('typst_cached');
+    expect(first.cached).toBe(true);
+
+    // Llamada 2: Neon cae (ECONNREFUSED), pero hotEditorialCache + Blob siguen sirviendo el PDF
+    mockGetEditorialBookByPlanningAndHash.mockRejectedValueOnce(new Error('Neon ECONNREFUSED'));
+    mockReadEditorialPdfFromStorage.mockResolvedValueOnce(cachedPdf);
+
+    const second = await compileUnifiedEditorialPdf({
+      planningId: planning.id,
+      planning,
+      blockIndex: 0,
+      workbooksMap: { block_0: { current: wb } },
+      fallbackWorkbook: wb,
+      quotaContext: { teacherId: 'teacher-001', teacherEmail: 'docente@sep.gob.mx' },
+    });
+
+    expect(second.engine).toBe('typst_cached');
+    expect(second.cached).toBe(true);
+    expect(second.pageCount).toBe(22);
+    expect(second.pdfBuffer.equals(cachedPdf)).toBe(true);
+    expect(mockAcquireEditorialConcurrencyLock).not.toHaveBeenCalled();
+    expect(mockEnforceUsageQuota).not.toHaveBeenCalled();
+    expect(mockDispatchToEditorialWorker).not.toHaveBeenCalled();
+    expect(mockRenderWorkbookToPdf).not.toHaveBeenCalled();
+  });
+
+  it('PR 4.2.2: si Render falla tras consumir cuota pdf_compile, reembolsa la cuota automáticamente antes del fallback jsPDF', async () => {
+    featureFlags.setOverride('PUBLISHING_ENGINE_V2', true);
+    mockGetEditorialBookByPlanningAndHash.mockResolvedValueOnce(null);
+    mockDispatchToEditorialWorker.mockRejectedValueOnce(new Error('Render 502 Bad Gateway'));
+
+    const planning = makeFixturePlanning();
+    const wb = makeFixtureWorkbook(0);
+    const res = await compileUnifiedEditorialPdf({
+      planningId: planning.id,
+      planning,
+      blockIndex: 0,
+      workbooksMap: { block_0: { current: wb } },
+      fallbackWorkbook: wb,
+      quotaContext: { teacherId: 'teacher-001', teacherEmail: 'docente@sep.gob.mx' },
+    });
+
+    expect(res.engine).toBe('jspdf_fallback');
+    expect(res.fallbackReason).toContain('Render 502');
+    expect(mockAcquireEditorialConcurrencyLock).toHaveBeenCalledTimes(1);
+    expect(mockEnforceUsageQuota).toHaveBeenCalledTimes(1);
+    expect(mockRefundUsageQuota).toHaveBeenCalledTimes(1);
+    expect(mockRefundUsageQuota).toHaveBeenCalledWith(
+      expect.objectContaining({
+        teacherId: 'teacher-001',
+        quota: expect.objectContaining({ metric: 'pdf_compile', alreadyCounted: false }),
+      }),
+    );
+    expect(mockReleaseEditorialConcurrencyLock).toHaveBeenCalledTimes(1);
     expect(mockRenderWorkbookToPdf).toHaveBeenCalledTimes(1);
   });
 

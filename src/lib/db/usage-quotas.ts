@@ -337,6 +337,82 @@ export async function consumeUsageQuotaAtomicDb(
 }
 
 /**
+ * Reembolsa atómicamente una cuota previamente consumida cuando la operación externa falla
+ * (ej. caída/timeout de Render después de descontar `pdf_compile`), decrementando ambos contadores
+ * sin bajar de 0 y liberando la `idempotency_key` asociada en una sola transacción.
+ */
+export async function refundUsageQuotaAtomicDb(params: {
+  teacherId: string;
+  metric: string;
+  primaryWindowKey: string;
+  hourlyMetric?: string;
+  hourWindowKey?: string;
+  idempotencyKey?: string;
+}): Promise<boolean> {
+  try {
+    await initUsageQuotaTables();
+    const db = sql();
+    const idemKey = params.idempotencyKey ?? null;
+    const hourlyMetric = params.hourlyMetric ?? null;
+    const hourWindowKey = params.hourWindowKey ?? null;
+
+    const buildRefundCte = (q: typeof db) => q`
+      WITH
+        del_idem AS (
+          DELETE FROM usage_idempotency_keys
+          WHERE ${idemKey}::text IS NOT NULL
+            AND idempotency_key = ${idemKey}::text
+            AND teacher_id = ${params.teacherId}::uuid
+          RETURNING idempotency_key
+        ),
+        dec_primary AS (
+          UPDATE usage_counters
+          SET used_count = GREATEST(0, used_count - 1),
+              updated_at = NOW()
+          WHERE teacher_id = ${params.teacherId}::uuid
+            AND metric = ${params.metric}
+            AND window_key = ${params.primaryWindowKey}
+            AND used_count > 0
+          RETURNING used_count
+        ),
+        dec_hourly AS (
+          UPDATE usage_counters
+          SET used_count = GREATEST(0, used_count - 1),
+              updated_at = NOW()
+          WHERE ${hourlyMetric}::text IS NOT NULL
+            AND ${hourWindowKey}::text IS NOT NULL
+            AND teacher_id = ${params.teacherId}::uuid
+            AND metric = ${hourlyMetric}::text
+            AND window_key = ${hourWindowKey}::text
+            AND used_count > 0
+          RETURNING used_count
+        )
+      SELECT
+        EXISTS(SELECT 1 FROM dec_primary) AS refunded_primary,
+        EXISTS(SELECT 1 FROM del_idem) AS deleted_idem;
+    `;
+
+    if (typeof db.transaction === 'function') {
+      const res = await db.transaction((tx) => [
+        tx`SELECT pg_advisory_xact_lock(hashtext('sigpda_quota:' || ${params.teacherId}::text));`,
+        buildRefundCte(tx as unknown as typeof db),
+      ]);
+      const rows = res[1] as Array<Record<string, unknown>> | undefined;
+      return Boolean(rows?.[0]?.refunded_primary);
+    }
+    const rows = (await buildRefundCte(db)) as Array<Record<string, unknown>>;
+    return Boolean(rows[0]?.refunded_primary);
+  } catch (err) {
+    logger.warn('[usage-quotas] Error reembolsando cuota tras fallo de worker (no bloqueante):', {
+      teacherId: params.teacherId,
+      metric: params.metric,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
+/**
  * Incremento directo en una sola transacción/CTE (preservado para compatibilidad interna).
  */
 export async function incrementUsageCounterAtomic(params: {

@@ -13,8 +13,13 @@
 
 import QRCode from 'qrcode';
 import { getDisciplinaryAdapter } from '@/lib/prompts/disciplinary-adapters';
-import { dispatchVisual, isDigitalCultureSubject } from '@/lib/visual-engine/visual-dispatcher';
+import {
+  cleanTopicForDiagram,
+  dispatchVisual,
+  isDigitalCultureSubject,
+} from '@/lib/visual-engine/visual-dispatcher';
 import { resolveDigitalToolsForMission } from '@/lib/visual-engine/digital-tools-registry';
+import { extractDisciplinaryConceptPhrase } from '@/lib/editorial/topic-title-resolver';
 import type { VisualAnnotation } from '@/lib/visual-engine/generators/stem-generator';
 import { normalizeUnicode } from '@/lib/utils/normalize';
 import type {
@@ -48,38 +53,56 @@ function escapeXmlText(raw: string): string {
     .replace(/'/g, '&apos;');
 }
 
+const GENERIC_MISSION_SCAFFOLDING_RE =
+  /^(?:pr[aá]ctica\s+y\s+aplicaci[oó]n|aplicaci[oó]n\s+pr[aá]ctica(?:\s+en\s+situaciones\s+contextuales)?|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|exploraci[oó]n\s+diagn[oó]stica(?:\s+y\s+problematizaci[oó]n\s+situada)?|fundamentaci[oó]n\s+y\s+activaci[oó]n|tema\s+de\s+la\s+misi[oó]n)$/i;
+
 /**
- * Limpia prefijos/sufijos redundantes ("Misión 1:", "Sesión 3:", "(Misión 1)", "·" colgante)
- * y trunca estrictamente en frontera de palabra sin cortar palabras a la mitad.
+ * Limpia prefijos/sufijos redundantes ("Misión 1:", "Sesión 3:", "(Misión 1)", listas de
+ * asignaturas entre paréntesis, andamiajes genéricos, paréntesis desbalanceados y preposiciones
+ * colgantes como "al", "de", "y") y trunca estrictamente en frontera de palabra.
  */
-export function cleanEditorialDiagramTopic(raw: string, maxChars = 84): string {
-  let clean = (raw || '')
-    .replace(/\s+/g, ' ')
-    .replace(/^(?:misi[oó]n|sesi[oó]n)\s*\d+\s*[:.\-–—]\s*/i, '')
-    .replace(/\s*\((?:misi[oó]n|sesi[oó]n)\s*\d+\)\s*$/i, '')
-    .replace(/^(?:fundamentaci[oó]n\s+y\s+activaci[oó]n|desarrollo\s+y\s+aplicaci[oó]n|cierre\s+y\s+s[ií]ntesis)\s*[:.\-–—]\s*/i, '')
-    .replace(/^[\s·:;\-–—]+|[\s·:;\-–—]+$/g, '')
-    .trim();
-
-  if (clean.length > maxChars) {
-    const sliced = clean.slice(0, maxChars);
-    const lastSpace = sliced.lastIndexOf(' ');
-    clean = (lastSpace >= Math.floor(maxChars * 0.45) ? sliced.slice(0, lastSpace) : sliced)
-      .replace(/[\s,;:·\-–—]+$/g, '')
-      .replace(/\b(?:de|del|la|el|los|las|un|una|y|e|o|en|a|para|con|por|su|sus)$/i, '')
-      .replace(/[\s,;:·\-–—]+$/g, '')
-      .trim();
-  }
-
-  return clean;
+export function cleanEditorialDiagramTopic(raw: string, maxChars = 96): string {
+  const cleaned = cleanTopicForDiagram(raw, maxChars);
+  return cleaned === 'Tema de la Misión' ? '' : cleaned;
 }
 
 /**
- * Construye el encabezado del bloque de diagrama sin punto medio colgante ("·") ni duplicación.
+ * Resuelve el tema disciplinar real del diagrama priorizando el concepto real de la sesión
+ * cuando el título de la misión es solo andamiaje genérico ("Práctica y Aplicación (Cultura...)",
+ * "Proyecto Integrador — Sesión 10", "Evaluación y Cierre — Sesión 16").
  */
-function buildDiagramBlockHeader(topicRaw: string): string {
-  const cleanTopic = cleanEditorialDiagramTopic(topicRaw, 82);
-  return ['Esquema Técnico', cleanTopic].filter(Boolean).join(' · ');
+function resolveSpecificDiagramTopic(
+  session: StudentSession,
+  mission?: StudentMissionFraming,
+): string {
+  const missionCandidate = cleanEditorialDiagramTopic(mission?.title || '', 96);
+  const sessionTitleCandidate = cleanEditorialDiagramTopic(session.titulo || '', 96);
+  const objectiveConcept = cleanEditorialDiagramTopic(
+    extractDisciplinaryConceptPhrase(session.objetivo || '') || session.objetivo || '',
+    96,
+  );
+  const sidenoteConcept = cleanEditorialDiagramTopic(
+    (session.sidenote || '').split(/[.?!]/)[0] || '',
+    80,
+  );
+
+  if (missionCandidate && missionCandidate.length >= 10 && !GENERIC_MISSION_SCAFFOLDING_RE.test(missionCandidate)) {
+    return missionCandidate;
+  }
+  if (sessionTitleCandidate && sessionTitleCandidate.length >= 10 && !GENERIC_MISSION_SCAFFOLDING_RE.test(sessionTitleCandidate)) {
+    return sessionTitleCandidate;
+  }
+  if (objectiveConcept && objectiveConcept.length >= 10 && !GENERIC_MISSION_SCAFFOLDING_RE.test(objectiveConcept)) {
+    return objectiveConcept;
+  }
+  return sidenoteConcept || missionCandidate || sessionTitleCandidate || 'Desarrollo temático';
+}
+
+/**
+ * Construye el encabezado del bloque de diagrama sin punto medio colgante ("·") ni paréntesis rotos.
+ */
+function buildDiagramBlockHeader(cleanTopic: string): string {
+  return ['Esquema Técnico', cleanEditorialDiagramTopic(cleanTopic, 96)].filter(Boolean).join(' · ');
 }
 
 /**
@@ -307,13 +330,12 @@ export async function enrichEditorialSessionsV2(params: {
 
     let embeddedDiagram: EmbeddedDiagram | undefined = session.embeddedDiagram;
     if (!embeddedDiagram && shouldAttachVisual) {
-      const rawTopic = mission?.title || session.titulo;
-      const cleanTopic = cleanEditorialDiagramTopic(rawTopic, 82);
+      const cleanTopic = resolveSpecificDiagramTopic(session, mission);
       const richContext = buildMissionVisualContext(session, mission, sessions);
 
       const visual = dispatchVisual(
         uacName,
-        cleanTopic || rawTopic,
+        cleanTopic,
         richContext,
         mission ? mission.missionIndex : 1,
       );
@@ -329,7 +351,7 @@ export async function enrichEditorialSessionsV2(params: {
       } else if (visual?.svg && visual.svg.includes('<svg')) {
         const svgTitle = visual.annotations?.[0]?.text?.trim();
         embeddedDiagram = {
-          title: buildDiagramBlockHeader(rawTopic),
+          title: buildDiagramBlockHeader(cleanTopic),
           caption: buildDistinctDiagramCaption({
             diagramType: visual.metadata?.type,
             cleanTopic,
