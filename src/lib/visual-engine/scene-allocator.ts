@@ -141,15 +141,18 @@ export function resolveCanonicalRoleSlot(
     case 'mission_4':
       return { archetype: 'comunidad', crop: 'full' };
     case 'slides_hero': {
-      // Rota entre los 3 arquetipos panorámicos 16:9 (nunca 4:5 `practica`),
-      // conservando B1M1 = `portada` para paridad exacta con baseline/goldens.
+      // Rota por misión global ((block-1)*4 + missionIndex) entre los 3 arquetipos panorámicos 16:9
+      // (nunca 4:5 `practica`), conservando B1M1 = `portada` para paridad exacta con baseline/goldens
+      // y garantizando que ningún bloque repita 4/4/4 ni haya misiones consecutivas idénticas.
+      const globalMissionSlot = (safeBlock - 1) * 4 + safeMission;
       const archetype =
-        LANDSCAPE_ROTATION_ORDER[(safeBlock - 1 + safeMission) % LANDSCAPE_ROTATION_ORDER.length];
+        LANDSCAPE_ROTATION_ORDER[globalMissionSlot % LANDSCAPE_ROTATION_ORDER.length];
       return { archetype, crop: 'full' };
     }
     case 'slides_concept': {
+      const globalMissionSlot = (safeBlock - 1) * 4 + safeMission + 1;
       const archetype =
-        LANDSCAPE_ROTATION_ORDER[(safeBlock + safeMission) % LANDSCAPE_ROTATION_ORDER.length];
+        LANDSCAPE_ROTATION_ORDER[globalMissionSlot % LANDSCAPE_ROTATION_ORDER.length];
       return { archetype, crop: 'full' };
     }
     case 'infographic_activity':
@@ -406,6 +409,7 @@ export function resolveSacrintInfographicEditorialScene(
   blockNumber = 1,
   options?: {
     missionIndex?: number;
+    sessionIndex?: number;
     fileExists?: SceneFileExistsFn;
     readDataUri?: SceneReadDataUriFn;
     overrideSlug?: string;
@@ -427,7 +431,8 @@ export function resolveSacrintInfographicEditorialScene(
 
   const safeBlock = Math.max(1, Math.floor(blockNumber || 1));
   const safeMission = Math.max(0, Math.floor(options.missionIndex ?? 0));
-  const variantSlot = ((safeBlock - 1) * 4 + safeMission) % 3;
+  const safeSession = Math.max(0, Math.floor(options.sessionIndex ?? 0));
+  const variantSlot = ((safeBlock - 1) * 4 + safeMission + safeSession) % 3;
   if (variantSlot === 0) {
     return baseScene;
   }

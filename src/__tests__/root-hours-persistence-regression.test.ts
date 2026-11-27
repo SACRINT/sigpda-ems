@@ -30,6 +30,18 @@ vi.mock('@/lib/planning/planning-persistence', () => ({
   validateAndPersistPlanningContent: (...args: unknown[]) => mockValidateAndPersist(...args),
 }));
 
+vi.mock('@/lib/platform/usage-quota-guard', () => ({
+  enforceUsageQuota: vi.fn().mockResolvedValue({
+    allowed: true,
+    tier: 'avanzado',
+    metric: 'ai_planning',
+    windowKey: 'stripe:test:2026-12-31',
+    used: 1,
+    limit: 10,
+    remaining: 9,
+  }),
+}));
+
 vi.mock('@/lib/auth', () => ({
   auth: vi.fn().mockResolvedValue({ user: { email: 'docente@seppuebla.edu.mx', name: 'Prof. Prueba' } }),
 }));

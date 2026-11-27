@@ -1,6 +1,7 @@
 /**
- * usage-quota-guard.test.ts — Pruebas Unitarias e Integración de PR 4.2 (Cuotas, Rate Limits,
- * Periodo Stripe TZ America/Mexico_City, Idempotencia, Locks TTL y Rotación Parte D de 09)
+ * usage-quota-guard.test.ts — Pruebas Unitarias e Integración de PR 4.2 + PR 4.2.1
+ * (Cuotas Atómicas en Neon, Periodo Stripe TZ America/Mexico_City, Idempotencia,
+ *  Locks TTL, Resiliencia BD caída 503 + Retry-After, Concurrencia y Rotación Parte D de 09)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -11,6 +12,7 @@ import {
   enforceUsageQuota,
   acquireEditorialConcurrencyLock,
   releaseEditorialConcurrencyLock,
+  releaseEditorialLockOnAbort,
   type QuotaGuardDeps,
 } from '@/lib/platform/usage-quota-guard';
 import type { SubscriptionStatus } from '@/lib/subscription-gate';
@@ -46,25 +48,64 @@ function makeInMemoryDeps(subStatus: SubscriptionStatus) {
 
   const deps: QuotaGuardDeps = {
     getSubscriptionStatus: vi.fn(async () => subStatus),
-    getUsageCounter: vi.fn(async (teacherId, metric, windowKey) => {
-      return counters.get(`${teacherId}|${metric}|${windowKey}`) ?? 0;
-    }),
-    hasUsageIdempotencyKey: vi.fn(async (key) => idemKeys.has(key)),
-    incrementUsageCounterAtomic: vi.fn(async ({ teacherId, metric, windowKey, idempotencyKey }) => {
-      if (idempotencyKey) {
-        if (idemKeys.has(idempotencyKey)) {
+    consumeUsageQuotaAtomicDb: vi.fn(
+      async ({
+        teacherId,
+        metric,
+        primaryWindowKey,
+        primaryLimit,
+        hourlyMetric,
+        hourWindowKey,
+        hourlyLimit,
+        idempotencyKey,
+      }) => {
+        const pKey = `${teacherId}|${metric}|${primaryWindowKey}`;
+        const hKey = `${teacherId}|${hourlyMetric}|${hourWindowKey}`;
+        const primaryBefore = counters.get(pKey) ?? 0;
+        const hourlyBefore = counters.get(hKey) ?? 0;
+
+        if (idempotencyKey && idemKeys.has(idempotencyKey)) {
           return {
-            usedCount: counters.get(`${teacherId}|${metric}|${windowKey}`) ?? 0,
+            allowed: true,
             alreadyCounted: true,
+            primaryUsed: primaryBefore,
+            hourlyUsed: hourlyBefore,
           };
         }
-        idemKeys.add(idempotencyKey);
-      }
-      const k = `${teacherId}|${metric}|${windowKey}`;
-      const next = (counters.get(k) ?? 0) + 1;
-      counters.set(k, next);
-      return { usedCount: next, alreadyCounted: false };
-    }),
+
+        if (primaryBefore >= primaryLimit) {
+          return {
+            allowed: false,
+            alreadyCounted: false,
+            deniedBy: 'primary_limit' as const,
+            primaryUsed: primaryBefore,
+            hourlyUsed: hourlyBefore,
+          };
+        }
+
+        if (hourlyBefore >= hourlyLimit) {
+          return {
+            allowed: false,
+            alreadyCounted: false,
+            deniedBy: 'hourly_limit' as const,
+            primaryUsed: primaryBefore,
+            hourlyUsed: hourlyBefore,
+          };
+        }
+
+        if (idempotencyKey) idemKeys.add(idempotencyKey);
+        const primaryNext = primaryBefore + 1;
+        const hourlyNext = hourlyBefore + 1;
+        counters.set(pKey, primaryNext);
+        counters.set(hKey, hourlyNext);
+        return {
+          allowed: true,
+          alreadyCounted: false,
+          primaryUsed: primaryNext,
+          hourlyUsed: hourlyNext,
+        };
+      },
+    ),
     tryAcquireRenderLockDb: vi.fn(async ({ scope, resourceId, maxConcurrency }) => {
       if (activeLocks.size >= maxConcurrency) {
         return { acquired: false, activeCount: activeLocks.size };
@@ -84,7 +125,7 @@ function makeInMemoryDeps(subStatus: SubscriptionStatus) {
   return { deps, counters, idemKeys, activeLocks, telemetry };
 }
 
-describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempotencia y Locks', () => {
+describe('PR 4.2 + PR 4.2.1 — Guardián Atómico de Cuotas, Resiliencia BD, Concurrencia y Parte D', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -101,13 +142,12 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
   });
 
   it('ancla la ventana mensual al periodo de Stripe (no mes calendario) y usa TZ America/Mexico_City', () => {
-    // 2026-12-01T02:30:00Z es 2026-11-30 20:30 en America/Mexico_City (UTC-6)
     const utcCrossMidnight = new Date('2026-12-01T02:30:00.000Z');
     const sub = makeSub({
       subscription: {
         ...makeSub().subscription!,
         id: 'sub_abc_99',
-        currentPeriodEnd: '2026-12-16T05:00:00.000Z', // 2026-12-15 23:00 MX
+        currentPeriodEnd: '2026-12-16T05:00:00.000Z',
       },
     });
     const w = resolveQuotaWindows(sub, utcCrossMidnight);
@@ -139,9 +179,9 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
     expect(r3.code).toBe('QUOTA_EXCEEDED');
   });
 
-  it('respeta idempotencyKey para no contar doble en reintentos ni bloquear reintento legítimo', async () => {
+  it('respeta idempotencyKey en transacción atómica sin contar doble ni dejar llaves huérfanas al rechazar', async () => {
     const basicSub = makeSub(); // Básico: 4 ai_workbook_block / periodo
-    const { deps } = makeInMemoryDeps(basicSub);
+    const { deps, idemKeys } = makeInMemoryDeps(basicSub);
 
     for (let i = 1; i <= 4; i++) {
       const ok = await enforceUsageQuota(
@@ -152,7 +192,6 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
       expect(ok.used).toBe(i);
     }
 
-    // Reintento del mismo job-4 NO debe ser rechazado ni sumar a 5
     const retry = await enforceUsageQuota(
       { teacherId: 't-3', metric: 'ai_workbook_block', idempotencyKey: 'job-4' },
       deps,
@@ -161,7 +200,6 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
     expect(retry.alreadyCounted).toBe(true);
     expect(retry.used).toBe(4);
 
-    // Un 5to job distinto SÍ debe quedar bloqueado con 403 QUOTA_EXCEEDED
     const fifth = await enforceUsageQuota(
       { teacherId: 't-3', metric: 'ai_workbook_block', idempotencyKey: 'job-5' },
       deps,
@@ -169,6 +207,8 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
     expect(fifth.allowed).toBe(false);
     expect(fifth.statusCode).toBe(403);
     expect(fifth.code).toBe('QUOTA_EXCEEDED');
+    // La llave rechazada JAMÁS debe haberse registrado como consumida
+    expect(idemKeys.has('q:t-3:ai_workbook_block:job-5')).toBe(false);
   });
 
   it('aplica rate limit por hora (429 RATE_LIMIT_EXCEEDED) y permite paso libre a administrador', async () => {
@@ -193,16 +233,60 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
     expect(overHour.code).toBe('RATE_LIMIT_EXCEEDED');
     expect(overHour.retryAfterSeconds).toBeGreaterThan(0);
 
-    // Admin jamás bloqueado
     const { deps: adminDeps } = makeInMemoryDeps(makeSub({ isAdmin: true }));
     const adminRes = await enforceUsageQuota({ teacherId: 'admin-1', metric: 'bulk_zip_daily' }, adminDeps);
     expect(adminRes.allowed).toBe(true);
     expect(adminRes.tier).toBe('administrador');
   });
 
-  it('controla concurrencia con editorial_render_locks (409 CONCURRENCY_LIMIT) y registra telemetría de engine al liberar', async () => {
+  it('PR 4.2.1: dos peticiones simultáneas al borde del límite jamás exceden el tope atómico', async () => {
+    const basicSub = makeSub(); // Básico: 2 ZIP / día
+    const { deps } = makeInMemoryDeps(basicSub);
+
+    await enforceUsageQuota({ teacherId: 't-race', metric: 'bulk_zip_daily' }, deps); // 1/2 usado
+    const [rA, rB] = await Promise.all([
+      enforceUsageQuota({ teacherId: 't-race', metric: 'bulk_zip_daily' }, deps),
+      enforceUsageQuota({ teacherId: 't-race', metric: 'bulk_zip_daily' }, deps),
+    ]);
+
+    const allowedCount = [rA, rB].filter((r) => r.allowed).length;
+    const deniedCount = [rA, rB].filter((r) => !r.allowed && r.code === 'QUOTA_EXCEEDED').length;
+    expect(allowedCount).toBe(1);
+    expect(deniedCount).toBe(1);
+  });
+
+  it('PR 4.2.1: ante caída de BD (subscription-gate o Neon) devuelve 503 QUOTA_SERVICE_UNAVAILABLE + Retry-After sin lanzar 500', async () => {
+    const { deps: subDownDeps } = makeInMemoryDeps(makeSub());
+    subDownDeps.getSubscriptionStatus = vi.fn().mockRejectedValue(new Error('Neon connection refused'));
+
+    const qRes = await enforceUsageQuota({ teacherId: 't-down', metric: 'ai_planning' }, subDownDeps);
+    expect(qRes.allowed).toBe(false);
+    expect(qRes.statusCode).toBe(503);
+    expect(qRes.code).toBe('QUOTA_SERVICE_UNAVAILABLE');
+    expect(qRes.retryAfterSeconds).toBe(30);
+
+    const lRes = await acquireEditorialConcurrencyLock(
+      { teacherId: 't-down', scope: 'bulk_zip', resourceId: 'plan-1' },
+      subDownDeps,
+    );
+    expect(lRes.acquired).toBe(false);
+    expect(lRes.statusCode).toBe(503);
+    expect(lRes.code).toBe('QUOTA_SERVICE_UNAVAILABLE');
+    expect(lRes.retryAfterSeconds).toBe(30);
+
+    // También cuando falla la consulta atómica de contadores
+    const { deps: counterDownDeps } = makeInMemoryDeps(makeSub());
+    counterDownDeps.consumeUsageQuotaAtomicDb = vi.fn().mockRejectedValue(new Error('SQL timeout 57014'));
+    const qRes2 = await enforceUsageQuota({ teacherId: 't-down-2', metric: 'pdf_compile' }, counterDownDeps);
+    expect(qRes2.allowed).toBe(false);
+    expect(qRes2.statusCode).toBe(503);
+    expect(qRes2.code).toBe('QUOTA_SERVICE_UNAVAILABLE');
+    expect(qRes2.retryAfterSeconds).toBe(30);
+  });
+
+  it('controla concurrencia con editorial_render_locks (409), libera limpio en aborto y registra telemetría al completar', async () => {
     const basicSub = makeSub(); // Básico: maxConcurrency = 1
-    const { deps, telemetry } = makeInMemoryDeps(basicSub);
+    const { deps, telemetry, activeLocks } = makeInMemoryDeps(basicSub);
 
     const l1 = await acquireEditorialConcurrencyLock(
       { teacherId: 't-5', scope: 'pdf_compile', resourceId: 'plan-1:semestral' },
@@ -219,9 +303,20 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
     expect(l2.statusCode).toBe(409);
     expect(l2.code).toBe('CONCURRENCY_LIMIT');
 
+    // Aborto por cuota libera el lock SIN registrar telemetría falsa de render
+    await releaseEditorialLockOnAbort(l1.lockId, deps);
+    expect(activeLocks.size).toBe(0);
+    expect(telemetry.length).toBe(0);
+
+    const l3 = await acquireEditorialConcurrencyLock(
+      { teacherId: 't-5', scope: 'bulk_zip', resourceId: 'plan-1' },
+      deps,
+    );
+    expect(l3.acquired).toBe(true);
+
     await releaseEditorialConcurrencyLock(
       {
-        lockId: l1.lockId,
+        lockId: l3.lockId,
         teacherId: 't-5',
         planningId: 'plan-1',
         scope: 'v2-semestral',
@@ -232,12 +327,6 @@ describe('PR 4.2 — Guardián de Cuotas, Periodo Stripe (TZ México), Idempoten
       deps,
     );
     expect(telemetry).toEqual([{ engine: 'typst', cached: false, scope: 'v2-semestral' }]);
-
-    const l3 = await acquireEditorialConcurrencyLock(
-      { teacherId: 't-5', scope: 'bulk_zip', resourceId: 'plan-1' },
-      deps,
-    );
-    expect(l3.acquired).toBe(true);
   });
 
   it('Parte D (09 Infografías): rota entre las 3 escenas verticales 4:5 reales en disco (102 escenas activas)', () => {

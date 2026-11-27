@@ -54,6 +54,7 @@ import {
   enforceUsageQuota,
   QuotaExceededError,
   releaseEditorialConcurrencyLock,
+  releaseEditorialLockOnAbort,
 } from '@/lib/platform/usage-quota-guard';
 import { recordEditorialEngineTelemetry } from '@/lib/db/usage-quotas';
 import { logger } from '@/lib/logger';
@@ -132,6 +133,7 @@ export async function compileUnifiedEditorialPdf(
 
   let lockId: string | undefined;
   let finalEngine: UnifiedPdfEngine = 'jspdf_fallback';
+  let abortedByQuota = false;
 
   try {
     const isSingleBlock = typeof params.blockIndex === 'number' && Number.isInteger(params.blockIndex);
@@ -287,7 +289,7 @@ export async function compileUnifiedEditorialPdf(
       }
     }
 
-    // 1b. PR 4.2: En cache-miss real, aplicar lock de concurrencia y cuota con idempotencia (contentHash)
+    // 1b. PR 4.2.1: En cache-miss real, aplicar lock de concurrencia ANTES de cuota con idempotencia
     if (params.quotaContext) {
       const lock = await acquireEditorialConcurrencyLock({
         teacherId: params.quotaContext.teacherId,
@@ -299,8 +301,9 @@ export async function compileUnifiedEditorialPdf(
       if (!lock.acquired) {
         throw new QuotaExceededError({
           message: lock.message || 'Ya existe una compilación PDF activa para tu cuenta.',
-          statusCode: 409,
+          statusCode: lock.statusCode || 409,
           code: lock.code || 'CONCURRENCY_LIMIT',
+          retryAfterSeconds: lock.retryAfterSeconds,
         });
       }
       lockId = lock.lockId;
@@ -312,6 +315,8 @@ export async function compileUnifiedEditorialPdf(
         idempotencyKey: params.quotaContext.idempotencyKey || `${scopeKey}:${contentHash.slice(0, 24)}`,
       });
       if (!quota.allowed) {
+        await releaseEditorialLockOnAbort(lockId);
+        lockId = undefined;
         throw new QuotaExceededError({
           message: quota.message || 'Has alcanzado el límite de compilaciones PDF de tu plan.',
           statusCode: quota.statusCode || 403,
@@ -380,6 +385,7 @@ export async function compileUnifiedEditorialPdf(
     };
   } catch (err) {
     if (err instanceof QuotaExceededError) {
+      abortedByQuota = true;
       throw err;
     }
     const reason = err instanceof Error ? err.message : String(err);
@@ -397,7 +403,7 @@ export async function compileUnifiedEditorialPdf(
       fallbackReason: reason,
     };
   } finally {
-    if (lockId || (params.quotaContext && finalEngine !== 'typst_cached')) {
+    if (!abortedByQuota && (lockId || (params.quotaContext && finalEngine !== 'typst_cached'))) {
       await releaseEditorialConcurrencyLock({
         lockId,
         teacherId: params.quotaContext?.teacherId,
@@ -407,6 +413,8 @@ export async function compileUnifiedEditorialPdf(
         cached: false,
         durationMs: Date.now() - startedAt,
       });
+    } else if (abortedByQuota && lockId) {
+      await releaseEditorialLockOnAbort(lockId);
     }
   }
 }

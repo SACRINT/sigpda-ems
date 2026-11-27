@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cleanupExpiredKeys } from '@/lib/idempotency';
+import { pruneExpiredUsageQuotaDataDb } from '@/lib/db/usage-quotas';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -11,8 +12,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const deleted = await cleanupExpiredKeys();
-    return NextResponse.json({ success: true, deletedExpiredKeys: deleted });
+    const [deleted, quotaPruned] = await Promise.all([
+      cleanupExpiredKeys(),
+      pruneExpiredUsageQuotaDataDb().catch((err) => {
+        logger.warn('Non-blocking error pruning usage quota tables:', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return { deletedIdempotencyKeys: 0, deletedRenderLocks: 0, deletedTelemetryRows: 0 };
+      }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      deletedExpiredKeys: deleted,
+      quotaRetention: quotaPruned,
+    });
   } catch (error) {
     logger.error('Error executing cleanup-idempotency cron:', { error });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

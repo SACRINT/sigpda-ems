@@ -45,6 +45,7 @@ import {
   acquireEditorialConcurrencyLock,
   enforceUsageQuota,
   releaseEditorialConcurrencyLock,
+  releaseEditorialLockOnAbort,
 } from '@/lib/platform/usage-quota-guard';
 import { logger } from '@/lib/logger';
 
@@ -114,25 +115,10 @@ async function handleBulkDocx(request: NextRequest) {
     let zipName = 'Materiales_Educativos_DOCX.zip';
     let planning: Awaited<ReturnType<typeof getPlanningById>> | null = null;
 
-    // PR 4.2: Cuota diaria y lock de concurrencia para paquetes ZIP DOCX masivos
+    // PR 4.2.1: Lock de concurrencia ANTES de cuota (si hay 409 activo jamás se consume cuota)
     if (!extraIds || extraIds.length === 0) {
       bulkTeacherId = teacher.id;
       bulkPlanningId = planningId;
-      const quota = await enforceUsageQuota({
-        teacherId: teacher.id,
-        teacherEmail: session.user.email,
-        metric: 'bulk_zip_daily',
-        idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
-      });
-      if (!quota.allowed) {
-        return NextResponse.json(
-          { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
-          {
-            status: quota.statusCode || 403,
-            headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
-          }
-        );
-      }
       const lock = await acquireEditorialConcurrencyLock({
         teacherId: teacher.id,
         teacherEmail: session.user.email,
@@ -143,10 +129,31 @@ async function handleBulkDocx(request: NextRequest) {
       if (!lock.acquired) {
         return NextResponse.json(
           { error: lock.message, code: lock.code },
-          { status: 409 }
+          {
+            status: lock.statusCode || 409,
+            headers: lock.retryAfterSeconds ? { 'Retry-After': String(lock.retryAfterSeconds) } : undefined,
+          }
         );
       }
       bulkLockId = lock.lockId;
+
+      const quota = await enforceUsageQuota({
+        teacherId: teacher.id,
+        teacherEmail: session.user.email,
+        metric: 'bulk_zip_daily',
+        idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+      });
+      if (!quota.allowed) {
+        await releaseEditorialLockOnAbort(bulkLockId);
+        bulkLockId = undefined;
+        return NextResponse.json(
+          { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+          {
+            status: quota.statusCode || 403,
+            headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+          }
+        );
+      }
     }
 
     if (extraIds && extraIds.length > 0) {

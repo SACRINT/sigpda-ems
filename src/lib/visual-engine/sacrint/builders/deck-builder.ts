@@ -1026,6 +1026,26 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
         : rawCoverFooter,
   };
 
+  // Resolver escenas editoriales 16:9 rotadas por (blockNumber, missionIndex) para TODOS los modos
+  // (incluido `lesson-guide`, que es el modo usado en `08_Presentaciones_*.pptx`).
+  const deckScenes = resolveSacrintDeckEditorialScenes(meta.subjectName, meta.blockNumber, {
+    missionIndex:
+      typeof options.missionIndex === 'number'
+        ? Math.max(0, options.missionIndex)
+        : Math.max(0, (meta.missionNumber || 1) - 1),
+    fileExists: options.sceneFileExists,
+    readDataUri: options.sceneReadDataUri,
+  });
+  const editorialScenesField =
+    deckScenes.hero || deckScenes.concept
+      ? {
+          editorialScenes: {
+            ...(deckScenes.hero ? { hero: deckScenes.hero } : {}),
+            ...(deckScenes.concept ? { concept: deckScenes.concept } : {}),
+          },
+        }
+      : {};
+
   // Modo Guía Expositiva por Clase: 1 Portada de Misión + 2 láminas de pizarrón por cada sesión del libro
   if (mode === 'lesson-guide') {
     if (sessionPlans.length === 0) {
@@ -1054,6 +1074,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
       style: resolveSacrintStyle(pack.id),
       mode,
       theme: options.theme ?? 'dark',
+      ...editorialScenesField,
       slides: [cover, ...sessionSlides],
     };
   }
@@ -1266,30 +1287,13 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
   const allSlides: SacrintSlide[] = [cover, hook, concept, demo, practice, challenge, evidence, closing];
   const slides = mode === 'classroom' ? [hook, concept, demo, challenge] : allSlides;
 
-  const deckScenes = resolveSacrintDeckEditorialScenes(meta.subjectName, meta.blockNumber, {
-    missionIndex:
-      typeof options.missionIndex === 'number'
-        ? Math.max(0, options.missionIndex)
-        : Math.max(0, (meta.missionNumber || 1) - 1),
-    fileExists: options.sceneFileExists,
-    readDataUri: options.sceneReadDataUri,
-  });
-  const hasDeckScenes = Boolean(deckScenes.hero || deckScenes.concept);
-
   return {
     meta,
     pack,
     style: resolveSacrintStyle(pack.id),
     mode,
     theme: options.theme ?? 'dark',
-    ...(hasDeckScenes
-      ? {
-          editorialScenes: {
-            ...(deckScenes.hero ? { hero: deckScenes.hero } : {}),
-            ...(deckScenes.concept ? { concept: deckScenes.concept } : {}),
-          },
-        }
-      : {}),
+    ...editorialScenesField,
     slides,
   };
 }

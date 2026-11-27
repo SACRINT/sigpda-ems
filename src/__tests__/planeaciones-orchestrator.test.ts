@@ -33,6 +33,18 @@ vi.mock('@/lib/admin-unified', () => ({
   isAdmin: vi.fn(),
 }));
 
+vi.mock('@/lib/platform/usage-quota-guard', () => ({
+  enforceUsageQuota: vi.fn().mockResolvedValue({
+    allowed: true,
+    tier: 'administrador',
+    metric: 'ai_sequence_extra',
+    windowKey: 'stripe:test:2026-12-31',
+    used: 0,
+    limit: Number.MAX_SAFE_INTEGER,
+    remaining: Number.MAX_SAFE_INTEGER,
+  }),
+}));
+
 vi.mock('@/lib/planeaciones-evaluator', () => ({
   evaluarPlaneacion: vi.fn(),
 }));

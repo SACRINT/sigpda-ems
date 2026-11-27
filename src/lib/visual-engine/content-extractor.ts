@@ -77,6 +77,25 @@ export function stripMarkdown(text: string | null | undefined): string {
 }
 
 /**
+ * Recorta texto respetando fronteras de palabra (nunca corta a mitad de palabra ni deja
+ * conectores/puntuación colgantes como "·", ":", "-", "de", "y").
+ */
+function cutWordBoundary(raw: string, maxChars: number): string {
+  const clean = raw.replace(/\s+/g, ' ').trim();
+  if (clean.length <= maxChars) return clean.replace(/[\s·:;\-–—]+$/g, '').trim();
+  const sliced = clean.slice(0, maxChars);
+  const lastSpace = sliced.lastIndexOf(' ');
+  const candidate = lastSpace >= Math.max(8, Math.floor(maxChars * 0.45))
+    ? sliced.slice(0, lastSpace)
+    : sliced;
+  return candidate
+    .replace(/[\s,;:·\-–—]+$/g, '')
+    .replace(/\b(?:de|del|la|el|los|las|un|una|y|e|o|en|a|para|con|por|su|sus)$/i, '')
+    .replace(/[\s,;:·\-–—]+$/g, '')
+    .trim();
+}
+
+/**
  * Limpia y normaliza texto eliminando marcas de markdown y dobles espacios.
  */
 function cleanText(text: string): string {
@@ -140,8 +159,8 @@ export function extractYears(text: string): TimelineEvent[] {
     const data = foundEvents.get(yr)!;
     return {
       year: yr,
-      title: data.title.slice(0, 24),
-      description: data.description.slice(0, 52),
+      title: cutWordBoundary(data.title, 26),
+      description: cutWordBoundary(data.description, 54),
     };
   });
 }
@@ -193,7 +212,7 @@ export function extractTermDefs(
   }
 
   const nodes: ConceptNode[] = [
-    { label: rootConcept.slice(0, 26), level: 0 },
+    { label: cutWordBoundary(rootConcept, 28), level: 0 },
   ];
   const edges: ConceptEdge[] = [];
 
@@ -201,14 +220,14 @@ export function extractTermDefs(
   for (let i = 0; i < maxCategories; i++) {
     const item = termDefs[i];
     const catIndex = nodes.length;
-    nodes.push({ label: item.term.slice(0, 22), level: 1 });
+    nodes.push({ label: cutWordBoundary(item.term, 24), level: 1 });
     edges.push({ from: 0, to: catIndex, label: 'integra' });
 
     // Si la definición tiene contenido descriptivo, añadir un subnodo nivel 2
     if (item.def && item.def.length >= 8) {
       const subIndex = nodes.length;
       const subwords = item.def.split(/\s+/).slice(0, 4).join(' ');
-      nodes.push({ label: subwords.slice(0, 24), level: 2 });
+      nodes.push({ label: cutWordBoundary(subwords, 26), level: 2 });
       edges.push({ from: catIndex, to: subIndex, label: 'define' });
     }
   }
@@ -271,7 +290,7 @@ export function extractPercentStats(text: string): SocialStatItem[] {
 
   // Asignar colores institucionales y acotar a máximo 5
   return results.slice(0, 5).map((item, idx) => ({
-    label: item.label.slice(0, 26),
+    label: cutWordBoundary(item.label, 28),
     value: item.value,
     color: STAT_COLORS[idx % STAT_COLORS.length],
   }));
@@ -316,15 +335,15 @@ export function extractEnumSteps(text: string): {
     const checkText = words.length > 7 ? `Check: ${words.slice(7, 12).join(' ')}` : 'Check: Verificado';
     return {
       step: `Paso ${idx + 1}`,
-      instruction: instruction.slice(0, 40),
-      qualityCheck: checkText.slice(0, 26),
+      instruction: cutWordBoundary(instruction, 42),
+      qualityCheck: cutWordBoundary(checkText, 28),
     };
   });
 
   // 2. GanttTasks
   const ganttTasks: GanttTask[] = limitedSteps.map((s, idx) => {
     return {
-      name: `Fase ${idx + 1}: ${s.slice(0, 22)}`,
+      name: `Fase ${idx + 1}: ${cutWordBoundary(s, 24)}`,
       startWeek: idx + 1,
       durationWeeks: idx === limitedSteps.length - 1 ? 2 : 1,
       color: GANTT_COLORS[idx % GANTT_COLORS.length],
@@ -335,10 +354,12 @@ export function extractEnumSteps(text: string): {
   // 3. HistoricalSteps (Causal)
   const phases = ['Antecedentes', 'Detonante', 'Desarrollo', 'Consecuencia'];
   const historicalSteps: HistoricalStep[] = limitedSteps.map((s, idx) => {
+    const titlePart = cutWordBoundary(s, 26);
+    const rest = s.slice(titlePart.length).trim();
     return {
       phase: phases[idx] || `Etapa ${idx + 1}`,
-      title: s.slice(0, 24),
-      detail: s.length > 24 ? s.slice(24, 65) : 'Impacto en el proceso social',
+      title: titlePart,
+      detail: rest.length >= 6 ? cutWordBoundary(rest, 44) : 'Impacto en el proceso social',
     };
   });
 
@@ -374,7 +395,7 @@ export function extractSafetyChecks(text: string): SafetyCheck[] {
       if (lower.includes(item.kw) && !checks.some((c) => c.category === item.cat)) {
         checks.push({
           category: item.cat,
-          requirement: clean.slice(0, 60),
+          requirement: cutWordBoundary(clean, 62),
           standard: item.std,
           level: item.lvl,
         });
@@ -403,7 +424,7 @@ export function extractSystemBlocks(text: string): SystemBlock[] {
   if (inputMatch) {
     blocks.push({
       title: 'Entrada / Sensores',
-      subtitle: inputMatch[1].trim().slice(0, 32),
+      subtitle: cutWordBoundary(inputMatch[1], 32),
       role: 'input',
     });
   }
@@ -413,7 +434,7 @@ export function extractSystemBlocks(text: string): SystemBlock[] {
   if (processMatch) {
     blocks.push({
       title: 'Núcleo de Control',
-      subtitle: processMatch[1].trim().slice(0, 32),
+      subtitle: cutWordBoundary(processMatch[1], 32),
       role: 'process',
     });
   }
@@ -423,7 +444,7 @@ export function extractSystemBlocks(text: string): SystemBlock[] {
   if (outputMatch) {
     blocks.push({
       title: 'Salida / Actuadores',
-      subtitle: outputMatch[1].trim().slice(0, 32),
+      subtitle: cutWordBoundary(outputMatch[1], 32),
       role: 'output',
     });
   }
@@ -433,7 +454,7 @@ export function extractSystemBlocks(text: string): SystemBlock[] {
   if (feedbackMatch && blocks.length >= 2) {
     blocks.push({
       title: 'Retroalimentación',
-      subtitle: feedbackMatch[1].trim().slice(0, 32),
+      subtitle: cutWordBoundary(feedbackMatch[1], 32),
       role: 'control',
     });
   }

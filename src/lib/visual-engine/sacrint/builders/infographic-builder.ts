@@ -893,6 +893,8 @@ export function buildSacrintInfographic(
       typeof options.missionIndex === 'number'
         ? Math.max(0, options.missionIndex)
         : Math.max(0, (meta.missionNumber || 1) - 1),
+    sessionIndex:
+      typeof options.sessionIndex === 'number' ? Math.max(0, options.sessionIndex) : 0,
     fileExists: options.sceneFileExists,
     readDataUri: options.sceneReadDataUri,
   });

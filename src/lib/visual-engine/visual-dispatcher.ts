@@ -487,6 +487,101 @@ function tryExtractRectangleParameters(text: string): { largo: number; ancho: nu
 }
 
 /**
+ * Limpia prefijos/sufijos redundantes ("Misión N:", "Sesión N:", "(Misión N)") y trunca
+ * estrictamente en frontera de palabra (nunca corta a media palabra como "Activac" o "Privacida").
+ */
+export function cleanTopicForDiagram(raw: string, maxChars = 42): string {
+  let clean = (raw || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:misi[oó]n|sesi[oó]n)\s*\d+\s*[:.\-–—]\s*/i, '')
+    .replace(/\s*\((?:misi[oó]n|sesi[oó]n)\s*\d+\)\s*$/i, '')
+    .replace(/^(?:fundamentaci[oó]n\s+y\s+activaci[oó]n|desarrollo\s+y\s+aplicaci[oó]n|cierre\s+y\s+s[ií]ntesis)\s*[:.\-–—]\s*/i, '')
+    .replace(/^[\s·:;\-–—]+|[\s·:;\-–—]+$/g, '')
+    .trim();
+
+  if (clean.length > maxChars) {
+    const sliced = clean.slice(0, maxChars);
+    const lastSpace = sliced.lastIndexOf(' ');
+    clean = (lastSpace >= Math.max(8, Math.floor(maxChars * 0.45)) ? sliced.slice(0, lastSpace) : sliced)
+      .replace(/[\s,;:·\-–—]+$/g, '')
+      .replace(/\b(?:de|del|la|el|los|las|un|una|y|e|o|en|a|para|con|por|su|sus)$/i, '')
+      .replace(/[\s,;:·\-–—]+$/g, '')
+      .trim();
+  }
+  return clean || 'Tema de la Misión';
+}
+
+const DIGITAL_PHRASE_STOPWORDS = new Set([
+  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'al', 'en', 'con', 'por', 'para',
+  'que', 'como', 'sobre', 'entre', 'desde', 'hacia', 'mediante', 'traves', 'durante', 'ante', 'bajo',
+  'sus', 'su', 'tu', 'tus', 'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'cada', 'todo', 'toda',
+  'todos', 'todas', 'mision', 'sesion', 'bloque', 'cultura', 'digital', 'estudiante', 'estudiantes',
+  'actividad', 'objetivo', 'tema', 'uso', 'aplicacion', 'desarrollo', 'contexto', 'escolar', 'comunidad',
+]);
+
+/**
+ * Extrae frases conceptuales reales del tema/contexto de la misión (0 tokens IA)
+ * para construir mapas conceptuales, arquitecturas y flujos específicos de cada misión.
+ */
+function extractMissionTopicPhrases(topic: string, contextText: string, maxCount = 6): string[] {
+  const cleanTopic = cleanTopicForDiagram(topic, 96);
+  const rawPieces = `${cleanTopic}\n${contextText || ''}`
+    .split(/[\n.!?;•]+/)
+    .map((s) =>
+      s
+        .replace(/^(?:paso\s*\d+|fase\s*\d+|\d+[.)]|[-*•]|concepto\s+clave|misi[oó]n\s*\d+|sesi[oó]n\s*\d+)\s*:?\s*/i, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
+    .filter((s) => s.length >= 10);
+
+  const phrases: string[] = [];
+  const seen = new Set<string>();
+
+  const pushPhrase = (raw: string, maxLen: number) => {
+    const trimmed = cleanTopicForDiagram(raw, maxLen);
+    const norm = normalizeUnicode(trimmed);
+    if (!trimmed || trimmed.length < 5 || seen.has(norm)) return;
+    seen.add(norm);
+    phrases.push(trimmed);
+  };
+
+  // 1. Subcláusulas significativas del título de la misión (separadas por coma, ":", "y")
+  for (const part of cleanTopic.split(/[,:;/—–-]+|\s+y\s+/i)) {
+    const cleaned = part.trim();
+    const meaningfulWords = cleaned
+      .split(/\s+/)
+      .filter((w) => w.length >= 3 && !DIGITAL_PHRASE_STOPWORDS.has(normalizeUnicode(w)));
+    if (meaningfulWords.length >= 1 && cleaned.length >= 6) {
+      pushPhrase(cleaned, 24);
+    }
+    if (phrases.length >= maxCount) return phrases;
+  }
+
+  // 2. Fragmentos sustantivos de las oraciones reales del contexto
+  for (const piece of rawPieces) {
+    // Preferir lado izquierdo de "Término: descripción"
+    const colonIdx = piece.indexOf(':');
+    if (colonIdx >= 4 && colonIdx <= 34) {
+      pushPhrase(piece.slice(0, colonIdx), 24);
+    } else {
+      const words = piece.split(/\s+/);
+      const meaningful = words.filter(
+        (w) => w.length >= 3 && !DIGITAL_PHRASE_STOPWORDS.has(normalizeUnicode(w.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/g, ''))),
+      );
+      if (meaningful.length >= 2) {
+        const chunk = words.slice(0, Math.min(4, words.length)).join(' ');
+        pushPhrase(chunk, 24);
+      }
+    }
+    if (phrases.length >= maxCount) break;
+  }
+
+  return phrases;
+}
+
+/**
  * Despachador especializado para Dibujo Técnico I, II y Arquitectura.
  * Garantiza diagramas normativos (Montea Triplanar, Isométrico, Acotación, Trazados Geométricos)
  * en lugar de ecuaciones algebraicas 2x2 o gráficas cartesianas.
@@ -497,6 +592,7 @@ export function dispatchTechnicalDrawing(
   missionIndex = 1
 ): VisualResult {
   const searchText = normalizeUnicode(`${topic} ${contextText || ''}`);
+  const cleanTopic = cleanTopicForDiagram(topic, 40);
 
   // 1. Montea Triplanar / Vistas Diédricas / Proyecciones Ortogonales
   if (
@@ -510,7 +606,7 @@ export function dispatchTechnicalDrawing(
     searchText.includes('proyeccion')
   ) {
     return generateMonteaTriplanar({
-      title: `Montea Triplanar: ${topic.slice(0, 40)}`,
+      title: `Montea Triplanar: ${cleanTopic}`,
     });
   }
 
@@ -525,7 +621,7 @@ export function dispatchTechnicalDrawing(
     searchText.includes('arista')
   ) {
     return generateIsometricPrism({
-      title: `Perspectiva Isométrica: ${topic.slice(0, 40)}`,
+      title: `Perspectiva Isométrica: ${cleanTopic}`,
     });
   }
 
@@ -539,7 +635,7 @@ export function dispatchTechnicalDrawing(
     searchText.includes('tolerancia')
   ) {
     return generateTechnicalDimensioning({
-      title: `Acotación Normalizada: ${topic.slice(0, 40)}`,
+      title: `Acotación Normalizada: ${cleanTopic}`,
     });
   }
 
@@ -554,7 +650,7 @@ export function dispatchTechnicalDrawing(
     searchText.includes('geometri')
   ) {
     return generateGeometricConstructions({
-      title: `Trazado Geométrico: ${topic.slice(0, 40)}`,
+      title: `Trazado Geométrico: ${cleanTopic}`,
     });
   }
 
@@ -562,21 +658,21 @@ export function dispatchTechnicalDrawing(
   const mod = ((missionIndex - 1) % 4) + 1;
   if (mod === 1) {
     return generateMonteaTriplanar({
-      title: `Montea Triplanar y Proyecciones: ${topic.slice(0, 36)}`,
+      title: `Montea Triplanar y Proyecciones: ${cleanTopicForDiagram(topic, 34)}`,
     });
   }
   if (mod === 2) {
     return generateIsometricPrism({
-      title: `Perspectiva Isométrica Normalizada: ${topic.slice(0, 34)}`,
+      title: `Perspectiva Isométrica Normalizada: ${cleanTopicForDiagram(topic, 32)}`,
     });
   }
   if (mod === 3) {
     return generateTechnicalDimensioning({
-      title: `Sistema de Acotación Técnica: ${topic.slice(0, 36)}`,
+      title: `Sistema de Acotación Técnica: ${cleanTopicForDiagram(topic, 34)}`,
     });
   }
   return generateGeometricConstructions({
-    title: `Construcciones Geométricas Básicas: ${topic.slice(0, 34)}`,
+    title: `Construcciones Geométricas Básicas: ${cleanTopicForDiagram(topic, 32)}`,
   });
 }
 
@@ -624,36 +720,54 @@ export function dispatchVisual(
 
   // ── 0B. DISPATCHER ESPECIALIZADO: CULTURA DIGITAL, ALGORITMOS Y TI ──────
   // Intercepta antes de STEM para garantizar diagramas computacionales/conceptuales
-  // y prohibir taxativamente el fallback de Plano Cartesiano en Cultura Digital.
+  // específicos por misión, sin truncamientos a media palabra ni Plano Cartesiano.
   if (isDigitalCultureSubject(uacName)) {
-    const rawContext = `${topic}\n${contextText || ''}`;
+    const cleanTopic = cleanTopicForDiagram(topic, 38);
+    const rawContext = `${cleanTopic}\n${contextText || ''}`;
+    const missionPhrases = extractMissionTopicPhrases(cleanTopic, contextText || '', 6);
+
     const buildDigitalConceptMap = () => {
-      const extracted = extractTermDefs(rawContext, topic);
+      const extracted = extractTermDefs(rawContext, cleanTopic);
       const hasExtracted = extracted.nodes.length >= 3;
+      const hasGroundedPhrases = missionPhrases.length >= 2;
+      const rootLabel = cleanTopicForDiagram(cleanTopic, 26);
+
       const nodes = hasExtracted
         ? extracted.nodes
-        : [
-            { label: 'Cultura Digital', level: 0 as const },
-            { label: 'Ciudadanía Digital', level: 1 as const },
-            { label: 'Pensamiento Algorítmico', level: 1 as const },
-            { label: 'Privacidad y Ética', level: 2 as const },
-            { label: 'Colaboración en Red', level: 2 as const },
-          ];
+        : hasGroundedPhrases
+          ? [
+              { label: rootLabel, level: 0 as const },
+              { label: missionPhrases[0]!, level: 1 as const },
+              { label: missionPhrases[1]!, level: 1 as const },
+              { label: missionPhrases[2] || 'Criterios y Evidencia', level: 2 as const },
+              { label: missionPhrases[3] || 'Aplicación Ética', level: 2 as const },
+            ]
+          : [
+              { label: rootLabel, level: 0 as const },
+              { label: 'Ciudadanía Digital', level: 1 as const },
+              { label: 'Pensamiento Algorítmico', level: 1 as const },
+              { label: 'Privacidad y Ética', level: 2 as const },
+              { label: 'Colaboración en Red', level: 2 as const },
+            ];
       const edges = hasExtracted
         ? extracted.edges
         : [
-            { from: 0, to: 1, label: 'promueve' },
-            { from: 0, to: 2, label: 'estructura' },
-            { from: 1, to: 3, label: 'protege' },
-            { from: 2, to: 4, label: 'impulsa' },
+            { from: 0, to: 1, label: 'articula' },
+            { from: 0, to: 2, label: 'desarrolla' },
+            { from: 1, to: 3, label: 'verifica' },
+            { from: 2, to: 4, label: 'aplica' },
           ];
       const res = generateConceptMap(nodes, edges, {
-        title: `Mapa Conceptual Digital: ${topic.slice(0, 32)} (${scopeLabel})`,
+        title: `Mapa Conceptual: ${cleanTopic} (${scopeLabel})`,
       });
       res.metadata = {
         type: 'digital_concept_map',
-        realItemCount: hasExtracted ? extracted.nodes.length - 1 : 0,
-        isFallback: !hasExtracted,
+        realItemCount: hasExtracted
+          ? extracted.nodes.length - 1
+          : hasGroundedPhrases
+            ? Math.min(4, missionPhrases.length)
+            : 0,
+        isFallback: !hasExtracted && !hasGroundedPhrases,
       };
       return res;
     };
@@ -675,70 +789,88 @@ export function dispatchVisual(
       )
     ) {
       const extractedBlocks = extractSystemBlocks(rawContext);
+      const hasGrounded = extractedBlocks.length >= 2 || missionPhrases.length >= 2;
       const blocks =
         extractedBlocks.length >= 2
           ? extractedBlocks
           : [
-              { title: 'Entrada y Usuario', subtitle: 'Datos, periféricos y captura', role: 'input' as const },
-              { title: 'Hardware y Software', subtitle: 'Procesamiento y sistema operativo', role: 'process' as const },
-              { title: 'Red y Almacenamiento', subtitle: 'Gestión segura y respaldo', role: 'control' as const },
-              { title: 'Salida Digital', subtitle: 'Producto y servicio al usuario', role: 'output' as const },
+              {
+                title: missionPhrases[0] || 'Entrada Digital',
+                subtitle: 'Captura de datos y requerimientos',
+                role: 'input' as const,
+              },
+              {
+                title: missionPhrases[1] || 'Núcleo de Proceso',
+                subtitle: cleanTopicForDiagram(cleanTopic, 30),
+                role: 'process' as const,
+              },
+              {
+                title: missionPhrases[2] || 'Control y Seguridad',
+                subtitle: 'Validación, red y respaldo',
+                role: 'control' as const,
+              },
+              {
+                title: missionPhrases[3] || 'Producto Digital',
+                subtitle: 'Resultado verificable al usuario',
+                role: 'output' as const,
+              },
             ];
       const res = generateBlockDiagram(blocks, {
-        title: `Arquitectura Digital: ${topic.slice(0, 34)} (${scopeLabel})`,
+        title: `Arquitectura Digital: ${cleanTopic} (${scopeLabel})`,
       });
       res.metadata = {
         type: 'digital_block_diagram',
-        realItemCount: extractedBlocks.length,
-        isFallback: extractedBlocks.length < 2,
+        realItemCount: extractedBlocks.length >= 2 ? extractedBlocks.length : Math.min(4, missionPhrases.length),
+        isFallback: !hasGrounded,
       };
       return res;
     }
 
-    // 2. Algoritmos, diagramas de flujo, pseudocódigo, programación, automatización u hoja de cálculo
+    // 3. Algoritmos, diagramas de flujo, pseudocódigo, programación, automatización u hoja de cálculo
     if (
       /\b(?:algoritmo(?:s)?|pseudocodigo|diagrama\s+de\s+flujo|flujo|programacion|codigo|variable(?:s)?|bucle|condicional|hoja\s+de\s+calculo|automatizacion|proceso(?:s)?|paso(?:s)?|protocolo|metodologia)\b/.test(
         searchText
       )
     ) {
       const { technicalSteps } = extractEnumSteps(rawContext);
+      const hasGrounded = technicalSteps.length >= 2 || missionPhrases.length >= 2;
       const steps =
         technicalSteps.length >= 2
           ? technicalSteps
           : [
               {
-                step: '1. Definir Problema',
-                instruction: 'Identificar entradas, salidas y requerimientos digitales',
-                qualityCheck: 'Alcance verificado',
+                step: '1. Diagnóstico',
+                instruction: missionPhrases[0] || `Delimitar alcance de ${cleanTopicForDiagram(cleanTopic, 22)}`,
+                qualityCheck: 'Datos de entrada claros',
               },
               {
-                step: '2. Diseñar Algoritmo',
-                instruction: 'Estructurar secuencia lógica, decisiones y flujo de datos',
+                step: '2. Modelado',
+                instruction: missionPhrases[1] || 'Estructurar secuencia lógica y decisiones',
                 qualityCheck: 'Prueba de escritorio OK',
               },
               {
-                step: '3. Implementar Solución',
-                instruction: 'Construir prototipo, fórmula o código limpio y documentado',
-                qualityCheck: 'Ejecución sin errores',
+                step: '3. Ejecución',
+                instruction: missionPhrases[2] || 'Implementar solución digital documentada',
+                qualityCheck: 'Sin errores de lógica',
               },
               {
-                step: '4. Validar y Publicar',
-                instruction: 'Verificar usabilidad, seguridad y ética digital comunitaria',
-                qualityCheck: 'Entrega validada',
+                step: '4. Validación',
+                instruction: missionPhrases[3] || 'Comprobar usabilidad y ética digital',
+                qualityCheck: 'Evidencia validada',
               },
             ];
       const res = generateTechnicalFlow(steps, {
-        title: `Flujo Digital y Algorítmico: ${topic.slice(0, 30)} (${scopeLabel})`,
+        title: `Flujo Algorítmico: ${cleanTopic} (${scopeLabel})`,
       });
       res.metadata = {
         type: 'digital_technical_flow',
-        realItemCount: technicalSteps.length,
-        isFallback: technicalSteps.length < 2,
+        realItemCount: technicalSteps.length >= 2 ? technicalSteps.length : Math.min(4, missionPhrases.length),
+        isFallback: !hasGrounded,
       };
       return res;
     }
 
-    // 3. Ciudadanía digital, ética, privacidad, comunicación e identidad digital (default seguro)
+    // 4. Ciudadanía digital, ética, privacidad, comunicación e identidad digital (default seguro)
     return buildDigitalConceptMap();
   }
 
@@ -917,7 +1049,8 @@ export function dispatchVisual(
 
   // ── B. DISPATCHER ÁREA HUMANIDADES Y CIENCIAS SOCIALES ─────────────────────
   if (isHumanities) {
-    const rawContext = `${topic}\n${contextText || ''}`;
+    const cleanTopic = cleanTopicForDiagram(topic, 42);
+    const rawContext = `${cleanTopic}\n${contextText || ''}`;
 
     // 1. Diagramas de Flujo Histórico Causal (procesos históricos, revoluciones, movimientos sociales)
     if (
@@ -928,7 +1061,7 @@ export function dispatchVisual(
       const { historicalSteps } = extractEnumSteps(rawContext);
       if (historicalSteps.length > 0) {
         const res = generateHistoricalFlow(historicalSteps, {
-          title: `Flujo Causal: ${topic.slice(0, 42)}`,
+          title: `Flujo Causal: ${cleanTopic}`,
         });
         res.metadata = {
           type: 'historical_flow',
@@ -942,7 +1075,7 @@ export function dispatchVisual(
       const years = extractYears(rawContext);
       if (years.length >= 2) {
         const res = generateTimeline(years, {
-          title: `Línea de Tiempo: ${topic.slice(0, 42)}`,
+          title: `Línea de Tiempo: ${cleanTopic}`,
         });
         res.metadata = {
           type: 'timeline',
@@ -953,7 +1086,7 @@ export function dispatchVisual(
       }
 
       const res = generateHistoricalFlow([], {
-        title: `Flujo Causal: ${topic.slice(0, 42)}`,
+        title: `Flujo Causal: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'historical_flow',
@@ -971,7 +1104,7 @@ export function dispatchVisual(
     ) {
       const stats = extractPercentStats(rawContext);
       const res = generateSocialStatsChart(stats, {
-        title: `Indicadores Sociales: ${topic.slice(0, 42)}`,
+        title: `Indicadores Sociales: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'social_stats',
@@ -992,7 +1125,7 @@ export function dispatchVisual(
     ) {
       const events = extractYears(rawContext);
       const res = generateTimeline(events, {
-        title: `Línea de Tiempo: ${topic.slice(0, 42)}`,
+        title: `Línea de Tiempo: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'timeline',
@@ -1013,9 +1146,9 @@ export function dispatchVisual(
       searchText.includes('pensamiento') ||
       searchText.includes('moral')
     ) {
-      const { nodes, edges } = extractTermDefs(rawContext, topic);
+      const { nodes, edges } = extractTermDefs(rawContext, cleanTopic);
       const res = generateConceptMap(nodes, edges, {
-        title: `Mapa Conceptual: ${topic.slice(0, 42)}`,
+        title: `Mapa Conceptual: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'concept_map',
@@ -1030,7 +1163,7 @@ export function dispatchVisual(
     if (normUac.includes('historia') || normUac.includes('conciencia historica')) {
       const events = extractYears(rawContext);
       const res = generateTimeline(events, {
-        title: `Línea de Tiempo Histórica: ${topic.slice(0, 42)}`,
+        title: `Línea de Tiempo Histórica: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'timeline',
@@ -1040,9 +1173,9 @@ export function dispatchVisual(
       return res;
     }
 
-    const { nodes, edges } = extractTermDefs(rawContext, topic);
+    const { nodes, edges } = extractTermDefs(rawContext, cleanTopic);
     const res = generateConceptMap(nodes, edges, {
-      title: `Estructura Conceptual Formativa: ${topic.slice(0, 42)}`,
+      title: `Estructura Conceptual Formativa: ${cleanTopic}`,
     });
     res.metadata = {
       type: 'concept_map',
@@ -1054,7 +1187,8 @@ export function dispatchVisual(
 
   // ── C. DISPATCHER ÁREA FORMACIÓN PARA EL TRABAJO / LABORAL ────────────────
   if (isLaboral) {
-    const rawContext = `${topic}\n${contextText || ''}`;
+    const cleanTopic = cleanTopicForDiagram(topic, 42);
+    const rawContext = `${cleanTopic}\n${contextText || ''}`;
 
     // 1. Matriz de Seguridad Industrial, EPP y Normatividad NOM-STPS
     if (
@@ -1071,7 +1205,7 @@ export function dispatchVisual(
     ) {
       const safetyChecks = extractSafetyChecks(rawContext);
       const res = generateSafetyChecklistVisual(safetyChecks, {
-        title: `Seguridad y EPP: ${topic.slice(0, 42)}`,
+        title: `Seguridad y EPP: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'safety_checklist',
@@ -1094,7 +1228,7 @@ export function dispatchVisual(
     ) {
       const { ganttTasks } = extractEnumSteps(rawContext);
       const res = generateGanttChart(ganttTasks, {
-        title: `Cronograma Técnico: ${topic.slice(0, 42)}`,
+        title: `Cronograma Técnico: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'gantt_chart',
@@ -1120,7 +1254,7 @@ export function dispatchVisual(
     ) {
       const blocks = extractSystemBlocks(rawContext);
       const res = generateBlockDiagram(blocks, {
-        title: `Arquitectura Modular: ${topic.slice(0, 42)}`,
+        title: `Arquitectura Modular: ${cleanTopic}`,
       });
       res.metadata = {
         type: 'block_diagram',
@@ -1133,7 +1267,7 @@ export function dispatchVisual(
     // 4. Diagrama de Procedimiento Técnico / Flujo de Taller (Default para laboral)
     const { technicalSteps } = extractEnumSteps(rawContext);
     const res = generateTechnicalFlow(technicalSteps, {
-      title: `Procedimiento Técnico: ${topic.slice(0, 42)}`,
+      title: `Procedimiento Técnico: ${cleanTopic}`,
     });
     res.metadata = {
       type: 'technical_flow',
@@ -1144,10 +1278,11 @@ export function dispatchVisual(
   }
 
   // ── D. FALLBACK DETERMINÍSTICO UNIVERSAL ──────────────────────────────────
-  const rawContext = `${topic}\n${contextText || ''}`;
-  const { nodes, edges } = extractTermDefs(rawContext, topic);
+  const cleanTopic = cleanTopicForDiagram(topic, 42);
+  const rawContext = `${cleanTopic}\n${contextText || ''}`;
+  const { nodes, edges } = extractTermDefs(rawContext, cleanTopic);
   const res = generateConceptMap(nodes, edges, {
-    title: `Estructura Conceptual Formativa: ${topic.slice(0, 42)}`,
+    title: `Estructura Conceptual Formativa: ${cleanTopic}`,
   });
   res.metadata = {
     type: 'concept_map',

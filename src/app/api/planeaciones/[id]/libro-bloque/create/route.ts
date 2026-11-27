@@ -7,6 +7,7 @@ import {
   acquireEditorialConcurrencyLock,
   enforceUsageQuota,
   releaseEditorialConcurrencyLock,
+  releaseEditorialLockOnAbort,
 } from '@/lib/platform/usage-quota-guard';
 import { logger } from '@/lib/logger';
 
@@ -40,23 +41,7 @@ export async function POST(
       return NextResponse.json({ error: 'No tienes permiso para acceder a esta planeación' }, { status: 403 });
     }
 
-    // PR 4.2: Cuota de bloques IA por periodo Stripe + lock de concurrencia con TTL
-    const quota = await enforceUsageQuota({
-      teacherId: teacher.id,
-      teacherEmail: teacher.email,
-      metric: 'ai_workbook_block',
-      idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
-    });
-    if (!quota.allowed) {
-      return NextResponse.json(
-        { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
-        {
-          status: quota.statusCode || 403,
-          headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
-        }
-      );
-    }
-
+    // PR 4.2.1: Lock de concurrencia ANTES de cuota (si hay 409 activo jamás se consume cuota)
     const lock = await acquireEditorialConcurrencyLock({
       teacherId: teacher.id,
       teacherEmail: teacher.email,
@@ -65,7 +50,30 @@ export async function POST(
       ttlSeconds: 600,
     });
     if (!lock.acquired) {
-      return NextResponse.json({ error: lock.message, code: lock.code }, { status: 409 });
+      return NextResponse.json(
+        { error: lock.message, code: lock.code },
+        {
+          status: lock.statusCode || 409,
+          headers: lock.retryAfterSeconds ? { 'Retry-After': String(lock.retryAfterSeconds) } : undefined,
+        }
+      );
+    }
+
+    const quota = await enforceUsageQuota({
+      teacherId: teacher.id,
+      teacherEmail: teacher.email,
+      metric: 'ai_workbook_block',
+      idempotencyKey: request.headers.get('x-idempotency-key') || undefined,
+    });
+    if (!quota.allowed) {
+      await releaseEditorialLockOnAbort(lock.lockId);
+      return NextResponse.json(
+        { error: quota.message, code: quota.code, limit: quota.limit, used: quota.used },
+        {
+          status: quota.statusCode || 403,
+          headers: quota.retryAfterSeconds ? { 'Retry-After': String(quota.retryAfterSeconds) } : undefined,
+        }
+      );
     }
 
     // Crear trabajo en Neon PostgreSQL (o recuperar el activo si ya está corriendo)

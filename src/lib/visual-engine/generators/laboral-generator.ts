@@ -332,12 +332,12 @@ export function generateBlockDiagram(
     align: 'center',
   });
 
-  // 2. Bloques funcionales
+  // 2. Bloques funcionales (garantiza siempre 4 bloques válidos incluso si el extractor devolvió 2 o 3)
   const blockDefs = [
-    { ...data[0], pos: pInput, fill: '#f0f9ff', stroke: COLOR_BLUE, header: COLOR_BLUE },
-    { ...data[1], pos: pProcess, fill: '#f8fafc', stroke: COLOR_NAVY, header: COLOR_NAVY },
-    { ...data[2], pos: pControl, fill: '#fffbeb', stroke: COLOR_AMBER, header: COLOR_AMBER },
-    { ...data[3], pos: pOutput, fill: '#f0fdf4', stroke: COLOR_EMERALD, header: COLOR_EMERALD },
+    { ...(data[0] ?? defaultBlocks[0]), pos: pInput, fill: '#f0f9ff', stroke: COLOR_BLUE, header: COLOR_BLUE },
+    { ...(data[1] ?? defaultBlocks[1]), pos: pProcess, fill: '#f8fafc', stroke: COLOR_NAVY, header: COLOR_NAVY },
+    { ...(data[2] ?? defaultBlocks[2]), pos: pControl, fill: '#fffbeb', stroke: COLOR_AMBER, header: COLOR_AMBER },
+    { ...(data[3] ?? defaultBlocks[3]), pos: pOutput, fill: '#f0fdf4', stroke: COLOR_EMERALD, header: COLOR_EMERALD },
   ];
 
   blockDefs.forEach((b) => {
@@ -437,7 +437,6 @@ export function generateGanttChart(
   });
 
   // Dimensiones de la tabla Gantt
-  const labelColW = 160;
   const gridStartX = 180;
   const gridEndX = 465;
   const gridW = gridEndX - gridStartX;

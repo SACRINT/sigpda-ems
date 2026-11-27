@@ -1,22 +1,21 @@
 /**
  * usage-quota-guard.ts — Guardián Central de Cuotas, Rate Limits y Concurrencia
- * SIGPDA-EMS · Fase 4 (PR 4.2 · Control de Costos Vercel + Neon + Render + Gemini)
+ * SIGPDA-EMS · Fase 4 (PR 4.2 + PR 4.2.1 Atomicidad Real & Resiliencia BD)
  *
- * Implementa la matriz acordada con los 3 ajustes aprobados:
+ * Garantías implementadas:
  * 1. Contadores mensuales anclados al **periodo de facturación de Stripe** (`currentPeriodEnd`),
  *    NO mes calendario, en zona horaria `America/Mexico_City`.
- * 2. **Idempotency key** por job/request para evitar doble conteo en reintentos; `cache-hit`
- *    de PDF nunca descuenta cuota.
- * 3. `usage_counters` con UPSERT atómico y `editorial_render_locks` con TTL + telemetría
- *    de motor (`typst | typst_cached | jspdf_fallback`).
+ * 2. **Atomicidad real** en Neon: `pg_advisory_xact_lock` + CTE condicional `WHERE used_count < limit`
+ *    con `usage_idempotency_keys` en la misma transacción (cero check-then-act, cero leaks de llaves).
+ * 3. `editorial_render_locks` atómico con TTL + telemetría de motor (`typst | typst_cached | jspdf_fallback`).
+ * 4. Resiliencia ante falla de BD: nunca lanza 500 genérico; devuelve `503 QUOTA_SERVICE_UNAVAILABLE`
+ *    con `Retry-After: 30` y telemetría estructurada.
  */
 
 import { getSubscriptionStatus, type SubscriptionStatus } from '@/lib/subscription-gate';
 import { WELCOME_PLAN_NAME } from '@/lib/subscription-plans';
 import {
-  getUsageCounter,
-  hasUsageIdempotencyKey,
-  incrementUsageCounterAtomic,
+  consumeUsageQuotaAtomicDb,
   recordEditorialEngineTelemetry,
   releaseRenderLockDb,
   tryAcquireRenderLockDb,
@@ -158,8 +157,12 @@ export interface QuotaCheckResult {
   limit: number;
   remaining: number;
   alreadyCounted?: boolean;
-  statusCode?: 403 | 429;
-  code?: 'PLAN_UPGRADE_REQUIRED' | 'QUOTA_EXCEEDED' | 'RATE_LIMIT_EXCEEDED';
+  statusCode?: 403 | 429 | 503;
+  code?:
+    | 'PLAN_UPGRADE_REQUIRED'
+    | 'QUOTA_EXCEEDED'
+    | 'RATE_LIMIT_EXCEEDED'
+    | 'QUOTA_SERVICE_UNAVAILABLE';
   message?: string;
   retryAfterSeconds?: number;
 }
@@ -170,19 +173,20 @@ export interface ConcurrencyLockResult {
   tier: PlanTier;
   activeCount: number;
   maxConcurrency: number;
-  statusCode?: 409;
-  code?: 'CONCURRENCY_LIMIT';
+  statusCode?: 409 | 503;
+  code?: 'CONCURRENCY_LIMIT' | 'QUOTA_SERVICE_UNAVAILABLE';
+  retryAfterSeconds?: number;
   message?: string;
 }
 
 export class QuotaExceededError extends Error {
-  readonly statusCode: 403 | 409 | 429;
+  readonly statusCode: 403 | 409 | 429 | 503;
   readonly code: string;
   readonly retryAfterSeconds?: number;
 
   constructor(params: {
     message: string;
-    statusCode: 403 | 409 | 429;
+    statusCode: 403 | 409 | 429 | 503;
     code: string;
     retryAfterSeconds?: number;
   }) {
@@ -333,9 +337,7 @@ function isAiMetric(metric: QuotaMetric): boolean {
 
 export interface QuotaGuardDeps {
   getSubscriptionStatus: typeof getSubscriptionStatus;
-  getUsageCounter: typeof getUsageCounter;
-  hasUsageIdempotencyKey: typeof hasUsageIdempotencyKey;
-  incrementUsageCounterAtomic: typeof incrementUsageCounterAtomic;
+  consumeUsageQuotaAtomicDb: typeof consumeUsageQuotaAtomicDb;
   tryAcquireRenderLockDb: typeof tryAcquireRenderLockDb;
   releaseRenderLockDb: typeof releaseRenderLockDb;
   recordEditorialEngineTelemetry: typeof recordEditorialEngineTelemetry;
@@ -343,9 +345,7 @@ export interface QuotaGuardDeps {
 
 const DEFAULT_DEPS: QuotaGuardDeps = {
   getSubscriptionStatus,
-  getUsageCounter,
-  hasUsageIdempotencyKey,
-  incrementUsageCounterAtomic,
+  consumeUsageQuotaAtomicDb,
   tryAcquireRenderLockDb,
   releaseRenderLockDb,
   recordEditorialEngineTelemetry,
@@ -353,10 +353,11 @@ const DEFAULT_DEPS: QuotaGuardDeps = {
 
 /**
  * Valida y consume atómicamente la cuota principal (periodo Stripe o diaria) + el rate limit
- * horario en TZ `America/Mexico_City`.
+ * horario en TZ `America/Mexico_City` mediante una única transacción/CTE en Neon.
  *
  * - Los administradores siempre tienen paso libre.
  * - Si `idempotencyKey` ya fue contada antes (reintento de red), permite continuar sin sumar doble.
+ * - Si la BD falla temporalmente, nunca lanza 500: devuelve `503 QUOTA_SERVICE_UNAVAILABLE` + `Retry-After`.
  */
 export async function enforceUsageQuota(
   params: {
@@ -368,7 +369,31 @@ export async function enforceUsageQuota(
   },
   deps: QuotaGuardDeps = DEFAULT_DEPS,
 ): Promise<QuotaCheckResult> {
-  const subStatus = await deps.getSubscriptionStatus(params.teacherId, params.teacherEmail);
+  let subStatus: SubscriptionStatus;
+  try {
+    subStatus = await deps.getSubscriptionStatus(params.teacherId, params.teacherEmail);
+  } catch (err) {
+    logger.error('[usage-quota-guard] Falla de BD al consultar estado de suscripción:', {
+      teacherId: params.teacherId,
+      metric: params.metric,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      allowed: false,
+      tier: 'bienvenida',
+      metric: params.metric,
+      windowKey: 'unavailable',
+      used: 0,
+      limit: 0,
+      remaining: 0,
+      statusCode: 503,
+      code: 'QUOTA_SERVICE_UNAVAILABLE',
+      retryAfterSeconds: 30,
+      message:
+        'El servicio de verificación de suscripción y cuotas no está disponible temporalmente. Reintenta en unos segundos.',
+    };
+  }
+
   const tier = resolvePlanTier(subStatus);
   const policy = PLAN_QUOTA_POLICIES[tier];
   const windows = resolveQuotaWindows(subStatus, params.now);
@@ -404,56 +429,67 @@ export async function enforceUsageQuota(
     };
   }
 
-  // 2. Idempotencia: si esta operación ya fue contabilizada, no volver a bloquear ni descontar doble
+  const hourlyMetric = isAiMetric(params.metric) ? 'ai_hourly' : 'export_hourly';
+  const hourlyLimit = isAiMetric(params.metric) ? policy.aiPerHour : policy.exportPerHour;
   const scopedPrimaryIdem = params.idempotencyKey
     ? `q:${params.teacherId}:${params.metric}:${params.idempotencyKey}`
     : undefined;
-  if (scopedPrimaryIdem && (await deps.hasUsageIdempotencyKey(scopedPrimaryIdem))) {
-    const currentUsed = await deps.getUsageCounter(params.teacherId, params.metric, primaryWindowKey);
+
+  let atomicRes: Awaited<ReturnType<typeof consumeUsageQuotaAtomicDb>>;
+  try {
+    atomicRes = await deps.consumeUsageQuotaAtomicDb({
+      teacherId: params.teacherId,
+      metric: params.metric,
+      primaryWindowKey,
+      primaryLimit,
+      hourlyMetric,
+      hourWindowKey: windows.hourWindowKey,
+      hourlyLimit,
+      idempotencyKey: scopedPrimaryIdem,
+    });
+  } catch (err) {
+    logger.error('[usage-quota-guard] Falla de BD en consumeUsageQuotaAtomicDb:', {
+      teacherId: params.teacherId,
+      metric: params.metric,
+      windowKey: primaryWindowKey,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      allowed: false,
+      tier,
+      metric: params.metric,
+      windowKey: primaryWindowKey,
+      used: 0,
+      limit: primaryLimit,
+      remaining: 0,
+      statusCode: 503,
+      code: 'QUOTA_SERVICE_UNAVAILABLE',
+      retryAfterSeconds: 30,
+      message:
+        'No fue posible validar tu cuota en base de datos en este momento. Reintenta en unos segundos.',
+    };
+  }
+
+  if (atomicRes.allowed) {
     return {
       allowed: true,
       tier,
       metric: params.metric,
       windowKey: primaryWindowKey,
-      used: currentUsed,
+      used: atomicRes.primaryUsed,
       limit: primaryLimit,
-      remaining: Math.max(0, primaryLimit - currentUsed),
-      alreadyCounted: true,
+      remaining: Math.max(0, primaryLimit - atomicRes.primaryUsed),
+      alreadyCounted: atomicRes.alreadyCounted,
     };
   }
 
-  // 3. Verificar cuota principal (periodo Stripe o diaria)
-  const currentPrimary = await deps.getUsageCounter(params.teacherId, params.metric, primaryWindowKey);
-  if (currentPrimary >= primaryLimit) {
-    const isDaily = params.metric === 'bulk_zip_daily';
-    return {
-      allowed: false,
-      tier,
-      metric: params.metric,
-      windowKey: primaryWindowKey,
-      used: currentPrimary,
-      limit: primaryLimit,
-      remaining: 0,
-      statusCode: isDaily ? 429 : 403,
-      code: 'QUOTA_EXCEEDED',
-      retryAfterSeconds: isDaily ? 3600 : undefined,
-      message: isDaily
-        ? `Alcanzaste tu límite diario de ${primaryLimit} descargas masivas ZIP en tu plan ${policy.label}. Intenta mañana o actualiza tu plan.`
-        : `Alcanzaste el límite de ${primaryLimit} usos incluidos en tu periodo actual del plan ${policy.label}. Actualiza tu plan para continuar.`,
-    };
-  }
-
-  // 4. Verificar rate limit por hora
-  const hourlyMetric = isAiMetric(params.metric) ? 'ai_hourly' : 'export_hourly';
-  const hourlyLimit = isAiMetric(params.metric) ? policy.aiPerHour : policy.exportPerHour;
-  const currentHourly = await deps.getUsageCounter(params.teacherId, hourlyMetric, windows.hourWindowKey);
-  if (currentHourly >= hourlyLimit) {
+  if (atomicRes.deniedBy === 'hourly_limit') {
     return {
       allowed: false,
       tier,
       metric: params.metric,
       windowKey: windows.hourWindowKey,
-      used: currentHourly,
+      used: atomicRes.hourlyUsed,
       limit: hourlyLimit,
       remaining: 0,
       statusCode: 429,
@@ -463,39 +499,27 @@ export async function enforceUsageQuota(
     };
   }
 
-  // 5. Incremento atómico en Neon (con protección de idempotencia)
-  const primaryInc = await deps.incrementUsageCounterAtomic({
-    teacherId: params.teacherId,
-    metric: params.metric,
-    windowKey: primaryWindowKey,
-    idempotencyKey: scopedPrimaryIdem,
-  });
-
-  if (!primaryInc.alreadyCounted) {
-    await deps.incrementUsageCounterAtomic({
-      teacherId: params.teacherId,
-      metric: hourlyMetric,
-      windowKey: windows.hourWindowKey,
-      idempotencyKey: params.idempotencyKey
-        ? `h:${params.teacherId}:${hourlyMetric}:${params.idempotencyKey}`
-        : undefined,
-    });
-  }
-
+  const isDaily = params.metric === 'bulk_zip_daily';
   return {
-    allowed: true,
+    allowed: false,
     tier,
     metric: params.metric,
     windowKey: primaryWindowKey,
-    used: primaryInc.usedCount,
+    used: atomicRes.primaryUsed,
     limit: primaryLimit,
-    remaining: Math.max(0, primaryLimit - primaryInc.usedCount),
-    alreadyCounted: primaryInc.alreadyCounted,
+    remaining: 0,
+    statusCode: isDaily ? 429 : 403,
+    code: 'QUOTA_EXCEEDED',
+    retryAfterSeconds: isDaily ? 3600 : undefined,
+    message: isDaily
+      ? `Alcanzaste tu límite diario de ${primaryLimit} descargas masivas ZIP en tu plan ${policy.label}. Intenta mañana o actualiza tu plan.`
+      : `Alcanzaste el límite de ${primaryLimit} usos incluidos en tu periodo actual del plan ${policy.label}. Actualiza tu plan para continuar.`,
   };
 }
 
 /**
- * Adquiere un lock de concurrencia con TTL para evitar múltiples renders/jobs simultáneos por docente.
+ * Adquiere atómicamente un lock de concurrencia con TTL para evitar múltiples renders/jobs simultáneos por docente.
+ * Debe invocarse ANTES de `enforceUsageQuota` para jamás descontar cuota si ya hay un proceso activo (409).
  */
 export async function acquireEditorialConcurrencyLock(
   params: {
@@ -507,7 +531,28 @@ export async function acquireEditorialConcurrencyLock(
   },
   deps: QuotaGuardDeps = DEFAULT_DEPS,
 ): Promise<ConcurrencyLockResult> {
-  const subStatus = await deps.getSubscriptionStatus(params.teacherId, params.teacherEmail);
+  let subStatus: SubscriptionStatus;
+  try {
+    subStatus = await deps.getSubscriptionStatus(params.teacherId, params.teacherEmail);
+  } catch (err) {
+    logger.error('[usage-quota-guard] Falla de BD al consultar suscripción para lock de concurrencia:', {
+      teacherId: params.teacherId,
+      scope: params.scope,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      acquired: false,
+      tier: 'bienvenida',
+      activeCount: 0,
+      maxConcurrency: 1,
+      statusCode: 503,
+      code: 'QUOTA_SERVICE_UNAVAILABLE',
+      retryAfterSeconds: 30,
+      message:
+        'Servicio de control de concurrencia temporalmente no disponible. Reintenta en unos segundos.',
+    };
+  }
+
   const tier = resolvePlanTier(subStatus);
   const policy = PLAN_QUOTA_POLICIES[tier];
 
@@ -520,13 +565,33 @@ export async function acquireEditorialConcurrencyLock(
     };
   }
 
-  const res = await deps.tryAcquireRenderLockDb({
-    teacherId: params.teacherId,
-    scope: params.scope,
-    resourceId: params.resourceId,
-    maxConcurrency: policy.maxConcurrency,
-    ttlSeconds: params.ttlSeconds ?? (params.scope === 'ai_workbook_block' ? 600 : 180),
-  });
+  let res: Awaited<ReturnType<typeof tryAcquireRenderLockDb>>;
+  try {
+    res = await deps.tryAcquireRenderLockDb({
+      teacherId: params.teacherId,
+      scope: params.scope,
+      resourceId: params.resourceId,
+      maxConcurrency: policy.maxConcurrency,
+      ttlSeconds: params.ttlSeconds ?? (params.scope === 'ai_workbook_block' ? 600 : 180),
+    });
+  } catch (err) {
+    logger.error('[usage-quota-guard] Falla de BD en tryAcquireRenderLockDb:', {
+      teacherId: params.teacherId,
+      scope: params.scope,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      acquired: false,
+      tier,
+      activeCount: 0,
+      maxConcurrency: policy.maxConcurrency,
+      statusCode: 503,
+      code: 'QUOTA_SERVICE_UNAVAILABLE',
+      retryAfterSeconds: 30,
+      message:
+        'No fue posible reservar el turno de compilación en este momento. Reintenta en unos segundos.',
+    };
+  }
 
   if (!res.acquired) {
     return {
@@ -547,6 +612,24 @@ export async function acquireEditorialConcurrencyLock(
     activeCount: res.activeCount,
     maxConcurrency: policy.maxConcurrency,
   };
+}
+
+/**
+ * Libera el lock sin registrar telemetría de render (ej. cuando la solicitud se aborta por cuota antes de ejecutar).
+ */
+export async function releaseEditorialLockOnAbort(
+  lockId?: string,
+  deps: QuotaGuardDeps = DEFAULT_DEPS,
+): Promise<void> {
+  if (!lockId) return;
+  try {
+    await deps.releaseRenderLockDb(lockId);
+  } catch (err) {
+    logger.warn('[usage-quota-guard] Error liberando lock tras aborto (no bloqueante):', {
+      lockId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**

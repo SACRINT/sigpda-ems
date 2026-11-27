@@ -133,6 +133,7 @@ export async function hydrateDeckEditorialScenesViaUrl(
   if (deck.editorialScenes?.hero?.dataUri && deck.editorialScenes?.concept?.dataUri) {
     return deck;
   }
+  const missionIndex = Math.max(0, (deck.meta.missionNumber || 1) - 1);
   const [hero, concept] = await Promise.all([
     deck.editorialScenes?.hero?.dataUri
       ? Promise.resolve(deck.editorialScenes.hero)
@@ -140,6 +141,7 @@ export async function hydrateDeckEditorialScenesViaUrl(
           allocateEditorialScene({
             uacName: deck.meta.subjectName,
             blockNumber: deck.meta.blockNumber,
+            missionIndex,
             role: 'slides_hero',
           }),
           origin,
@@ -150,6 +152,7 @@ export async function hydrateDeckEditorialScenesViaUrl(
           allocateEditorialScene({
             uacName: deck.meta.subjectName,
             blockNumber: deck.meta.blockNumber,
+            missionIndex,
             role: 'slides_concept',
           }),
           origin,
@@ -169,21 +172,43 @@ export async function hydrateDeckEditorialScenesViaUrl(
 
 /**
  * Fallback serverless (Vercel/Blob) para infografías `09`: si `fs` local no encontró
- * la escena 4:5, intenta hidratarla vía HTTP desde `origin`.
+ * la escena 4:5, intenta hidratarla vía HTTP desde `origin` respetando la rotación
+ * de 3 variantes verticales Parte D (`03-practica`, `05-infografia-b`, `06-infografia-c`).
  */
 export async function hydrateInfographicEditorialSceneViaUrl(
   spec: SacrintInfographicSpec,
   origin?: string | null,
 ): Promise<SacrintInfographicSpec> {
   if (!origin || spec.editorialScene?.dataUri) return spec;
-  const hydrated = await hydrateEditorialSceneViaUrl(
-    allocateEditorialScene({
-      uacName: spec.meta.subjectName,
-      blockNumber: spec.meta.blockNumber,
-      role: 'infographic_activity',
-    }),
-    origin,
-  );
+  const safeBlock = Math.max(1, Math.floor(spec.meta.blockNumber || 1));
+  const safeMission = Math.max(0, Math.floor((spec.meta.missionNumber || 1) - 1));
+  const baseScene = allocateEditorialScene({
+    uacName: spec.meta.subjectName,
+    blockNumber: safeBlock,
+    missionIndex: safeMission,
+    role: 'infographic_activity',
+  });
+
+  const variantSlot = ((safeBlock - 1) * 4 + safeMission) % 3;
+  if (variantSlot > 0) {
+    const suffix = variantSlot === 1 ? '05-infografia-b' : '06-infografia-c';
+    const variantPath = baseScene.relativePath.replace(/-03-practica\.webp$/i, `-${suffix}.webp`);
+    if (variantPath !== baseScene.relativePath) {
+      const variantHydrated = await hydrateEditorialSceneViaUrl(
+        {
+          ...baseScene,
+          id: baseScene.id.replace(/-03-practica$/i, `-${suffix}`),
+          relativePath: variantPath,
+        },
+        origin,
+      );
+      if (variantHydrated.dataUri) {
+        return { ...spec, editorialScene: variantHydrated };
+      }
+    }
+  }
+
+  const hydrated = await hydrateEditorialSceneViaUrl(baseScene, origin);
   if (!hydrated.dataUri) return spec;
   return { ...spec, editorialScene: hydrated };
 }
