@@ -29,7 +29,7 @@ export interface StemVisualOptions {
   isFallback?: boolean;
 }
 
-/** Anotación de texto que se dibujará en el PDF con jsPDF. */
+/** Anotación de texto que se dibujará en el PDF/SVG (Typst, Resvg o jsPDF). */
 export interface VisualAnnotation {
   text: string;
   svgX: number;
@@ -38,6 +38,14 @@ export interface VisualAnnotation {
   bold?: boolean;
   color?: string;
   align?: 'left' | 'center' | 'end';
+  /** Ancho máximo seguro dentro del contenedor en unidades del viewBox SVG (PR 4.3.4). */
+  maxWidth?: number;
+  /** Máximo de líneas permitidas al envolver con <tspan> (por defecto 1). */
+  maxLines?: number;
+  /** Interlineado relativo al fontSize para bloques multilínea (por defecto 1.24). */
+  lineHeight?: number;
+  /** Anclaje vertical cuando se envuelve en múltiples líneas ('top' o 'middle'). */
+  valign?: 'top' | 'middle';
 }
 
 /** Resultado de un generador visual: SVG (solo formas) + anotaciones de texto. */

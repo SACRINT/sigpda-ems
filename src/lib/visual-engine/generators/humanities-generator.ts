@@ -176,23 +176,31 @@ export function generateTimeline(
         bold: true,
         color: '#ffffff',
         align: 'center',
+        maxWidth: cardW - 8,
+        maxLines: 1,
       });
       annotations.push({
         text: evt.title,
         svgX: cardX + cardW / 2,
-        svgY: cardY + 32,
-        fontSize: 7.5,
+        svgY: cardY + 31,
+        fontSize: 7.2,
         bold: true,
         color: '#1e293b',
         align: 'center',
+        maxWidth: cardW - 8,
+        maxLines: 2,
+        valign: 'middle',
       });
       annotations.push({
         text: evt.description,
         svgX: cardX + cardW / 2,
-        svgY: cardY + 48,
-        fontSize: 6.2,
+        svgY: cardY + 52,
+        fontSize: 6.0,
         color: '#475569',
         align: 'center',
+        maxWidth: cardW - 8,
+        maxLines: 3,
+        valign: 'middle',
       });
     } else {
       // Hacia ABAJO
@@ -218,23 +226,31 @@ export function generateTimeline(
         bold: true,
         color: '#ffffff',
         align: 'center',
+        maxWidth: cardW - 8,
+        maxLines: 1,
       });
       annotations.push({
         text: evt.title,
         svgX: cardX + cardW / 2,
-        svgY: cardY + 32,
-        fontSize: 7.5,
+        svgY: cardY + 31,
+        fontSize: 7.2,
         bold: true,
         color: '#1e293b',
         align: 'center',
+        maxWidth: cardW - 8,
+        maxLines: 2,
+        valign: 'middle',
       });
       annotations.push({
         text: evt.description,
         svgX: cardX + cardW / 2,
-        svgY: cardY + 48,
-        fontSize: 6.2,
+        svgY: cardY + 52,
+        fontSize: 6.0,
         color: '#475569',
         align: 'center',
+        maxWidth: cardW - 8,
+        maxLines: 3,
+        valign: 'middle',
       });
     }
   });
@@ -307,12 +323,14 @@ export function generateConceptMap(
       .filter((n) => n.level === lvl);
 
     const k = nodesAtLevel.length;
-    const slotW = (w - 60) / (k + 1);
+    const slotW = (w - 32) / Math.max(1, k);
+    const maxAllowedW = Math.max(76, Math.floor(slotW) - 12);
 
     nodesAtLevel.forEach((item, colIdx) => {
-      const nodeX = 30 + (colIdx + 1) * slotW;
-      const nodeW = lvl === 0 ? 112 : lvl === 1 ? 96 : 86;
-      const nodeH = lvl === 0 ? 36 : lvl === 1 ? 32 : 28;
+      const nodeX = 16 + (colIdx + 0.5) * slotW;
+      const baseW = lvl === 0 ? 156 : lvl === 1 ? 136 : 124;
+      const nodeW = Math.min(baseW, maxAllowedW);
+      const nodeH = lvl === 0 ? 40 : lvl === 1 ? 38 : 34;
 
       nodePositions[item.originalIndex] = {
         x: nodeX,
@@ -337,7 +355,7 @@ export function generateConceptMap(
     if (edge.label) {
       const mx = (p1.x + p2.x) / 2;
       const my = (p1.y + p1.h / 2 + p2.y - p2.h / 2) / 2;
-      const pillW = Math.max(34, edge.label.length * 5.2);
+      const pillW = Math.max(40, edge.label.length * 5.6);
 
       svg += `
         <rect x="${mx - pillW / 2}" y="${my - 7}" width="${pillW}" height="14" rx="4" fill="#ffffff" stroke="${COLOR_BORDER}" stroke-width="0.8"/>
@@ -345,11 +363,13 @@ export function generateConceptMap(
       annotations.push({
         text: edge.label,
         svgX: mx,
-        svgY: my + 3,
+        svgY: my + 2.5,
         fontSize: 6.2,
         bold: true,
         color: COLOR_SLATE,
         align: 'center',
+        maxWidth: pillW - 6,
+        maxLines: 1,
       });
     }
   });
@@ -371,11 +391,15 @@ export function generateConceptMap(
       annotations.push({
         text: node.label,
         svgX: pos.x,
-        svgY: pos.y + 4,
-        fontSize: 8.5,
+        svgY: pos.y + 3,
+        fontSize: 8.2,
         bold: true,
         color: '#ffffff',
         align: 'center',
+        maxWidth: pos.w - 18,
+        maxLines: 2,
+        lineHeight: 1.18,
+        valign: 'middle',
       });
     } else if (pos.level === 1) {
       // Nivel 1: Categorías intermedias
@@ -385,11 +409,15 @@ export function generateConceptMap(
       annotations.push({
         text: node.label,
         svgX: pos.x,
-        svgY: pos.y + 4,
-        fontSize: 7.5,
+        svgY: pos.y + 2.8,
+        fontSize: 7.4,
         bold: true,
         color: '#ffffff',
         align: 'center',
+        maxWidth: pos.w - 12,
+        maxLines: 2,
+        lineHeight: 1.18,
+        valign: 'middle',
       });
     } else {
       // Nivel 2+: Subconceptos
@@ -399,11 +427,15 @@ export function generateConceptMap(
       annotations.push({
         text: node.label,
         svgX: pos.x,
-        svgY: pos.y + 3.5,
+        svgY: pos.y + 2.5,
         fontSize: 7,
         bold: true,
         color: '#1e293b',
         align: 'center',
+        maxWidth: pos.w - 12,
+        maxLines: 2,
+        lineHeight: 1.18,
+        valign: 'middle',
       });
     }
   });
@@ -504,11 +536,14 @@ export function generateHistoricalFlow(
     annotations.push({
       text: `${i + 1}. ${step.phase}`.toUpperCase(),
       svgX: cardX + cardW / 2,
-      svgY: cardY + 18,
-      fontSize: 7.2,
+      svgY: cardY + 16.5,
+      fontSize: 7.0,
       bold: true,
       color: '#ffffff',
       align: 'center',
+      maxWidth: cardW - 10,
+      maxLines: 2,
+      valign: 'middle',
     });
 
     // Anotación: Título
@@ -516,10 +551,13 @@ export function generateHistoricalFlow(
       text: step.title,
       svgX: cardX + cardW / 2,
       svgY: cardY + 48,
-      fontSize: 7.8,
+      fontSize: 7.4,
       bold: true,
       color: '#1e293b',
       align: 'center',
+      maxWidth: cardW - 10,
+      maxLines: 2,
+      valign: 'middle',
     });
 
     // Anotación: Detalle / Descripción
@@ -527,10 +565,14 @@ export function generateHistoricalFlow(
       annotations.push({
         text: step.detail,
         svgX: cardX + cardW / 2,
-        svgY: cardY + 84,
+        svgY: cardY + 112,
         fontSize: 6.2,
         color: '#475569',
         align: 'center',
+        maxWidth: cardW - 12,
+        maxLines: 5,
+        lineHeight: 1.25,
+        valign: 'middle',
       });
     }
 

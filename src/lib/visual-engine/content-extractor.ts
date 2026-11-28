@@ -76,23 +76,32 @@ export function stripMarkdown(text: string | null | undefined): string {
     .trim();
 }
 
+const EXTRACTOR_DANGLING_TAIL_RE =
+  /(?:^|\s)(?:de|del|al|la|el|los|las|lo|un|una|unos|unas|y|e|o|u|en|a|para|con|por|su|sus|tu|tus|se|que|c[oó]mo|donde|cuando|hacia|sobre|entre|desde|mediante|sin|esta|este|estos|estas|ese|esa|es|son|han|ha|fue|fueron|pero|porque|aunque|mientras|muy|m[aá]s|no|ni)$/i;
+
 /**
  * Recorta texto respetando fronteras de palabra (nunca corta a mitad de palabra ni deja
- * conectores/puntuación colgantes como "·", ":", "-", "de", "y").
+ * conectores/verbos/puntuación colgantes como "·", ":", "-", "de", "que", "es", "como", "esta", "y").
  */
 function cutWordBoundary(raw: string, maxChars: number): string {
-  const clean = raw.replace(/\s+/g, ' ').trim();
-  if (clean.length <= maxChars) return clean.replace(/[\s·:;\-–—]+$/g, '').trim();
-  const sliced = clean.slice(0, maxChars);
-  const lastSpace = sliced.lastIndexOf(' ');
-  const candidate = lastSpace >= Math.max(8, Math.floor(maxChars * 0.45))
-    ? sliced.slice(0, lastSpace)
-    : sliced;
-  return candidate
-    .replace(/[\s,;:·\-–—]+$/g, '')
-    .replace(/\b(?:de|del|la|el|los|las|un|una|y|e|o|en|a|para|con|por|su|sus)$/i, '')
-    .replace(/[\s,;:·\-–—]+$/g, '')
-    .trim();
+  let clean = raw.replace(/\s+/g, ' ').trim();
+  if (clean.length > maxChars) {
+    const sliced = clean.slice(0, maxChars);
+    const lastSpace = sliced.lastIndexOf(' ');
+    clean = lastSpace >= Math.max(8, Math.floor(maxChars * 0.45))
+      ? sliced.slice(0, lastSpace)
+      : sliced;
+  }
+  for (let pass = 0; pass < 4; pass++) {
+    const next = clean
+      .replace(/[\s,;:·\-–—(]+$/g, '')
+      .replace(EXTRACTOR_DANGLING_TAIL_RE, '')
+      .replace(/[\s,;:·\-–—(]+$/g, '')
+      .trim();
+    if (next === clean) break;
+    clean = next;
+  }
+  return clean;
 }
 
 /**
@@ -181,6 +190,9 @@ export function extractTermDefs(
   const lines = text.split(/\n+/);
   const termDefs: { term: string; def: string }[] = [];
 
+  const META_TERM_RE =
+    /^(?:paso|fase|nota|ejemplo|pista|misi[oó]n|sesi[oó]n|bloque|concepto\s+clave|resultado|soluci[oó]n|respuesta|objetivo|tu\s+meta|error\s+(?:com[uú]n|frecuente)|variables?\s+clave|su\s+funci[oó]n|verificaci[oó]n|diagn[oó]stico|procedimiento|evidencia|fundamentaci[oó]n|evaluaci[oó]n|pr[aá]ctica|exploraci[oó]n|modelado\s+metodol[oó]gico|contraste\s+de\s+m[eé]todos|actividad|instrucci[oó]n|criterio|resumen|conclusi[oó]n|introducci[oó]n|identifica|define|analiza|aplica|verifica|establece|realiza|ejecuta|sustituye|considera|este|esta|estos|estas)\b/i;
+
   for (const line of lines) {
     const clean = cleanText(line);
     // Coincidir con "Término: Definición" o "1. Término: Definición" o "- Término: Definición"
@@ -188,8 +200,8 @@ export function extractTermDefs(
     if (m) {
       const term = m[1].trim();
       const def = m[2].trim();
-      // Filtrar falsos positivos como notas o etiquetas meta
-      if (!term.toLowerCase().startsWith('paso') && !term.toLowerCase().startsWith('nota') && !term.toLowerCase().startsWith('ejemplo')) {
+      // Filtrar falsos positivos como notas, andamiajes o etiquetas meta
+      if (!META_TERM_RE.test(term)) {
         termDefs.push({ term, def });
       }
     }
@@ -201,7 +213,7 @@ export function extractTermDefs(
     for (const sent of sentences) {
       const clean = cleanText(sent);
       const mDef = clean.match(/^([A-ZÁÉÍÓÚa-záéíóú\s]{3,30})\s+(?:es|representa|se define como|consiste en)\s+(.{10,90})$/i);
-      if (mDef) {
+      if (mDef && !META_TERM_RE.test(mDef[1].trim())) {
         termDefs.push({ term: mDef[1].trim(), def: mDef[2].trim() });
       }
     }
@@ -223,12 +235,20 @@ export function extractTermDefs(
     nodes.push({ label: cutWordBoundary(item.term, 24), level: 1 });
     edges.push({ from: 0, to: catIndex, label: 'integra' });
 
-    // Si la definición tiene contenido descriptivo, añadir un subnodo nivel 2
+    // Si la definición tiene contenido descriptivo, añadir un subnodo nivel 2 limpio (sin verbos ni finales colgantes)
     if (item.def && item.def.length >= 8) {
       const subIndex = nodes.length;
-      const subwords = item.def.split(/\s+/).slice(0, 4).join(' ');
-      nodes.push({ label: cutWordBoundary(subwords, 26), level: 2 });
-      edges.push({ from: catIndex, to: subIndex, label: 'define' });
+      const cleanDefHead = item.def
+        .replace(/^(?:es|son|se\s+define\s+como|consiste\s+en|se\s+refiere\s+a)\s+/i, '')
+        .replace(/^(?:el|la|los|las|un|una)\s+/i, '')
+        .split(/\s+(?:que|donde|cuando|c[oó]mo|para\s+que)\b/i)[0]
+        ?.trim() || item.def;
+      const subwords = cleanDefHead.split(/\s+/).slice(0, 4).join(' ');
+      const safeSub = cutWordBoundary(subwords, 26);
+      if (safeSub.length >= 4) {
+        nodes.push({ label: safeSub.charAt(0).toUpperCase() + safeSub.slice(1), level: 2 });
+        edges.push({ from: catIndex, to: subIndex, label: 'define' });
+      }
     }
   }
 
@@ -329,14 +349,19 @@ export function extractEnumSteps(text: string): {
   const limitedSteps = rawSteps.slice(0, 4);
 
   // 1. TechnicalSteps
+  const defaultPhaseChecks = [
+    'Entrada verificada',
+    'Proceso comprobado',
+    'Ejecución correcta',
+    'Evidencia validada',
+  ];
   const technicalSteps: TechnicalStep[] = limitedSteps.map((s, idx) => {
-    const words = s.split(/\s+/);
-    const instruction = words.slice(0, 7).join(' ');
-    const checkText = words.length > 7 ? `Check: ${words.slice(7, 12).join(' ')}` : 'Check: Verificado';
+    const cleanStep = s.split(/[.;]/)[0]?.trim() || s;
+    const instruction = cutWordBoundary(cleanStep, 56);
     return {
       step: `Paso ${idx + 1}`,
-      instruction: cutWordBoundary(instruction, 42),
-      qualityCheck: cutWordBoundary(checkText, 28),
+      instruction: instruction || `Ejecutar etapa ${idx + 1}`,
+      qualityCheck: defaultPhaseChecks[idx] || 'Control verificado',
     };
   });
 

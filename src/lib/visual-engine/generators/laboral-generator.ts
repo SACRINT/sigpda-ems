@@ -124,15 +124,17 @@ export function generateTechnicalFlow(
     bold: true,
     color: COLOR_NAVY,
     align: 'center',
+    maxWidth: w - 32,
+    maxLines: 1,
   });
 
   const n = data.length;
-  const gap = 16;
-  const totalW = 450;
+  const gap = 12;
+  const totalW = 468;
   const cardW = Math.max(76, (totalW - (n - 1) * gap) / n);
   const startX = (w - (n * cardW + (n - 1) * gap)) / 2;
-  const cardY = 65;
-  const cardH = 195;
+  const cardY = 56;
+  const cardH = 208;
 
   const cardStyles = [
     { banner: COLOR_SLATE, bg: '#f8fafc', border: '#cbd5e1' },
@@ -144,6 +146,12 @@ export function generateTechnicalFlow(
   data.forEach((item, i) => {
     const cardX = startX + i * (cardW + gap);
     const style = cardStyles[i % cardStyles.length];
+    const checkBoxY = cardY + 142;
+    const checkBoxH = 58;
+    const checkCircleCx = cardX + 15;
+    const checkCircleCy = checkBoxY + checkBoxH / 2;
+    const checkTextX = cardX + 24;
+    const checkTextMaxW = Math.max(44, cardW - 31);
 
     // Tarjeta técnica
     svg += `
@@ -153,74 +161,88 @@ export function generateTechnicalFlow(
       <rect x="${cardX}" y="${cardY}" width="${cardW}" height="28" rx="6" fill="${style.banner}"/>
       <rect x="${cardX}" y="${cardY + 18}" width="${cardW}" height="10" fill="${style.banner}"/>
       <!-- Divisoria -->
-      <line x1="${cardX + 8}" y1="${cardY + 125}" x2="${cardX + cardW - 8}" y2="${cardY + 125}" stroke="${style.border}" stroke-width="1"/>
+      <line x1="${cardX + 8}" y1="${cardY + 134}" x2="${cardX + cardW - 8}" y2="${cardY + 134}" stroke="${style.border}" stroke-width="1"/>
       <!-- Caja de Quality Check -->
-      <rect x="${cardX + 6}" y="${cardY + 135}" width="${cardW - 12}" height="48" rx="4" fill="#ffffff" stroke="${style.border}" stroke-width="1"/>
-      <!-- Indicador de verificación (círculo con visto) -->
-      <circle cx="${cardX + 18}" cy="${cardY + 159}" r="7" fill="${COLOR_EMERALD}"/>
-      <polyline points="${cardX + 14},${cardY + 159} ${cardX + 17},${cardY + 162} ${cardX + 22},${cardY + 156}" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="${cardX + 5}" y="${checkBoxY}" width="${cardW - 10}" height="${checkBoxH}" rx="4" fill="#ffffff" stroke="${style.border}" stroke-width="1"/>
+      <!-- Indicador de verificación (círculo con visto, separado estrictamente a la izquierda del texto) -->
+      <circle cx="${checkCircleCx}" cy="${checkCircleCy}" r="5.5" fill="${COLOR_EMERALD}"/>
+      <polyline points="${checkCircleCx - 2.6},${checkCircleCy} ${checkCircleCx - 0.6},${checkCircleCy + 2.1} ${checkCircleCx + 3.0},${checkCircleCy - 2.1}" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
     `;
 
     // Anotación: Cabecera Paso
     annotations.push({
       text: item.step.toUpperCase(),
       svgX: cardX + cardW / 2,
-      svgY: cardY + 18,
-      fontSize: 7,
+      svgY: cardY + 16.5,
+      fontSize: 6.8,
       bold: true,
       color: '#ffffff',
       align: 'center',
+      maxWidth: cardW - 10,
+      maxLines: 2,
+      lineHeight: 1.15,
+      valign: 'middle',
     });
 
-    // Anotación: Instrucción operativa (dividida en líneas si es larga)
+    // Anotación: Instrucción operativa (envuelta en bloque centrado dentro del cuerpo de la tarjeta)
     annotations.push({
       text: item.instruction,
       svgX: cardX + cardW / 2,
-      svgY: cardY + 50,
+      svgY: cardY + 82,
       fontSize: 6.8,
       color: COLOR_DARK_SLATE,
       align: 'center',
+      maxWidth: cardW - 14,
+      maxLines: 5,
+      lineHeight: 1.28,
+      valign: 'middle',
     });
 
-    // Anotación: Control de Calidad
+    // Anotación: Control de Calidad (alineado a la izquierda tras el icono, 0 colisión posible)
     if (item.qualityCheck) {
       annotations.push({
         text: 'CONTROL CALIDAD',
-        svgX: cardX + cardW / 2 + 6,
-        svgY: cardY + 148,
-        fontSize: 5.8,
+        svgX: checkTextX,
+        svgY: checkBoxY + 14,
+        fontSize: 5.3,
         bold: true,
         color: COLOR_SLATE,
-        align: 'center',
+        align: 'left',
+        maxWidth: checkTextMaxW,
+        maxLines: 1,
       });
       annotations.push({
         text: item.qualityCheck,
-        svgX: cardX + cardW / 2 + 6,
-        svgY: cardY + 163,
-        fontSize: 6.2,
+        svgX: checkTextX,
+        svgY: checkBoxY + 35,
+        fontSize: 6.0,
         bold: true,
         color: COLOR_EMERALD,
-        align: 'center',
+        align: 'left',
+        maxWidth: checkTextMaxW,
+        maxLines: 3,
+        lineHeight: 1.22,
+        valign: 'middle',
       });
     }
 
     // Flecha direccional hacia siguiente paso
     if (i < n - 1) {
-      const arrowY = cardY + 45;
-      const ax1 = cardX + cardW + 2;
-      const ax2 = ax1 + gap - 4;
+      const arrowY = cardY + 46;
+      const ax1 = cardX + cardW + 1;
+      const ax2 = ax1 + gap - 3;
 
       svg += `
-        <line x1="${ax1}" y1="${arrowY}" x2="${ax2}" y2="${arrowY}" stroke="${COLOR_CYAN}" stroke-width="2.5"/>
-        <polygon points="${ax2 + 3},${arrowY} ${ax2 - 4},${arrowY - 3.5} ${ax2 - 4},${arrowY + 3.5}" fill="${COLOR_CYAN}"/>
+        <line x1="${ax1}" y1="${arrowY}" x2="${ax2}" y2="${arrowY}" stroke="${COLOR_CYAN}" stroke-width="2.2"/>
+        <polygon points="${ax2 + 2.5},${arrowY} ${ax2 - 3.5},${arrowY - 3.2} ${ax2 - 3.5},${arrowY + 3.2}" fill="${COLOR_CYAN}"/>
       `;
     }
   });
 
   // Banner inferior de trazabilidad y norma
-  const bannerY = 285;
+  const bannerY = 282;
   svg += `
-    <rect x="40" y="${bannerY}" width="420" height="28" rx="4" fill="#f1f5f9" stroke="${COLOR_BORDER}" stroke-width="0.8"/>
+    <rect x="16" y="${bannerY}" width="468" height="36" rx="4" fill="#f1f5f9" stroke="${COLOR_BORDER}" stroke-width="0.8"/>
   `;
 
   annotations.push({
@@ -228,11 +250,15 @@ export function generateTechnicalFlow(
       options.footerText ||
       'Norma Técnica Operativa: Inspección Visual -> Intervención Segura -> Medición -> Liberación de Equipo',
     svgX: w / 2,
-    svgY: bannerY + 17,
-    fontSize: 6.8,
+    svgY: bannerY + 20,
+    fontSize: 6.6,
     bold: true,
     color: COLOR_NAVY,
     align: 'center',
+    maxWidth: 448,
+    maxLines: 2,
+    lineHeight: 1.24,
+    valign: 'middle',
   });
 
   return { svg: svg + `</svg>`, annotations };
@@ -276,21 +302,19 @@ export function generateBlockDiagram(
     bold: true,
     color: COLOR_NAVY,
     align: 'center',
+    maxWidth: w - 32,
+    maxLines: 1,
   });
 
-  // Coordenadas de los 4 bloques principales
-  // Bloque 1: Input (Izquierda)
-  // Bloque 2: Process (Centro)
-  // Bloque 3: Control (Arriba centro)
-  // Bloque 4: Output (Derecha)
+  // Coordenadas de los 4 bloques principales (anchos generosos con 49px de bus libre)
+  const blockW = 122;
+  const blockH = 62;
+  const headerH = 24;
 
-  const blockW = 105;
-  const blockH = 55;
-
-  const pInput = { x: 35, y: 145 };
-  const pProcess = { x: 195, y: 145 };
-  const pControl = { x: 195, y: 55 };
-  const pOutput = { x: 360, y: 145 };
+  const pInput = { x: 18, y: 146 };
+  const pProcess = { x: 189, y: 146 };
+  const pControl = { x: 189, y: 48 };
+  const pOutput = { x: 360, y: 146 };
 
   // 1. Buses y flechas de conexión
   svg += `
@@ -307,7 +331,7 @@ export function generateBlockDiagram(
     <polygon points="${pProcess.x + blockW / 2},${pProcess.y} ${pProcess.x + blockW / 2 - 4},${pProcess.y - 6} ${pProcess.x + blockW / 2 + 4},${pProcess.y - 6}" fill="${COLOR_AMBER}"/>
 
     <!-- Lazo de retorno inferior (Feedback Loop) -->
-    <path d="M ${pOutput.x + blockW / 2} ${pOutput.y + blockH} L ${pOutput.x + blockW / 2} 245 L ${pProcess.x + blockW / 2} 245 L ${pProcess.x + blockW / 2} ${pProcess.y + blockH}" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="3,2"/>
+    <path d="M ${pOutput.x + blockW / 2} ${pOutput.y + blockH} L ${pOutput.x + blockW / 2} 248 L ${pProcess.x + blockW / 2} 248 L ${pProcess.x + blockW / 2} ${pProcess.y + blockH}" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="3,2"/>
     <polygon points="${pProcess.x + blockW / 2},${pProcess.y + blockH} ${pProcess.x + blockW / 2 - 4},${pProcess.y + blockH + 6} ${pProcess.x + blockW / 2 + 4},${pProcess.y + blockH + 6}" fill="#94a3b8"/>
   `;
 
@@ -320,29 +344,39 @@ export function generateBlockDiagram(
   annotations.push({
     text: busInLabel,
     svgX: (pInput.x + blockW + pProcess.x) / 2,
-    svgY: pInput.y + blockH / 2 - 8,
-    fontSize: 6.5,
+    svgY: pInput.y + blockH / 2 - 12,
+    fontSize: 5.8,
     bold: true,
     color: COLOR_BLUE,
     align: 'center',
+    maxWidth: 46,
+    maxLines: 2,
+    lineHeight: 1.15,
+    valign: 'middle',
   });
   annotations.push({
     text: busOutLabel,
     svgX: (pProcess.x + blockW + pOutput.x) / 2,
-    svgY: pProcess.y + blockH / 2 - 8,
-    fontSize: 6.5,
+    svgY: pProcess.y + blockH / 2 - 12,
+    fontSize: 5.8,
     bold: true,
     color: COLOR_EMERALD,
     align: 'center',
+    maxWidth: 46,
+    maxLines: 2,
+    lineHeight: 1.15,
+    valign: 'middle',
   });
   annotations.push({
     text: busFeedbackLabel,
     svgX: (pProcess.x + blockW / 2 + pOutput.x + blockW / 2) / 2,
-    svgY: 257,
-    fontSize: 6.5,
+    svgY: 260,
+    fontSize: 6.4,
     bold: true,
     color: COLOR_SLATE,
     align: 'center',
+    maxWidth: 260,
+    maxLines: 1,
   });
 
   // 2. Bloques funcionales (asigna cada bloque por rol semántico sin duplicar Salida en Control)
@@ -359,55 +393,69 @@ export function generateBlockDiagram(
   blockDefs.forEach((b) => {
     svg += `
       <rect x="${b.pos.x}" y="${b.pos.y}" width="${blockW}" height="${blockH}" rx="5" fill="${b.fill}" stroke="${b.stroke}" stroke-width="1.8"/>
-      <rect x="${b.pos.x}" y="${b.pos.y}" width="${blockW}" height="18" rx="5" fill="${b.header}"/>
-      <rect x="${b.pos.x}" y="${b.pos.y + 12}" width="${blockW}" height="6" fill="${b.header}"/>
+      <rect x="${b.pos.x}" y="${b.pos.y}" width="${blockW}" height="${headerH}" rx="5" fill="${b.header}"/>
+      <rect x="${b.pos.x}" y="${b.pos.y + headerH - 8}" width="${blockW}" height="8" fill="${b.header}"/>
     `;
 
     annotations.push({
       text: b.title.toUpperCase(),
       svgX: b.pos.x + blockW / 2,
-      svgY: b.pos.y + 13,
-      fontSize: 7.2,
+      svgY: b.pos.y + 14.5,
+      fontSize: 6.8,
       bold: true,
       color: '#ffffff',
       align: 'center',
+      maxWidth: blockW - 10,
+      maxLines: 2,
+      lineHeight: 1.16,
+      valign: 'middle',
     });
 
     if (b.subtitle) {
       annotations.push({
         text: b.subtitle,
         svgX: b.pos.x + blockW / 2,
-        svgY: b.pos.y + 36,
+        svgY: b.pos.y + 44.5,
         fontSize: 6.2,
         color: COLOR_DARK_SLATE,
         align: 'center',
+        maxWidth: blockW - 12,
+        maxLines: 2,
+        lineHeight: 1.22,
+        valign: 'middle',
       });
     }
   });
 
   // Panel de descripción inferior
-  const panelY = 280;
+  const panelY = 278;
   svg += `
-    <rect x="35" y="${panelY}" width="430" height="38" rx="5" fill="#f8fafc" stroke="${COLOR_BORDER}" stroke-width="1"/>
+    <rect x="18" y="${panelY}" width="464" height="46" rx="5" fill="#f8fafc" stroke="${COLOR_BORDER}" stroke-width="1"/>
   `;
   annotations.push({
     text: options.footerTitle || 'DESCRIPCIÓN DEL SISTEMA TÉCNICO',
-    svgX: 50,
+    svgX: 30,
     svgY: panelY + 14,
     fontSize: 6.8,
     bold: true,
     color: COLOR_NAVY,
     align: 'left',
+    maxWidth: 440,
+    maxLines: 1,
   });
   annotations.push({
     text:
       options.footerText ||
       'La interacción modular garantiza modularidad, mantenimiento predictivo y sustitución rápida de partes.',
-    svgX: 50,
-    svgY: panelY + 28,
+    svgX: 30,
+    svgY: panelY + 27,
     fontSize: 6.2,
     color: COLOR_SLATE,
     align: 'left',
+    maxWidth: 440,
+    maxLines: 2,
+    lineHeight: 1.24,
+    valign: 'top',
   });
 
   return { svg: svg + `</svg>`, annotations };
@@ -513,16 +561,21 @@ export function generateGanttChart(
       bold: true,
       color: COLOR_DARK_SLATE,
       align: 'left',
+      maxWidth: 138,
+      maxLines: 2,
+      valign: 'middle',
     });
 
     if (t.responsible) {
       annotations.push({
         text: `Resp: ${t.responsible}`,
         svgX: 35,
-        svgY: barY + barH / 2 + 10,
+        svgY: barY + barH / 2 + 12,
         fontSize: 5.8,
         color: COLOR_SLATE,
         align: 'left',
+        maxWidth: 138,
+        maxLines: 1,
       });
     }
 
@@ -671,16 +724,22 @@ export function generateSafetyChecklistVisual(
       bold: true,
       color: COLOR_DARK_SLATE,
       align: 'left',
+      maxWidth: 215,
+      maxLines: 1,
     });
 
     // Anotación: Requisito
     annotations.push({
       text: chk.requirement,
       svgX: 48,
-      svgY: y + 38,
-      fontSize: 6.8,
+      svgY: y + 36,
+      fontSize: 6.6,
       color: COLOR_SLATE,
       align: 'left',
+      maxWidth: 368,
+      maxLines: 2,
+      lineHeight: 1.22,
+      valign: 'top',
     });
 
     // Anotación: Norma técnica (si existe)
@@ -696,6 +755,8 @@ export function generateSafetyChecklistVisual(
         bold: true,
         color: COLOR_NAVY,
         align: 'center',
+        maxWidth: 62,
+        maxLines: 1,
       });
     }
 

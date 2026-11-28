@@ -54,7 +54,7 @@ function escapeXmlText(raw: string): string {
 }
 
 const GENERIC_MISSION_SCAFFOLDING_RE =
-  /^(?:pr[aá]ctica\s+y\s+aplicaci[oó]n|aplicaci[oó]n\s+pr[aá]ctica(?:\s+en\s+situaciones\s+contextuales)?|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|exploraci[oó]n\s+diagn[oó]stica(?:\s+y\s+problematizaci[oó]n\s+situada)?|fundamentaci[oó]n\s+y\s+activaci[oó]n|tema\s+de\s+la\s+misi[oó]n)$/i;
+  /^(?:pr[aá]ctica\s+y\s+aplicaci[oó]n|aplicaci[oó]n\s+pr[aá]ctica(?:\s+en\s+situaciones\s+contextuales)?|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|cierre\s+y\s+evaluaci[oó]n|exploraci[oó]n\s+diagn[oó]stica(?:\s+y\s+problematizaci[oó]n\s+situada)?|apertura\s+y\s+diagn[oó]stico|fundamentaci[oó]n\s+y\s+activaci[oó]n|modelado\s+metodol[oó]gico|contraste\s+de\s+m[eé]todos|s[ií]ntesis\s+y\s+transferencia|demostraci[oó]n\s+guiada|tema\s+de\s+la\s+misi[oó]n)$/i;
 
 /**
  * Limpia prefijos/sufijos redundantes ("Misión 1:", "Sesión 3:", "(Misión 1)", listas de
@@ -92,10 +92,13 @@ function resolveSpecificDiagramTopic(
   if (sessionTitleCandidate && sessionTitleCandidate.length >= 10 && !GENERIC_MISSION_SCAFFOLDING_RE.test(sessionTitleCandidate)) {
     return sessionTitleCandidate;
   }
-  if (objectiveConcept && objectiveConcept.length >= 10 && !GENERIC_MISSION_SCAFFOLDING_RE.test(objectiveConcept)) {
+  if (objectiveConcept && objectiveConcept.length >= 5 && !GENERIC_MISSION_SCAFFOLDING_RE.test(objectiveConcept)) {
     return objectiveConcept;
   }
-  return sidenoteConcept || missionCandidate || sessionTitleCandidate || 'Desarrollo temático';
+  if (sidenoteConcept && sidenoteConcept.length >= 5 && !GENERIC_MISSION_SCAFFOLDING_RE.test(sidenoteConcept)) {
+    return sidenoteConcept;
+  }
+  return objectiveConcept || sidenoteConcept || missionCandidate || sessionTitleCandidate || 'Desarrollo temático';
 }
 
 /**
@@ -206,9 +209,149 @@ function buildMissionVisualContext(
 }
 
 /**
- * Inyecta `VisualAnnotation[]` como `<text>` vectoriales dentro del `<svg>` para Typst 0.15.1
- * (Typst cuenta con fuentes nativas Inter / Liberation Sans, a diferencia de librsvg en jsPDF).
- * Ajusta el tamaño del título cuando supera 48 caracteres para evitar recortes laterales en 500px.
+ * Estima conservadoramente el ancho de una cadena en unidades SVG para Inter / Liberation Sans.
+ * Incluye un margen de seguridad del 6 % para garantizar que ningún carácter se recorte ni toque bordes
+ * tanto en Typst 0.15.1 como en `@resvg/resvg-js`.
+ */
+export function estimateSvgTextWidth(
+  text: string,
+  fontSize: number,
+  bold = false,
+): number {
+  let units = 0;
+  for (const ch of text) {
+    if (ch === ' ') units += 0.28;
+    else if ('ilIjtfr1.,:;\'|!¡'.includes(ch)) units += 0.32;
+    else if ('WM@%'.includes(ch)) units += 0.92;
+    else if ('mw'.includes(ch)) units += 0.82;
+    else if (/[A-ZÁÉÍÓÚÜÑ]/.test(ch)) units += bold ? 0.74 : 0.7;
+    else if (/[0-9]/.test(ch)) units += 0.6;
+    else if (/[a-záéíóúüñ]/.test(ch)) units += bold ? 0.58 : 0.55;
+    else units += 0.58;
+  }
+  return units * fontSize * 1.06;
+}
+
+function wrapWordsToMaxWidth(
+  text: string,
+  maxWidth: number,
+  fontSize: number,
+  bold: boolean,
+  maxLines: number,
+): { lines: string[]; fits: boolean } {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return { lines: [''], fits: true };
+  if (estimateSvgTextWidth(text, fontSize, bold) <= maxWidth) {
+    return { lines: [text], fits: true };
+  }
+  if (maxLines <= 1 || words.length === 1) {
+    return { lines: [text], fits: false };
+  }
+
+  // Para 2 líneas, buscar la partición por palabra más equilibrada visualmente
+  if (maxLines === 2) {
+    let bestPair: [string, string] | null = null;
+    let bestMaxW = Number.POSITIVE_INFINITY;
+    for (let split = 1; split < words.length; split++) {
+      const left = words.slice(0, split).join(' ');
+      const right = words.slice(split).join(' ');
+      const wL = estimateSvgTextWidth(left, fontSize, bold);
+      const wR = estimateSvgTextWidth(right, fontSize, bold);
+      const worst = Math.max(wL, wR);
+      if (worst < bestMaxW) {
+        bestMaxW = worst;
+        bestPair = [left, right];
+      }
+    }
+    if (bestPair && bestMaxW <= maxWidth) {
+      return { lines: bestPair, fits: true };
+    }
+  }
+
+  // Envoltura voraz multilínea respetando fronteras de palabra
+  const lines: string[] = [];
+  let current = words[0];
+  let allFit = estimateSvgTextWidth(current, fontSize, bold) <= maxWidth;
+
+  for (let i = 1; i < words.length; i++) {
+    const candidate = `${current} ${words[i]}`;
+    if (estimateSvgTextWidth(candidate, fontSize, bold) <= maxWidth) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = words[i];
+      if (estimateSvgTextWidth(current, fontSize, bold) > maxWidth) {
+        allFit = false;
+      }
+    }
+  }
+  lines.push(current);
+
+  return { lines, fits: allFit && lines.length <= maxLines };
+}
+
+/**
+ * Calcula las líneas y el `fontSize` final para una `VisualAnnotation`, garantizando que
+ * cada línea quepa dentro de `maxWidth` en `<= maxLines` líneas sin desbordar ni recortar caracteres.
+ */
+export function layoutAnnotationText(
+  text: string,
+  baseSize: number,
+  bold: boolean,
+  maxWidth?: number,
+  maxLines = 1,
+): { lines: string[]; fontSize: number } {
+  if (!maxWidth || maxWidth <= 0) {
+    return { lines: [text], fontSize: baseSize };
+  }
+
+  const safeMaxLines = Math.max(1, maxLines);
+  const minSize = Math.max(4.4, baseSize * 0.62);
+
+  if (safeMaxLines === 1) {
+    const est = estimateSvgTextWidth(text, baseSize, bold);
+    if (est <= maxWidth) return { lines: [text], fontSize: baseSize };
+    const fitted = Math.max(minSize, baseSize * (maxWidth / est));
+    return { lines: [text], fontSize: Number(fitted.toFixed(2)) };
+  }
+
+  let size = baseSize;
+  for (let step = 0; step < 12; step++) {
+    const attempt = wrapWordsToMaxWidth(text, maxWidth, size, bold, safeMaxLines);
+    if (attempt.fits) {
+      return { lines: attempt.lines, fontSize: Number(size.toFixed(2)) };
+    }
+    const nextSize = size * 0.92;
+    if (nextSize < minSize) {
+      size = minSize;
+      break;
+    }
+    size = nextSize;
+  }
+
+  // Último ajuste proporcional a la línea más ancha tras envolver en <= safeMaxLines
+  const finalAttempt = wrapWordsToMaxWidth(text, maxWidth, size, bold, safeMaxLines);
+  let lines = finalAttempt.lines;
+  if (lines.length > safeMaxLines) {
+    // Reagrupar todas las palabras en exactamente safeMaxLines líneas equilibradas y escalar fontSize
+    const words = text.split(/\s+/).filter(Boolean);
+    const chunkSize = Math.ceil(words.length / safeMaxLines);
+    lines = [];
+    for (let i = 0; i < words.length; i += chunkSize) {
+      lines.push(words.slice(i, i + chunkSize).join(' '));
+    }
+  }
+  const maxLineW = Math.max(...lines.map((l) => estimateSvgTextWidth(l, size, bold)), 1);
+  if (maxLineW > maxWidth) {
+    size = Math.max(4.0, size * (maxWidth / maxLineW));
+  }
+  return { lines, fontSize: Number(size.toFixed(2)) };
+}
+
+/**
+ * Inyecta `VisualAnnotation[]` como `<text>` (y `<tspan>` multilínea cuando se define `maxWidth`/`maxLines`)
+ * dentro del `<svg>` tanto para Typst 0.15.1 como para `@resvg/resvg-js` (DOCX V2).
+ * Garantiza ajuste geométrico estricto sin recortes laterales ni superposiciones.
  */
 export function embedAnnotationsIntoSvg(
   svg: string,
@@ -225,13 +368,38 @@ export function embedAnnotationsIntoSvg(
         a.align === 'center' ? 'middle' : a.align === 'end' ? 'end' : 'start';
       const weight = a.bold ? '700' : '400';
       const fill = a.color || '#1e293b';
-      let size = Number.isFinite(a.fontSize) ? Math.max(6, Math.min(20, a.fontSize)) : 9;
-      // Escala defensiva del título superior (idx === 0) para mantenerlo 100% dentro del viewBox
-      if (idx === 0 && a.svgY <= 28) {
-        if (text.length > 64) size = Math.min(size, 8.2);
-        else if (text.length > 50) size = Math.min(size, 9.2);
+      const baseSize = Number.isFinite(a.fontSize) ? Math.max(4.5, Math.min(20, a.fontSize)) : 9;
+      // Título superior siempre protegido contra desborde del viewBox 500px
+      const effectiveMaxWidth =
+        a.maxWidth ?? (idx === 0 && a.svgY <= 28 ? 468 : undefined);
+      const effectiveMaxLines = a.maxLines ?? 1;
+      const { lines, fontSize } = layoutAnnotationText(
+        text,
+        baseSize,
+        Boolean(a.bold),
+        effectiveMaxWidth,
+        effectiveMaxLines,
+      );
+
+      const x = Number(a.svgX.toFixed(2));
+      if (lines.length <= 1) {
+        const y = Number(a.svgY.toFixed(2));
+        return `<text x="${x}" y="${y}" font-family="Inter, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${escapeXmlText(lines[0] ?? text)}</text>`;
       }
-      return `<text x="${a.svgX}" y="${a.svgY}" font-family="Inter, Liberation Sans, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${escapeXmlText(text)}</text>`;
+
+      const stepY = fontSize * (a.lineHeight ?? 1.24);
+      const startY =
+        a.valign === 'middle'
+          ? a.svgY - ((lines.length - 1) * stepY) / 2
+          : a.svgY;
+      const firstY = Number(startY.toFixed(2));
+      const tspans = lines
+        .map((line, lIdx) => {
+          const ly = Number((startY + lIdx * stepY).toFixed(2));
+          return `<tspan x="${x}" y="${ly}">${escapeXmlText(line)}</tspan>`;
+        })
+        .join('');
+      return `<text x="${x}" y="${firstY}" font-family="Inter, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${tspans}</text>`;
     })
     .join('\n');
 

@@ -26,6 +26,20 @@ import { describe, it, expect, vi } from 'vitest';
 import { svgToPngBuffer } from '@/lib/visual-engine/svg-to-png';
 import { compileUnifiedEditorialDocx } from '@/lib/editorial/unified-editorial-docx-renderer';
 import { buildConsolidatedBook } from '@/lib/master-workbook-compiler';
+import {
+  embedAnnotationsIntoSvg,
+  estimateSvgTextWidth,
+} from '@/lib/editorial/editorial-v2-enricher';
+import {
+  dispatchVisual,
+  extractMissionTopicPhrases,
+  hasDanglingSpanishEnding,
+} from '@/lib/visual-engine/visual-dispatcher';
+import {
+  generateBlockDiagram,
+  generateTechnicalFlow,
+} from '@/lib/visual-engine/generators/laboral-generator';
+import { generateConceptMap } from '@/lib/visual-engine/generators/humanities-generator';
 import type { ActiveWorkTextbook, MissionSection, SessionPlan } from '@/types/work-textbook';
 import type { Planning } from '@/types/planning';
 
@@ -423,5 +437,190 @@ describe('PR 4.3.3 — Motor Editorial V2 DOCX (Paridad 1:1 con Typst PDF) y Ras
     expect(res.engine).toBe('legacy_docx_fallback');
     expect(res.fallbackReason).toBe('no_student_sessions');
     expect(res.docxBuffer.length).toBeGreaterThan(5000);
+  }, 30000);
+
+  it('PR 4.3.4 — Geometría SVG sin recortes, 0 colisión con checkmark y 0 fragmentos truncados en diagramas CD1', async () => {
+    // 1. Casos exactos auditados en CD1 que antes disparaban HARDWARI, colisión con paloma y frases truncadas
+    const hostileCases = [
+      {
+        missionNumber: 1,
+        topic: 'Introducción al hardware y software',
+        context:
+          'Analizas la relación entre hardware y software en equipos digitales. Un sistema de cómputo integra procesador, memoria RAM y almacenamiento.',
+      },
+      {
+        missionNumber: 2,
+        topic: 'Historia crítica del desarrollo de tecnología digital',
+        context:
+          'Al observar cómo han evolucionado las tecnologías digitales, se nota que el desarrollo responde a intereses económicos. Comprender esta trayectoria histórica permite impulsar software libre y soberanía tecnológica.',
+      },
+      {
+        missionNumber: 3,
+        topic: 'Sistemas operativos',
+        context:
+          'Un sistema operativo es el software que coordina CPU, memoria y periféricos. Al comprender cómo funciona el núcleo se entiende la gestión de recursos que realiza en segundo plano.',
+      },
+      {
+        missionNumber: 6,
+        topic: 'Hojas de cálculo y fórmulas condicionales',
+        context:
+          'Las hojas de cálculo permiten automatizar presupuestos y reportes con operadores lógicos y gráficas comparativas.',
+      },
+      {
+        missionNumber: 10,
+        topic: 'Diagramas de flujo y pseudocódigo',
+        context:
+          'Los diagramas de flujo representan decisiones condicionales, entradas, procesos y salidas verificables paso a paso.',
+      },
+    ];
+
+    const forbiddenFragments = [
+      /HARDWARI\b/i,
+      /\bAl observar\b/i,
+      /\bresponde a\b/i,
+      /\bComprender esta\b/i,
+      /\bGESTI[OÓ]N DE RECURSOS QUE\b/i,
+      /\bAL COMPRENDER C[OÓ]MO\b/i,
+      /\bUN SISTEMA OPERATIVO ES\b/i,
+      /\bIdentifica qu[eé]\b/i,
+      /\bVariables clave aqu[ií]\b/i,
+      /\bSu funci[oó]n principal\b/i,
+      /\bEste proceso no solo\b/i,
+      /\bDominar estos elementos\b/i,
+      /\bError com[uú]n\b/i,
+      /\bError frecuente\b/i,
+      /\bEstablece la relaci[oó]n\b/i,
+      /\bRealiza el c[aá]lculo\b/i,
+      /\bEjecuta la verificaci[oó]n\b/i,
+      /\bSustituye los valores\b/i,
+      /\bTu meta\b/i,
+    ];
+
+    for (const c of hostileCases) {
+      const phrases = extractMissionTopicPhrases(c.topic, c.context, 6);
+      for (const p of phrases) {
+        expect(hasDanglingSpanishEnding(p), `Frase colgante detectada: "${p}"`).toBe(false);
+        for (const bad of forbiddenFragments) {
+          expect(p).not.toMatch(bad);
+        }
+      }
+
+      const visual = dispatchVisual({
+        subject: 'Cultura Digital I. Ciudadanía digital',
+        topic: c.topic,
+        context: c.context,
+        scope: 'mission',
+        missionNumber: c.missionNumber,
+      });
+      expect(visual).not.toBeNull();
+      const embeddedSvg = embedAnnotationsIntoSvg(visual!.svg, visual!.annotations);
+
+      // Ningún texto completo ni <tspan> puede contener fragmentos prohibidos ni desbordar su maxWidth
+      for (const ann of visual!.annotations) {
+        for (const bad of forbiddenFragments) {
+          expect(ann.text).not.toMatch(bad);
+        }
+        if (ann.maxWidth) {
+          expect(ann.maxWidth).toBeGreaterThan(20);
+        }
+      }
+
+      // Verificar en el SVG final cada <text> y <tspan> dentro del viewBox [0, 500]
+      const textEls = [...embeddedSvg.matchAll(/<text\s+([^>]+)>([\s\S]*?)<\/text>/g)];
+      expect(textEls.length).toBeGreaterThan(4);
+      for (const [, attrs, inner] of textEls) {
+        const x = Number(attrs.match(/x="([\d.-]+)"/)?.[1] ?? 0);
+        const fontSize = Number(attrs.match(/font-size="([\d.]+)"/)?.[1] ?? 8);
+        const bold = /font-weight="700"/.test(attrs);
+        const anchor = attrs.match(/text-anchor="([^"]+)"/)?.[1] ?? 'start';
+        const tspanLines = [...inner.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]);
+        const lines = tspanLines.length > 0 ? tspanLines : [inner.replace(/<[^>]+>/g, '')];
+
+        for (const rawLine of lines) {
+          const line = rawLine
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"');
+          const estW = estimateSvgTextWidth(line, fontSize, bold);
+          const left = anchor === 'middle' ? x - estW / 2 : anchor === 'end' ? x - estW : x;
+          const right = anchor === 'middle' ? x + estW / 2 : anchor === 'end' ? x : x + estW;
+          expect(left, `Desborde izquierdo en "${line}"`).toBeGreaterThanOrEqual(4);
+          expect(right, `Desborde derecho en "${line}"`).toBeLessThanOrEqual(496);
+        }
+      }
+    }
+
+    // 2. Prueba geométrica estricta: generateTechnicalFlow — 0 colisión entre <circle> checkmark y texto
+    const flowRes = generateTechnicalFlow(
+      [
+        { step: '1. Diagnóstico', instruction: 'Identificar requerimientos de Introducción al hardware', qualityCheck: 'Datos de entrada claros' },
+        { step: '2. Modelado', instruction: 'Estructurar reglas sobre Historia de la tecnología', qualityCheck: 'Prueba de escritorio OK' },
+        { step: '3. Ejecución', instruction: 'Aplicar criterios de Software libre y licencias', qualityCheck: 'Sin errores de lógica' },
+        { step: '4. Validación', instruction: 'Verificar evidencia en Ciudadanía digital comunitaria', qualityCheck: 'Evidencia validada' },
+      ],
+      { title: 'Flujo Algorítmico: Historia crítica del desarrollo (Misión 2)' },
+    );
+    const flowSvg = embedAnnotationsIntoSvg(flowRes.svg, flowRes.annotations);
+    const circles = [...flowSvg.matchAll(/<circle\s+cx="([\d.]+)"\s+cy="([\d.]+)"\s+r="([\d.]+)"/g)].map((m) => ({
+      cx: Number(m[1]),
+      cy: Number(m[2]),
+      r: Number(m[3]),
+    }));
+    expect(circles).toHaveLength(4);
+
+    // Cada etiqueta "CONTROL CALIDAD" y qualityCheck debe arrancar estrictamente a la derecha de cx + r
+    const checkAnns = flowRes.annotations.filter(
+      (a) => a.text === 'CONTROL CALIDAD' || a.text === 'Datos de entrada claros' || a.text === 'Prueba de escritorio OK',
+    );
+    expect(checkAnns.length).toBeGreaterThanOrEqual(6);
+    for (const ann of checkAnns) {
+      expect(ann.align).toBe('left');
+      const cardCircle = circles.reduce((best, c) =>
+        Math.abs(c.cx - ann.svgX) < Math.abs(best.cx - ann.svgX) ? c : best,
+      );
+      expect(ann.svgX, `Texto "${ann.text}" colisiona con checkmark`).toBeGreaterThanOrEqual(
+        cardCircle.cx + cardCircle.r + 2.5,
+      );
+    }
+
+    // 3. Prueba geométrica estricta: generateBlockDiagram con título largo ("Introducción al hardware")
+    const blockRes = generateBlockDiagram(
+      [
+        { title: 'Introducción al hardware', subtitle: 'Captura de datos y requerimientos', role: 'input' },
+        { title: 'Gestión de recursos', subtitle: 'Sistemas operativos y memoria RAM', role: 'process' },
+        { title: 'Control y seguridad', subtitle: 'Permisos, privacidad y respaldo', role: 'control' },
+        { title: 'Salida digital', subtitle: 'Producto verificable y accesible', role: 'output' },
+      ],
+      { title: 'Arquitectura Digital: Introducción al hardware y software (Misión 1)' },
+    );
+    const blockSvg = embedAnnotationsIntoSvg(blockRes.svg, blockRes.annotations);
+    expect(blockSvg).toContain('<tspan');
+    const blockPng = await svgToPngBuffer(blockSvg, 1125);
+    expect(blockPng).not.toBeNull();
+    expect(blockPng!.buffer.length).toBeGreaterThan(8000);
+
+    // 4. Prueba geométrica estricta: generateConceptMap con etiquetas largas sin desborde de nodo
+    const mapRes = generateConceptMap(
+      [
+        { label: 'Ciudadanía Digital Comunitaria', level: 0 },
+        { label: 'Soberanía Tecnológica', level: 1 },
+        { label: 'Protección de Datos', level: 1 },
+        { label: 'Software Libre GNU/Linux', level: 2 },
+        { label: 'Privacidad y Ética', level: 2 },
+      ],
+      [
+        { from: 0, to: 1, label: 'articula' },
+        { from: 0, to: 2, label: 'resguarda' },
+        { from: 1, to: 3, label: 'promueve' },
+        { from: 2, to: 4, label: 'garantiza' },
+      ],
+      { title: 'Mapa Conceptual: Ciudadanía digital (Misión 4)' },
+    );
+    const mapSvg = embedAnnotationsIntoSvg(mapRes.svg, mapRes.annotations);
+    expect(mapSvg).toContain('Ciudadanía Digital');
+    const mapPng = await svgToPngBuffer(mapSvg, 1125);
+    expect(mapPng).not.toBeNull();
+    expect(mapPng!.buffer.length).toBeGreaterThan(8000);
   }, 30000);
 });

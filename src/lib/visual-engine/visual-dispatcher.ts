@@ -490,7 +490,14 @@ const DIAGRAM_SCAFFOLDING_PREFIX_RE =
   /^(?:(?:misi[oó]n|sesi[oó]n)\s*\d+\s*[:.\-–—]\s*|(?:exploraci[oó]n\s+diagn[oó]stica(?:\s+y\s+problematizaci[oó]n\s+situada)?|fundamentaci[oó]n\s+y\s+activaci[oó]n|pr[aá]ctica\s+y\s+aplicaci[oó]n(?:\s*\([^)]*\))?|aplicaci[oó]n\s+pr[aá]ctica\s+en\s+situaciones\s+contextuales|desarrollo\s+y\s+aplicaci[oó]n|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|cierre\s+y\s+s[ií]ntesis)\s*[:.\-–—]?\s*)/i;
 
 const DANGLING_TAIL_WORD_RE =
-  /\b(?:de|del|al|la|el|los|las|un|una|unos|unas|y|e|o|u|en|a|para|con|por|su|sus|como|hacia|sobre|entre|desde|seg[uú]n|mediante|sin|tras)$/i;
+  /(?:^|\s)(?:de|del|al|la|el|los|las|lo|un|una|unos|unas|y|e|o|u|en|a|para|con|por|su|sus|tu|tus|mi|mis|se|te|le|les|nos|qu[eé]|c[oó]mo|donde|d[oó]nde|cuando|cu[aá]ndo|quien|qui[eé]n|cual|cu[aá]l|cuales|cu[aá]les|hacia|sobre|entre|desde|seg[uú]n|mediante|sin|tras|ante|bajo|contra|esta|este|estos|estas|ese|esa|esos|esas|aquel|aquella|es|son|era|eran|fue|fueron|ser|estar|est[aá]|est[aá]n|ha|han|he|has|hay|pero|sino|porque|aunque|mientras|adem[aá]s|tambi[eé]n|muy|m[aá]s|menos|no|ni|si|s[ií]|solo|s[oó]lo|aqu[ií]|ah[ií]|permite|permiten|tiene|tienen|hace|hacen|puede|pueden|debe|deben|responde|responden)$/i;
+
+/** Verifica si una etiqueta de diagrama termina en palabra colgante (preposición, relativo o verbo inconcluso). */
+export function hasDanglingSpanishEnding(text: string): boolean {
+  const clean = (text || '').replace(/[\s.,;:·\-–—?!)]+$/g, '').trim();
+  if (!clean) return true;
+  return DANGLING_TAIL_WORD_RE.test(clean);
+}
 
 /**
  * Limpia prefijos/sufijos redundantes ("Misión N:", "Sesión N:", "(Misión N)", listas parentéticas
@@ -556,12 +563,113 @@ const DIGITAL_PHRASE_STOPWORDS = new Set([
 const NARRATIVE_OR_SCAFFOLDING_PHRASE_RE =
   /^(?:imagina|piensa|observa|recuerda|esta\s+situaci[oó]n|en\s+tu\s+(?:plantel|escuela|comunidad)|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|pr[aá]ctica\s+y\s+aplicaci[oó]n|aplicaci[oó]n\s+pr[aá]ctica|analizas|comprendes|identificas|exploras|consolidaci[oó]n|misi[oó]n\s*\d+|sesi[oó]n\s*\d+|concepto\s+clave)/i;
 
+const PROSE_CLAUSE_START_RE =
+  /^(?:al\s+[a-záéíóúüñ]+r\b|(?:comprender|analizar|identificar|observar|entender|reconocer|evaluar|explorar|aplicar|reflexionar|conocer|revisar|verificar|valorar|fomentar|promover|desarrollar|estudiar|descubrir|construir|explicar|describir|comparar|seleccionar|utilizar|usar|crear|elaborar|dise[nñ]ar|implementar|validar|resolver|dominar|definir|aprender|mejorar|lograr|establecer|realizar|ejecutar|sustituir|considerar|calcular|interpretar|determinar|obtener)\b|(?:identifica|define|analiza|aplica|verifica|comprueba|compara|clasifica|describe|explica|dise[nñ]a|elabora|construye|resuelve|eval[uú]a|observa|reflexiona|investiga|selecciona|organiza|revisa|utiliza|usa|crea|domina|establece|realiza|ejecuta|sustituye|considera(?:s)?|calcula|interpreta|determina|obt[eé]n|traza|dibuja|escribe|anota|registra|presenta|entrega|redacta|comenta|discute|plantea|prop[oó]n|formula|integra|coordina)\b|(?:responde|responden|permite|permiten|ayuda|ayudan|busca|buscan|sirve|sirven|ofrece|ofrecen|garantiza|garantizan|facilita|facilitan|requiere|requieren|implica|implican|muestra|muestran|explica|explican|describe|describen|indica|indican|representa|representan|constituye|constituyen|forma|forman|genera|generan|influye|influyen|afecta|afectan|depende|dependen|determina|determinan|controla|controlan|gestiona|gestionan|administra|administran|tiene|tienen|hace|hacen|puede|pueden|debe|deben|han|ha|fue|fueron|era|eran)\b|(?:este|esta|estos|estas|ese|esa|esos|esas|aquel|aquella|su|sus|tu|tus|mi|mis|nuestro|nuestra|aqu[ií]|ah[ií]|all[ií])\b|(?:cuando|mientras|porque|aunque|si\s+|donde|d[oó]nde|c[oó]mo|para\s+que|a\s+trav[eé]s|por\s+ejemplo|en\s+cambio|sin\s+embargo|as[ií]\s+como|es\s+decir|hoy\s+en\s+d[ií]a|actualmente|finalmente|adem[aá]s|tambi[eé]n|pero|sino|quien|cual|cuales|mediante|durante|seg[uú]n|hacia|desde|sobre|entre)\b)/i;
+
+const META_SCAFFOLDING_LABEL_RE =
+  /^(?:misi[oó]n(?:\s*\d+)?|sesi[oó]n(?:\s*\d+)?|bloque(?:\s*\d+)?|concepto\s+clave|resultado|soluci[oó]n|respuesta(?:\s+modelo)?|error\s+(?:com[uú]n|frecuente)|tu\s+meta|variables?\s+clave(?:\s+aqu[ií])?|su\s+funci[oó]n(?:\s+principal)?|verificaci[oó]n|diagn[oó]stico|procedimiento|evidencia|metacognici[oó]n|pasos?|problema|objetivo|actividad|introducci[oó]n|conclusi[oó]n|resumen|criterio|ejemplo|nota|pista|instrucci[oó]n|exploraci[oó]n\s+diagn[oó]stica|modelado\s+metodol[oó]gico|contraste\s+de\s+m[eé]todos|evaluaci[oó]n\s+y\s+cierre|fundamentaci[oó]n(?:\s+y\s+activaci[oó]n)?|interacci[oó]n\s+entre\s+ambos)$/i;
+
+const CONJUGATED_VERB_INSIDE_RE =
+  /\b(?:es|son|han|ha|fue|fueron|era|eran|est[aá]|est[aá]n|responde|responden|permite|permiten|ayuda|ayudan|sirve|sirven|tiene|tienen|hace|hacen|puede|pueden|debe|deben|busca|buscan|ofrece|ofrecen|genera|generan|gestiona|gestionan|controla|controlan|administra|administran|muestra|muestran|explica|explican|implica|implican|requiere|requieren|necesita|necesitan|consiste|consisten)\b/i;
+
+function extractCleanNominalHead(raw: string): string {
+  let candidate = (raw || '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/^(?:paso\s*\d+|fase\s*\d+|\d+[.)]|[-*•]|concepto\s+clave|misi[oó]n\s*\d+|sesi[oó]n\s*\d+)\s*:?\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!candidate || NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(candidate) || PROSE_CLAUSE_START_RE.test(candidate)) {
+    return '';
+  }
+
+  // Cortar antes de cláusulas subordinadas o verbos definitorios ("Un sistema operativo es..." -> "Sistema operativo")
+  const splitBeforeClause = candidate.split(
+    /\s+(?:que|donde|d[oó]nde|cuando|cu[aá]ndo|c[oó]mo|es|son|fue|fueron|era|eran|han|ha|se\s+define|consiste\s+en|permite|permiten|responde|responden|ayuda|ayudan|sirve|sirven|gestiona|gestionan|administra|administran|controla|controlan|tiene|tienen|hace|hacen|puede|pueden|debe|deben|para\s+[a-záéíóúüñ]+r)\b/i,
+  )[0]?.trim() || '';
+
+  candidate = splitBeforeClause
+    // Quitar artículo indefinido/definido suelto al inicio si fue sujeto de una definición
+    .replace(/^(?:un|una|unos|unas|el|la|los|las)\s+(?=[a-záéíóúüñ]{3,})/i, '')
+    .trim();
+
+  if (!candidate || PROSE_CLAUSE_START_RE.test(candidate) || NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(candidate)) {
+    return '';
+  }
+
+  // Rechazar cualquier fragmento que aún conserve verbos conjugados o infinitivos narrativos
+  if (CONJUGATED_VERB_INSIDE_RE.test(candidate)) {
+    return '';
+  }
+
+  return candidate;
+}
+
 /**
- * Extrae frases conceptuales reales del tema/contexto de la misión (0 tokens IA)
- * filtrando andamiajes pedagógicos y frases narrativas sueltas.
+ * Extrae frases nominales conceptuales reales y completas del tema/contexto de la misión (0 tokens IA),
+ * rechazando cláusulas narrativas, verbos sueltos o cortes colgantes ("que", "cómo", "es", "esta", "al").
  */
-function extractMissionTopicPhrases(topic: string, contextText: string, maxCount = 6): string[] {
+export function extractMissionTopicPhrases(topic: string, contextText: string, maxCount = 6): string[] {
   const cleanTopic = cleanTopicForDiagram(topic, 96);
+  const phrases: string[] = [];
+  const seen = new Set<string>();
+
+  const pushPhrase = (raw: string, maxLen: number) => {
+    const rawTrim = (raw || '').trim();
+    if (!rawTrim || NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(rawTrim) || PROSE_CLAUSE_START_RE.test(rawTrim)) {
+      return;
+    }
+    const nominal = extractCleanNominalHead(rawTrim);
+    if (!nominal) return;
+    let trimmed = cleanTopicForDiagram(nominal, maxLen);
+    if (
+      !trimmed ||
+      NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(trimmed) ||
+      PROSE_CLAUSE_START_RE.test(trimmed) ||
+      META_SCAFFOLDING_LABEL_RE.test(trimmed)
+    ) {
+      return;
+    }
+    if (hasDanglingSpanishEnding(trimmed) || CONJUGATED_VERB_INSIDE_RE.test(trimmed)) {
+      return;
+    }
+    const meaningfulWords = trimmed
+      .split(/\s+/)
+      .filter((w) => w.length >= 3 && !DIGITAL_PHRASE_STOPWORDS.has(normalizeUnicode(w.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/g, ''))));
+    if (meaningfulWords.length < 1) return;
+
+    // Capitalizar de forma limpia preservando acrónimos (RAM, CPU, GNU/Linux)
+    trimmed = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    const norm = normalizeUnicode(trimmed);
+    const stemNorm = norm.replace(/s\b/g, '');
+    if (trimmed.length < 4 || seen.has(norm) || seen.has(stemNorm) || norm === 'tema de la mision') return;
+    if (/^(?:s\b|es\b|y\b|o\b|que\b|al\b|en\b|de\b|del\b|con\b|por\b|para\b)/i.test(trimmed)) return;
+    seen.add(norm);
+    seen.add(stemNorm);
+    phrases.push(trimmed);
+  };
+
+  // 1. Subcláusulas significativas del título de la misión
+  for (const part of cleanTopic.split(/[,:;/—–-]+|\s+y\s+/i)) {
+    const cleaned = part.trim();
+    const meaningfulWords = cleaned
+      .split(/\s+/)
+      .filter((w) => w.length >= 3 && !DIGITAL_PHRASE_STOPWORDS.has(normalizeUnicode(w)));
+    if (meaningfulWords.length >= 1 && cleaned.length >= 5) {
+      pushPhrase(cleaned, 24);
+    }
+    if (phrases.length >= maxCount) return phrases;
+  }
+
+  // 2. Términos explícitos en negritas Markdown (**Término**) dentro del contexto
+  if (contextText) {
+    for (const m of contextText.matchAll(/\*\*([^*]{4,36})\*\*/g)) {
+      pushPhrase(m[1], 24);
+      if (phrases.length >= maxCount) return phrases;
+    }
+  }
+
+  // 3. Términos explícitos con encabezado "Término: definición" o definiciones nominales limpias
   const rawPieces = `${cleanTopic}\n${contextText || ''}`
     .split(/[\n.!?;•]+/)
     .map((s) =>
@@ -573,45 +681,17 @@ function extractMissionTopicPhrases(topic: string, contextText: string, maxCount
     )
     .filter((s) => s.length >= 10 && !NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(s));
 
-  const phrases: string[] = [];
-  const seen = new Set<string>();
-
-  const pushPhrase = (raw: string, maxLen: number) => {
-    if (NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(raw.trim())) return;
-    const trimmed = cleanTopicForDiagram(raw, maxLen);
-    if (NARRATIVE_OR_SCAFFOLDING_PHRASE_RE.test(trimmed)) return;
-    const norm = normalizeUnicode(trimmed);
-    if (!trimmed || trimmed.length < 5 || seen.has(norm) || norm === 'tema de la mision') return;
-    if (/^(?:s\b|es\b|y\b|o\b|que\b)/i.test(trimmed)) return;
-    seen.add(norm);
-    phrases.push(trimmed);
-  };
-
-  // 1. Subcláusulas significativas del título de la misión
-  for (const part of cleanTopic.split(/[,:;/—–-]+|\s+y\s+/i)) {
-    const cleaned = part.trim();
-    const meaningfulWords = cleaned
-      .split(/\s+/)
-      .filter((w) => w.length >= 3 && !DIGITAL_PHRASE_STOPWORDS.has(normalizeUnicode(w)));
-    if (meaningfulWords.length >= 1 && cleaned.length >= 6) {
-      pushPhrase(cleaned, 24);
-    }
-    if (phrases.length >= maxCount) return phrases;
-  }
-
-  // 2. Términos o conceptos de las oraciones reales del contexto
   for (const piece of rawPieces) {
     const colonIdx = piece.indexOf(':');
     if (colonIdx >= 4 && colonIdx <= 34) {
       pushPhrase(piece.slice(0, colonIdx), 24);
     } else {
-      const words = piece.split(/\s+/);
-      const meaningful = words.filter(
-        (w) => w.length >= 3 && !DIGITAL_PHRASE_STOPWORDS.has(normalizeUnicode(w.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/g, ''))),
+      // Extraer únicamente si la oración comienza con un sintagma nominal definitorio limpio ("X es...", "X permite...")
+      const defMatch = piece.match(
+        /^(?:(?:un|una|el|la|los|las)\s+)?([A-ZÁÉÍÓÚÜÑa-záéíóúüñ0-9/+\s]{4,32}?)\s+(?:es|son|se\s+define\s+como|consiste\s+en|permite|permiten|gestiona|gestionan|administra|administran|controla|controlan)\b/i,
       );
-      if (meaningful.length >= 2) {
-        const chunk = words.slice(0, Math.min(4, words.length)).join(' ');
-        pushPhrase(chunk, 24);
+      if (defMatch?.[1]) {
+        pushPhrase(defMatch[1], 24);
       }
     }
     if (phrases.length >= maxCount) break;
@@ -770,18 +850,23 @@ export function dispatchVisual(
     const buildDigitalConceptMap = () => {
       const extracted = extractTermDefs(rawContext, cleanTopic);
       const hasExtracted = extracted.nodes.length >= 3;
-      const hasGroundedPhrases = missionPhrases.length >= 2;
-      const rootLabel = cleanTopicForDiagram(cleanTopic, 26);
+      const rootLabel = cleanTopicForDiagram(cleanTopic, 32);
+      const normRoot = normalizeUnicode(rootLabel);
+      const childPhrases = missionPhrases.filter((p) => {
+        const np = normalizeUnicode(p);
+        return np !== normRoot && !normRoot.includes(np) && !np.includes(normRoot);
+      });
+      const hasGroundedPhrases = childPhrases.length >= 2;
 
       const nodes = hasExtracted
         ? extracted.nodes
         : hasGroundedPhrases
           ? [
               { label: rootLabel, level: 0 as const },
-              { label: missionPhrases[0]!, level: 1 as const },
-              { label: missionPhrases[1]!, level: 1 as const },
-              { label: missionPhrases[2] || 'Criterios y Evidencia', level: 2 as const },
-              { label: missionPhrases[3] || 'Aplicación Ética', level: 2 as const },
+              { label: childPhrases[0]!, level: 1 as const },
+              { label: childPhrases[1]!, level: 1 as const },
+              { label: childPhrases[2] || 'Criterios y Evidencia', level: 2 as const },
+              { label: childPhrases[3] || 'Aplicación Ética', level: 2 as const },
             ]
           : [
               { label: rootLabel, level: 0 as const },
@@ -864,22 +949,30 @@ export function dispatchVisual(
           : [
               {
                 step: '1. Diagnóstico',
-                instruction: missionPhrases[0] || `Delimitar alcance de ${cleanTopicForDiagram(cleanTopic, 22)}`,
+                instruction: missionPhrases[0]
+                  ? `Identificar requerimientos de ${missionPhrases[0]}`
+                  : `Delimitar alcance de ${cleanTopicForDiagram(cleanTopic, 22)}`,
                 qualityCheck: 'Datos de entrada claros',
               },
               {
                 step: '2. Modelado',
-                instruction: missionPhrases[1] || 'Estructurar secuencia lógica y reglas',
+                instruction: missionPhrases[1]
+                  ? `Estructurar reglas sobre ${missionPhrases[1]}`
+                  : 'Estructurar secuencia lógica y reglas',
                 qualityCheck: 'Prueba de escritorio OK',
               },
               {
                 step: '3. Ejecución',
-                instruction: missionPhrases[2] || 'Implementar solución digital documentada',
+                instruction: missionPhrases[2]
+                  ? `Aplicar criterios de ${missionPhrases[2]}`
+                  : 'Implementar solución digital documentada',
                 qualityCheck: 'Sin errores de lógica',
               },
               {
                 step: '4. Validación',
-                instruction: missionPhrases[3] || 'Comprobar usabilidad y ética digital',
+                instruction: missionPhrases[3]
+                  ? `Verificar evidencia en ${missionPhrases[3]}`
+                  : 'Comprobar usabilidad y ética digital',
                 qualityCheck: 'Evidencia validada',
               },
             ];
