@@ -51,8 +51,14 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const { pdf, pdfEngine } = await compileSemestralWorkbook(id, planning, {
+    const url = new URL(request.url);
+    const printEdition =
+      url.searchParams.get('printEdition') === 'true' ||
+      url.searchParams.get('printEdition') === '1';
+
+    const { pdf, pdfEngine, pdfRolloutDecision } = await compileSemestralWorkbook(id, planning, {
       format: 'pdf',
+      printEdition,
       quotaContext: {
         teacherId: teacher.id,
         teacherEmail: session.user.email,
@@ -62,7 +68,8 @@ export async function GET(
     if (!pdf) {
       throw new Error('No se pudo generar el archivo PDF semestral');
     }
-    const filename = `Libro_Semestral_${shortSubjectCode(planning.uacName)}.pdf`;
+    const suffix = printEdition ? '_Imprenta' : '';
+    const filename = `Libro_Semestral_${shortSubjectCode(planning.uacName)}${suffix}.pdf`;
 
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,
@@ -71,6 +78,8 @@ export async function GET(
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
         ...(pdfEngine ? { 'X-Editorial-Engine': pdfEngine } : {}),
+        ...(pdfRolloutDecision ? { 'X-Editorial-Rollout': pdfRolloutDecision } : {}),
+        ...(printEdition ? { 'X-Editorial-Print-Edition': 'bleed-3mm' } : {}),
       },
     });
   } catch (error: unknown) {

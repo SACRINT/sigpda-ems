@@ -6,12 +6,15 @@
 
 import { sql } from './client';
 import { logger } from '@/lib/logger';
+import type { EditorialRolloutTelemetrySummary } from '@/lib/editorial/rollout-policy';
 
 export type EditorialEngineTelemetryKind =
   | 'typst'
   | 'typst_cached'
   | 'jspdf_fallback'
   | 'jspdf_legacy'
+  | 'typst_shadow_ok'
+  | 'typst_shadow_error'
   | 'ai_gemini'
   | 'docx_bulk';
 
@@ -625,5 +628,68 @@ export async function pruneExpiredUsageQuotaDataDb(options?: {
     deletedIdempotencyKeys: idemDeleted.length,
     deletedRenderLocks: locksDeleted.length,
     deletedTelemetryRows: telemetryDeleted.length,
+  };
+}
+
+/**
+ * Resume la telemetría del motor editorial Typst V2 durante los últimos `windowDays` días
+ * para evaluar la compuerta de retiro de `pdf-workbook-renderer.ts` (PR 4.4: fallback < 1 % en ≥ 14 días).
+ */
+export async function getEditorialRolloutTelemetrySummaryDb(
+  windowDays = 14,
+): Promise<EditorialRolloutTelemetrySummary> {
+  const safeDays = Math.max(1, Math.min(90, Math.floor(windowDays)));
+  await initUsageQuotaTables();
+  const db = sql();
+  const rows = (await db`
+    SELECT
+      COUNT(*) FILTER (WHERE engine = 'typst')::int AS typst_count,
+      COUNT(*) FILTER (WHERE engine = 'typst_cached')::int AS typst_cached_count,
+      COUNT(*) FILTER (WHERE engine = 'jspdf_fallback')::int AS jspdf_fallback_count,
+      COUNT(*) FILTER (WHERE engine = 'jspdf_legacy')::int AS jspdf_legacy_count,
+      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)
+        FILTER (WHERE duration_ms IS NOT NULL AND engine IN ('typst', 'typst_cached')) AS p95_ms,
+      COALESCE(
+        EXTRACT(EPOCH FROM (MAX(created_at) - MIN(created_at))) / 86400.0,
+        0
+      )::double precision AS span_days
+    FROM editorial_engine_telemetry
+    WHERE created_at >= NOW() - make_interval(days => ${safeDays}::int)
+      AND engine IN ('typst', 'typst_cached', 'jspdf_fallback', 'jspdf_legacy');
+  `) as Array<Record<string, unknown>>;
+
+  const row = rows[0] ?? {};
+  const typstCount = Number(row.typst_count ?? 0);
+  const typstCachedCount = Number(row.typst_cached_count ?? 0);
+  const jspdfFallbackCount = Number(row.jspdf_fallback_count ?? 0);
+  const jspdfLegacyCount = Number(row.jspdf_legacy_count ?? 0);
+  const totalV2Attempts = typstCount + typstCachedCount + jspdfFallbackCount;
+  const totalCompiles = totalV2Attempts + jspdfLegacyCount;
+  const cacheHitRatePct =
+    typstCount + typstCachedCount > 0
+      ? Number(((typstCachedCount / (typstCount + typstCachedCount)) * 100).toFixed(2))
+      : 0;
+  const fallbackRatePct =
+    totalV2Attempts > 0
+      ? Number(((jspdfFallbackCount / totalV2Attempts) * 100).toFixed(2))
+      : 0;
+  const p95Raw = row.p95_ms;
+  const p95DurationMs =
+    p95Raw !== null && p95Raw !== undefined && Number.isFinite(Number(p95Raw))
+      ? Math.round(Number(p95Raw))
+      : null;
+  const observedSpanDays = Number(Number(row.span_days ?? 0).toFixed(2));
+
+  return {
+    windowDays: safeDays,
+    observedSpanDays,
+    totalCompiles,
+    typstCount,
+    typstCachedCount,
+    jspdfFallbackCount,
+    jspdfLegacyCount,
+    cacheHitRatePct,
+    fallbackRatePct,
+    p95DurationMs,
   };
 }

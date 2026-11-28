@@ -225,6 +225,16 @@ export interface StudentSession {
   activeSpaces?: ActiveSpaceItem[];
 }
 
+export const PrintEditionConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  bleedMm: z.number().min(0).max(10).default(3),
+  cropMarks: z.boolean().default(true),
+  spineLabel: z.string().optional(),
+  includeColophonSpine: z.boolean().default(true),
+});
+
+export type PrintEditionConfig = z.infer<typeof PrintEditionConfigSchema>;
+
 export interface StudentChapter {
   uac: string;
   bloque: string;
@@ -240,6 +250,7 @@ export interface StudentChapter {
   missions?: StudentMissionFraming[];
   projectSections?: StudentProjectSection[];
   evaluationSections?: StudentEvaluationSection[];
+  printEdition?: PrintEditionConfig;
   sesiones: StudentSession[];
 }
 
@@ -314,6 +325,7 @@ export const StudentChapterSchema = z.object({
   missions: z.array(StudentMissionFramingSchema).optional(),
   projectSections: z.array(StudentProjectSectionSchema).optional(),
   evaluationSections: z.array(StudentEvaluationSectionSchema).optional(),
+  printEdition: PrintEditionConfigSchema.optional(),
   sesiones: z.array(StudentSessionSchema).min(1, 'El capítulo debe contener sesiones'),
 }).superRefine((chapter, ctx) => {
   // Invariante Load-Bearing anti-F11: continuidad estricta 1..N sin omisiones ni desorden

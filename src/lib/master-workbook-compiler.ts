@@ -22,11 +22,14 @@ import {
   compileUnifiedEditorialPdf,
   type UnifiedPdfEngine,
 } from '@/lib/editorial/unified-editorial-compiler';
+import type { EditorialRolloutDecision } from '@/lib/editorial/rollout-policy';
 import { validateSemestralGuideQuality, type SemestralValidationOutput } from '@/lib/guide-engine/quality-validator';
 import { logger } from '@/lib/logger';
 
 export interface CompileSemestralOptions {
   format?: 'docx' | 'pdf' | 'both';
+  /** Activa Edición Imprenta PR 4.4 (bleed 3mm, marcas de corte y colofón/lomo). */
+  printEdition?: boolean;
   quotaContext?: {
     teacherId: string;
     teacherEmail?: string;
@@ -45,6 +48,7 @@ export async function compileSemestralWorkbook(
   docx?: Buffer;
   pdf?: Buffer;
   pdfEngine?: UnifiedPdfEngine;
+  pdfRolloutDecision?: EditorialRolloutDecision;
   semestralQuality: SemestralValidationOutput;
 }> {
   const format = options.format || 'both';
@@ -78,6 +82,7 @@ export async function compileSemestralWorkbook(
   let docxBuffer: Buffer | undefined;
   let pdfBuffer: Buffer | undefined;
   let pdfEngine: UnifiedPdfEngine | undefined;
+  let pdfRolloutDecision: EditorialRolloutDecision | undefined;
 
   if (format === 'docx') {
     docxBuffer = await renderWorkbookToDocx(consolidatedBook, planning);
@@ -87,10 +92,12 @@ export async function compileSemestralWorkbook(
       planning,
       workbooksMap,
       fallbackWorkbook: consolidatedBook,
+      printEdition: options.printEdition,
       quotaContext: options.quotaContext,
     });
     pdfBuffer = unified.pdfBuffer;
     pdfEngine = unified.engine;
+    pdfRolloutDecision = unified.rolloutDecision;
   } else {
     docxBuffer = await renderWorkbookToDocx(consolidatedBook, planning);
     const unified = await compileUnifiedEditorialPdf({
@@ -98,16 +105,19 @@ export async function compileSemestralWorkbook(
       planning,
       workbooksMap,
       fallbackWorkbook: consolidatedBook,
+      printEdition: options.printEdition,
       quotaContext: options.quotaContext,
     });
     pdfBuffer = unified.pdfBuffer;
     pdfEngine = unified.engine;
+    pdfRolloutDecision = unified.rolloutDecision;
   }
 
   return {
     docx: docxBuffer,
     pdf: pdfBuffer,
     pdfEngine,
+    pdfRolloutDecision,
     semestralQuality,
   };
 }

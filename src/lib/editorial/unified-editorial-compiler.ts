@@ -19,12 +19,18 @@
 import * as crypto from 'crypto';
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
-import { featureFlags } from '@/lib/platform/feature-flags';
 import { renderWorkbookToPdf } from '@/lib/pdf-workbook-renderer';
 import { composeStudentSessionsFromWorkbooks } from './compose-student-sessions';
 import { enrichEditorialSessionsV2 } from './editorial-v2-enricher';
 import { resolveEditorialDisciplinaryUi } from './disciplinary-ui';
-import { StudentChapterSchema } from './student-content-model';
+import {
+  StudentChapterSchema,
+  type PrintEditionConfig,
+} from './student-content-model';
+import {
+  evaluateEditorialRollout,
+  type EditorialRolloutDecision,
+} from './rollout-policy';
 import { resolveEditorialTemplateVersion } from './template-version';
 import {
   dispatchToEditorialWorker,
@@ -72,8 +78,14 @@ export interface UnifiedEditorialCompileParams {
   workbooksMap: Record<string, { current?: ActiveWorkTextbook } | undefined>;
   /** Libro ya armado para fallback transparente a jsPDF clásico si Typst no aplica o falla. */
   fallbackWorkbook: ActiveWorkTextbook;
-  /** Override explícito para pruebas unitarias (por defecto lee `PUBLISHING_ENGINE_V2`). */
+  /** Override explícito para pruebas unitarias (por defecto lee política Shadow/Canary/Flag PR 4.4). */
   forceV2?: boolean;
+  /** Override explícito para ejecutar en modo sombra sin tocar env (pruebas PR 4.4). */
+  forceShadow?: boolean;
+  /** Si true, espera la validación en sombra antes de retornar (solo pruebas deterministas). */
+  awaitShadowForTests?: boolean;
+  /** Activa Edición Imprenta PR 4.4 (`bleed: 3mm`, marcas de corte, lomo/CCT y colofón técnico). */
+  printEdition?: boolean | Partial<PrintEditionConfig>;
   /** Deshabilita lectura/escritura en Neon/Blob (útil en tests aislados). */
   skipCache?: boolean;
   /** Presupuesto de tiempo para compilar en Render (default 50s). */
@@ -100,6 +112,9 @@ export interface UnifiedEditorialCompileResult {
   pageCount?: number;
   source?: 'remote_worker' | 'local_fallback';
   fallbackReason?: string;
+  rolloutDecision?: EditorialRolloutDecision;
+  shadowValidated?: boolean;
+  printEdition?: boolean;
 }
 
 const HOT_EDITORIAL_CACHE_MAX = 200;
@@ -133,18 +148,93 @@ export async function compileUnifiedEditorialPdf(
   params: UnifiedEditorialCompileParams,
 ): Promise<UnifiedEditorialCompileResult> {
   const startedAt = Date.now();
-  const useV2 = params.forceV2 ?? featureFlags.isEnabled('PUBLISHING_ENGINE_V2');
+  const rollout = evaluateEditorialRollout({
+    seed: params.quotaContext?.teacherId || params.planningId,
+    teacherId: params.quotaContext?.teacherId,
+    teacherEmail: params.quotaContext?.teacherEmail,
+    forceV2: params.forceV2,
+    forceShadow: params.forceShadow,
+  });
+  const printEditionNormalized: PrintEditionConfig | undefined =
+    params.printEdition === true
+      ? { enabled: true, bleedMm: 3, cropMarks: true, includeColophonSpine: true }
+      : params.printEdition && typeof params.printEdition === 'object' && params.printEdition.enabled
+        ? {
+            enabled: true,
+            bleedMm: params.printEdition.bleedMm ?? 3,
+            cropMarks: params.printEdition.cropMarks ?? true,
+            spineLabel: params.printEdition.spineLabel,
+            includeColophonSpine: params.printEdition.includeColophonSpine ?? true,
+          }
+        : undefined;
   const scopeLabel =
     typeof params.blockIndex === 'number' && Number.isInteger(params.blockIndex)
-      ? `v2-block-${params.blockIndex}`
-      : 'v2-semestral';
+      ? `v2-block-${params.blockIndex}${printEditionNormalized ? '-print' : ''}`
+      : `v2-semestral${printEditionNormalized ? '-print' : ''}`;
 
-  if (!useV2) {
+  if (!rollout.useV2) {
     const pdfBuffer = await renderWorkbookToPdf(params.fallbackWorkbook, params.planning);
+    let shadowValidated: boolean | undefined;
+
+    if (rollout.shadowMode) {
+      const shadowTask = (async (): Promise<boolean> => {
+        try {
+          const isSingle = typeof params.blockIndex === 'number' && Number.isInteger(params.blockIndex);
+          const shadowWorkbooks: Record<string, { current?: ActiveWorkTextbook }> = {};
+          if (isSingle) {
+            const k = `block_${params.blockIndex}`;
+            shadowWorkbooks[k] = { current: params.workbooksMap[k]?.current ?? params.fallbackWorkbook };
+          } else {
+            for (const [k, v] of Object.entries(params.workbooksMap)) {
+              if (/^block_\d+$/.test(k) && v?.current) {
+                shadowWorkbooks[k] = { current: v.current };
+              }
+            }
+          }
+          const sceneFileExists = createNodeSceneFileExists();
+          const composed = composeStudentSessionsFromWorkbooks(
+            { uac_name: params.planning.uacName, workbooks_json: shadowWorkbooks },
+            { sceneFileExists },
+          );
+          const ok = composed.sessions.length > 0 && composed.dropped.length === 0;
+          await recordEditorialEngineTelemetry({
+            teacherId: params.quotaContext?.teacherId,
+            planningId: params.planningId,
+            scope: `${scopeLabel}:shadow`,
+            engine: ok ? 'typst_shadow_ok' : 'typst_shadow_error',
+            cached: false,
+            durationMs: Date.now() - startedAt,
+          });
+          return ok;
+        } catch (shadowErr) {
+          logger.warn('[unified-editorial-compiler] Shadow V2 check falló (no bloqueante):', {
+            planningId: params.planningId,
+            error: shadowErr instanceof Error ? shadowErr.message : String(shadowErr),
+          });
+          await recordEditorialEngineTelemetry({
+            teacherId: params.quotaContext?.teacherId,
+            planningId: params.planningId,
+            scope: `${scopeLabel}:shadow`,
+            engine: 'typst_shadow_error',
+            cached: false,
+            durationMs: Date.now() - startedAt,
+          });
+          return false;
+        }
+      })();
+      if (params.awaitShadowForTests) {
+        shadowValidated = await shadowTask;
+      } else {
+        void shadowTask;
+      }
+    }
+
     return {
       pdfBuffer,
       engine: 'jspdf_legacy',
       cached: false,
+      rolloutDecision: rollout.decision,
+      ...(shadowValidated !== undefined ? { shadowValidated } : {}),
     };
   }
 
@@ -258,13 +348,14 @@ export async function compileUnifiedEditorialPdf(
       ...(composed.evaluationSections.length > 0
         ? { evaluationSections: composed.evaluationSections }
         : {}),
+      ...(printEditionNormalized ? { printEdition: printEditionNormalized } : {}),
       sesiones: enrichedSessions,
     });
 
     // Anclar content_hash a la versión real de plantilla en Render (o local si Render no responde)
     const workerTemplateVersion = await fetchEditorialWorkerTemplateVersion();
     const templateVersion = workerTemplateVersion ?? resolveEditorialTemplateVersion();
-    const scopeKey = isSingleBlock ? `v2-block-${params.blockIndex}` : 'v2-semestral';
+    const scopeKey = scopeLabel;
     const contentHash = crypto
       .createHash('sha256')
       .update(scopeKey)
@@ -329,6 +420,8 @@ export async function compileUnifiedEditorialPdf(
               cached: true,
               contentHash,
               pageCount: cachedPageCount,
+              rolloutDecision: rollout.decision,
+              printEdition: Boolean(printEditionNormalized),
             };
           }
         } catch (blobReadErr) {
@@ -438,6 +531,8 @@ export async function compileUnifiedEditorialPdf(
       contentHash,
       pageCount: workerResponse.pageCount,
       source: workerResponse.source,
+      rolloutDecision: rollout.decision,
+      printEdition: Boolean(printEditionNormalized),
     };
   } catch (err) {
     if (err instanceof QuotaExceededError) {

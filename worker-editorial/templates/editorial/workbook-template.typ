@@ -147,15 +147,115 @@
 // ============================================================================
 // Portada Escolar Institucional
 // ============================================================================
+#let is-print-edition(chapter) = {
+  "printEdition" in chapter and chapter.printEdition != none and "enabled" in chapter.printEdition and chapter.printEdition.enabled == true
+}
+
+#let resolve-print-bleed(chapter) = {
+  if is-print-edition(chapter) and "bleedMm" in chapter.printEdition and chapter.printEdition.bleedMm != none {
+    chapter.printEdition.bleedMm * 1mm
+  } else {
+    3mm
+  }
+}
+
+#let render-crop-marks-background(chapter, bleed, slug) = {
+  let trim-w = 215.9mm
+  let trim-h = 279.4mm
+  let pad = bleed + slug
+  let mark-len = 5mm
+  let offset = bleed + 1mm
+  let mark-stroke = 0.25pt + rgb("111827")
+  let spine-text = if "spineLabel" in chapter.printEdition and chapter.printEdition.spineLabel != none and chapter.printEdition.spineLabel != "" {
+    chapter.printEdition.spineLabel
+  } else {
+    "EDICIÓN IMPRENTA · " + chapter.uac + " · CCT " + chapter.cct + " · " + chapter.cicloEscolar + " · BLEED " + str(int(bleed / 1mm)) + "mm"
+  }
+
+  // Marcas de corte en las 4 esquinas del formato Carta (215.9mm x 279.4mm)
+  place(top + left, dx: pad, dy: pad - offset - mark-len, line(angle: 90deg, length: mark-len, stroke: mark-stroke))
+  place(top + left, dx: pad - offset - mark-len, dy: pad, line(length: mark-len, stroke: mark-stroke))
+
+  place(top + left, dx: pad + trim-w, dy: pad - offset - mark-len, line(angle: 90deg, length: mark-len, stroke: mark-stroke))
+  place(top + left, dx: pad + trim-w + offset, dy: pad, line(length: mark-len, stroke: mark-stroke))
+
+  place(top + left, dx: pad, dy: pad + trim-h + offset, line(angle: 90deg, length: mark-len, stroke: mark-stroke))
+  place(top + left, dx: pad - offset - mark-len, dy: pad + trim-h, line(length: mark-len, stroke: mark-stroke))
+
+  place(top + left, dx: pad + trim-w, dy: pad + trim-h + offset, line(angle: 90deg, length: mark-len, stroke: mark-stroke))
+  place(top + left, dx: pad + trim-w + offset, dy: pad + trim-h, line(length: mark-len, stroke: mark-stroke))
+
+  // Franja técnica de registro / lomo y CCT en el área de slug inferior (fuera del corte)
+  place(
+    bottom + center,
+    dy: -1.6mm,
+    text(size: 5.5pt, fill: rgb("475569"), font: "Liberation Sans")[#spine-text]
+  )
+}
+
+#let render-print-colophon(chapter, bleed) = [
+  #let ch-primary = resolve-ui-color(chapter, "primary", c-primary)
+  #let ch-accent = resolve-ui-color(chapter, "accent", c-accent)
+  #page(header: none, footer: none)[
+    #v(1fr)
+    #block(
+      width: 100%,
+      stroke: (top: 2pt + ch-primary, bottom: 1pt + ch-accent),
+      inset: (y: 12pt, x: 8pt),
+      [
+        #text(fill: ch-primary, weight: "bold", size: 11pt)[
+          COLOFÓN TÉCNICO DE PREPRENSA · EDICIÓN IMPRENTA
+        ]
+        #v(6pt)
+        #context {
+          let total-pages = counter(page).final().first()
+          let sheets = calc.ceil(total-pages / 2)
+          // Papel bond cultural 75g/m² ≈ 0.095mm por hoja + 0.8mm de forro cartulina sulfatada 12pt
+          let spine-mm = calc.round(sheets * 0.095 + 0.8, digits: 1)
+          grid(
+            columns: (1fr, 1fr),
+            gutter: 8pt,
+            [
+              #text(size: 8.5pt, fill: c-slate-dark)[
+                *Unidad de Aprendizaje (UAC):* #chapter.uac\
+                *Bloque:* #chapter.bloque\
+                *Plantel:* #chapter.plantel\
+                *Clave CCT:* #chapter.cct\
+                *Zona Escolar:* #chapter.zonaEscolar
+              ]
+            ],
+            [
+              #text(size: 8.5pt, fill: c-slate-dark)[
+                *Formato de corte (Trim):* Carta (215.9 × 279.4 mm)\
+                *Sangrado (Bleed):* #int(bleed / 1mm) mm por lado con marcas de corte\
+                *Extensión total:* #total-pages páginas (#sheets hojas)\
+                *Ancho estimado de lomo (75g):* #spine-mm mm\
+                *Ciclo Escolar:* #chapter.cicloEscolar · MCCEMS Puebla
+              ]
+            ]
+          )
+        }
+      ]
+    )
+    #v(0.8cm)
+    #align(center)[
+      #text(size: 7.5pt, fill: c-slate-muted)[
+        Preparado para impresión offset / digital dúplex · Motor Editorial SIGPDA-EMS (Typst V2)
+      ]
+    ]
+  ]
+]
+
 #let render-institutional-cover(chapter) = [
   #let has-cover-scene = "coverScene" in chapter and chapter.coverScene != none
   #let cover-primary = resolve-ui-color(chapter, "primary", c-primary)
   #let cover-accent = resolve-ui-color(chapter, "accent", c-accent)
   #let cover-assets-root = if "assetsRoot" in chapter and chapter.assetsRoot != none { chapter.assetsRoot } else { "/public" }
+  #let cover-trim-pad = if is-print-edition(chapter) { resolve-print-bleed(chapter) + 6mm } else { 0mm }
   #page(
     header: none,
     footer: none,
-    margin: (x: 2.2cm, top: 2.2cm, bottom: 2.2cm),
+    margin: (x: 2.2cm + cover-trim-pad, top: 2.2cm + cover-trim-pad, bottom: 2.2cm + cover-trim-pad),
     [
       // Franja superior institucional
       #grid(
@@ -580,10 +680,24 @@
 // Función Maestra: Renderizado del Capítulo Completo
 // ============================================================================
 #let render-student-chapter(chapter) = [
-  // Configuración de Página Editorial
+  #let print-mode = is-print-edition(chapter)
+  #let print-bleed = resolve-print-bleed(chapter)
+  #let print-slug = 6mm
+  #let trim-pad = if print-mode { print-bleed + print-slug } else { 0mm }
+  #let show-crop-marks = print-mode and (not ("cropMarks" in chapter.printEdition) or chapter.printEdition.cropMarks != false)
+  #let show-colophon = print-mode and (not ("includeColophonSpine" in chapter.printEdition) or chapter.printEdition.includeColophonSpine != false)
+
+  // Configuración de Página Editorial (Digital Carta o Edición Imprenta con Bleed + Marcas de Corte)
   #set page(
-    paper: "us-letter",
-    margin: (inside: 2.0cm, outside: 1.6cm, top: 1.65cm, bottom: 1.6cm),
+    width: if print-mode { 215.9mm + 2 * trim-pad } else { 215.9mm },
+    height: if print-mode { 279.4mm + 2 * trim-pad } else { 279.4mm },
+    margin: (
+      inside: 2.0cm + trim-pad,
+      outside: 1.6cm + trim-pad,
+      top: 1.65cm + trim-pad,
+      bottom: 1.6cm + trim-pad,
+    ),
+    background: if show-crop-marks { render-crop-marks-background(chapter, print-bleed, print-slug) } else { none },
     header: context {
       let page-num = counter(page).get().first()
       if page-num > 1 [
@@ -744,5 +858,8 @@
       #pagebreak()
       #render-evaluation-section(ev, primary-color: ch-primary, accent-color: ch-accent, teal-color: ch-teal)
     ]
+  ]
+  #if show-colophon [
+    #render-print-colophon(chapter, print-bleed)
   ]
 ]

@@ -75,12 +75,17 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
+    const printEdition =
+      url.searchParams.get('printEdition') === 'true' ||
+      url.searchParams.get('printEdition') === '1';
+
     const compiled = await compileUnifiedEditorialPdf({
       planningId: id,
       planning,
       blockIndex,
       workbooksMap: { [`block_${blockIndex}`]: { current: workbook } },
       fallbackWorkbook: workbook,
+      printEdition,
       teacherIdentity: {
         schoolName: teacher.school_name,
         cct: teacher.cct,
@@ -92,7 +97,8 @@ export async function GET(
       },
     });
     const pdfBuffer = compiled.pdfBuffer;
-    const filename = `Libro_B${blockIndex + 1}_${shortSubjectCode(planning.uacName)}.pdf`;
+    const suffix = printEdition ? '_Imprenta' : '';
+    const filename = `Libro_B${blockIndex + 1}_${shortSubjectCode(planning.uacName)}${suffix}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
@@ -101,6 +107,8 @@ export async function GET(
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
         'X-Editorial-Engine': compiled.engine,
+        ...(compiled.rolloutDecision ? { 'X-Editorial-Rollout': compiled.rolloutDecision } : {}),
+        ...(printEdition ? { 'X-Editorial-Print-Edition': 'bleed-3mm' } : {}),
       },
     });
   } catch (error: unknown) {

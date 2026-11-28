@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db/client';
+import { getEditorialRolloutTelemetrySummaryDb } from '@/lib/db/usage-quotas';
+import {
+  evaluateLegacyRetirementReadiness,
+  isShadowModeEnabledFromEnv,
+  resolveCanaryPercentFromEnv,
+  type EditorialRolloutTelemetrySummary,
+  type LegacyRetirementReadiness,
+} from '@/lib/editorial/rollout-policy';
+import { featureFlags } from '@/lib/platform/feature-flags';
 import { requireAdmin, adminUnauthorized, adminForbidden } from '@/lib/admin-unified';
 import { logger } from '@/lib/logger';
 
@@ -12,6 +21,13 @@ export interface AdminHealthResponse {
     gemini: boolean;
     groq: boolean;
     flux: boolean;
+  };
+  editorialV2Rollout?: {
+    enabled: boolean;
+    shadowMode: boolean;
+    canaryPct: number;
+    telemetry14d: EditorialRolloutTelemetrySummary;
+    retirementReadiness: LegacyRetirementReadiness;
   };
   timestamp: string;
   environment: string;
@@ -61,12 +77,31 @@ export async function GET(): Promise<NextResponse> {
     status = 'degraded';
   }
 
+  let editorialV2Rollout: AdminHealthResponse['editorialV2Rollout'];
+  if (dbHealthy) {
+    try {
+      const telemetry14d = await getEditorialRolloutTelemetrySummaryDb(14);
+      editorialV2Rollout = {
+        enabled: featureFlags.isEnabled('PUBLISHING_ENGINE_V2'),
+        shadowMode: isShadowModeEnabledFromEnv(),
+        canaryPct: resolveCanaryPercentFromEnv(),
+        telemetry14d,
+        retirementReadiness: evaluateLegacyRetirementReadiness(telemetry14d),
+      };
+    } catch (telemetryErr) {
+      logger.warn('[AdminHealth] Telemetría editorial V2 no disponible (no bloqueante):', {
+        error: telemetryErr instanceof Error ? telemetryErr.message : String(telemetryErr),
+      });
+    }
+  }
+
   const payload: AdminHealthResponse = {
     status,
     latencyMs,
     db: dbHealthy,
     dbError,
     aiProviders,
+    ...(editorialV2Rollout ? { editorialV2Rollout } : {}),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
   };
