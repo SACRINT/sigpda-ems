@@ -112,6 +112,91 @@ import {
 } from '@/lib/editorial/text-normalization';
 import { finalizeVisibleText } from '@/lib/editorial/pedagogical-text-fitter';
 import { sanitizeWorkbookTocTitle, sanitizeMissionFocus } from '@/lib/editorial/topic-title-resolver';
+import { resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui';
+import {
+  allocateEditorialScene,
+  createBlockSceneTracker,
+  type BlockSceneTracker,
+} from '@/lib/visual-engine/scene-allocator';
+import {
+  createNodeSceneDataUriReader,
+  createNodeSceneFileExists,
+  ensureCroppedPngDataUri,
+} from '@/lib/visual-engine/scene-allocator-node';
+import type { EditorialSceneRole } from '@/lib/visual-engine/editorial-scenes-catalog';
+
+export interface DocxDisciplinaryTheme {
+  domainId: string;
+  primary: string;
+  accent: string;
+  teal: string;
+  tealBg: string;
+}
+
+export interface DocxResolvedEditorialScene {
+  sceneId: string;
+  alt: string;
+  pngBuffer: Buffer;
+}
+
+const docxSceneFileExists = createNodeSceneFileExists();
+const docxSceneDataUriReader = createNodeSceneDataUriReader();
+const docxScenePngCache = new Map<string, Buffer>();
+
+export function resolveDocxDisciplinaryTheme(subjectName?: string | null): DocxDisciplinaryTheme {
+  const ui = resolveEditorialDisciplinaryUi(subjectName || '');
+  return {
+    domainId: ui.domainId,
+    primary: ui.palette.primary.toUpperCase(),
+    accent: ui.palette.accent.toUpperCase(),
+    teal: ui.palette.teal.toUpperCase(),
+    tealBg: ui.palette.tealBg.toUpperCase(),
+  };
+}
+
+async function resolveDocxEditorialScenePng(params: {
+  subjectName?: string | null;
+  role: EditorialSceneRole;
+  blockIndex?: number;
+  topicHint?: string;
+  tracker?: BlockSceneTracker;
+  widthPx: number;
+  heightPx: number;
+}): Promise<DocxResolvedEditorialScene | null> {
+  try {
+    const allocated = allocateEditorialScene({
+      uacName: params.subjectName || 'Formación Fundamental',
+      role: params.role,
+      blockNumber: (params.blockIndex ?? 0) + 1,
+      topicText: params.topicHint,
+      tracker: params.tracker,
+      fileExists: docxSceneFileExists,
+      readDataUri: docxSceneDataUriReader,
+    });
+    if (!allocated.existsOnDisk || !allocated.dataUri) return null;
+    const cacheKey = `${allocated.relativePath}|${params.widthPx}x${params.heightPx}`;
+    let pngBuffer = docxScenePngCache.get(cacheKey);
+    if (!pngBuffer) {
+      const pngUri = await ensureCroppedPngDataUri(allocated.dataUri, params.widthPx, params.heightPx);
+      const match = /^data:image\/png;base64,(.+)$/i.exec(pngUri);
+      if (!match?.[1]) return null;
+      pngBuffer = Buffer.from(match[1], 'base64');
+      docxScenePngCache.set(cacheKey, pngBuffer);
+    }
+    return {
+      sceneId: allocated.id,
+      alt: allocated.alt,
+      pngBuffer,
+    };
+  } catch (e) {
+    logger.warn('[docx-workbook-renderer] No se pudo cargar escena editorial arquetipo:', {
+      error: e,
+      role: params.role,
+      subjectName: params.subjectName,
+    });
+    return null;
+  }
+}
 
 function rgbToHex(rgb: [number, number, number]): string {
   return rgb.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -298,10 +383,26 @@ export async function renderWorkbookToDocx(
   };
 
   const usedOpenverseAssets: ImageAsset[] = [];
+  const uacLabelForTheme =
+    workbook.coverData?.subjectName ||
+    planning?.uacName ||
+    planning?.contentJson?.sectionI?.uacName ||
+    workbook.blockName;
+  const theme = resolveDocxDisciplinaryTheme(uacLabelForTheme);
+  const sceneTracker = createBlockSceneTracker();
 
-  // ── 1. Portada Editorial Personalizada (Texto Nativo Editable) ───────────────
+  // ── 1. Portada Editorial Personalizada (Texto Nativo Editable + Escena V2) ───
+  const coverScene = await resolveDocxEditorialScenePng({
+    subjectName: uacLabelForTheme,
+    role: 'block_cover',
+    blockIndex: workbook.blockIndex,
+    topicHint: `${workbook.blockName || ''} ${workbook.coverData?.title || ''}`,
+    tracker: sceneTracker,
+    widthPx: 1080,
+    heightPx: 540,
+  });
   const coverSectionChildren: (Paragraph | Table)[] = [];
-  coverSectionChildren.push(...buildCoverSection(workbook, planning));
+  coverSectionChildren.push(...buildCoverSection(workbook, planning, theme, coverScene));
 
   // ── 2. Páginas Preliminares (Mi Plantel + TOC) (Fase V4 & V5) ─────────────
   const preliminaryChildren: (Paragraph | Table)[] = [];
@@ -312,21 +413,31 @@ export async function renderWorkbookToDocx(
   );
 
   if (hasPlantelData) {
-    preliminaryChildren.push(...buildDocxPlantelComunidadSection(workbook, planning));
+    preliminaryChildren.push(...buildDocxPlantelComunidadSection(workbook, planning, theme));
     preliminaryChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
   }
 
-  preliminaryChildren.push(...buildTableOfContents(workbook));
+  preliminaryChildren.push(...buildTableOfContents(workbook, theme));
 
   // ── 3. Páginas Interiores de Contenido Didáctico (Fase V5) ─────────────────
   const bodyChildren: (Paragraph | Table)[] = [];
   const assignedAssetKeys = new Set<string>();
+  const missionSceneRoles: readonly EditorialSceneRole[] = ['mission_1', 'mission_2', 'mission_3', 'mission_4'];
 
   for (let i = 0; i < workbook.missions.length; i++) {
     // Paridad Libro ↔ Plan: tokens [[material:...]] de la misión → etiqueta humana ANTES de
     // imprimir (tareas, callouts "IDEA", step-cards y sidebar). projectSection NO se toca:
     // sus tokens se resuelven como figuras de materiales más abajo.
     const mission = stripMaterialTokensDeep(workbook.missions[i]);
+    const missionScene = await resolveDocxEditorialScenePng({
+      subjectName: uacLabelForTheme,
+      role: missionSceneRoles[i % missionSceneRoles.length] ?? 'mission_1',
+      blockIndex: workbook.blockIndex,
+      topicHint: `${mission.title || ''} ${mission.sessionTopic || ''} ${mission.sessionFocus || ''}`,
+      tracker: sceneTracker,
+      widthPx: 1080,
+      heightPx: 304,
+    });
     const missionElements = await buildMissionContent(
       mission,
       i + 1,
@@ -337,7 +448,9 @@ export async function renderWorkbookToDocx(
       usedOpenverseAssets,
       assignedAssetKeys,
       workbook.blockName,
-      planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json
+      planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json,
+      theme,
+      missionScene
     );
     bodyChildren.push(...missionElements);
     bodyChildren.push(new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }));
@@ -454,11 +567,14 @@ export async function renderWorkbookToDocx(
         children: [
           new Paragraph({
             alignment: AlignmentType.RIGHT,
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: theme.accent, space: 4 },
+            },
             children: [
               new TextRun({
                 text: `${shortSubject} · ${stripMarkdown(stripWorkbookTags(workbook.blockName))} (MCCEMS Puebla)`,
                 size: 16,
-                color: C.mutedText,
+                color: theme.primary,
                 font: 'Calibri',
               }),
             ],
@@ -555,12 +671,18 @@ export async function renderWorkbookToDocx(
 
 // ── Constructores de Secciones DOCX ──────────────────────────────────────────
 
-function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (Paragraph | Table)[] {
+function buildCoverSection(
+  workbook: ActiveWorkTextbook,
+  planning?: Planning,
+  theme?: DocxDisciplinaryTheme,
+  coverScene?: DocxResolvedEditorialScene | null
+): (Paragraph | Table)[] {
   const cover = workbook.coverData;
   const identidad = identidadDelLibro(workbook, planning);
+  const t = theme ?? resolveDocxDisciplinaryTheme(cover?.subjectName || planning?.uacName || workbook.blockName);
 
-  // Caja con borde fino y fondo suave (bloque informativo)
-  const infoBox = (children: Paragraph[], fill = 'F4F6FA'): Table =>
+  // Caja con borde fino y fondo suave (bloque informativo sincronizado a la paleta disciplinar)
+  const infoBox = (children: Paragraph[], fill = t.tealBg): Table =>
     new Table({
       width: { size: CONTENT_W, type: WidthType.DXA },
       rows: [
@@ -569,8 +691,8 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
             new TableCell({
               width: { size: CONTENT_W, type: WidthType.DXA },
               shading: { fill, type: ShadingType.CLEAR },
-              borders: thinBorder(C.midBlue),
-              margins: { top: 160, bottom: 160, left: 240, right: 240 },
+              borders: thinBorder(t.teal),
+              margins: { top: 120, bottom: 120, left: 220, right: 220 },
               children,
             }),
           ],
@@ -578,29 +700,29 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
       ],
     });
 
-  return [
+  const coverElements: (Paragraph | Table)[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 60 },
+      spacing: { before: 120, after: 40 },
       children: [
         new TextRun({
           text: 'SECRETARÍA DE EDUCACIÓN PÚBLICA DE PUEBLA',
           bold: true,
-          size: 26,
-          color: C.navy,
+          size: 24,
+          color: t.primary,
           font: 'Arial',
         }),
       ],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 180 },
+      spacing: { after: 120 },
       children: [
         new TextRun({
           text: 'DIRECCIÓN DE EDUCACIÓN MEDIA SUPERIOR',
           bold: true,
-          size: 20,
-          color: C.midBlue,
+          size: 19,
+          color: t.teal,
           font: 'Arial',
         }),
       ],
@@ -610,7 +732,7 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
     infoBox([
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 20, after: 60 },
+        spacing: { before: 20, after: 40 },
         children: [
           new TextRun({
             text: identidad.schoolName,
@@ -634,9 +756,9 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
         ],
       }),
     ]),
-    new Paragraph({ spacing: { after: 160 }, children: [] }),
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
 
-    // Caja: Título principal (placa de color con acento dorado)
+    // Caja: Título principal (placa de color disciplinar con acento editorial)
     new Table({
       width: { size: CONTENT_W, type: WidthType.DXA },
       rows: [
@@ -644,23 +766,23 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
           children: [
             new TableCell({
               width: { size: CONTENT_W, type: WidthType.DXA },
-              shading: { fill: C.navy, type: ShadingType.CLEAR },
+              shading: { fill: t.primary, type: ShadingType.CLEAR },
               borders: {
-                top: { style: BorderStyle.SINGLE, size: 8, color: C.navy },
-                bottom: { style: BorderStyle.SINGLE, size: 24, color: C.gold },
-                left: { style: BorderStyle.SINGLE, size: 8, color: C.navy },
-                right: { style: BorderStyle.SINGLE, size: 8, color: C.navy },
+                top: { style: BorderStyle.SINGLE, size: 8, color: t.primary },
+                bottom: { style: BorderStyle.SINGLE, size: 24, color: t.accent },
+                left: { style: BorderStyle.SINGLE, size: 8, color: t.primary },
+                right: { style: BorderStyle.SINGLE, size: 8, color: t.primary },
               },
-              margins: { top: 200, bottom: 200, left: 240, right: 240 },
+              margins: { top: 160, bottom: 160, left: 220, right: 220 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
-                  spacing: { before: 20, after: 80 },
+                  spacing: { before: 20, after: 60 },
                   children: [
                     new TextRun({
                       text: (cover.title || workbook.blockName || 'CUADERNO DE APRENDIZAJE ACTIVO').toUpperCase(),
                       bold: true,
-                      size: 34,
+                      size: 32,
                       color: 'FFFFFF',
                       font: 'Arial',
                     }),
@@ -673,8 +795,8 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
                     new TextRun({
                       text: cover.subtitle || `Bloque Formativo: ${workbook.blockName || ''}`,
                       italics: true,
-                      size: 22,
-                      color: C.gold,
+                      size: 21,
+                      color: t.accent,
                       font: 'Arial',
                     }),
                   ],
@@ -685,18 +807,73 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
         }),
       ],
     }),
-    new Paragraph({ spacing: { after: 160 }, children: [] }),
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
+  ];
 
+  // Escena editorial arquetipo de apertura (sincronía visual con Motor Typst V2)
+  if (coverScene) {
+    coverElements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: CONTENT_W, type: WidthType.DXA },
+                shading: { fill: 'FFFFFF', type: ShadingType.CLEAR },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 8, color: t.accent },
+                  bottom: { style: BorderStyle.SINGLE, size: 8, color: t.accent },
+                  left: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+                  right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+                },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 40 },
+                    children: [
+                      new ImageRun({
+                        data: coverScene.pngBuffer,
+                        transformation: { width: 520, height: 260 },
+                        type: 'png',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 0 },
+                    children: [
+                      new TextRun({
+                        text: coverScene.alt,
+                        italics: true,
+                        size: 15,
+                        color: C.mutedText,
+                        font: 'Calibri',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new Paragraph({ spacing: { after: 120 }, children: [] })
+    );
+  }
+
+  coverElements.push(
     // Caja: UAC, Semestre y Bloque
     infoBox([
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 20, after: 60 },
+        spacing: { before: 20, after: 40 },
         children: [
           new TextRun({
             text: `Unidad de Aprendizaje Curricular (UAC): ${cover.subjectName}`,
             bold: true,
-            size: 22,
+            size: 21,
             color: C.darkText,
             font: 'Calibri',
           }),
@@ -708,26 +885,26 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
         children: [
           new TextRun({
             text: `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
-            size: 20,
+            size: 19,
             color: C.darkText,
             font: 'Calibri',
           }),
         ],
       }),
     ]),
-    new Paragraph({ spacing: { after: 160 }, children: [] }),
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
 
     // Caja: Proyecto Comunitario PAEC (fondo dorado suave)
     infoBox([
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 20, after: 60 },
+        spacing: { before: 20, after: 40 },
         children: [
           new TextRun({
             text: 'Proyecto Comunitario PAEC',
             bold: true,
-            size: 20,
-            color: C.navy,
+            size: 19,
+            color: t.primary,
             font: 'Calibri',
           }),
         ],
@@ -739,25 +916,25 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
           new TextRun({
             text: cover.paecProjectName || 'Impacto social y productivo en la comunidad escolar',
             italics: true,
-            size: 20,
+            size: 19,
             color: C.darkText,
             font: 'Calibri',
           }),
         ],
       }),
     ], 'FEF6E3'),
-    new Paragraph({ spacing: { after: 200 }, children: [] }),
+    new Paragraph({ spacing: { after: 140 }, children: [] }),
 
     // Caja: Docente y datos del estudiante
     infoBox([
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 20, after: 120 },
+        spacing: { before: 20, after: 80 },
         children: [
           new TextRun({
             text: `Docente Titular: ${cover?.teacherName || planning?.contentJson?.sectionI?.teacherName || 'Docente Titular'}`,
             bold: true,
-            size: 22,
+            size: 21,
             color: C.darkText,
             font: 'Calibri',
           }),
@@ -765,13 +942,13 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 100 },
+        spacing: { after: 80 },
         children: [
           new TextRun({
             text: 'Nombre del Estudiante: ____________________________________________________',
             bold: true,
-            size: 20,
-            color: C.navy,
+            size: 19,
+            color: t.primary,
             font: 'Calibri',
           }),
         ],
@@ -782,14 +959,16 @@ function buildCoverSection(workbook: ActiveWorkTextbook, planning?: Planning): (
         children: [
           new TextRun({
             text: `Grupo: _________   Turno: _________   Ciclo Escolar: ${SCHOOL_YEAR}`,
-            size: 20,
+            size: 19,
             color: C.mutedText,
             font: 'Calibri',
           }),
         ],
       }),
     ]),
-  ];
+  );
+
+  return coverElements;
 }
 
 /**
@@ -1277,8 +1456,10 @@ function buildDocxContraportada(data: ContraportadaData): (Paragraph | Table)[] 
 
 function buildDocxPlantelComunidadSection(
   workbook: ActiveWorkTextbook,
-  planning: Planning | null | undefined
+  planning: Planning | null | undefined,
+  theme?: DocxDisciplinaryTheme
 ): (Paragraph | Table)[] {
+  const t = theme ?? resolveDocxDisciplinaryTheme(workbook.coverData?.subjectName || planning?.uacName || workbook.blockName);
   const elements: (Paragraph | Table)[] = [];
 
   elements.push(
@@ -1289,7 +1470,7 @@ function buildDocxPlantelComunidadSection(
           text: 'IDENTIDAD DEL PLANTEL Y VINCULACIÓN COMUNITARIA',
           bold: true,
           size: 28, // 14pt
-          color: C.navy,
+          color: t.primary,
           font: 'Arial',
         }),
       ],
@@ -1301,7 +1482,7 @@ function buildDocxPlantelComunidadSection(
           text: `DIRECCIÓN DE BACHILLERATOS ESTATALES Y PREPARATORIA ABIERTA · MCCEMS ${SCHOOL_YEAR}`,
           bold: true,
           size: 18,
-          color: C.gold,
+          color: t.accent,
           font: 'Arial',
         }),
       ],
@@ -1636,7 +1817,11 @@ async function buildDocxMissionQrBox(verificationUrl: string, hashMission: strin
   });
 }
 
-function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)[] {
+function buildTableOfContents(
+  workbook: ActiveWorkTextbook,
+  theme?: DocxDisciplinaryTheme
+): (Paragraph | Table)[] {
+  const t = theme ?? resolveDocxDisciplinaryTheme(workbook.coverData?.subjectName || workbook.blockName);
   const items: (Paragraph | Table)[] = [
     new Paragraph({
       spacing: { before: 200, after: 200 },
@@ -1645,7 +1830,7 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
           text: 'ÍNDICE DE MISIONES FORMATIVAS',
           bold: true,
           size: 32, // 16pt
-          color: C.navy,
+          color: t.primary,
           font: 'Arial',
         }),
       ],
@@ -1666,10 +1851,10 @@ function buildTableOfContents(workbook: ActiveWorkTextbook): (Paragraph | Table)
   const rows: TableRow[] = [
     new TableRow({
       children: [
-        cell('Misión', { w: 1500, bold: true, fill: C.navy, color: C.white }),
-        cell('Título y Desafío Didáctico', { w: 5500, bold: true, fill: C.navy, color: C.white }),
-        cell('Sesiones Cubiertas', { w: 2200, bold: true, fill: C.navy, color: C.white }),
-        cell('Páginas Est.', { w: 1500, bold: true, fill: C.navy, color: C.white, align: AlignmentType.CENTER }),
+        cell('Misión', { w: 1500, bold: true, fill: t.primary, color: C.white }),
+        cell('Título y Desafío Didáctico', { w: 5500, bold: true, fill: t.primary, color: C.white }),
+        cell('Sesiones Cubiertas', { w: 2200, bold: true, fill: t.primary, color: C.white }),
+        cell('Páginas Est.', { w: 1500, bold: true, fill: t.primary, color: C.white, align: AlignmentType.CENTER }),
       ],
     }),
   ];
@@ -3568,19 +3753,22 @@ async function buildMissionContent(
   openverseCollector?: ImageAsset[],
   assignedAssetKeys?: Set<string>,
   blockName?: string,
-  sequenceJson?: Record<number, SecuenciaBloque> | null
+  sequenceJson?: Record<number, SecuenciaBloque> | null,
+  theme?: DocxDisciplinaryTheme,
+  missionScene?: DocxResolvedEditorialScene | null
 ): Promise<(Paragraph | Table)[]> {
+  const t = theme ?? resolveDocxDisciplinaryTheme(subjectName || blockName);
   const elements: (Paragraph | Table)[] = [];
 
   const cleanMissionTitle = stripMarkdown(stripWorkbookTags(
     sanitizeWorkbookTocTitle(mission.title, mission.sessionTopic)
   ));
 
-  // Encabezado de la Misión (banner de color a ancho completo, paridad con drawMissionBanner del PDF)
+  // Encabezado de la Misión (banner de color disciplinar a ancho completo, paridad con Typst V2)
   const missionSessionsStr = mission.coveredSessions?.join(', ') || `${missionNumber * 2 - 1}-${missionNumber * 2}`;
   const bannerBorders = {
     top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-    bottom: { style: BorderStyle.SINGLE, size: 24, color: C.gold },
+    bottom: { style: BorderStyle.SINGLE, size: 24, color: t.accent },
     left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
     right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
   };
@@ -3592,7 +3780,7 @@ async function buildMissionContent(
           children: [
             new TableCell({
               width: { size: 900, type: WidthType.DXA },
-              shading: { fill: darkenHex(C.navy, 0.82), type: ShadingType.CLEAR },
+              shading: { fill: darkenHex(t.primary, 0.82), type: ShadingType.CLEAR },
               borders: bannerBorders,
               margins: { top: 100, bottom: 100, left: 120, right: 120 },
               verticalAlign: VerticalAlign.CENTER,
@@ -3614,7 +3802,7 @@ async function buildMissionContent(
             }),
             new TableCell({
               width: { size: CONTENT_W - 900, type: WidthType.DXA },
-              shading: { fill: C.navy, type: ShadingType.CLEAR },
+              shading: { fill: t.primary, type: ShadingType.CLEAR },
               borders: bannerBorders,
               margins: { top: 100, bottom: 100, left: 220, right: 200 },
               children: [
@@ -3647,8 +3835,61 @@ async function buildMissionContent(
         }),
       ],
     }),
-    new Paragraph({ spacing: { after: 160 }, children: [] })
+    new Paragraph({ spacing: { after: 120 }, children: [] })
   );
+
+  // Banda panorámica editorial de apertura de misión (escena arquetipo sin estiramiento)
+  if (missionScene) {
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: CONTENT_W, type: WidthType.DXA },
+                shading: { fill: t.tealBg, type: ShadingType.CLEAR },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+                  bottom: { style: BorderStyle.SINGLE, size: 6, color: t.teal },
+                  left: { style: BorderStyle.SINGLE, size: 18, color: t.accent },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+                },
+                margins: { top: 60, bottom: 60, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 30 },
+                    children: [
+                      new ImageRun({
+                        data: missionScene.pngBuffer,
+                        transformation: { width: 540, height: 152 },
+                        type: 'png',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 0 },
+                    children: [
+                      new TextRun({
+                        text: `Escena de apertura · ${missionScene.alt}`,
+                        italics: true,
+                        size: 14,
+                        color: C.mutedText,
+                        font: 'Calibri',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new Paragraph({ spacing: { after: 140 }, children: [] })
+    );
+  }
 
   const coveredSessions = (mission.coveredSessions && mission.coveredSessions.length > 0)
     ? mission.coveredSessions
