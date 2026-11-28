@@ -17,7 +17,10 @@
 import { getAllBlockWorkbooks } from '@/lib/db';
 import type { Planning } from '@/types/planning';
 import type { ActiveWorkTextbook } from '@/types/work-textbook';
-import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
+import {
+  compileUnifiedEditorialDocx,
+  type UnifiedDocxEngine,
+} from '@/lib/editorial/unified-editorial-docx-renderer';
 import {
   compileUnifiedEditorialPdf,
   type UnifiedPdfEngine,
@@ -46,6 +49,7 @@ export async function compileSemestralWorkbook(
   options: CompileSemestralOptions = {}
 ): Promise<{
   docx?: Buffer;
+  docxEngine?: UnifiedDocxEngine;
   pdf?: Buffer;
   pdfEngine?: UnifiedPdfEngine;
   pdfRolloutDecision?: EditorialRolloutDecision;
@@ -80,12 +84,20 @@ export async function compileSemestralWorkbook(
 
   // 3. Renderizar únicamente el formato solicitado (0 tokens de IA, sin duplicar memoria/CPU)
   let docxBuffer: Buffer | undefined;
+  let docxEngine: UnifiedDocxEngine | undefined;
   let pdfBuffer: Buffer | undefined;
   let pdfEngine: UnifiedPdfEngine | undefined;
   let pdfRolloutDecision: EditorialRolloutDecision | undefined;
 
   if (format === 'docx') {
-    docxBuffer = await renderWorkbookToDocx(consolidatedBook, planning);
+    const unifiedDocx = await compileUnifiedEditorialDocx({
+      planningId,
+      planning,
+      workbooksMap,
+      fallbackWorkbook: consolidatedBook,
+    });
+    docxBuffer = unifiedDocx.docxBuffer;
+    docxEngine = unifiedDocx.engine;
   } else if (format === 'pdf') {
     const unified = await compileUnifiedEditorialPdf({
       planningId,
@@ -99,7 +111,14 @@ export async function compileSemestralWorkbook(
     pdfEngine = unified.engine;
     pdfRolloutDecision = unified.rolloutDecision;
   } else {
-    docxBuffer = await renderWorkbookToDocx(consolidatedBook, planning);
+    const unifiedDocx = await compileUnifiedEditorialDocx({
+      planningId,
+      planning,
+      workbooksMap,
+      fallbackWorkbook: consolidatedBook,
+    });
+    docxBuffer = unifiedDocx.docxBuffer;
+    docxEngine = unifiedDocx.engine;
     const unified = await compileUnifiedEditorialPdf({
       planningId,
       planning,
@@ -115,6 +134,7 @@ export async function compileSemestralWorkbook(
 
   return {
     docx: docxBuffer,
+    docxEngine,
     pdf: pdfBuffer,
     pdfEngine,
     pdfRolloutDecision,

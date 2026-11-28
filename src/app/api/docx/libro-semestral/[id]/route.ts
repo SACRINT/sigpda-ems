@@ -50,7 +50,7 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const { docx } = await compileSemestralWorkbook(id, planning, { format: 'docx' });
+    const { docx, docxEngine } = await compileSemestralWorkbook(id, planning, { format: 'docx' });
     if (!docx) {
       throw new Error('No se pudo generar el archivo DOCX semestral');
     }
@@ -62,12 +62,14 @@ export async function GET(
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
+        ...(docxEngine ? { 'X-Editorial-Docx-Engine': docxEngine } : {}),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[GET /api/docx/libro-semestral/[id]] Error:', error);
+    const message = error instanceof Error ? error.message : 'Error al compilar el libro semestral DOCX';
     return NextResponse.json(
-      { error: error.message || 'Error al compilar el libro semestral DOCX' },
+      { error: message },
       { status: 500 }
     );
   }

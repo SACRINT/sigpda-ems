@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { shortSubjectCode } from '@/lib/short-filename';
 import { auth } from '@/lib/auth';
 import { getPlanningById, getBlockWorkbook, getTeacherByEmail } from '@/lib/db';
-import { renderWorkbookToDocx } from '@/lib/docx-workbook-renderer';
+import { compileUnifiedEditorialDocx } from '@/lib/editorial/unified-editorial-docx-renderer';
 import type { Planning } from '@/types/planning';
 
 import { logger } from '@/lib/logger';
@@ -73,7 +73,13 @@ export async function GET(
       updatedAt: rawPlanning.updated_at,
     };
 
-    const docxBuffer = await renderWorkbookToDocx(workbook, planning);
+    const { docxBuffer, engine: docxEngine } = await compileUnifiedEditorialDocx({
+      planningId: id,
+      planning,
+      blockIndex,
+      workbooksMap: { [`block_${blockIndex}`]: { current: workbook } },
+      fallbackWorkbook: workbook,
+    });
     const filename = `Libro_B${blockIndex + 1}_${shortSubjectCode(planning.uacName)}.docx`;
 
     return new NextResponse(new Uint8Array(docxBuffer), {
@@ -82,12 +88,14 @@ export async function GET(
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-cache',
+        'X-Editorial-Docx-Engine': docxEngine,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[GET /api/docx/libro-bloque/[id]] Error:', error);
+    const message = error instanceof Error ? error.message : 'Error al descargar el libro DOCX';
     return NextResponse.json(
-      { error: error.message || 'Error al descargar el libro DOCX' },
+      { error: message },
       { status: 500 }
     );
   }

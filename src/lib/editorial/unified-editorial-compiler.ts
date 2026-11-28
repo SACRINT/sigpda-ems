@@ -46,7 +46,10 @@ import {
   readEditorialPdfFromStorage,
   uploadEditorialPdfToBlob,
 } from './blob-storage';
-import { allocateEditorialSceneOnDisk } from '@/lib/visual-engine/scene-allocator';
+import {
+  allocateEditorialSceneOnDisk,
+  extractMissionPrimaryTopicForScene,
+} from '@/lib/visual-engine/scene-allocator';
 import { createNodeSceneFileExists } from '@/lib/visual-engine/scene-allocator-node';
 import {
   resolveSchoolIdentity,
@@ -315,7 +318,8 @@ export async function compileUnifiedEditorialPdf(
     const resolvedUacName = params.planning.uacName || 'Unidad de Aprendizaje Curricular';
     const coverTopicHint = composed.missions
       .filter((m) => !isSingleBlock || m.blockNumber === firstBlock + 1)
-      .map((m) => m.title)
+      .map((m) => extractMissionPrimaryTopicForScene({ title: m.title }))
+      .filter(Boolean)
       .join(' ');
     const coverScene = allocateEditorialSceneOnDisk({
       uacName: resolvedUacName,
