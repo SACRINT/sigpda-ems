@@ -308,6 +308,24 @@ export function dedupeInfographicSpecs(specs: SacrintInfographicSpec[]): Sacrint
     let spec = rawSpec;
     let titleKey = normKey(spec.title);
     if (!titleKey) continue;
+    const applyTitle = (nextTitle: string) => {
+      const trimmed = nextTitle.trim();
+      if (!trimmed) return;
+      spec = {
+        ...spec,
+        title: trimmed,
+        topicTitle: trimmed,
+        ...(spec.conceptManual
+          ? {
+              conceptManual: {
+                ...spec.conceptManual,
+                centralConcept: trimmed,
+              },
+            }
+          : {}),
+      };
+      titleKey = normKey(trimmed);
+    };
     // Deduplicar solo dentro del mismo bloque y misión para jamás eliminar sesiones reales
     // de otro bloque/misión que compartan un título conceptual alineado (ej. B2M1 vs B2M2 o B3M1 vs B3M2).
     const scopeKey = `${spec.meta?.blockNumber ?? 1}|${spec.meta?.missionNumber ?? 1}|${titleKey}`;
@@ -319,22 +337,45 @@ export function dedupeInfographicSpecs(specs: SacrintInfographicSpec[]): Sacrint
     if (seenGlobalTitles.has(titleKey)) {
       const claimSubject = extractSubjectFromVisualClaim(spec.claim);
       const claimSubjectKey = claimSubject ? normKey(claimSubject) : '';
-      if (claimSubject && claimSubjectKey && !seenGlobalTitles.has(claimSubjectKey)) {
-        spec = {
-          ...spec,
-          title: claimSubject,
-          topicTitle: claimSubject,
-          ...(spec.conceptManual
-            ? {
-                conceptManual: {
-                  ...spec.conceptManual,
-                  centralConcept: claimSubject,
-                },
-              }
-            : {}),
-        };
-        titleKey = claimSubjectKey;
+      if (
+        claimSubject &&
+        claimSubjectKey &&
+        claimSubjectKey !== titleKey &&
+        !seenGlobalTitles.has(claimSubjectKey)
+      ) {
+        applyTitle(claimSubject);
       }
+    }
+
+    // Si el claim tampoco distingue (p40/p49: "Representación gráfica"), usar la misión como ancla.
+    if (seenGlobalTitles.has(titleKey)) {
+      const blockNumber = spec.meta?.blockNumber ?? 1;
+      const missionNumber = spec.meta?.missionNumber ?? 1;
+      const missionTitle = (spec.meta?.missionTitle || '')
+        .replace(/^misi[oó]n\s+\d+\s*[:.\-–—]\s*/i, '')
+        .trim();
+      const missionSegments = missionTitle
+        .split(/\s+[—–]\s+|:\s+/)
+        .map((segment) => segment.trim())
+        .filter(Boolean);
+      const missionLabel = missionSegments[missionSegments.length - 1] || missionTitle;
+      const missionKey = missionLabel ? normKey(missionLabel) : '';
+      const missionSuffix =
+        missionLabel && missionKey && missionKey !== titleKey
+          ? missionLabel
+          : `Bloque ${blockNumber} · Misión ${missionNumber}`;
+      const contextualTitle = `${spec.title} · ${missionSuffix}`;
+      applyTitle(
+        contextualTitle.length <= 76
+          ? contextualTitle
+          : `${spec.title} · B${blockNumber}M${missionNumber}`,
+      );
+    }
+
+    if (seenGlobalTitles.has(titleKey)) {
+      const blockNumber = spec.meta?.blockNumber ?? 1;
+      const missionNumber = spec.meta?.missionNumber ?? 1;
+      applyTitle(`${spec.title} · B${blockNumber}M${missionNumber}`);
     }
 
     seenGlobalTitles.add(titleKey);

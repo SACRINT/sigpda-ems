@@ -876,6 +876,23 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     }
   });
 
+  it('PR 4.2.5 — 09 dedupe desambigua títulos exactos entre misiones (p40/p49)', () => {
+    const wb = makeCdBlockWorkbook(3);
+    const first = buildSacrintInfographic(wb, 'wide', { missionIndex: 1, sessionIndex: 0 });
+    const second = buildSacrintInfographic(wb, 'wide', { missionIndex: 2, sessionIndex: 0 });
+    const duplicated = [
+      { ...first, title: 'Representación gráfica', topicTitle: 'Representación gráfica' },
+      { ...second, title: 'Representación gráfica', topicTitle: 'Representación gráfica' },
+    ];
+
+    const deduped = dedupeInfographicSpecs(duplicated);
+    expect(deduped).toHaveLength(2);
+    expect(deduped[0]!.title).toBe('Representación gráfica');
+    expect(deduped[1]!.title).not.toBe('Representación gráfica');
+    expect(deduped[1]!.title).toContain('·');
+    expect(deduped[1]!.title).toMatch(/representaci[oó]n\s+gr[aá]fica/i);
+  });
+
   it('PR 4.2.3 — 08 Presentaciones: elimina typo "15.(0)", evita protoboard en Slide 49 "Hoja de cálculo" y asegura coherencia temática de portadas', () => {
     // 1. Typo "15.(0)" en decimales al final de oración
     const cleaned = cleanStepLine(
@@ -1077,7 +1094,7 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     }
   }, 45000);
 
-  it('PR 4.2.4 — E2E binario 09 PDF: valida p18 contextualizada (sin duplicar p22), p39, p40 (Representación gráfica y tabular), p50 (Estructuras condicionales) y 0 títulos duplicados en el PDF real', async () => {
+  it('PR 4.2.4 — E2E binario 09 PDF: valida p18 contextualizada (sin duplicar p22), p39, p40 (Representación gráfica y tabular), p51 (Estructuras condicionales) y 0 títulos duplicados en el lote sintético', async () => {
     const sceneLoader = createNodeSceneLoader();
     const wbB2 = makeCdBlockWorkbook(2);
     // p18 B2M1: Fundamentos de la ciudadanía digital + cuerpo de cuatro libertades
@@ -1115,7 +1132,7 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
       'La representación gráfica y tabular es el proceso de organizar datos en tablas y visualizarlos por medio de gráficos para facilitar la interpretación.';
     wbB3M2Diag.missions[1]!.sessionPlans![1]!.sintesisVisual!.formulaOReglaClave =
       'Datos Crudos → Tabla Comparativa → Gráfico (Barras/Líneas) → Interpretación';
-    // p50 B3M4: Contraste de Métodos y Verificación de Resultados — Operadores → Estructuras condicionales
+    // p51 B3M4: Contraste de Métodos y Verificación de Resultados — Operadores → Estructuras condicionales
     wbB3.missions[3]!.sessionTopic = 'Contraste de Métodos y Verificación de Resultados — Operadores';
     wbB3.missions[3]!.sessionPlans![0]!.objetivo =
       'Evaluarás el contraste de métodos y verificación de resultados.';
