@@ -159,6 +159,8 @@ async function resolveDocxEditorialScenePng(params: {
   role: EditorialSceneRole;
   blockIndex?: number;
   topicHint?: string;
+  avoidSceneIds?: readonly string[];
+  preferPortadaV2?: boolean;
   tracker?: BlockSceneTracker;
   widthPx: number;
   heightPx: number;
@@ -169,6 +171,8 @@ async function resolveDocxEditorialScenePng(params: {
       role: params.role,
       blockNumber: (params.blockIndex ?? 0) + 1,
       topicText: params.topicHint,
+      avoidSceneIds: params.avoidSceneIds,
+      preferPortadaV2: params.preferPortadaV2,
       tracker: params.tracker,
       fileExists: docxSceneFileExists,
       readDataUri: docxSceneDataUriReader,
@@ -392,11 +396,20 @@ export async function renderWorkbookToDocx(
   const sceneTracker = createBlockSceneTracker();
 
   // ── 1. Portada Editorial Personalizada (Texto Nativo Editable + Escena V2) ───
+  const blockTopicSummary = [
+    workbook.blockName || '',
+    workbook.coverData?.title || '',
+    workbook.coverData?.subtitle || '',
+    ...workbook.missions.map((m) => `${m.title || ''} ${m.sessionTopic || ''}`),
+  ]
+    .filter(Boolean)
+    .join(' ');
   const coverScene = await resolveDocxEditorialScenePng({
     subjectName: uacLabelForTheme,
     role: 'block_cover',
     blockIndex: workbook.blockIndex,
-    topicHint: `${workbook.blockName || ''} ${workbook.coverData?.title || ''}`,
+    topicHint: blockTopicSummary,
+    preferPortadaV2: true,
     tracker: sceneTracker,
     widthPx: 1080,
     heightPx: 540,
@@ -423,6 +436,7 @@ export async function renderWorkbookToDocx(
   const bodyChildren: (Paragraph | Table)[] = [];
   const assignedAssetKeys = new Set<string>();
   const missionSceneRoles: readonly EditorialSceneRole[] = ['mission_1', 'mission_2', 'mission_3', 'mission_4'];
+  let previousMissionSceneId: string | undefined;
 
   for (let i = 0; i < workbook.missions.length; i++) {
     // Paridad Libro ↔ Plan: tokens [[material:...]] de la misión → etiqueta humana ANTES de
@@ -434,10 +448,14 @@ export async function renderWorkbookToDocx(
       role: missionSceneRoles[i % missionSceneRoles.length] ?? 'mission_1',
       blockIndex: workbook.blockIndex,
       topicHint: `${mission.title || ''} ${mission.sessionTopic || ''} ${mission.sessionFocus || ''}`,
+      avoidSceneIds: previousMissionSceneId ? [previousMissionSceneId] : undefined,
       tracker: sceneTracker,
       widthPx: 1080,
       heightPx: 304,
     });
+    if (missionScene?.sceneId) {
+      previousMissionSceneId = missionScene.sceneId;
+    }
     const missionElements = await buildMissionContent(
       mission,
       i + 1,

@@ -145,7 +145,7 @@ export const EDITORIAL_SCENES_CATALOG: Record<DisciplinaryDomainId, DomainSceneS
     return {
       portada: {
         ...base.portada,
-        visualTags: ['hardware', 'protoboard', 'electronica', 'arquitectura', 'sistemas_operativos'],
+        visualTags: ['hardware', 'protoboard', 'electronica', 'arquitectura'],
       },
       concepto: {
         ...base.concepto,
@@ -245,6 +245,7 @@ export const EDITORIAL_SCENES_THEMATIC_VARIANTS: Partial<
       lot: 2,
       visualTags: [
         'software',
+        'sistemas_operativos',
         'hoja_calculo',
         'datos',
         'diagrama_flujo',

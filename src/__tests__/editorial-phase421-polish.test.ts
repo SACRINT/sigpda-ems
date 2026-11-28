@@ -1055,7 +1055,7 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     // Auditar CADA portada real en el PPTX descomprimido
     let slideIdx = 1;
     const coverHashes: string[] = [];
-    const nonHardwareMissionIndices = new Set([1, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    const nonHardwareMissionIndices = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     let foundSlide49FullConclusion = false;
 
     for (let mIdx = 0; mIdx < allDecks.length; mIdx++) {

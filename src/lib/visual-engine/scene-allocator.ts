@@ -65,6 +65,8 @@ export interface SceneAllocationRequest {
   avoidArchetypes?: readonly EditorialSceneArchetype[];
   /** IDs exactos de escena a evitar (evita repetición consecutiva entre variantes temáticas del mismo dominio). */
   avoidSceneIds?: readonly string[];
+  /** En portadas de bloque (`block_cover`), prioriza la portada fotorrealista V2 (`*-01-portada.webp`) cuando no hay variantes temáticas V2 específicas. */
+  preferPortadaV2?: boolean;
   /** Slug opcional para buscar override específico en `public/images/escenas/overrides/`. */
   overrideSlug?: string | null;
   /** Predicado inyectado de existencia del asset (default `() => false`, seguro en cliente). */
@@ -268,6 +270,7 @@ const SEMANTIC_TOPIC_TAG_RULES: ReadonlyArray<{ tag: string; pattern: RegExp }> 
 
 const NON_HARDWARE_DIGITAL_TAGS = new Set([
   'software',
+  'sistemas_operativos',
   'hoja_calculo',
   'datos',
   'diagrama_flujo',
@@ -305,12 +308,24 @@ function selectSemanticLandscapeEntry(params: {
   topicText?: string;
   avoidArchetypes?: readonly EditorialSceneArchetype[];
   avoidSceneIds?: readonly string[];
+  preferPortadaV2?: boolean;
   tracker?: BlockSceneTracker;
   fileExists: SceneFileExistsFn;
 }): EditorialSceneEntry {
-  const { domainId, role, defaultArchetype, topicText, avoidArchetypes, avoidSceneIds, tracker, fileExists } = params;
+  const {
+    domainId,
+    role,
+    defaultArchetype,
+    topicText,
+    avoidArchetypes,
+    avoidSceneIds,
+    preferPortadaV2,
+    tracker,
+    fileExists,
+  } = params;
   const fallbackEntry = EDITORIAL_SCENES_CATALOG[domainId][defaultArchetype];
-  if (!LANDSCAPE_ROLES.has(role)) return fallbackEntry;
+  const isMissionRole = role.startsWith('mission_');
+  if (!LANDSCAPE_ROLES.has(role) && !isMissionRole) return fallbackEntry;
 
   const candidates = listDomainLandscapeCandidates(domainId).filter((c) => fileExists(c.relativePath));
   const usedInRole = tracker?.usedByRole.get(role);
@@ -324,14 +339,25 @@ function selectSemanticLandscapeEntry(params: {
   }
 
   const topicTags = extractSemanticTopicTags(topicText);
-  const hasHardwareTopic = topicTags.has('hardware') || topicTags.has('sistemas_operativos');
+  const hasHardwareTopic = topicTags.has('hardware');
   const hasNonHardwareTopic = [...topicTags].some((t) => NON_HARDWARE_DIGITAL_TAGS.has(t));
   const hasTaggedCandidates = candidates.some((c) => (c.visualTags?.length ?? 0) > 0);
+
+  // En portadas de bloque de dominios sin variantes temáticas V2, conservar la portada fotorrealista V2 (`*-01-portada.webp`)
+  // si `preferPortadaV2` está activo (evita caer en ilustraciones planas V1 `concepto`/`comunidad` en B2/B3).
+  if (role === 'block_cover' && preferPortadaV2 && !hasTaggedCandidates) {
+    const portada = EDITORIAL_SCENES_CATALOG[domainId].portada;
+    if (fileExists(portada.relativePath)) return portada;
+  }
 
   // Si el dominio no tiene etiquetas semánticas ni variantes temáticas (ej. dominios aún en 3 arquetipos puros),
   // conservar rotación exacta evitando colisión consecutiva o ya usada en el tracker.
   if (!hasTaggedCandidates || topicTags.size === 0) {
-    if (!avoidIdSet.has(fallbackEntry.id) && !avoidArchSet.has(fallbackEntry.archetype) && fileExists(fallbackEntry.relativePath)) {
+    if (
+      !avoidIdSet.has(fallbackEntry.id) &&
+      !avoidArchSet.has(fallbackEntry.archetype) &&
+      fileExists(fallbackEntry.relativePath)
+    ) {
       return fallbackEntry;
     }
     const alt = candidates.find((c) => !avoidIdSet.has(c.id) && !avoidArchSet.has(c.archetype));
@@ -350,7 +376,7 @@ function selectSemanticLandscapeEntry(params: {
       if (candTags.has(tag)) score += 30;
     }
 
-    // 2. Descalificación dura: assets con protoboard/electrónica física NUNCA ilustran temas de software/ofimática/ciudadanía
+    // 2. Descalificación dura: assets con protoboard/electrónica física NUNCA ilustran temas de software/ofimática/SO/ciudadanía
     if (candTags.has('protoboard') && hasNonHardwareTopic && !hasHardwareTopic) {
       score -= 1000;
     }
@@ -365,9 +391,11 @@ function selectSemanticLandscapeEntry(params: {
       score -= 120;
     }
 
-    // 4. Desempate determinista suave a favor de variantes temáticas más específicas y luego del arquetipo rotado
+    // 4. Desempate determinista suave a favor de escenas fotorrealistas V2 (-01-portada, -07-, -08-) y del arquetipo rotado
     if (cand.id.includes('-07-') || cand.id.includes('-08-')) {
-      score += 6;
+      score += 8;
+    } else if (cand.archetype === 'portada') {
+      score += 4;
     }
     if (cand.archetype === defaultArchetype) {
       score += 3;
@@ -399,21 +427,28 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
     request.blockNumber ?? 1,
     request.missionIndex ?? 0,
   );
-  const selectedEntry =
-    request.role === 'slides_hero' || request.role === 'slides_concept'
-      ? selectSemanticLandscapeEntry({
-          domainId,
-          role: request.role,
-          defaultArchetype: slot.archetype,
-          topicText: request.topicText,
-          avoidArchetypes: request.avoidArchetypes,
-          avoidSceneIds: request.avoidSceneIds,
-          tracker: request.tracker,
-          fileExists,
-        })
-      : EDITORIAL_SCENES_CATALOG[domainId][
-          pickNonRepeatingArchetype(domainId, slot.archetype, request.role, request.tracker)
-        ];
+  const useSemanticLandscape =
+    request.role === 'slides_hero' ||
+    request.role === 'slides_concept' ||
+    ((request.role === 'block_cover' || request.role.startsWith('mission_')) &&
+      (Boolean(request.topicText?.trim()) ||
+        Boolean(request.avoidSceneIds?.length) ||
+        Boolean(request.preferPortadaV2)));
+  const selectedEntry = useSemanticLandscape
+    ? selectSemanticLandscapeEntry({
+        domainId,
+        role: request.role,
+        defaultArchetype: slot.archetype,
+        topicText: request.topicText,
+        avoidArchetypes: request.avoidArchetypes,
+        avoidSceneIds: request.avoidSceneIds,
+        preferPortadaV2: request.preferPortadaV2,
+        tracker: request.tracker,
+        fileExists,
+      })
+    : EDITORIAL_SCENES_CATALOG[domainId][
+        pickNonRepeatingArchetype(domainId, slot.archetype, request.role, request.tracker)
+      ];
   const archetype = selectedEntry.archetype;
   const domainEntry: EditorialSceneEntry = selectedEntry;
 

@@ -223,10 +223,16 @@ export async function compileUnifiedEditorialPdf(
         : `Bloque ${firstBlock + 1}`;
 
     const resolvedUacName = params.planning.uacName || 'Unidad de Aprendizaje Curricular';
+    const coverTopicHint = composed.missions
+      .filter((m) => !isSingleBlock || m.blockNumber === firstBlock + 1)
+      .map((m) => m.title)
+      .join(' ');
     const coverScene = allocateEditorialSceneOnDisk({
       uacName: resolvedUacName,
       blockNumber: firstBlock + 1,
       role: 'block_cover',
+      topicText: coverTopicHint || bloqueEtiqueta,
+      preferPortadaV2: true,
       fileExists: sceneFileExists,
     });
 

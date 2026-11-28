@@ -337,6 +337,7 @@ export function composeStudentSessionsFromWorkbooks(
 
   // Proyectar encuadre de misiones (4 misiones por bloque)
   const missions: StudentMissionFraming[] = [];
+  let previousMissionSceneId: string | undefined;
   for (const range of missionRanges.values()) {
     const wb = blockMetaMap.get(range.blockIndex);
     const rawMission = wb?.missions?.[range.missionPos];
@@ -345,15 +346,23 @@ export function composeStudentSessionsFromWorkbooks(
     const cleanMission = rawMission ? stripMaterialTokensDeep(rawMission) : undefined;
     const title = (cleanMission?.title || `Misión ${missionIndex}`).trim();
     const stageLabel = MISSION_STAGE_LABELS[range.missionPos % MISSION_STAGE_LABELS.length];
+    const missionTopicText = [title, cleanMission?.sessionTopic, cleanMission?.sessionFocus]
+      .filter(Boolean)
+      .join(' ');
 
     const scene = options?.sceneFileExists
       ? allocateEditorialSceneOnDisk({
           uacName: rawPlanning.uac_name || undefined,
           blockNumber,
           role: missionIndexToSceneRole(range.missionPos),
+          topicText: missionTopicText,
+          avoidSceneIds: previousMissionSceneId ? [previousMissionSceneId] : undefined,
           fileExists: options.sceneFileExists,
         })
       : null;
+    if (scene?.id) {
+      previousMissionSceneId = scene.id;
+    }
 
     missions.push({
       blockNumber,
