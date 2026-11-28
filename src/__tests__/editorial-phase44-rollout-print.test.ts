@@ -352,6 +352,36 @@ describe('PR 4.4 — Despliegue Controlado (Shadow/Canary/Rollback), Golden 5 Fa
     expect(printInfo.fullText).toContain('Ancho estimado de lomo');
     expect(printInfo.fullText).toContain('21EBH0412K');
 
+    // Resiliencia anti deploy-skew: si una escena nueva aún no existe en el contenedor del worker,
+    // el worker degrada determinísticamente sin crashear Typst con 500
+    const skewChapter = makeFamilyChapter({ ...families[3]! });
+    skewChapter.missions = [
+      {
+        blockNumber: 1,
+        missionIndex: 1,
+        title: 'Misión 1: Prueba anti deploy-skew',
+        stageLabel: 'Concepto Cero',
+        startSession: 1,
+        endSession: 1,
+        scene: {
+          id: 'tic-99-inexistente',
+          domainId: 'cultura_digital_programacion_ti',
+          role: 'mission_1',
+          relativePath: '/images/escenas/cultura_digital_programacion_ti/tic-99-inexistente.webp',
+          alt: 'Escena pendiente de despliegue en Render',
+          crop: 'top_band',
+          archetype: 'concepto',
+          aspectRatio: '16:9',
+        },
+      },
+    ];
+    const skewCompiled = await dispatchToEditorialWorker(skewChapter, {
+      timeoutMs: 30000,
+      sourceDateEpoch: 0,
+    });
+    expect(skewCompiled.success).toBe(true);
+    expect(skewCompiled.pdfBuffer.subarray(0, 5).toString('utf8')).toBe('%PDF-');
+
     // Invariante de paridad de despliegue: la plantilla raíz y la empaquetada en worker-editorial/ deben coincidir byte a byte
     const rootTpl = fs.readFileSync(path.join(process.cwd(), 'templates', 'editorial', 'workbook-template.typ'), 'utf8');
     const workerTpl = fs.readFileSync(

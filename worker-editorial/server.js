@@ -275,6 +275,61 @@ function resolvePublicDir() {
 }
 
 /**
+ * Valida que las rutas de escenas embebidas en `chapter` existan en `publicDir` del contenedor.
+ * Previene errores 500 de Typst ante desfase temporal de despliegue (deploy skew) entre Vercel y Render:
+ * si un activo nuevo aún no existe en el contenedor, degrada determinísticamente a la portada del dominio
+ * o al respaldo general, y solo omite la escena si ninguno existe en disco.
+ */
+function sanitizeChapterScenePaths(chapter, publicDir) {
+  const resolveValidScene = (scene) => {
+    if (!scene || typeof scene !== 'object' || typeof scene.relativePath !== 'string') {
+      return scene;
+    }
+    const rel = scene.relativePath.replace(/^\/+/, '');
+    if (fs.existsSync(path.join(publicDir, rel))) {
+      return scene;
+    }
+    const domainDir = path.dirname(path.join(publicDir, rel));
+    if (fs.existsSync(domainDir)) {
+      const files = fs.readdirSync(domainDir);
+      const fallbackFile =
+        files.filter((f) => /-0[78]-.*\.webp$/i.test(f)).sort()[0] ||
+        files.filter((f) => /-01-portada\.webp$/i.test(f)).sort()[0];
+      if (fallbackFile) {
+        const fallbackRel = `/${path.relative(publicDir, path.join(domainDir, fallbackFile)).replace(/\\/g, '/')}`;
+        logger.warn('Escena faltante en worker (posible deploy skew); degradando a portada de dominio', {
+          requested: scene.relativePath,
+          fallback: fallbackRel,
+        });
+        return { ...scene, relativePath: fallbackRel };
+      }
+    }
+    logger.warn('Escena faltante en worker y sin respaldo en dominio; omitiendo imagen para preservar compilación', {
+      requested: scene.relativePath,
+    });
+    return undefined;
+  };
+
+  const sanitized = { ...chapter };
+  if (sanitized.coverScene) {
+    const validCover = resolveValidScene(sanitized.coverScene);
+    if (validCover) sanitized.coverScene = validCover;
+    else delete sanitized.coverScene;
+  }
+  if (Array.isArray(sanitized.missions)) {
+    sanitized.missions = sanitized.missions.map((m) => {
+      if (!m || !m.scene) return m;
+      const validScene = resolveValidScene(m.scene);
+      if (validScene) return { ...m, scene: validScene };
+      const copy = { ...m };
+      delete copy.scene;
+      return copy;
+    });
+  }
+  return sanitized;
+}
+
+/**
  * Ejecuta la compilación con Typst midiendo la RAM real del proceso hijo
  */
 async function compileWithTypstChildProcess(inputPath, outputPath, options = {}) {
@@ -503,8 +558,9 @@ function handleRequest(req, res) {
 
         const assetsRoot = '/' + path.relative(effectiveRootDir, publicDir).replace(/\\/g, '/');
 
-        // Serializar capítulo con assetsRoot para que workbook-template.typ ubique imágenes spot
-        const serializedChapter = JSON.stringify({ ...chapter, assetsRoot }, null, 2);
+        // Serializar capítulo con assetsRoot y rutas de escenas verificadas en disco (anti deploy-skew)
+        const safeChapter = sanitizeChapterScenePaths(chapter, publicDir);
+        const serializedChapter = JSON.stringify({ ...safeChapter, assetsRoot }, null, 2);
         await fs.promises.writeFile(jsonPath, serializedChapter, 'utf8');
 
         // Invocación explícita de render-student-chapter con importación local autocontenida
