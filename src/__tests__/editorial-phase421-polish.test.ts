@@ -18,6 +18,7 @@
  *      sin repetir jamás dos páginas consecutivas, y el PDF vectorial real contiene los XObjects de imagen.
  */
 
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
@@ -354,14 +355,18 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     let prevHero:
       | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
       | undefined;
+    let prevHeroId: string | undefined;
     for (const wb of workbooks) {
       const blockDecks = buildSacrintDecksForWorkbook(wb, {
         mode: 'lesson-guide',
         misconceptionTracker,
         previousHeroArchetype: prevHero,
+        previousHeroSceneId: prevHeroId,
         ...sceneLoader,
       });
-      prevHero = blockDecks[blockDecks.length - 1]?.editorialScenes?.hero?.archetype ?? prevHero;
+      const lastHero = blockDecks[blockDecks.length - 1]?.editorialScenes?.hero;
+      prevHero = lastHero?.archetype ?? prevHero;
+      prevHeroId = lastHero?.id ?? prevHeroId;
       allDecks.push(...blockDecks);
     }
 
@@ -372,8 +377,8 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
     expect(heroPaths.every((p) => typeof p === 'string' && p.endsWith('.webp'))).toBe(true);
     expect(allDecks.every((d) => d.editorialScenes?.hero?.dataUri?.startsWith('data:image/webp;base64,'))).toBe(true);
 
-    // Verificar que ningún bloque repite 4/4/4 la misma portada (>= 2 escenas por bloque y las 3 en el semestre)
-    expect(new Set(heroPaths).size).toBe(3);
+    // Verificar que ningún bloque repite 4/4/4 la misma portada (>= 2 escenas por bloque y >= 3 en el semestre)
+    expect(new Set(heroPaths).size).toBeGreaterThanOrEqual(3);
     for (let b = 0; b < 3; b++) {
       const blockHeroes = heroPaths.slice(b * 4, b * 4 + 4);
       expect(new Set(blockHeroes).size).toBeGreaterThanOrEqual(2);
@@ -397,34 +402,34 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
 
     // Cada portada (slide 1, 10, 19... = inicio de cada deck de 9 slides) debe apuntar a una imagen en ppt/media/
     // y ningún bloque puede tener las 4 portadas apuntando al mismo hash de imagen
-    const mediaHashes = new Map<string, number>();
+    const mediaHashes = new Map<string, string>();
     for (const mf of mediaFiles) {
       const entry = zip.file(mf);
       expect(entry).not.toBeNull();
       const bytes = await entry!.async('nodebuffer');
-      mediaHashes.set(mf.split('/').pop()!, bytes.length);
+      mediaHashes.set(mf.split('/').pop()!, crypto.createHash('sha1').update(bytes).digest('hex'));
     }
 
     let slideIdx = 1;
-    const coverSizesPerMission: number[] = [];
+    const coverHashesPerMission: string[] = [];
     for (const deck of allDecks) {
       const relsPath = `ppt/slides/_rels/slide${slideIdx}.xml.rels`;
       const relsXml = await zip.file(relsPath)?.async('string');
       expect(relsXml).toBeTruthy();
       const targetMatch = relsXml!.match(/Target="\.\.\/media\/([^"]+)"/);
       expect(targetMatch).not.toBeNull();
-      coverSizesPerMission.push(mediaHashes.get(targetMatch![1]) ?? 0);
+      coverHashesPerMission.push(mediaHashes.get(targetMatch![1]) ?? '');
       slideIdx += deck.slides.length;
     }
 
-    expect(coverSizesPerMission).toHaveLength(12);
-    // Las 3 escenas se usan a lo largo del semestre, ningún bloque repite 4/4/4 y 0 consecutivas repetidas
-    expect(new Set(coverSizesPerMission).size).toBe(3);
-    expect(new Set(coverSizesPerMission.slice(0, 4)).size).toBeGreaterThanOrEqual(2);
-    expect(new Set(coverSizesPerMission.slice(4, 8)).size).toBeGreaterThanOrEqual(2);
-    expect(new Set(coverSizesPerMission.slice(8, 12)).size).toBeGreaterThanOrEqual(2);
-    for (let i = 1; i < coverSizesPerMission.length; i++) {
-      expect(coverSizesPerMission[i]).not.toBe(coverSizesPerMission[i - 1]);
+    expect(coverHashesPerMission).toHaveLength(12);
+    // Al menos 3 escenas distintas en el semestre, ningún bloque repite 4/4/4 y 0 consecutivas repetidas
+    expect(new Set(coverHashesPerMission).size).toBeGreaterThanOrEqual(3);
+    expect(new Set(coverHashesPerMission.slice(0, 4)).size).toBeGreaterThanOrEqual(2);
+    expect(new Set(coverHashesPerMission.slice(4, 8)).size).toBeGreaterThanOrEqual(2);
+    expect(new Set(coverHashesPerMission.slice(8, 12)).size).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < coverHashesPerMission.length; i++) {
+      expect(coverHashesPerMission[i]).not.toBe(coverHashesPerMission[i - 1]);
     }
   }, 30000);
 
@@ -712,12 +717,12 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
         forbiddenRegex: /^desigualdad\s+digital$/i,
       },
       {
-        label: 'p18 Cuatro libertades del software libre vs Fundamentos genéricos',
+        label: 'p18 Fundamentos de ciudadanía digital: cuatro libertades (contextualizado sin duplicar p22)',
         missionTopic: 'Fundamentos de la ciudadanía digital',
         objective: 'Comprenderás los fundamentos de la ciudadanía digital.',
         claim: 'Las cuatro libertades del software libre garantizan que tú mantengas el control total sobre tus herramientas digitales.',
         formula: 'Libertad (0, 1, 2, 3) = Control Total sobre el Código Fuente',
-        expectedRegex: /cuatro\s+libertades\s+del\s+software\s+libre/i,
+        expectedRegex: /fundamentos\s+de\s+ciudadan[ií]a\s+digital:\s+cuatro\s+libertades/i,
         forbiddenRegex: /^fundamentos\s+de\s+la\s+ciudadan[ií]a\s+digital$/i,
       },
       {
@@ -900,15 +905,16 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
       ...sceneLoader,
     });
 
-    // Hojas de cálculo (Misión 2, donde vive Slide 49): ni portada ni concepto pueden usar protoboard (tic-01-portada / tic-02-concepto en concepto)
+    // Hojas de cálculo (Misión 2, donde vive Slide 49): ni portada ni concepto pueden usar protoboard (tic-01 ni tic-02)
     const spreadsheetDeck = decks[1]!;
-    expect(spreadsheetDeck.editorialScenes?.hero?.relativePath).toContain('tic-04-comunidad.webp');
-    expect(spreadsheetDeck.editorialScenes?.concept?.relativePath).toContain('tic-04-comunidad.webp');
-    expect(spreadsheetDeck.editorialScenes?.concept?.relativePath).not.toContain('tic-01-portada.webp');
+    expect(spreadsheetDeck.editorialScenes?.hero?.relativePath).toContain('tic-07-software-datos.webp');
+    expect(spreadsheetDeck.editorialScenes?.concept?.relativePath).toContain('tic-07-software-datos.webp');
+    expect(spreadsheetDeck.editorialScenes?.hero?.relativePath).not.toMatch(/tic-0[12]-/);
+    expect(spreadsheetDeck.editorialScenes?.concept?.relativePath).not.toMatch(/tic-0[12]-/);
 
-    // Privacidad y Ciudadanía digital jamás deben recibir protoboard (tic-01-portada)
-    expect(decks[2]!.editorialScenes?.hero?.relativePath).not.toContain('tic-01-portada.webp');
-    expect(decks[3]!.editorialScenes?.hero?.relativePath).not.toContain('tic-01-portada.webp');
+    // Privacidad y Ciudadanía digital jamás deben recibir protoboard (ni tic-01 ni tic-02)
+    expect(decks[2]!.editorialScenes?.hero?.relativePath).not.toMatch(/tic-0[12]-/);
+    expect(decks[3]!.editorialScenes?.hero?.relativePath).not.toMatch(/tic-0[12]-/);
 
     // Cero portadas consecutivas repetidas dentro del bloque
     for (let i = 1; i < decks.length; i++) {
@@ -917,4 +923,231 @@ describe('PR 4.2.1 — Pulido 06 + Integración real 08 (12 misiones PPTX) y 09 
       );
     }
   });
+
+  it('PR 4.2.4 — E2E binario 08 PPTX: verifica en XML/media reales las 12 misiones CD1 (0 protoboards en no-hardware, Slide 49 conserva 2.ª oración y 15.0.)', async () => {
+    const sceneLoader = createNodeSceneLoader();
+    const realMissionTopicsByBlock: Record<number, string[]> = {
+      1: [
+        'Introducción al hardware y software',
+        'Práctica y Aplicación — Historia crítica del desarrollo de tecnología digital',
+        'Proyecto Integrador — Sistemas operativos',
+        'Evaluación y Cierre — Corporaciones de innovación',
+      ],
+      2: [
+        'Las 4 libertades',
+        'Práctica y Aplicación — Hojas de cálculo',
+        'Proyecto Integrador — Privacidad',
+        'Evaluación y Cierre — Ciudadanía digital',
+      ],
+      3: [
+        'Pasos para solucionar un problema',
+        'Práctica y Aplicación — Diagramas de flujo',
+        'Proyecto Integrador — Datos',
+        'Evaluación y Cierre — Operadores',
+      ],
+    };
+
+    // Construir los 3 bloques con los 12 títulos reales de CD1 y el ejemplo real de Slide 49 (B2M2)
+    const workbooks = [1, 2, 3].map((b) => {
+      const wb = makeCdBlockWorkbook(b);
+      const topics = realMissionTopicsByBlock[b]!;
+      wb.missions.forEach((m, idx) => {
+        m.title = `Misión ${idx + 1}: ${topics[idx]!}`;
+        m.sessionTopic = topics[idx]!;
+      });
+      if (b === 2) {
+        // Reproducir exactamente el texto BD de Slide 49 ("Hoja de cálculo") con 15.0. + 2.ª oración
+        const s49 = wb.missions[1]!.sessionPlans![0]!;
+        s49.objetivo = 'Aplicar fórmulas condicionales en hoja de cálculo.';
+        s49.ejemploResuelto =
+          'Analizas el registro de horas dedicadas a actividades recreativas y horas de estudio semanal de 5 compañeros.\nPaso 1: Aplica la función PROMEDIO en la celda B7 para las horas recreativas y en la celda C7 para las de estudio.\nPaso 2: Utiliza la función condicional =SI en la celda D7 para valorar automáticamente si el promedio de estudio cumple con la meta establecida.\nResultado: El promedio de horas recreativas es 4.8 y el de estudio es 15.0. La condición lógica indica que el promedio de estudio no supera las 15 horas, lo cual sugiere la necesidad de fomentar más espacios de apoyo académico.';
+        s49.sintesisVisual = {
+          conceptoBreve:
+            'La hoja de cálculo es una herramienta digital que permite organizar, procesar y analizar datos por medio de fórmulas y funciones.',
+          formulaOReglaClave: '=SI(condición, valor_si_verdadero, valor_si_falso)',
+          ejemploBreve: {
+            planteamiento:
+              'Analizas el registro de horas dedicadas a actividades recreativas y horas de estudio semanal de 5 compañeros.',
+            pasos: [
+              'Aplica la función PROMEDIO en la celda B7 para las horas recreativas y en la celda C7 para las de estudio.',
+              'Utiliza la función condicional =SI en la celda D7 para valorar automáticamente si el promedio de estudio cumple con la meta establecida.',
+            ],
+            conclusion: '',
+          },
+          mapaConceptual: {
+            definicionClave:
+              'La hoja de cálculo organiza datos en filas y columnas para ejecutar cálculos condicionales automáticos.',
+            criterioDesarrollo: 'Verifica las referencias de celda antes de copiar fórmulas.',
+            errorComun: 'Referencias circulares o errores de sintaxis en las fórmulas aplicadas.',
+            correccionBreve: 'Comprueba paréntesis y rangos de celda en cada fórmula.',
+          },
+        };
+      }
+      return wb;
+    });
+
+    const allDecks: SacrintDeckSpec[] = [];
+    let prevHeroArch:
+      | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
+      | undefined;
+    let prevHeroId: string | undefined;
+    const misconceptionTracker = new Map<string, number>();
+    for (const wb of workbooks) {
+      const blockDecks = buildSacrintDecksForWorkbook(wb, {
+        mode: 'lesson-guide',
+        misconceptionTracker,
+        previousHeroArchetype: prevHeroArch,
+        previousHeroSceneId: prevHeroId,
+        ...sceneLoader,
+      });
+      const lastHero = blockDecks[blockDecks.length - 1]?.editorialScenes?.hero;
+      prevHeroArch = lastHero?.archetype ?? prevHeroArch;
+      prevHeroId = lastHero?.id ?? prevHeroId;
+      allDecks.push(...blockDecks);
+    }
+
+    const pptxBuf = await generateCombinedSacrintPptx(allDecks, {
+      title: 'Presentación SACRINT CD1 Real',
+      subjectName: 'Cultura Digital I',
+    });
+    const zip = await JSZip.loadAsync(pptxBuf);
+
+    // Precalcular hashes SHA-1 exactos de las 2 escenas protoboard (700x760 y 872x148)
+    const ticDir = path.join(
+      process.cwd(),
+      'public',
+      'images',
+      'escenas',
+      'cultura_digital_programacion_ti',
+    );
+    const hashCropped = async (file: string, w: number, h: number) => {
+      const buf = await sharp(path.join(ticDir, file))
+        .resize(w, h, { fit: 'cover', position: 'centre' })
+        .png()
+        .toBuffer();
+      return crypto.createHash('sha1').update(buf).digest('hex');
+    };
+    const protoboardHashes = new Set([
+      await hashCropped('tic-01-portada.webp', 700, 760),
+      await hashCropped('tic-02-concepto.webp', 700, 760),
+      await hashCropped('tic-01-portada.webp', 872, 148),
+      await hashCropped('tic-02-concepto.webp', 872, 148),
+    ]);
+    const softwareDataHeroHash = await hashCropped('tic-07-software-datos.webp', 700, 760);
+
+    // Auditar CADA portada real en el PPTX descomprimido
+    let slideIdx = 1;
+    const coverHashes: string[] = [];
+    const nonHardwareMissionIndices = new Set([1, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    let foundSlide49FullConclusion = false;
+
+    for (let mIdx = 0; mIdx < allDecks.length; mIdx++) {
+      const deck = allDecks[mIdx]!;
+      const relsXml = (await zip.file(`ppt/slides/_rels/slide${slideIdx}.xml.rels`)?.async('string')) ?? '';
+      const mediaName = relsXml.match(/Target="\.\.\/media\/([^"]+)"/)?.[1];
+      expect(mediaName).toBeTruthy();
+      const imgBuf = await zip.file(`ppt/media/${mediaName}`)!.async('nodebuffer');
+      const imgHash = crypto.createHash('sha1').update(imgBuf).digest('hex');
+      coverHashes.push(imgHash);
+
+      // Las 10 misiones no-hardware (incl. Hojas de cálculo, Privacidad, Ciudadanía digital, Diagramas de flujo, Datos, Operadores)
+      // NUNCA pueden llevar protoboard (ni tic-01 ni tic-02) en el PPTX final
+      if (nonHardwareMissionIndices.has(mIdx)) {
+        expect(protoboardHashes.has(imgHash), `Misión ${mIdx} llevó protoboard en PPTX`).toBe(false);
+      }
+      // Misión 5 = B2M2 Hojas de cálculo debe usar específicamente tic-07-software-datos.webp
+      if (mIdx === 5) {
+        expect(imgHash).toBe(softwareDataHeroHash);
+        // Verificar la diapositiva de concepto siguiente (equiv. Slide 49) en XML real
+        const s49Xml = (await zip.file(`ppt/slides/slide${slideIdx + 1}.xml`)?.async('string')) ?? '';
+        const s49Text = [...s49Xml.matchAll(/<a:t>([^<]+)<\/a:t>/g)].map((m) => m[1]).join(' ');
+        expect(s49Text).toContain('15.0.');
+        expect(s49Text).not.toContain('15.(0)');
+        expect(s49Text).toMatch(/La condici[oó]n l[oó]gica/i);
+        foundSlide49FullConclusion = true;
+      }
+
+      slideIdx += deck.slides.length;
+    }
+
+    expect(foundSlide49FullConclusion).toBe(true);
+    // Cero portadas consecutivas repetidas en las 12 misiones del PPTX real
+    for (let i = 1; i < coverHashes.length; i++) {
+      expect(coverHashes[i]).not.toBe(coverHashes[i - 1]);
+    }
+  }, 45000);
+
+  it('PR 4.2.4 — E2E binario 09 PDF: valida p18 contextualizada (sin duplicar p22), p39, p40 (Representación gráfica y tabular), p50 (Estructuras condicionales) y 0 títulos duplicados en el PDF real', async () => {
+    const sceneLoader = createNodeSceneLoader();
+    const wbB2 = makeCdBlockWorkbook(2);
+    // p18 B2M1: Fundamentos de la ciudadanía digital + cuerpo de cuatro libertades
+    wbB2.missions[0]!.sessionTopic = 'Fundamentos de la ciudadanía digital';
+    wbB2.missions[0]!.sessionPlans![0]!.objetivo = 'Comprenderás los fundamentos de la ciudadanía digital.';
+    wbB2.missions[0]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'Las cuatro libertades del software libre garantizan que tú mantengas el control total sobre tus herramientas digitales.';
+    // p22 B2M2: Cuatro libertades del software libre
+    wbB2.missions[1]!.sessionTopic = 'Cuatro libertades del software libre';
+    wbB2.missions[1]!.sessionPlans![0]!.objetivo = 'Aplicarás las cuatro libertades del software libre.';
+    wbB2.missions[1]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'Las cuatro libertades del software libre garantizan que el usuario tenga control total sobre su tecnología.';
+    // p23 B2M2: Socialización sobre herramientas digitales y GNU/Linux
+    wbB2.missions[1]!.sessionPlans![1]!.objetivo =
+      'Socializarás tu investigación sobre herramientas digitales y GNU/Linux.';
+    wbB2.missions[1]!.sessionPlans![1]!.sintesisVisual!.conceptoBreve =
+      'La socialización de hallazgos es el proceso de comunicar propuestas tecnológicas fundamentadas sobre GNU/Linux.';
+
+    const wbB3 = makeCdBlockWorkbook(3);
+    // p39 B3M2 S05: Pasos fundamentales → Resolución de problemas
+    wbB3.missions[1]!.sessionTopic = 'Pasos fundamentales';
+    wbB3.missions[1]!.sessionPlans![0]!.objetivo =
+      'Emplearás los pasos esenciales para la resolución de problemas.';
+    wbB3.missions[1]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'La resolución de problemas es un proceso sistemático que implica identificar variables y diseñar una estrategia lógica.';
+    // p40 B3M2 S06: reproduce el caso real donde "basada en evidencia" hace que resolveInfographicConceptTitle
+    // herede "Diagramas de flujo" de la misión, mientras el objetivo y el cuerpo tratan de "Representación gráfica y tabular"
+    const wbB3M2Diag = makeCdBlockWorkbook(3);
+    wbB3M2Diag.missions[1]!.sessionTopic = 'Diagramas de flujo';
+    wbB3M2Diag.missions[1]!.sessionPlans![1]!.contenido =
+      'Definición: Diagramas de flujo y representación de datos en tablas y gráficos.';
+    wbB3M2Diag.missions[1]!.sessionPlans![1]!.objetivo =
+      'Representarás información por medio de herramientas gráficas y tabulares para tomar decisiones basadas en evidencia.';
+    wbB3M2Diag.missions[1]!.sessionPlans![1]!.sintesisVisual!.conceptoBreve =
+      'La representación gráfica y tabular es el proceso de organizar datos en tablas y visualizarlos por medio de gráficos para facilitar la interpretación.';
+    wbB3M2Diag.missions[1]!.sessionPlans![1]!.sintesisVisual!.formulaOReglaClave =
+      'Datos Crudos → Tabla Comparativa → Gráfico (Barras/Líneas) → Interpretación';
+    // p50 B3M4: Contraste de Métodos y Verificación de Resultados — Operadores → Estructuras condicionales
+    wbB3.missions[3]!.sessionTopic = 'Contraste de Métodos y Verificación de Resultados — Operadores';
+    wbB3.missions[3]!.sessionPlans![0]!.objetivo =
+      'Evaluarás el contraste de métodos y verificación de resultados.';
+    wbB3.missions[3]!.sessionPlans![0]!.sintesisVisual!.conceptoBreve =
+      'Las estructuras condicionales posibilitan tomar decisiones lógicas basadas en datos verificables.';
+
+    const rawSpecs = [
+      buildSacrintInfographic(wbB2, 'wide', { missionIndex: 0, sessionIndex: 0, ...sceneLoader }),
+      buildSacrintInfographic(wbB2, 'wide', { missionIndex: 1, sessionIndex: 0, ...sceneLoader }),
+      buildSacrintInfographic(wbB2, 'wide', { missionIndex: 1, sessionIndex: 1, ...sceneLoader }),
+      buildSacrintInfographic(wbB3, 'wide', { missionIndex: 1, sessionIndex: 0, ...sceneLoader }),
+      buildSacrintInfographic(wbB3M2Diag, 'wide', { missionIndex: 1, sessionIndex: 1, ...sceneLoader }),
+      buildSacrintInfographic(wbB3, 'wide', { missionIndex: 3, sessionIndex: 0, ...sceneLoader }),
+    ];
+    const deduped = dedupeInfographicSpecs(rawSpecs);
+    expect(deduped).toHaveLength(6);
+
+    const titles = deduped.map((s) => s.title);
+    // 0 títulos duplicados en todo el lote
+    expect(new Set(titles.map((t) => t.toLowerCase())).size).toBe(6);
+    expect(titles[0]).toMatch(/fundamentos\s+de\s+ciudadan[ií]a\s+digital:\s+cuatro\s+libertades/i);
+    expect(titles[1]).toMatch(/^cuatro\s+libertades\s+del\s+software\s+libre$/i);
+    expect(titles[2]).toMatch(/socializaci[oó]n\s+de\s+hallazgos:.*gnu\/linux/i);
+    expect(titles[3]).toMatch(/resoluci[oó]n\s+de\s+problemas/i);
+    expect(titles[4]).toMatch(/representaci[oó]n\s+gr[aá]fica\s+y\s+tabular/i);
+    expect(titles[4]).not.toMatch(/diagramas?\s+de\s+flujo/i);
+    expect(titles[5]).toMatch(/estructuras\s+condicionales/i);
+
+    // Compilar el PDF vectorial combinado real y verificar sus 6 páginas
+    const pdfBuf = await renderCombinedSacrintInfographicsPdf(deduped, 'wide');
+    expect(pdfBuf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const pageDefs = pdfBuf.toString('latin1').match(/\/Type\s*\/Page\b(?!s)/g) ?? [];
+    expect(pageDefs.length).toBe(6);
+  }, 30000);
 });

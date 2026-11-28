@@ -698,8 +698,12 @@ export function enforceLessonGuideSlideBudget(slide: SacrintSlide): SacrintSlide
               .map((step) => compactMathStep(step, 60, 9))
               .filter(Boolean),
             interpretation:
-              fitShort(cs.workedExample.interpretation, 116, 18, 'conclusion', 18) ||
-              cs.workedExample.interpretation,
+              cs.workedExample.interpretation.length <= 165 &&
+              /\d\.\s+[A-ZÁÉÍÓÚÑ]/.test(cs.workedExample.interpretation) &&
+              !hasDanglingEnding(cs.workedExample.interpretation)
+                ? cs.workedExample.interpretation
+                : fitShort(cs.workedExample.interpretation, 116, 18, 'conclusion', 18) ||
+                  cs.workedExample.interpretation,
           }
         : cs.workedExample,
       variables: (cs.variables ?? []).slice(0, 3).map((variable) => ({

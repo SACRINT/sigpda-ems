@@ -53,16 +53,20 @@ async function prepareDeckScenesForPptx(deck: SacrintDeckSpec): Promise<Prepared
   const conceptScene = deck.editorialScenes?.concept;
   const heroRaw = heroScene?.dataUri;
   const conceptRaw = conceptScene?.dataUri;
+  // Basado en etiquetas semánticas del catálogo (evita hardcodear nombres de archivo o arquetipos):
+  // cualquier escena etiquetada como `protoboard` queda bloqueada en diapositivas de software/ofimática/ciudadanía.
   const conceptIsHardwareProtoboard = Boolean(
-    conceptScene &&
-      conceptScene.domainId === 'cultura_digital_programacion_ti' &&
-      (conceptScene.archetype === 'portada' || conceptScene.archetype === 'concepto'),
+    conceptScene?.visualTags?.includes('protoboard') ||
+      (conceptScene &&
+        conceptScene.domainId === 'cultura_digital_programacion_ti' &&
+        (conceptScene.id === 'tic-01-portada' || conceptScene.id === 'tic-02-concepto')),
   );
   const heroIsSoftwareSafe = Boolean(
     heroRaw &&
       heroScene &&
-      heroScene.domainId === 'cultura_digital_programacion_ti' &&
-      heroScene.archetype === 'comunidad',
+      !heroScene.visualTags?.includes('protoboard') &&
+      heroScene.id !== 'tic-01-portada' &&
+      heroScene.id !== 'tic-02-concepto',
   );
   const [
     heroDataUri,
@@ -335,12 +339,21 @@ function renderConcept(
       addText(slide, step, 1036, sy - 2, 778, stepStride - 10, { fontSize: pt(18), color: C.textSoft, maxLines: 3 });
     });
     if (exResult) {
-      addText(slide, `Conclusión: ${exResult}`, 994, exPanelY + exPanelH - 72, 820, 58, {
-        fontSize: pt(18),
-        color: C.emerald,
-        bold: true,
-        maxLines: 2,
-      });
+      const multiLineConcl = exResult.length > 125 && /\d\.\s+[A-ZÁÉÍÓÚÑ]/.test(exResult);
+      addText(
+        slide,
+        `Conclusión: ${exResult}`,
+        994,
+        exPanelY + exPanelH - (multiLineConcl ? 76 : 72),
+        820,
+        multiLineConcl ? 64 : 58,
+        {
+          fontSize: pt(18),
+          color: C.emerald,
+          bold: true,
+          maxLines: multiLineConcl ? 3 : 2,
+        }
+      );
     }
 
     addFooter(slide, deck, `${sesTag} · concepto y ejemplo`, accent);
@@ -380,12 +393,21 @@ function renderConcept(
       addText(slide, step, 138, sy - 2, 632, 44, { fontSize: pt(15.5), color: C.textSoft, maxLines: 2 });
     });
     if (exResult) {
-      addText(slide, `Conclusión: ${exResult}`, 102, exBoxY + exBoxH - 48, 668, 40, {
-        fontSize: pt(15.5),
-        color: C.emerald,
-        bold: true,
-        maxLines: 2,
-      });
+      const multiLineConcl = exResult.length > 125 && /\d\.\s+[A-ZÁÉÍÓÚÑ]/.test(exResult);
+      addText(
+        slide,
+        `Conclusión: ${exResult}`,
+        102,
+        exBoxY + exBoxH - (multiLineConcl ? 54 : 48),
+        668,
+        multiLineConcl ? 48 : 40,
+        {
+          fontSize: pt(15.5),
+          color: C.emerald,
+          bold: true,
+          maxLines: multiLineConcl ? 3 : 2,
+        }
+      );
     }
 
     addPanel(slide, 80, 792, 712, 156, { fill: '1E080C', transparency: 32, stroke: C.red });

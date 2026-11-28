@@ -22,6 +22,7 @@ import {
 import {
   EDITORIAL_SCENES_CATALOG,
   EDITORIAL_SCENES_OVERRIDES_PATH,
+  listDomainLandscapeCandidates,
   type EditorialSceneArchetype,
   type EditorialSceneCrop,
   type EditorialSceneEntry,
@@ -43,6 +44,8 @@ export interface AllocatedEditorialScene {
   aspectRatio: '16:9' | '4:5';
   source: 'override' | 'domain' | 'fallback_general';
   existsOnDisk: boolean;
+  /** Etiquetas visuales semánticas heredadas del catálogo (ej. `protoboard`, `hoja_calculo`, `ciudadania`). */
+  visualTags?: readonly string[];
   /** Imagen inline `data:image/webp;base64,...` o `data:image/png;base64,...` para renderers 08/09 y serverless. */
   dataUri?: string;
 }
@@ -60,6 +63,8 @@ export interface SceneAllocationRequest {
   topicText?: string;
   /** Arquetipos a evitar (ej. portada de la misión previa para impedir repeticiones consecutivas). */
   avoidArchetypes?: readonly EditorialSceneArchetype[];
+  /** IDs exactos de escena a evitar (evita repetición consecutiva entre variantes temáticas del mismo dominio). */
+  avoidSceneIds?: readonly string[];
   /** Slug opcional para buscar override específico en `public/images/escenas/overrides/`. */
   overrideSlug?: string | null;
   /** Predicado inyectado de existencia del asset (default `() => false`, seguro en cliente). */
@@ -238,72 +243,143 @@ function recordRoleAllocation(tracker: BlockSceneTracker | undefined, role: Edit
   set.add(id);
 }
 
-const TIC_HARDWARE_RE =
-  /\b(?:hardware|perif[eé]ric|circuito|protoboard|arduino|sensor|microcontrolador|arquitectura\s+de\s+computador|sistemas?\s+operativos?|red(?:es)?\s+(?:locales|inal[aá]mbricas|cablead)|corporaciones\s+de\s+innovaci[oó]n)\b/i;
+const SEMANTIC_TOPIC_TAG_RULES: ReadonlyArray<{ tag: string; pattern: RegExp }> = [
+  {
+    tag: 'hardware',
+    pattern:
+      /\b(?:hardware|perif[eé]ric|circuito|protoboard|arduino|sensor|microcontrolador|arquitectura\s+de\s+computador|red(?:es)?\s+(?:locales|inal[aá]mbricas|cablead))\b/i,
+  },
+  { tag: 'sistemas_operativos', pattern: /\bsistemas?\s+operativos?\b/i },
+  { tag: 'hoja_calculo', pattern: /\b(?:hojas?\s+de\s+c[aá]lculo|excel|funci[oó]n\s+si|promedio|celda|f[oó]rmulas?\s+condicionales?)\b/i },
+  { tag: 'datos', pattern: /\b(?:datos|tabular|gr[aá]fic[ao]s?|estad[ií]stic|variables|tablas?\s+de\s+frecuencia)\b/i },
+  { tag: 'diagrama_flujo', pattern: /\b(?:diagramas?\s+de\s+flujo|pseudoc[oó]digo)\b/i },
+  { tag: 'algoritmo', pattern: /\b(?:algoritmos?|pensamiento\s+algor[ií]tmico|programaci[oó]n)\b/i },
+  { tag: 'operadores', pattern: /\b(?:operadores|l[oó]gica\s+condicional|estructuras?\s+condicionales?)\b/i },
+  { tag: 'resolucion_problemas', pattern: /\b(?:solucionar\s+un\s+problema|resoluci[oó]n\s+de\s+problemas|pasos\s+fundamentales)\b/i },
+  { tag: 'ciudadania', pattern: /\b(?:ciudadan[ií]a\s+digital|identidad\s+digital|desigualdad|brecha\s+digital|contaminaci[oó]n\s+digital)\b/i },
+  { tag: 'privacidad', pattern: /\b(?:privacidad|protecci[oó]n\s+de\s+datos)\b/i },
+  { tag: 'seguridad', pattern: /\b(?:seguridad|contrase[nñ]a|credencial|autenticaci[oó]n|riesgos?\s+digitales?)\b/i },
+  { tag: 'software_libre', pattern: /\b(?:software\s+libre|gnu\/?linux|4\s+libertades|cuatro\s+libertades)\b/i },
+  { tag: 'licencias', pattern: /\b(?:licencias?|creative\s+commons|gpl|derechos?\s+de\s+autor)\b/i },
+  { tag: 'historia_digital', pattern: /\b(?:historia\s+cr[ií]tica|desarrollo\s+de\s+tecnolog[ií]a)\b/i },
+  { tag: 'corporaciones', pattern: /\b(?:corporaciones\s+de\s+innovaci[oó]n|plataformas?\s+digitales?)\b/i },
+  { tag: 'comunidad', pattern: /\b(?:comunidad|comunitario|socializaci[oó]n|colaboraci[oó]n|entorno\s+escolar)\b/i },
+];
 
-const TIC_FLOWCHART_RE = /\b(?:diagramas?\s+de\s+flujo)\b/i;
+const NON_HARDWARE_DIGITAL_TAGS = new Set([
+  'software',
+  'hoja_calculo',
+  'datos',
+  'diagrama_flujo',
+  'algoritmo',
+  'operadores',
+  'resolucion_problemas',
+  'ciudadania',
+  'privacidad',
+  'seguridad',
+  'software_libre',
+  'licencias',
+  'historia_digital',
+  'corporaciones',
+  'comunidad',
+]);
 
-const TIC_SOFTWARE_OR_CITIZENSHIP_RE =
-  /\b(?:hojas?\s+de\s+c[aá]lculo|excel|f[oó]rmula|funci[oó]n\s+si|promedio|tabular|ciudadan[ií]a\s+digital|identidad\s+digital|contaminaci[oó]n\s+digital|desigualdad|brecha\s+digital|comunidad|socializaci[oó]n|an[aá]lisis\s+de\s+datos|datos|software\s+libre)\b/i;
+export function extractSemanticTopicTags(topicText?: string): Set<string> {
+  const tags = new Set<string>();
+  if (!topicText || !topicText.trim()) return tags;
+  for (const rule of SEMANTIC_TOPIC_TAG_RULES) {
+    if (rule.pattern.test(topicText)) tags.add(rule.tag);
+  }
+  return tags;
+}
 
-const TIC_SECURITY_OR_LOGIC_RE =
-  /\b(?:privacidad|seguridad|contrase[nñ]a|credencial|autenticaci[oó]n|licencias?|creative\s+commons|gpl|4\s+libertades|cuatro\s+libertades|operadores|l[oó]gica|algoritmo|pseudoc[oó]digo|historia\s+cr[ií]tica|solucionar\s+un\s+problema)\b/i;
-
-function resolveThematicLandscapeArchetype(params: {
+/**
+ * Selector semántico agnóstico de dominio para escenas 16:9 (`slides_hero` y `slides_concept`).
+ * Evalúa las 3 escenas canónicas + cualquier variante temática registrada en disco para el dominio,
+ * descalifica assets marcados como `protoboard` en temas no-hardware y evita repeticiones consecutivas por ID.
+ */
+function selectSemanticLandscapeEntry(params: {
   domainId: DisciplinaryDomainId;
   role: EditorialSceneRole;
   defaultArchetype: EditorialSceneArchetype;
   topicText?: string;
   avoidArchetypes?: readonly EditorialSceneArchetype[];
-}): EditorialSceneArchetype {
-  const { domainId, role, defaultArchetype, topicText, avoidArchetypes } = params;
-  const avoidSet = new Set(avoidArchetypes ?? []);
+  avoidSceneIds?: readonly string[];
+  tracker?: BlockSceneTracker;
+  fileExists: SceneFileExistsFn;
+}): EditorialSceneEntry {
+  const { domainId, role, defaultArchetype, topicText, avoidArchetypes, avoidSceneIds, tracker, fileExists } = params;
+  const fallbackEntry = EDITORIAL_SCENES_CATALOG[domainId][defaultArchetype];
+  if (!LANDSCAPE_ROLES.has(role)) return fallbackEntry;
 
-  if (domainId === 'cultura_digital_programacion_ti' && topicText && topicText.trim().length > 0) {
-    const isHardware = TIC_HARDWARE_RE.test(topicText);
-    const isFlowchartOnly = !isHardware && TIC_FLOWCHART_RE.test(topicText);
-    const isSoftwareOrCitizenship = TIC_SOFTWARE_OR_CITIZENSHIP_RE.test(topicText);
-    const isSecurityOrLogic = TIC_SECURITY_OR_LOGIC_RE.test(topicText);
+  const candidates = listDomainLandscapeCandidates(domainId).filter((c) => fileExists(c.relativePath));
+  const usedInRole = tracker?.usedByRole.get(role);
+  const avoidArchSet = new Set(avoidArchetypes ?? []);
+  const avoidIdSet = new Set([...(avoidSceneIds ?? []), ...(usedInRole ? [...usedInRole] : [])]);
 
-    // En `slides_concept` (ej. Slide 49 "Hoja de cálculo"), jamás asignar protoboard/Arduino
-    // cuando la sesión trata de software, hojas de cálculo, datos o ciudadanía digital.
-    if (role === 'slides_concept' && (isSoftwareOrCitizenship || isSecurityOrLogic) && !isHardware) {
-      return 'comunidad';
+  if (candidates.length === 0) {
+    // Sin archivos en disco (ej. tests puros sin FS): respetar tracker/avoid sobre los 3 arquetipos canónicos
+    const pickedArch = pickNonRepeatingArchetype(domainId, defaultArchetype, role, tracker);
+    return EDITORIAL_SCENES_CATALOG[domainId][pickedArch];
+  }
+
+  const topicTags = extractSemanticTopicTags(topicText);
+  const hasHardwareTopic = topicTags.has('hardware') || topicTags.has('sistemas_operativos');
+  const hasNonHardwareTopic = [...topicTags].some((t) => NON_HARDWARE_DIGITAL_TAGS.has(t));
+  const hasTaggedCandidates = candidates.some((c) => (c.visualTags?.length ?? 0) > 0);
+
+  // Si el dominio no tiene etiquetas semánticas ni variantes temáticas (ej. dominios aún en 3 arquetipos puros),
+  // conservar rotación exacta evitando colisión consecutiva o ya usada en el tracker.
+  if (!hasTaggedCandidates || topicTags.size === 0) {
+    if (!avoidIdSet.has(fallbackEntry.id) && !avoidArchSet.has(fallbackEntry.archetype) && fileExists(fallbackEntry.relativePath)) {
+      return fallbackEntry;
+    }
+    const alt = candidates.find((c) => !avoidIdSet.has(c.id) && !avoidArchSet.has(c.archetype));
+    return alt ?? fallbackEntry;
+  }
+
+  let best = candidates[0]!;
+  let bestScore = -Infinity;
+
+  for (const cand of candidates) {
+    const candTags = new Set(cand.visualTags ?? []);
+    let score = 0;
+
+    // 1. Afinidad directa por etiquetas semánticas compartidas
+    for (const tag of topicTags) {
+      if (candTags.has(tag)) score += 30;
     }
 
-    if (role === 'slides_hero' || role === 'slides_concept') {
-      let ranked: readonly EditorialSceneArchetype[];
-      if (isSoftwareOrCitizenship && !isHardware) {
-        // Priorizar laptop/tableta comunitaria (sin protoboard); jamás protoboard `portada` en hojas de cálculo o ciudadanía
-        ranked = ['comunidad', 'concepto', 'portada'];
-      } else if (isSecurityOrLogic && !isHardware) {
-        // Priorizar candado/lógica (`concepto`) o comunidad (`comunidad`), evitando protoboard físico
-        ranked = ['concepto', 'comunidad', 'portada'];
-      } else if (isHardware || isFlowchartOnly) {
-        ranked = ['portada', 'concepto', 'comunidad'];
-      } else {
-        const startIdx = LANDSCAPE_ROTATION_ORDER.indexOf(defaultArchetype);
-        ranked =
-          startIdx >= 0
-            ? [
-                ...LANDSCAPE_ROTATION_ORDER.slice(startIdx),
-                ...LANDSCAPE_ROTATION_ORDER.slice(0, startIdx),
-              ]
-            : LANDSCAPE_ROTATION_ORDER;
-      }
+    // 2. Descalificación dura: assets con protoboard/electrónica física NUNCA ilustran temas de software/ofimática/ciudadanía
+    if (candTags.has('protoboard') && hasNonHardwareTopic && !hasHardwareTopic) {
+      score -= 1000;
+    }
+    if (candTags.has('hardware') && hasHardwareTopic) {
+      score += 45;
+    }
 
-      const chosen = ranked.find((arch) => !avoidSet.has(arch));
-      if (chosen) return chosen;
-      return ranked[0];
+    // 3. Anti-repetición consecutiva por ID exacto (y por arquetipo si no hay avoidSceneIds)
+    if (avoidIdSet.has(cand.id)) {
+      score -= 500;
+    } else if (avoidIdSet.size === 0 && avoidArchSet.has(cand.archetype)) {
+      score -= 120;
+    }
+
+    // 4. Desempate determinista suave a favor de variantes temáticas más específicas y luego del arquetipo rotado
+    if (cand.id.includes('-07-') || cand.id.includes('-08-')) {
+      score += 6;
+    }
+    if (cand.archetype === defaultArchetype) {
+      score += 3;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = cand;
     }
   }
 
-  if (avoidSet.has(defaultArchetype) && LANDSCAPE_ROLES.has(role)) {
-    const alt = LANDSCAPE_ROTATION_ORDER.find((arch) => !avoidSet.has(arch));
-    if (alt) return alt;
-  }
-
-  return defaultArchetype;
+  return best;
 }
 
 /**
@@ -323,15 +399,23 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
     request.blockNumber ?? 1,
     request.missionIndex ?? 0,
   );
-  const thematicArchetype = resolveThematicLandscapeArchetype({
-    domainId,
-    role: request.role,
-    defaultArchetype: slot.archetype,
-    topicText: request.topicText,
-    avoidArchetypes: request.avoidArchetypes,
-  });
-  const archetype = pickNonRepeatingArchetype(domainId, thematicArchetype, request.role, request.tracker);
-  const domainEntry: EditorialSceneEntry = EDITORIAL_SCENES_CATALOG[domainId][archetype];
+  const selectedEntry =
+    request.role === 'slides_hero' || request.role === 'slides_concept'
+      ? selectSemanticLandscapeEntry({
+          domainId,
+          role: request.role,
+          defaultArchetype: slot.archetype,
+          topicText: request.topicText,
+          avoidArchetypes: request.avoidArchetypes,
+          avoidSceneIds: request.avoidSceneIds,
+          tracker: request.tracker,
+          fileExists,
+        })
+      : EDITORIAL_SCENES_CATALOG[domainId][
+          pickNonRepeatingArchetype(domainId, slot.archetype, request.role, request.tracker)
+        ];
+  const archetype = selectedEntry.archetype;
+  const domainEntry: EditorialSceneEntry = selectedEntry;
 
   // 1. Prioridad máxima: `public/images/escenas/overrides/`
   const overrideKeys = [
@@ -378,6 +462,7 @@ export function allocateEditorialScene(request: SceneAllocationRequest): Allocat
       aspectRatio: domainEntry.aspectRatio,
       source: 'domain',
       existsOnDisk: true,
+      ...(domainEntry.visualTags ? { visualTags: domainEntry.visualTags } : {}),
       ...(dataUri ? { dataUri } : {}),
     };
   }
@@ -442,6 +527,7 @@ export function resolveSacrintDeckEditorialScenes(
     missionIndex?: number;
     topicText?: string;
     avoidHeroArchetypes?: readonly EditorialSceneArchetype[];
+    avoidHeroSceneIds?: readonly string[];
     fileExists?: SceneFileExistsFn;
     readDataUri?: SceneReadDataUriFn;
     overrideSlug?: string;
@@ -463,6 +549,7 @@ export function resolveSacrintDeckEditorialScenes(
       role: 'slides_hero',
       topicText: options.topicText,
       avoidArchetypes: options.avoidHeroArchetypes,
+      avoidSceneIds: options.avoidHeroSceneIds,
       fileExists: options.fileExists,
       readDataUri: options.readDataUri,
       overrideSlug: options.overrideSlug,

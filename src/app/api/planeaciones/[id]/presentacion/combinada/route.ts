@@ -97,6 +97,7 @@ export async function GET(
     let prevHeroArchetype:
       | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
       | undefined;
+    let prevHeroSceneId: string | undefined;
 
     for (const entry of effectiveEntries) {
       let extracted: ExtractedBlockMaterials | undefined;
@@ -109,10 +110,12 @@ export async function GET(
         mode: deckMode,
         misconceptionTracker,
         previousHeroArchetype: prevHeroArchetype,
+        previousHeroSceneId: prevHeroSceneId,
         ...sceneLoader,
       });
-      const lastArch = rawEntryDecks[rawEntryDecks.length - 1]?.editorialScenes?.hero?.archetype;
-      if (lastArch) prevHeroArchetype = lastArch;
+      const lastHero = rawEntryDecks[rawEntryDecks.length - 1]?.editorialScenes?.hero;
+      if (lastHero?.archetype) prevHeroArchetype = lastHero.archetype;
+      if (lastHero?.id) prevHeroSceneId = lastHero.id;
       const entryDecks = await Promise.all(
         rawEntryDecks.map((d) => hydrateDeckEditorialScenesViaUrl(d, reqOrigin))
       );

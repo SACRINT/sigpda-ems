@@ -459,6 +459,60 @@ function pickBestConclusionSentence(
   return isSubstantiveConclusion(fitted) ? fitted : '';
 }
 
+/**
+ * Extrae el cuerpo de una conclusión explícita (`Resultado:`, `Conclusión:`, `Respuesta final:`)
+ * sin cortar prematuramente en el primer punto tras un número decimal (ej. `"15.0. La condición lógica..."`).
+ * Cuando la primera oración es un resumen numérico breve (< 110 chars) seguido de una interpretación
+ * analítica, conserva ambas oraciones (recortando cláusulas subordinadas largas si exceden presupuesto).
+ */
+export function extractExplicitConclusionBody(
+  rawText: string,
+  maxChars = 165,
+  maxWords?: number,
+): string {
+  const match = rawText.match(
+    /(?:respuesta\s+final|resultado(?:\s+(?:final|verificable|obtenido))?|conclusi[oó]n(?:\s+final|\s+pedag[oó]gica)?|interpretaci[oó]n(?:\s+del\s+resultado)?)\s*[:.]\s*\n?\s*([^\n]+)/i,
+  );
+  if (!match?.[1]) return '';
+  const segment = match[1]
+    .replace(/\bPaso\s*\d+\s*[:.\-–][\s\S]*$/i, '')
+    .trim();
+  if (!segment) return '';
+
+  const sents = splitSpanishSentences(segment)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 8 && !META_CONCLUSION_INSTRUCTION_RE.test(s) && !PROCEDURAL_CONCLUSION_FILLER_RE.test(s));
+  if (sents.length === 0) return segment;
+
+  const s1 = sents[0]!;
+  if (sents.length >= 2 && s1.length < 110 && /\d/.test(s1)) {
+    const s2Raw = sents[1]!;
+    const fullPair = `${s1} ${s2Raw}`;
+    const wordCap = maxWords ? maxWords + 4 : undefined;
+    const fitsPair =
+      fullPair.length <= maxChars + 10 &&
+      (!wordCap || fullPair.split(/\s+/).filter(Boolean).length <= wordCap);
+    if (fitsPair && !hasDanglingEnding(fullPair)) {
+      return fullPair;
+    }
+    // Recortar cláusula subordinada accesoria en la segunda oración (", lo cual...", ", por lo que...")
+    const s2Core = s2Raw
+      .replace(/,\s*(?:lo\s+cual|por\s+lo\s+que|lo\s+que\s+sugiere|sugiriendo|demostrando\s+as[ií])\b[\s\S]*$/i, '.')
+      .replace(/\.+$/, '.')
+      .trim();
+    if (s2Core.length >= 20 && !hasDanglingEnding(s2Core)) {
+      const compactPair = `${s1} ${s2Core}`;
+      if (
+        compactPair.length <= maxChars + 10 &&
+        (!wordCap || compactPair.split(/\s+/).filter(Boolean).length <= wordCap)
+      ) {
+        return compactPair;
+      }
+    }
+  }
+  return s1;
+}
+
 export function extractExampleConclusion(
   rawExample: string,
   steps: string[],
@@ -475,11 +529,22 @@ export function extractExampleConclusion(
   const clean = sanitizePedagogicalMetaPhrases(stripRubricTail(cleanSacrintText(rawExample)));
 
   // 1. Buscar etiqueta explícita con resultado o conclusión real ("Respuesta final:", "Resultado final:", "Resultado verificable:", "Conclusión:" o "Conclusión.")
-  const explicitMatch = clean.match(
-    /(?:respuesta\s+final|resultado\s+(?:final|verificable|obtenido)|conclusi[oó]n(?:\s+final|\s+pedag[oó]gica)?|interpretaci[oó]n(?:\s+del\s+resultado)?)\s*[:.]\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
-  );
-  if (explicitMatch && explicitMatch[1]) {
-    const candidate = fitConclusion(explicitMatch[1]);
+  const explicitRaw = extractExplicitConclusionBody(clean, maxChars, maxWords);
+  if (explicitRaw) {
+    // Si extractExplicitConclusionBody ya ensambló 2 oraciones limpias dentro del presupuesto, preservarlas sin re-amputar a la 1.ª oración
+    const normalizedExplicit = simplifyNumericEqualsChains(
+      explicitRaw.replace(CONCLUSION_HEADING_PREFIX_RE, '').trim(),
+    );
+    const wordCap = maxWords ? maxWords + 4 : undefined;
+    if (
+      normalizedExplicit.length <= maxChars + 10 &&
+      (!wordCap || normalizedExplicit.split(/\s+/).filter(Boolean).length <= wordCap) &&
+      !hasDanglingEnding(normalizedExplicit) &&
+      isSubstantiveConclusion(normalizedExplicit)
+    ) {
+      return normalizedExplicit;
+    }
+    const candidate = fitConclusion(explicitRaw);
     if (isSubstantiveConclusion(candidate)) return candidate;
   }
 

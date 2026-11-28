@@ -31,6 +31,7 @@ import {
   CONCLUSION_HEADING_PREFIX_RE,
   deriveRepeatedTopicLead,
   extractExampleConclusion,
+  extractExplicitConclusionBody,
   isCompleteConclusion,
   isCompleteMathStep,
   isCompleteProblemStatement,
@@ -275,7 +276,7 @@ export function extractWorkedExample(
   const stepBudget = allowMission ? 180 : 110;
   const stepWords = allowMission ? undefined : 16;
   const interpBudget = 165;
-  const interpWords = allowMission ? undefined : 24;
+  const interpWords = allowMission ? undefined : 28;
 
   if (rawSessionExample && !isRubricOrBoilerplateLeak(rawSessionExample)) {
     const preservedSessionExample = cleanSacrintTextPreservingLines(rawSessionExample);
@@ -386,15 +387,15 @@ export function extractWorkedExample(
           : fallbackSubstantive && (!lastStepNorm || fallbackSubstantive.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, ' ').trim() !== lastStepNorm)
             ? fallbackSubstantive
             : '';
-      const explicitConclusion = rawSessionExample.match(
-        /(?:conclusi[oó]n|respuesta\s+final|resultado(?:\s+final)?)\s*:\s*\n?\s*([^.?!]+(?:\.\d+[^.?!]*)*[.?!]?)/i
-      )?.[1];
+      const explicitConclusion = extractExplicitConclusionBody(rawSessionExample, interpBudget, interpWords);
       const fittedExplicitConclusion = explicitConclusion
-        ? fitPedagogicalText(stripTemplateLabels(explicitConclusion.trim()), {
-            maxChars: interpBudget,
-            maxWords: interpWords,
-            role: 'conclusion',
-          })
+        ? explicitConclusion.length <= interpBudget + 10 && !hasDanglingEnding(explicitConclusion)
+          ? stripTemplateLabels(explicitConclusion.trim())
+          : fitPedagogicalText(stripTemplateLabels(explicitConclusion.trim()), {
+              maxChars: interpBudget,
+              maxWords: interpWords,
+              role: 'conclusion',
+            })
         : '';
       const solvedResultToken = [...preferredSteps]
         .reverse()

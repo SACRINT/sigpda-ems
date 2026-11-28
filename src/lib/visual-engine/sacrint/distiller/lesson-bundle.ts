@@ -14,6 +14,7 @@ import {
 } from '../text/grammar-normalization';
 import {
   enforceSixGramOverlap,
+  paraphraseSixGramOverlap,
   preventSixGramTheoryOverlap,
 } from '../text/six-gram-overlap';
 import {
@@ -356,11 +357,14 @@ export function distillLessonBundle(
         keyRules: concepts.keyRules.map(cleanField),
       },
       example: {
-        // El enunciado ya viene destilado y con datos completos; no se vuelve
-        // a recortar aquí para no perder contexto ni la pregunta.
+        // El enunciado, los pasos y la conclusión ya vienen destilados con datos completos;
+        // para la conclusión se parafrasea sin descartar oraciones numéricas contra el propio ejemplo.
         problemStatement: example.problemStatement,
         steps: example.steps.map((step) => sanitizePedagogicalMetaPhrases(step)),
-        interpretation: cleanField(example.interpretation),
+        interpretation: paraphraseSixGramOverlap(
+          sanitizePedagogicalMetaPhrases(example.interpretation),
+          theorySources
+        ),
       },
       activities: activities.map((act) => ({
         ...act,

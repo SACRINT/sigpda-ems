@@ -539,6 +539,8 @@ export interface SacrintBuildOptions {
   sceneReadDataUri?: SceneReadDataUriFn;
   /** Arquetipo de portada usado en la misión inmediatamente anterior para evitar repeticiones consecutivas. */
   previousHeroArchetype?: EditorialSceneArchetype;
+  /** ID exacto de la escena de portada previa (distingue variantes temáticas como `tic-07` vs `tic-08`). */
+  previousHeroSceneId?: string;
 }
 
 export type ConceptFamily =

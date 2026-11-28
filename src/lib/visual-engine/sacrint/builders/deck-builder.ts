@@ -1049,6 +1049,7 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
         : Math.max(0, (meta.missionNumber || 1) - 1),
     topicText: missionTopicText,
     avoidHeroArchetypes: options.previousHeroArchetype ? [options.previousHeroArchetype] : undefined,
+    avoidHeroSceneIds: options.previousHeroSceneId ? [options.previousHeroSceneId] : undefined,
     fileExists: options.sceneFileExists,
     readDataUri: options.sceneReadDataUri,
   });
@@ -1328,13 +1329,16 @@ export function buildSacrintDecksForWorkbook(
   };
   const decks: SacrintDeckSpec[] = [];
   let prevHero = options.previousHeroArchetype;
+  let prevHeroId = options.previousHeroSceneId;
   for (let missionIndex = 0; missionIndex < missionCount; missionIndex++) {
     const deck = buildSacrintDeck(workbook, {
       ...effectiveOptions,
       missionIndex,
       previousHeroArchetype: prevHero,
+      previousHeroSceneId: prevHeroId,
     });
     prevHero = deck.editorialScenes?.hero?.archetype ?? prevHero;
+    prevHeroId = deck.editorialScenes?.hero?.id ?? prevHeroId;
     decks.push(deck);
   }
   return decks;

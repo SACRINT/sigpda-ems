@@ -473,15 +473,18 @@ async function handleBulkDocx(request: NextRequest) {
           let prevHeroArchetype:
             | NonNullable<NonNullable<SacrintDeckSpec['editorialScenes']>['hero']>['archetype']
             | undefined;
+          let prevHeroSceneId: string | undefined;
           for (const entry of effectiveEntries) {
             const entryDecks = buildSacrintDecksForWorkbook(entry.workbook, {
               mode: 'lesson-guide',
               misconceptionTracker,
               previousHeroArchetype: prevHeroArchetype,
+              previousHeroSceneId: prevHeroSceneId,
               ...sceneLoader,
             });
-            const lastArch = entryDecks[entryDecks.length - 1]?.editorialScenes?.hero?.archetype;
-            if (lastArch) prevHeroArchetype = lastArch;
+            const lastHero = entryDecks[entryDecks.length - 1]?.editorialScenes?.hero;
+            if (lastHero?.archetype) prevHeroArchetype = lastHero.archetype;
+            if (lastHero?.id) prevHeroSceneId = lastHero.id;
             rawDecks.push(...entryDecks);
           }
           const sacrintDecks: SacrintDeckSpec[] = await Promise.all(

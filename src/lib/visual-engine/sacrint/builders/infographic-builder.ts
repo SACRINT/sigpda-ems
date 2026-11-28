@@ -293,21 +293,51 @@ export function selectInfographicTargets(workbook: ActiveWorkTextbook): SacrintI
 }
 
 export function dedupeInfographicSpecs(specs: SacrintInfographicSpec[]): SacrintInfographicSpec[] {
-  const seen = new Set<string>();
+  const seenInScope = new Set<string>();
+  const seenGlobalTitles = new Set<string>();
   const out: SacrintInfographicSpec[] = [];
-  for (const spec of specs) {
-    const titleKey = spec.title
+  const normKey = (value: string) =>
+    value
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, ' ')
       .trim();
+
+  for (const rawSpec of specs) {
+    let spec = rawSpec;
+    let titleKey = normKey(spec.title);
     if (!titleKey) continue;
     // Deduplicar solo dentro del mismo bloque y misión para jamás eliminar sesiones reales
-    // de otro bloque/misión que compartan un título conceptual alineado (ej. B2M1 vs B2M2 o B1 vs B2).
+    // de otro bloque/misión que compartan un título conceptual alineado (ej. B2M1 vs B2M2 o B3M1 vs B3M2).
     const scopeKey = `${spec.meta?.blockNumber ?? 1}|${spec.meta?.missionNumber ?? 1}|${titleKey}`;
-    if (seen.has(scopeKey)) continue;
-    seen.add(scopeKey);
+    if (seenInScope.has(scopeKey)) continue;
+    seenInScope.add(scopeKey);
+
+    // Desambiguación arquitectónica entre bloques/misiones: si dos sesiones legítimas de distintas
+    // misiones conservan el mismo título exacto, intentar diferenciarlas con el sujeto conceptual de su propio claim.
+    if (seenGlobalTitles.has(titleKey)) {
+      const claimSubject = extractSubjectFromVisualClaim(spec.claim);
+      const claimSubjectKey = claimSubject ? normKey(claimSubject) : '';
+      if (claimSubject && claimSubjectKey && !seenGlobalTitles.has(claimSubjectKey)) {
+        spec = {
+          ...spec,
+          title: claimSubject,
+          topicTitle: claimSubject,
+          ...(spec.conceptManual
+            ? {
+                conceptManual: {
+                  ...spec.conceptManual,
+                  centralConcept: claimSubject,
+                },
+              }
+            : {}),
+        };
+        titleKey = claimSubjectKey;
+      }
+    }
+
+    seenGlobalTitles.add(titleKey);
     out.push(spec);
   }
   return out;
@@ -516,10 +546,13 @@ const INFOGRAPHIC_ALIGNMENT_GENERIC_WORDS = new Set([
   'etico', 'etica', 'eticas', 'responsable', 'tecnologia', 'tecnologico', 'tecnologica', 'uso',
   'analisis', 'estudio', 'desarrollo', 'historia', 'critica', 'estado', 'fundamentos', 'investigacion',
   'guia', 'manual', 'mision', 'sesion', 'bloque', 'entorno', 'entornos', 'educativo', 'educativos',
+  'pasos', 'fundamental', 'fundamentales', 'esenciales', 'metodos', 'resultados', 'verificacion',
 ]);
 
 const INFOGRAPHIC_SCAFFOLDING_TITLE_RE =
-  /^(?:aplicaci[oó]n\s+pr[aá]ctica(?:\s+en\s+situaciones\s+contextuales)?|pr[aá]ctica\s+y\s+aplicaci[oó]n|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|exploraci[oó]n\s+diagn[oó]stica|presentaci[oó]n\s+final)/i;
+  /^(?:aplicaci[oó]n\s+pr[aá]ctica(?:\s+en\s+situaciones\s+contextuales)?|pr[aá]ctica\s+y\s+aplicaci[oó]n|proyecto\s+integrador|evaluaci[oó]n\s+y\s+cierre|exploraci[oó]n\s+diagn[oó]stica|presentaci[oó]n\s+final|contraste\s+de\s+m[eé]todos|modelado\s+metodol[oó]gico|consolidaci[oó]n\s+y\s+transferencia|integraci[oó]n\s+y\s+socializaci[oó]n)/i;
+
+const BROAD_INTRO_TITLE_RE = /^(?:fundamentos|introducci[oó]n)\s+(?:de|a(?:l)?)\s+/i;
 
 function normalizeAlignmentTokens(raw: string): string[] {
   return (raw || '')
@@ -565,6 +598,7 @@ export function extractSubjectFromVisualClaim(claimText?: string): string {
  */
 function alignInfographicTitleWithSessionBody(params: {
   candidateTitle: string;
+  sessionObjective?: string;
   visualClaim?: string;
   visualFormula?: string;
   visualDefinition?: string;
@@ -630,13 +664,50 @@ function alignInfographicTitleWithSessionBody(params: {
     return visualSubject;
   }
 
-  // 2. Andamiaje genérico ("Aplicación Práctica..."), nombre de artefacto PAEC ("Kit de...", "App-Comunidad...")
-  //    o título genérico sin traslape con el claim/fórmula ("Fundamentos de la ciudadanía digital", "Variables del proyecto").
+  // 2. Título amplio introductorio ("Fundamentos de la ciudadanía digital"): en lugar de borrarlo
+  //    y duplicar otra lámina del bloque ("Cuatro libertades del software libre"), componer un título
+  //    contextualizado que conserve el eje curricular y explicite el concepto de la lámina.
+  if (BROAD_INTRO_TITLE_RE.test(title) && !isScaffoldingTitle && !isArtifactTitle && sharedWithClaimCount === 0) {
+    const compactLead = title.replace(/\bde\s+(?:la|el|los|las)\s+/i, 'de ').trim();
+    const shortSubj =
+      visualSubject.length <= 28
+        ? visualSubject
+        : visualSubject.replace(/\s+del?\s+software\s+libre$/i, '').trim();
+    const lowerSubj =
+      /^[A-Z]{2,}/.test(shortSubj) ? shortSubj : shortSubj.charAt(0).toLowerCase() + shortSubj.slice(1);
+    const compound = `${compactLead}: ${lowerSubj}`;
+    if (compound.length <= 68) return compound;
+  }
+
+  // 3. Andamiaje genérico ("Aplicación Práctica...", "Contraste de Métodos..."), nombre de artefacto PAEC
+  //    ("Kit de...", "App-Comunidad...") o título genérico sin traslape con el claim/fórmula
+  //    ("Variables del proyecto", "Pasos fundamentales").
   if (isScaffoldingTitle || isArtifactTitle || (isGenericProjectTitle && sharedWithClaimCount === 0)) {
     return visualSubject;
   }
 
-  // 3. Títulos disciplinares concretos válidos: preservar intactos.
+  // 4. Desajuste por herencia de misión (ej. p40 "Diagramas de flujo" cuando el objetivo de la sesión
+  //    y su cuerpo tratan de "Representación gráfica y tabular"): si el objetivo es de contenido real
+  //    (no cierre/evaluación) y el título candidato NO aparece en el objetivo ni en el claim,
+  //    pero el sujeto del claim SÍ está anclado en el objetivo, adoptar el sujeto conceptual real de la sesión.
+  if (
+    sharedWithClaimCount === 0 &&
+    params.sessionObjective &&
+    !isEvaluationOrClosureObjective(params.sessionObjective) &&
+    !/^(?:socializar[aá]s?|evaluar[aá]s?|optimizar[aá]s?|presentar[aá]s?)\b/i.test(
+      params.sessionObjective.trim(),
+    )
+  ) {
+    const objectiveTokens = new Set(normalizeAlignmentTokens(params.sessionObjective));
+    const titleGroundedInObjective = titleTokens.some((t) => objectiveTokens.has(t));
+    const subjectTokens = normalizeAlignmentTokens(visualSubject);
+    const subjectGroundedInObjective = subjectTokens.some((t) => objectiveTokens.has(t));
+    if (!titleGroundedInObjective && subjectGroundedInObjective) {
+      return visualSubject;
+    }
+  }
+
+  // 5. Títulos disciplinares concretos válidos: preservar intactos.
   return title;
 }
 
@@ -739,6 +810,7 @@ export function buildSacrintInfographic(
       : rawCleanTitle;
   const cleanTitle = alignInfographicTitleWithSessionBody({
     candidateTitle: baseCleanTitle,
+    sessionObjective: selectedSession?.objetivo,
     visualClaim: visualSynthesis?.conceptoBreve,
     visualFormula: visualSynthesis?.formulaOReglaClave,
     visualDefinition: visualMap?.definicionClave,

@@ -146,6 +146,8 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
 
   if (slide.kind === 'concept') {
     const conceptSlide = slide as SacrintConceptSlide;
+    const shouldPreserveTwoSentenceNumericConclusion = (value: string | undefined): boolean =>
+      Boolean(value && value.length <= 165 && /\d\.\s+[A-ZÁÉÍÓÚÑ]/.test(value) && !hasDanglingEnding(value));
     const first = {
       ...conceptSlide,
       explanation: compactConceptNarrative(conceptSlide.explanation),
@@ -195,9 +197,10 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
                 45
               ) || first.workedExample.problemStatement,
             steps: compactSteps(first.workedExample.steps, 78, 12, 3),
-            interpretation:
-              fitPreserving(first.workedExample.interpretation, 112, 17, 'conclusion', 20) ||
-              first.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(first.workedExample.interpretation)
+              ? first.workedExample.interpretation
+              : fitPreserving(first.workedExample.interpretation, 112, 17, 'conclusion', 20) ||
+                first.workedExample.interpretation,
           }
         : first.workedExample,
     } as SacrintConceptSlide;
@@ -218,9 +221,10 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
               fitPreserving(second.workedExample.problemStatement, 155, 23, 'problem', 38) ||
               second.workedExample.problemStatement,
             steps: compactSteps(second.workedExample.steps, 70, 11, 3),
-            interpretation:
-              fitPreserving(second.workedExample.interpretation, 96, 15, 'conclusion', 18) ||
-              second.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(second.workedExample.interpretation)
+              ? second.workedExample.interpretation
+              : fitPreserving(second.workedExample.interpretation, 96, 15, 'conclusion', 18) ||
+                second.workedExample.interpretation,
           }
         : second.workedExample,
     } as SacrintConceptSlide;
@@ -246,9 +250,10 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
             ...third.workedExample,
             problemStatement: compactProblemFallback(third.workedExample.problemStatement, 135, 20),
             steps: compactSteps(third.workedExample.steps, 64, 10, 3),
-            interpretation:
-              fitPreserving(third.workedExample.interpretation, 86, 13, 'conclusion', 22) ||
-              third.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(third.workedExample.interpretation)
+              ? third.workedExample.interpretation
+              : fitPreserving(third.workedExample.interpretation, 86, 13, 'conclusion', 22) ||
+                third.workedExample.interpretation,
           }
         : third.workedExample,
     } as SacrintConceptSlide;
@@ -268,9 +273,10 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
       workedExample: fourth.workedExample
         ? {
             ...fourth.workedExample,
-            interpretation:
-              fitPreserving(fourth.workedExample.interpretation, 78, 12, 'conclusion', 20) ||
-              fourth.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(fourth.workedExample.interpretation)
+              ? fourth.workedExample.interpretation
+              : fitPreserving(fourth.workedExample.interpretation, 78, 12, 'conclusion', 20) ||
+                fourth.workedExample.interpretation,
           }
         : fourth.workedExample,
     } as SacrintConceptSlide;
@@ -323,9 +329,10 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
               fitPreserving(fifth.workedExample.problemStatement, 145, 22, 'problem', 40) ||
               fifth.workedExample.problemStatement,
             steps: fifth.workedExample.steps.map(trimVerboseMathStep),
-            interpretation:
-              fitPreserving(fifth.workedExample.interpretation, 72, 11, 'conclusion', 18) ||
-              fifth.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(fifth.workedExample.interpretation)
+              ? fifth.workedExample.interpretation
+              : fitPreserving(fifth.workedExample.interpretation, 72, 11, 'conclusion', 18) ||
+                fifth.workedExample.interpretation,
           }
         : fifth.workedExample,
     } as SacrintConceptSlide;
@@ -363,12 +370,13 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
                 }) || trimmed
               );
             }),
-            interpretation:
-              fitPedagogicalText(sixthConcept.workedExample.interpretation, {
-                maxChars: 72,
-                maxWords: 11,
-                role: 'conclusion',
-              }) || sixthConcept.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(sixthConcept.workedExample.interpretation)
+              ? sixthConcept.workedExample.interpretation
+              : fitPedagogicalText(sixthConcept.workedExample.interpretation, {
+                  maxChars: 72,
+                  maxWords: 11,
+                  role: 'conclusion',
+                }) || sixthConcept.workedExample.interpretation,
           }
         : sixthConcept.workedExample,
     } as SacrintConceptSlide;
@@ -691,10 +699,11 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
         ? {
             ...seventhConcept.workedExample,
             steps: seventhConcept.workedExample.steps.map(compactStepSentence),
-            interpretation:
-              trimGerundTail(firstCompleteSentence(seventhConcept.workedExample.interpretation, 16), 16) ||
-              firstCompleteSentence(seventhConcept.workedExample.interpretation, 16) ||
-              seventhConcept.workedExample.interpretation,
+            interpretation: shouldPreserveTwoSentenceNumericConclusion(seventhConcept.workedExample.interpretation)
+              ? seventhConcept.workedExample.interpretation
+              : trimGerundTail(firstCompleteSentence(seventhConcept.workedExample.interpretation, 16), 16) ||
+                firstCompleteSentence(seventhConcept.workedExample.interpretation, 16) ||
+                seventhConcept.workedExample.interpretation,
           }
         : seventhConcept.workedExample,
     };
@@ -761,8 +770,11 @@ export function finalCompact(slide: SacrintSlide, maxWords = 180): SacrintSlide 
             ...eighthConcept.workedExample,
             steps: eighthConcept.workedExample.steps.map(trimSubordinateStep),
             interpretation:
-              trimGerundTail(firstCompleteSentence(eighthConcept.workedExample.interpretation, 16), 16) ||
-              eighthConcept.workedExample.interpretation,
+              eighthConcept.workedExample.interpretation.length <= 165 &&
+              /\d\.\s+[A-ZÁÉÍÓÚÑ]/.test(eighthConcept.workedExample.interpretation)
+                ? eighthConcept.workedExample.interpretation
+                : trimGerundTail(firstCompleteSentence(eighthConcept.workedExample.interpretation, 16), 16) ||
+                  eighthConcept.workedExample.interpretation,
           }
         : eighthConcept.workedExample,
     };

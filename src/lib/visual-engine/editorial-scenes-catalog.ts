@@ -42,6 +42,8 @@ export interface EditorialSceneEntry {
   height: number;
   alt: string;
   lot: 1 | 2 | 3;
+  /** Etiquetas semánticas del contenido visual real del asset (evita mezclar hardware/protoboard con ofimática o ciudadanía). */
+  visualTags?: readonly string[];
 }
 
 export type DomainSceneSet = Record<EditorialSceneArchetype, EditorialSceneEntry>;
@@ -133,12 +135,44 @@ export const EDITORIAL_SCENES_CATALOG: Record<DisciplinaryDomainId, DomainSceneS
     practica: 'Estudiantes practicando escucha activa y análisis argumentativo',
     comunidad: 'Foro escolar y comunitario de reflexión ética',
   }),
-  cultura_digital_programacion_ti: makeDomainSet('cultura_digital_programacion_ti', 'tic', 2, {
-    portada: 'Estudiantes diseñando algoritmos y soluciones digitales en aula',
-    concepto: 'Componentes de pensamiento computacional y ciudadanía digital',
-    practica: 'Estudiante programando y probando un prototipo tecnológico',
-    comunidad: 'Taller comunitario de alfabetización y seguridad digital',
-  }),
+  cultura_digital_programacion_ti: (() => {
+    const base = makeDomainSet('cultura_digital_programacion_ti', 'tic', 2, {
+      portada: 'Estudiantes diseñando algoritmos y soluciones digitales en aula',
+      concepto: 'Componentes de pensamiento computacional y ciudadanía digital',
+      practica: 'Estudiante programando y probando un prototipo tecnológico',
+      comunidad: 'Taller comunitario de alfabetización y seguridad digital',
+    });
+    return {
+      portada: {
+        ...base.portada,
+        visualTags: ['hardware', 'protoboard', 'electronica', 'arquitectura', 'sistemas_operativos'],
+      },
+      concepto: {
+        ...base.concepto,
+        visualTags: ['hardware', 'protoboard', 'electronica', 'circuitos'],
+      },
+      practica: {
+        ...base.practica,
+        visualTags: ['software', 'programacion', 'practica'],
+      },
+      comunidad: {
+        ...base.comunidad,
+        visualTags: [
+          'comunidad',
+          'ciudadania',
+          'colaboracion',
+          'software',
+          'software_libre',
+          'licencias',
+          'privacidad',
+          'seguridad',
+          'historia_digital',
+          'corporaciones',
+          'socializacion',
+        ],
+      },
+    };
+  })(),
   dibujo_tecnico_diseno_arquitectura: makeDomainSet('dibujo_tecnico_diseno_arquitectura', 'dib', 3, {
     portada: 'Estudiante elaborando trazo geométrico en restirador técnico',
     concepto: 'Herramientas de dibujo técnico y maqueta arquitectónica básica',
@@ -193,6 +227,64 @@ export const EDITORIAL_SCENES_CATALOG: Record<DisciplinaryDomainId, DomainSceneS
     comunidad: 'Feria escolar comunitaria de proyectos integradores PAEC',
   }),
 };
+
+export const EDITORIAL_SCENES_THEMATIC_VARIANTS: Partial<
+  Record<DisciplinaryDomainId, readonly EditorialSceneEntry[]>
+> = {
+  cultura_digital_programacion_ti: [
+    {
+      id: 'tic-07-software-datos',
+      domainId: 'cultura_digital_programacion_ti',
+      archetype: 'concepto',
+      filename: 'tic-07-software-datos.webp',
+      relativePath: `${EDITORIAL_SCENES_BASE_PATH}/cultura_digital_programacion_ti/tic-07-software-datos.webp`,
+      aspectRatio: '16:9',
+      width: 1600,
+      height: 900,
+      alt: 'Escritorio escolar con laptop mostrando hoja de cálculo y gráficas junto a tableta con diagrama de flujo',
+      lot: 2,
+      visualTags: [
+        'software',
+        'hoja_calculo',
+        'datos',
+        'diagrama_flujo',
+        'algoritmo',
+        'operadores',
+        'resolucion_problemas',
+      ],
+    },
+    {
+      id: 'tic-08-ciudadania-seguridad',
+      domainId: 'cultura_digital_programacion_ti',
+      archetype: 'comunidad',
+      filename: 'tic-08-ciudadania-seguridad.webp',
+      relativePath: `${EDITORIAL_SCENES_BASE_PATH}/cultura_digital_programacion_ti/tic-08-ciudadania-seguridad.webp`,
+      aspectRatio: '16:9',
+      width: 1600,
+      height: 900,
+      alt: 'Estudiantes de bachillerato colaborando en biblioteca escolar con laptop de seguridad y ciudadanía digital',
+      lot: 2,
+      visualTags: [
+        'ciudadania',
+        'privacidad',
+        'seguridad',
+        'software_libre',
+        'licencias',
+        'historia_digital',
+        'corporaciones',
+        'comunidad',
+      ],
+    },
+  ],
+};
+
+export function listDomainLandscapeCandidates(domainId: DisciplinaryDomainId): EditorialSceneEntry[] {
+  const base = EDITORIAL_SCENES_CATALOG[domainId];
+  const variants = (EDITORIAL_SCENES_THEMATIC_VARIANTS[domainId] ?? []).filter(
+    (v) => v.aspectRatio === '16:9',
+  );
+  return [base.portada, base.concepto, base.comunidad, ...variants];
+}
 
 export function listAllEditorialScenes(): EditorialSceneEntry[] {
   return Object.values(EDITORIAL_SCENES_CATALOG).flatMap((set) => [
