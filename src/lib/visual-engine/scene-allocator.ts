@@ -251,21 +251,30 @@ const SEMANTIC_TOPIC_TAG_RULES: ReadonlyArray<{ tag: string; pattern: RegExp }> 
     pattern:
       /\b(?:hardware|perif[eé]ric|circuito|protoboard|arduino|sensor|microcontrolador|arquitectura\s+de\s+computador|red(?:es)?\s+(?:locales|inal[aá]mbricas|cablead))\b/i,
   },
+  {
+    tag: 'software',
+    pattern: /\b(?:software|procesadores?\s+de\s+texto|ofim[aá]tica|aplicaciones?\s+inform[aá]ticas?)\b/i,
+  },
   { tag: 'sistemas_operativos', pattern: /\bsistemas?\s+operativos?\b/i },
   { tag: 'hoja_calculo', pattern: /\b(?:hojas?\s+de\s+c[aá]lculo|excel|funci[oó]n\s+si|promedio|celda|f[oó]rmulas?\s+condicionales?)\b/i },
-  { tag: 'datos', pattern: /\b(?:datos|tabular|gr[aá]fic[ao]s?|estad[ií]stic|variables|tablas?\s+de\s+frecuencia)\b/i },
+  {
+    tag: 'datos',
+    pattern: /\b(?:bases?\s+de\s+datos|datos\s+estad[ií]stic|an[aá]lisis\s+de\s+datos|tabular|gr[aá]fic[ao]s?|estad[ií]stic|tablas?\s+de\s+frecuencia|variables\s+estad[ií]stic)\b|(?<!protecci[oó]n\s+de\s+)\bdatos\b/i,
+  },
   { tag: 'diagrama_flujo', pattern: /\b(?:diagramas?\s+de\s+flujo|pseudoc[oó]digo)\b/i },
-  { tag: 'algoritmo', pattern: /\b(?:algoritmos?|pensamiento\s+algor[ií]tmico|programaci[oó]n)\b/i },
+  { tag: 'algoritmo', pattern: /\b(?:algoritmos?|pensamiento\s+algor[ií]tmico|pensamiento\s+computacional|programaci[oó]n)\b/i },
   { tag: 'operadores', pattern: /\b(?:operadores|l[oó]gica\s+condicional|estructuras?\s+condicionales?)\b/i },
   { tag: 'resolucion_problemas', pattern: /\b(?:solucionar\s+un\s+problema|resoluci[oó]n\s+de\s+problemas|pasos\s+fundamentales)\b/i },
-  { tag: 'ciudadania', pattern: /\b(?:ciudadan[ií]a\s+digital|identidad\s+digital|desigualdad|brecha\s+digital|contaminaci[oó]n\s+digital)\b/i },
+  { tag: 'redes', pattern: /\b(?:redes?\s+de\s+c[oó]mputo|conectividad|internet|protocolos?)\b/i },
+  { tag: 'navegadores', pattern: /\b(?:navegadores?|buscadores?\s+web)\b/i },
+  { tag: 'ciudadania', pattern: /\b(?:ciudadan[ií]a\s+digital|identidad\s+digital|desigualdad\s+digital|brecha\s+digital|contaminaci[oó]n\s+digital)\b/i },
   { tag: 'privacidad', pattern: /\b(?:privacidad|protecci[oó]n\s+de\s+datos)\b/i },
   { tag: 'seguridad', pattern: /\b(?:seguridad|contrase[nñ]a|credencial|autenticaci[oó]n|riesgos?\s+digitales?)\b/i },
   { tag: 'software_libre', pattern: /\b(?:software\s+libre|gnu\/?linux|4\s+libertades|cuatro\s+libertades)\b/i },
   { tag: 'licencias', pattern: /\b(?:licencias?|creative\s+commons|gpl|derechos?\s+de\s+autor)\b/i },
   { tag: 'historia_digital', pattern: /\b(?:historia\s+cr[ií]tica|desarrollo\s+de\s+tecnolog[ií]a)\b/i },
   { tag: 'corporaciones', pattern: /\b(?:corporaciones\s+de\s+innovaci[oó]n|plataformas?\s+digitales?)\b/i },
-  { tag: 'comunidad', pattern: /\b(?:comunidad|comunitario|socializaci[oó]n|colaboraci[oó]n|entorno\s+escolar)\b/i },
+  { tag: 'comunidad', pattern: /\b(?:comunidad|comunitario|alfabetizaci[oó]n\s+digital|colaboraci[oó]n\s+comunitaria|entorno\s+escolar)\b/i },
 ];
 
 const NON_HARDWARE_DIGITAL_TAGS = new Set([
@@ -277,6 +286,8 @@ const NON_HARDWARE_DIGITAL_TAGS = new Set([
   'algoritmo',
   'operadores',
   'resolucion_problemas',
+  'redes',
+  'navegadores',
   'ciudadania',
   'privacidad',
   'seguridad',
@@ -287,17 +298,70 @@ const NON_HARDWARE_DIGITAL_TAGS = new Set([
   'comunidad',
 ]);
 
+const MISSION_BOILERPLATE_CLEANERS: readonly RegExp[] = [
+  /^\s*\[Bloque\s+[IVX\d]+\]\s*/gi,
+  /\bMisi[oó]n\s+\d+\s*:\s*/gi,
+  // Sufijos parentéticos de área/UAC con comas (ej. "(Cultura Digital, Pensamiento Algorítmico, Programación y TI)")
+  /\([^()]{10,},[^()]+\)/g,
+  /\bSes[ií][oó]n\s+\d+\s*:\s*/gi,
+  /\b(?:Fundamentaci[oó]n\s+y\s+Activaci[oó]n|Pr[aá]ctica\s+y\s+Aplicaci[oó]n|Proyecto\s+Integrador|Evaluaci[oó]n\s+y\s+Cierre)\b/gi,
+  /\b(?:Exploraci[oó]n\s+Diagn[oó]stica\s+y\s+Problematizaci[oó]n\s+Situada|Recuperaci[oó]n\s+de\s+Saberes\s+y\s+Delimitaci[oó]n\s+del\s+Reto|Fundamentaci[oó]n\s+Te[oó]rica\s+y\s+An[aá]lisis\s+de\s+Variables|Modelado\s+Metodol[oó]gico\s+y\s+Procedimientos\s+Clave|Aplicaci[oó]n\s+Pr[aá]ctica\s+en\s+Situaciones\s+Contextuales|Representaci[oó]n\s+Gr[aá]fica,\s+Tabular\s+o\s+Experimental|Socializaci[oó]n\s+de\s+Hallazgos\s+y\s+Defensa\s+de\s+Soluciones|Contraste\s+de\s+M[eé]todos\s+y\s+Verificaci[oó]n\s+de\s+Resultados|Evaluaci[oó]n\s+Formativa,\s+S[ií]ntesis\s+y\s+Metacognici[oó]n|Desarrollo\s+del\s+producto\s+e\s+integraci[oó]n\s+socioproductiva|Demostraci[oó]n\s+de\s+aprendizajes,\s+coevaluaci[oó]n\s+y\s+r[uú]brica\s+NEM)\b/gi,
+];
+
+function stripMissionBoilerplateForScene(raw?: string | null): string {
+  if (!raw) return '';
+  let text = raw;
+  for (const rx of MISSION_BOILERPLATE_CLEANERS) {
+    text = text.replace(rx, ' ');
+  }
+  return text
+    .replace(/[—–·|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extrae el tema primario limpio de una misión para selección semántica de escenas.
+ * Evita que el nombre del proyecto PAEC en `sessionTopic` (p. ej. "Kit de Ciudadanía Digital...")
+ * o la concatenación multisesión de `sessionFocus` contaminen la escena del tema real de la misión.
+ */
+export function extractMissionPrimaryTopicForScene(mission: {
+  title?: string | null;
+  sessionTopic?: string | null;
+  sessionFocus?: string | null;
+}): string {
+  const cleanTitle = stripMissionBoilerplateForScene(mission.title);
+  if (cleanTitle && extractSemanticTopicTags(cleanTitle).size > 0) {
+    return cleanTitle;
+  }
+
+  const cleanTopic = stripMissionBoilerplateForScene(mission.sessionTopic);
+  // Si el título ya nombra un tema específico (aunque sin tag registrado) y sessionTopic tiene
+  // formato de artefacto PAEC ("Nombre: Subtítulo"), conservar el título primario.
+  if (cleanTitle.length >= 4) {
+    if (cleanTopic && !cleanTopic.includes(':') && extractSemanticTopicTags(cleanTopic).size > 0) {
+      return `${cleanTitle} ${cleanTopic}`;
+    }
+    return cleanTitle;
+  }
+
+  if (cleanTopic) return cleanTopic;
+  return stripMissionBoilerplateForScene(mission.sessionFocus);
+}
+
 export function extractSemanticTopicTags(topicText?: string): Set<string> {
   const tags = new Set<string>();
   if (!topicText || !topicText.trim()) return tags;
+  const normalized = topicText.replace(/\bprotecci[oó]n\s+de\s+datos\b/gi, 'privacidad_proteccion');
   for (const rule of SEMANTIC_TOPIC_TAG_RULES) {
-    if (rule.pattern.test(topicText)) tags.add(rule.tag);
+    const source = rule.tag === 'datos' ? normalized : topicText;
+    if (rule.pattern.test(source)) tags.add(rule.tag);
   }
   return tags;
 }
 
 /**
- * Selector semántico agnóstico de dominio para escenas 16:9 (`slides_hero` y `slides_concept`).
+ * Selector semántico agnóstico de dominio para escenas 16:9 (`slides_hero`, `slides_concept`, `block_cover` y `mission_*`).
  * Evalúa las 3 escenas canónicas + cualquier variante temática registrada en disco para el dominio,
  * descalifica assets marcados como `protoboard` en temas no-hardware y evita repeticiones consecutivas por ID.
  */
@@ -330,7 +394,8 @@ function selectSemanticLandscapeEntry(params: {
   const candidates = listDomainLandscapeCandidates(domainId).filter((c) => fileExists(c.relativePath));
   const usedInRole = tracker?.usedByRole.get(role);
   const avoidArchSet = new Set(avoidArchetypes ?? []);
-  const avoidIdSet = new Set([...(avoidSceneIds ?? []), ...(usedInRole ? [...usedInRole] : [])]);
+  const explicitAvoidIdSet = new Set(avoidSceneIds ?? []);
+  const avoidIdSet = new Set([...explicitAvoidIdSet, ...(usedInRole ? [...usedInRole] : [])]);
 
   if (candidates.length === 0) {
     // Sin archivos en disco (ej. tests puros sin FS): respetar tracker/avoid sobre los 3 arquetipos canónicos
@@ -384,15 +449,18 @@ function selectSemanticLandscapeEntry(params: {
       score += 45;
     }
 
-    // 3. Anti-repetición consecutiva por ID exacto (y por arquetipo si no hay avoidSceneIds)
-    if (avoidIdSet.has(cand.id)) {
-      score -= 500;
-    } else if (avoidIdSet.size === 0 && avoidArchSet.has(cand.archetype)) {
+    // 3. Anti-repetición consecutiva explícita por ID (`avoidSceneIds`) separada del tracker de rol:
+    //    un rol repetido en otro bloque jamás debe desplazar una afinidad semántica fuerte hacia un asset ajeno.
+    if (explicitAvoidIdSet.has(cand.id)) {
+      score -= 200;
+    } else if (usedInRole?.has(cand.id)) {
+      score -= 12;
+    } else if (explicitAvoidIdSet.size === 0 && avoidArchSet.has(cand.archetype)) {
       score -= 120;
     }
 
-    // 4. Desempate determinista suave a favor de escenas fotorrealistas V2 (-01-portada, -07-, -08-) y del arquetipo rotado
-    if (cand.id.includes('-07-') || cand.id.includes('-08-')) {
+    // 4. Desempate determinista suave a favor de escenas fotorrealistas V2 (-01-portada, -07-, -08-, -09-, -10-) y del arquetipo rotado
+    if (/-0[7-9]-|-1\d-/.test(cand.id)) {
       score += 8;
     } else if (cand.archetype === 'portada') {
       score += 4;

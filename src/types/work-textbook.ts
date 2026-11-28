@@ -69,6 +69,10 @@ export interface MissionSection {
   coveredSessions: number[];      // Ej: [1, 2, 3]
   sessionTopic: string;           // Tópico común del session-progression-engine
   sessionFocus: string;
+  /** Índice 0-based del bloque original cuando se consolida en un Libro Semestral (`blockIndex: 99`). */
+  sourceBlockIndex?: number;
+  /** Nombre del bloque formativo original cuando se consolida en un Libro Semestral. */
+  sourceBlockName?: string;
   phenomenonHook: {
     story: string;                // Desafío de la vida real situado en Puebla (PAEC)
     detonatingQuestion: string;   // Pregunta detonadora de pensamiento crítico

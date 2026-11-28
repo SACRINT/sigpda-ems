@@ -116,6 +116,7 @@ import { resolveEditorialDisciplinaryUi } from '@/lib/editorial/disciplinary-ui'
 import {
   allocateEditorialScene,
   createBlockSceneTracker,
+  extractMissionPrimaryTopicForScene,
   type BlockSceneTracker,
 } from '@/lib/visual-engine/scene-allocator';
 import {
@@ -135,6 +136,7 @@ export interface DocxDisciplinaryTheme {
 
 export interface DocxResolvedEditorialScene {
   sceneId: string;
+  archetype: EditorialSceneRole | string;
   alt: string;
   pngBuffer: Buffer;
 }
@@ -189,6 +191,7 @@ async function resolveDocxEditorialScenePng(params: {
     }
     return {
       sceneId: allocated.id,
+      archetype: allocated.archetype,
       alt: allocated.alt,
       pngBuffer,
     };
@@ -395,19 +398,69 @@ export async function renderWorkbookToDocx(
   const theme = resolveDocxDisciplinaryTheme(uacLabelForTheme);
   const sceneTracker = createBlockSceneTracker();
 
+  const isConsolidatedSemestral =
+    workbook.blockIndex === 99 || workbook.coverData?.blockNumber === 0;
+
+  const parseBlockIndexFromTitle = (title?: string | null): number | null => {
+    if (!title) return null;
+    const match = /^\s*\[Bloque\s+(III|II|I|\d+)\]/i.exec(title);
+    if (!match?.[1]) return null;
+    const token = match[1].toUpperCase();
+    if (token === 'I') return 0;
+    if (token === 'II') return 1;
+    if (token === 'III') return 2;
+    const parsed = Number.parseInt(token, 10);
+    return Number.isFinite(parsed) && parsed >= 1 ? parsed - 1 : null;
+  };
+
+  const resolveMissionBlockIndex = (mission: MissionSection): number => {
+    if (
+      typeof mission.sourceBlockIndex === 'number' &&
+      Number.isInteger(mission.sourceBlockIndex) &&
+      mission.sourceBlockIndex >= 0 &&
+      mission.sourceBlockIndex < 20
+    ) {
+      return mission.sourceBlockIndex;
+    }
+    const fromTitle = parseBlockIndexFromTitle(mission.title);
+    if (fromTitle !== null) return fromTitle;
+    return isConsolidatedSemestral ? 0 : (workbook.blockIndex ?? 0);
+  };
+
+  const resolveConsolidatedBlockName = (bIdx: number, sampleMission?: MissionSection): string => {
+    if (sampleMission?.sourceBlockName?.trim()) return sampleMission.sourceBlockName.trim();
+    const roman = bIdx === 0 ? 'I' : bIdx === 1 ? 'II' : bIdx === 2 ? 'III' : String(bIdx + 1);
+    const tocHeader = workbook.tableOfContents?.find(
+      (entry) =>
+        entry.missionIndex === 0 &&
+        new RegExp(`BLOQUE\\s+${roman}\\b`, 'i').test(entry.title || ''),
+    );
+    if (tocHeader?.title) {
+      const cleaned = tocHeader.title
+        .replace(/^[\s─—–-]+|[\s─—–-]+$/g, '')
+        .replace(new RegExp(`^BLOQUE\\s+${roman}\\s*:\\s*`, 'i'), '')
+        .trim();
+      if (cleaned.length >= 3) return cleaned;
+    }
+    return `Bloque ${roman}`;
+  };
+
   // ── 1. Portada Editorial Personalizada (Texto Nativo Editable + Escena V2) ───
+  const missionPrimaryTopics = workbook.missions
+    .map((m) => extractMissionPrimaryTopicForScene(m))
+    .filter(Boolean);
   const blockTopicSummary = [
-    workbook.blockName || '',
-    workbook.coverData?.title || '',
-    workbook.coverData?.subtitle || '',
-    ...workbook.missions.map((m) => `${m.title || ''} ${m.sessionTopic || ''}`),
+    ...missionPrimaryTopics,
+    ...(missionPrimaryTopics.length === 0
+      ? [workbook.blockName || '', workbook.coverData?.title || '', workbook.coverData?.subtitle || '']
+      : []),
   ]
     .filter(Boolean)
     .join(' ');
   const coverScene = await resolveDocxEditorialScenePng({
     subjectName: uacLabelForTheme,
     role: 'block_cover',
-    blockIndex: workbook.blockIndex,
+    blockIndex: isConsolidatedSemestral ? 0 : workbook.blockIndex,
     topicHint: blockTopicSummary,
     preferPortadaV2: true,
     tracker: sceneTracker,
@@ -437,22 +490,75 @@ export async function renderWorkbookToDocx(
   const assignedAssetKeys = new Set<string>();
   const missionSceneRoles: readonly EditorialSceneRole[] = ['mission_1', 'mission_2', 'mission_3', 'mission_4'];
   let previousMissionSceneId: string | undefined;
+  let currentRenderedBlockIndex: number | null = null;
+  let missionPosWithinBlock = 0;
+  let activeBlockSceneTracker = createBlockSceneTracker();
+  const usedBlockCoverSceneIds: string[] = coverScene?.sceneId ? [coverScene.sceneId] : [];
 
   for (let i = 0; i < workbook.missions.length; i++) {
     // Paridad Libro ↔ Plan: tokens [[material:...]] de la misión → etiqueta humana ANTES de
     // imprimir (tareas, callouts "IDEA", step-cards y sidebar). projectSection NO se toca:
     // sus tokens se resuelven como figuras de materiales más abajo.
     const mission = stripMaterialTokensDeep(workbook.missions[i]);
+    const effectiveBlockIndex = resolveMissionBlockIndex(mission);
+
+    if (effectiveBlockIndex !== currentRenderedBlockIndex) {
+      currentRenderedBlockIndex = effectiveBlockIndex;
+      missionPosWithinBlock = 0;
+      activeBlockSceneTracker = createBlockSceneTracker();
+
+      if (isConsolidatedSemestral) {
+        const blockMissions = workbook.missions.filter(
+          (candidate) => resolveMissionBlockIndex(candidate) === effectiveBlockIndex,
+        );
+        const blockNameForDivider = resolveConsolidatedBlockName(effectiveBlockIndex, mission);
+        const blockPrimaryTopics = blockMissions
+          .map((m) => extractMissionPrimaryTopicForScene(m))
+          .filter(Boolean)
+          .join(' ');
+        const blockCoverScene = await resolveDocxEditorialScenePng({
+          subjectName: uacLabelForTheme,
+          role: 'block_cover',
+          blockIndex: effectiveBlockIndex,
+          topicHint: blockPrimaryTopics || blockNameForDivider,
+          avoidSceneIds: usedBlockCoverSceneIds.length > 0 ? usedBlockCoverSceneIds : undefined,
+          preferPortadaV2: true,
+          widthPx: 1080,
+          heightPx: 540,
+        });
+        if (blockCoverScene?.sceneId) {
+          usedBlockCoverSceneIds.push(blockCoverScene.sceneId);
+          // Evitar que la primera misión del bloque repita la portadilla recién mostrada
+          // (sin expulsar portadas técnicas de hardware hacia ilustraciones V1).
+          previousMissionSceneId =
+            blockCoverScene.archetype === 'portada' ? undefined : blockCoverScene.sceneId;
+        }
+        bodyChildren.push(
+          ...buildDocxBlockDividerSection({
+            blockNumber: effectiveBlockIndex + 1,
+            blockName: blockNameForDivider,
+            subjectName: uacLabelForTheme,
+            missions: blockMissions,
+            theme,
+            coverScene: blockCoverScene,
+          }),
+          new Paragraph({ spacing: { before: 0, after: 0 }, children: [new PageBreak()] }),
+        );
+      }
+    }
+
+    const missionPrimaryTopic = extractMissionPrimaryTopicForScene(mission);
     const missionScene = await resolveDocxEditorialScenePng({
       subjectName: uacLabelForTheme,
-      role: missionSceneRoles[i % missionSceneRoles.length] ?? 'mission_1',
-      blockIndex: workbook.blockIndex,
-      topicHint: `${mission.title || ''} ${mission.sessionTopic || ''} ${mission.sessionFocus || ''}`,
+      role: missionSceneRoles[missionPosWithinBlock % missionSceneRoles.length] ?? 'mission_1',
+      blockIndex: effectiveBlockIndex,
+      topicHint: missionPrimaryTopic,
       avoidSceneIds: previousMissionSceneId ? [previousMissionSceneId] : undefined,
-      tracker: sceneTracker,
+      tracker: activeBlockSceneTracker,
       widthPx: 1080,
       heightPx: 304,
     });
+    missionPosWithinBlock += 1;
     if (missionScene?.sceneId) {
       previousMissionSceneId = missionScene.sceneId;
     }
@@ -462,10 +568,12 @@ export async function renderWorkbookToDocx(
       workbook.subsystem,
       workbook.coverData?.subjectName,
       planning?.id,
-      workbook.blockIndex,
+      effectiveBlockIndex,
       usedOpenverseAssets,
       assignedAssetKeys,
-      workbook.blockName,
+      isConsolidatedSemestral
+        ? resolveConsolidatedBlockName(effectiveBlockIndex, mission)
+        : workbook.blockName,
       planning?.sequenceJson || (planning as unknown as { sequence_json?: Record<number, SecuenciaBloque> })?.sequence_json,
       theme,
       missionScene
@@ -902,7 +1010,10 @@ function buildCoverSection(
         spacing: { after: 20 },
         children: [
           new TextRun({
-            text: `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
+            text:
+              workbook.blockIndex === 99 || cover.blockNumber === 0
+                ? `Semestre: ${cover.semester}° Semestre | Compendio Semestral (Bloques I, II y III)`
+                : `Semestre: ${cover.semester}° Semestre | Bloque de Aprendizaje: ${cover.blockNumber}`,
             size: 19,
             color: C.darkText,
             font: 'Calibri',
@@ -987,6 +1098,201 @@ function buildCoverSection(
   );
 
   return coverElements;
+}
+
+/**
+ * Portadilla separadora de bloque formativo para el Compendio Semestral consolidado (blockIndex: 99).
+ * Proporciona identidad visual propia a cada bloque (Bloque I, II y III) con su portada editorial V2
+ * y el mapa de misiones que lo integran.
+ */
+function buildDocxBlockDividerSection(params: {
+  blockNumber: number;
+  blockName: string;
+  subjectName: string;
+  missions: MissionSection[];
+  theme: DocxDisciplinaryTheme;
+  coverScene?: DocxResolvedEditorialScene | null;
+}): (Paragraph | Table)[] {
+  const { blockNumber, blockName, subjectName, missions, theme: t, coverScene } = params;
+  const roman = blockNumber === 1 ? 'I' : blockNumber === 2 ? 'II' : blockNumber === 3 ? 'III' : String(blockNumber);
+  const cleanBlockName = normalizeEditorialText(stripMarkdown(stripWorkbookTags(blockName)));
+  const elements: (Paragraph | Table)[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 240, after: 60 },
+      children: [
+        new TextRun({
+          text: `${normalizeEditorialText(stripMarkdown(stripWorkbookTags(subjectName))).toUpperCase()} · MCCEMS PUEBLA`,
+          bold: true,
+          size: 18,
+          color: t.teal,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Table({
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              shading: { fill: t.primary, type: ShadingType.CLEAR },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 8, color: t.primary },
+                bottom: { style: BorderStyle.SINGLE, size: 24, color: t.accent },
+                left: { style: BorderStyle.SINGLE, size: 8, color: t.primary },
+                right: { style: BorderStyle.SINGLE, size: 8, color: t.primary },
+              },
+              margins: { top: 200, bottom: 200, left: 240, right: 240 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 0, after: 60 },
+                  children: [
+                    new TextRun({
+                      text: `BLOQUE FORMATIVO ${roman}`,
+                      bold: true,
+                      size: 36,
+                      color: C.white,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 0, after: 0 },
+                  children: [
+                    new TextRun({
+                      text: cleanBlockName,
+                      size: 22,
+                      color: 'F1F5F9',
+                      font: 'Calibri',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { after: 180 }, children: [] }),
+  ];
+
+  if (coverScene) {
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: CONTENT_W, type: WidthType.DXA },
+                shading: { fill: C.white, type: ShadingType.CLEAR },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 8, color: t.accent },
+                  bottom: { style: BorderStyle.SINGLE, size: 8, color: t.accent },
+                  left: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+                  right: { style: BorderStyle.SINGLE, size: 4, color: C.border },
+                },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 40 },
+                    children: [
+                      new ImageRun({
+                        data: coverScene.pngBuffer,
+                        transformation: { width: 520, height: 260 },
+                        type: 'png',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 0 },
+                    children: [
+                      new TextRun({
+                        text: `Portadilla Bloque ${roman} · ${coverScene.alt}`,
+                        italics: true,
+                        size: 15,
+                        color: C.mutedText,
+                        font: 'Calibri',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new Paragraph({ spacing: { after: 180 }, children: [] }),
+    );
+  }
+
+  if (missions.length > 0) {
+    const missionRows = missions.map((m, idx) => {
+      const cleanTitle = finalizeVisibleText(
+        sanitizeWorkbookTocTitle(m.title, m.sessionTopic),
+        { fallback: `Misión ${idx + 1}`, ensurePeriod: false },
+      );
+      return new Paragraph({
+        spacing: { before: 40, after: 60 },
+        children: [
+          new TextRun({
+            text: `Misión ${idx + 1}: `,
+            bold: true,
+            size: 19,
+            color: t.primary,
+            font: 'Calibri',
+          }),
+          new TextRun({
+            text: cleanTitle,
+            size: 19,
+            color: C.darkText,
+            font: 'Calibri',
+          }),
+        ],
+      });
+    });
+
+    elements.push(
+      new Table({
+        width: { size: CONTENT_W, type: WidthType.DXA },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: CONTENT_W, type: WidthType.DXA },
+                shading: { fill: t.tealBg, type: ShadingType.CLEAR },
+                borders: thinBorder(t.teal),
+                margins: { top: 140, bottom: 140, left: 220, right: 220 },
+                children: [
+                  new Paragraph({
+                    spacing: { before: 0, after: 80 },
+                    children: [
+                      new TextRun({
+                        text: `Ruta de Aprendizaje del Bloque ${roman}`,
+                        bold: true,
+                        size: 20,
+                        color: t.primary,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  ...missionRows,
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+  }
+
+  return elements;
 }
 
 /**
@@ -1127,7 +1433,12 @@ function buildDocxCreditsSection(
     ['Dirección de Área:', 'Dirección de Educación Media Superior'],
     ['Plataforma:', `Sistema Integral de Gestión Pedagógica y Docente Activa (${getRuntimePlatformName()})`],
     ['Plantel Educativo:', `${coverOpts.plantelNombre} (CCT: ${coverOpts.cct})`],
-    ['Unidad de Aprendizaje:', `${coverOpts.uacName} · Bloque ${coverOpts.blockIndex ?? 1}`],
+    [
+      'Unidad de Aprendizaje:',
+      coverOpts.blockIndex === 99
+        ? `${coverOpts.uacName} · Compendio Semestral (Bloques I–III)`
+        : `${coverOpts.uacName} · Bloque ${(coverOpts.blockIndex ?? 0) + 1}`,
+    ],
     ['Docente Titular:', coverOpts.docente || 'Academia Docente'],
     ['Ciclo Escolar:', coverOpts.cicloEscolar || SCHOOL_YEAR],
   ];

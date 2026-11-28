@@ -179,11 +179,13 @@ export function buildConsolidatedBook(
         pageEstimate: pageSpan,
       });
 
-      // Inyectar misión con índice correlativo global
+      // Inyectar misión con índice correlativo global y trazabilidad de su bloque original
       consolidatedMissions.push({
         ...m,
         missionIndex: currentGlobalIndex,
         title: `[Bloque ${romanBlock}] ${cleanInnerTitle}`,
+        sourceBlockIndex: typeof book.blockIndex === 'number' && book.blockIndex >= 0 && book.blockIndex < 10 ? book.blockIndex : bIdx,
+        sourceBlockName: book.blockName || `Bloque ${romanBlock}`,
       });
     });
   });

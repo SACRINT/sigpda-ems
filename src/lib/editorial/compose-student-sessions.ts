@@ -30,6 +30,7 @@ import { findGenericContent } from '@/lib/guide-engine/quality/no-generic-conten
 import { stripMaterialTokensDeep } from '@/lib/materials/material-tokens';
 import {
   allocateEditorialSceneOnDisk,
+  extractMissionPrimaryTopicForScene,
   missionIndexToSceneRole,
   type SceneFileExistsFn,
 } from '@/lib/visual-engine/scene-allocator';
@@ -346,9 +347,11 @@ export function composeStudentSessionsFromWorkbooks(
     const cleanMission = rawMission ? stripMaterialTokensDeep(rawMission) : undefined;
     const title = (cleanMission?.title || `Misión ${missionIndex}`).trim();
     const stageLabel = MISSION_STAGE_LABELS[range.missionPos % MISSION_STAGE_LABELS.length];
-    const missionTopicText = [title, cleanMission?.sessionTopic, cleanMission?.sessionFocus]
-      .filter(Boolean)
-      .join(' ');
+    const missionTopicText = extractMissionPrimaryTopicForScene({
+      title,
+      sessionTopic: cleanMission?.sessionTopic,
+      sessionFocus: cleanMission?.sessionFocus,
+    });
 
     const scene = options?.sceneFileExists
       ? allocateEditorialSceneOnDisk({

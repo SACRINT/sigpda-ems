@@ -12,7 +12,10 @@ import {
 } from '@/lib/editorial/topic-title-resolver';
 import { resolveSacrintPack, type SacrintPack } from '../discipline-packs';
 import { resolveSacrintStyle } from '../visual-styles';
-import { resolveSacrintDeckEditorialScenes } from '../../scene-allocator';
+import {
+  extractMissionPrimaryTopicForScene,
+  resolveSacrintDeckEditorialScenes,
+} from '../../scene-allocator';
 import {
   LessonGuideNoSessionsError,
   type SacrintBuildOptions,
@@ -1028,9 +1031,13 @@ export function buildSacrintDeck(workbook: ActiveWorkTextbook, options: SacrintB
 
   // Resolver escenas editoriales 16:9 con afinidad temática (ej. evitar protoboard en "Hoja de cálculo")
   // y anti-repetición consecutiva para TODOS los modos (incluido `lesson-guide` en `08_Presentaciones_*.pptx`).
-  // Priorizar título + sessionTopic de la misión (o la sesión seleccionada) para que sesiones secundarias
-  // no contaminen el tema principal de portada/concepto.
-  const primaryMissionTopic = [mission.title, mission.sessionTopic].filter(Boolean).join(' ').trim();
+  // Priorizar el tema primario limpio de la misión (evitando contaminación del proyecto PAEC en sessionTopic
+  // o de frases genéricas de fase didáctica) para coherencia semántica en portada y banda de concepto.
+  const primaryMissionTopic = extractMissionPrimaryTopicForScene({
+    title: mission.title,
+    sessionTopic: mission.sessionTopic,
+    sessionFocus: mission.sessionFocus,
+  });
   const missionTopicText =
     selectedSession && typeof options.sessionIndex === 'number'
       ? [primaryMissionTopic, selectedSession.objetivo, selectedSession.sintesisVisual?.conceptoBreve]
